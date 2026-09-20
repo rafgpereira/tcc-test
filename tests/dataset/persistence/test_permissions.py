@@ -95,6 +95,77 @@ def test_chown_to_host_is_a_noop_when_unset_or_not_root(monkeypatch, tmp_path):
     assert calls == []
 
 
+def test_chmod_is_skipped_when_the_mode_is_already_right(tmp_path, monkeypatch):
+    """No chmod means no EPERM for root without CAP_FOWNER on a directory of the host user."""
+    target = tmp_path / "x"
+    store.make_private_dir(target)
+
+    def refuse(path, mode):
+        raise PermissionError(1, "Operation not permitted")
+
+    monkeypatch.setattr(os, "chmod", refuse)
+    store.make_private_dir(target)  # must not call chmod
+    assert mode(target) == 0o700
+
+
+def test_chmod_falls_back_to_taking_ownership_when_root_lacks_fowner(tmp_path, monkeypatch):
+    """Regression: the sandbox service is root without CAP_FOWNER (found in the container run)."""
+    target = tmp_path / "x"
+    target.mkdir()
+    os.chmod(target, 0o755)
+    real_chmod, calls, chowns = os.chmod, [], []
+
+    def flaky_chmod(path, new_mode):
+        calls.append(new_mode)
+        if len(calls) == 1:
+            raise PermissionError(1, "Operation not permitted")
+        real_chmod(path, new_mode)
+
+    monkeypatch.setattr(os, "geteuid", lambda: 0)
+    monkeypatch.setattr(os, "chmod", flaky_chmod)
+    monkeypatch.setattr(os, "chown", lambda p, u, g: chowns.append((Path(p), u, g)))
+    store._set_mode(target, 0o700)
+
+    owner = target.stat()
+    assert calls == [0o700, 0o700], "the second chmod happens after taking ownership"
+    assert chowns[0] == (target, 0, owner.st_gid), "takes ownership as root first"
+    assert chowns[-1] == (target, owner.st_uid, owner.st_gid), "gives the directory back"
+    assert mode(target) == 0o700
+
+
+def test_a_non_root_chmod_failure_is_not_swallowed(tmp_path, monkeypatch):
+    target = tmp_path / "x"
+    target.mkdir()
+    os.chmod(target, 0o755)
+
+    def refuse(path, new_mode):
+        raise PermissionError(1, "Operation not permitted")
+
+    monkeypatch.setattr(os, "geteuid", lambda: 1000)
+    monkeypatch.setattr(os, "chmod", refuse)
+    with pytest.raises(PermissionError):
+        store._set_mode(target, 0o700)
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(os.geteuid() != 0, reason="needs root to own files as another uid")
+def test_a_work_dir_owned_by_the_host_user_can_be_reused_and_tightened(tmp_path, monkeypatch):
+    """Regression for the resume case: ensure_work_dir runs again on directories given to the host."""
+    monkeypatch.setenv("HOST_UID", "12345")
+    monkeypatch.setenv("HOST_GID", "12345")
+    work = store.ensure_work_dir(tmp_path)
+    assert work.stat().st_uid == 12345
+
+    store.ensure_work_dir(tmp_path)  # second call must not raise
+
+    os.chown(work, 0, 0)  # loosen it the way a manual `mkdir` on the host would have
+    os.chmod(work, 0o755)
+    os.chown(work, 12345, 12345)
+    store.ensure_work_dir(tmp_path)
+    assert mode(work) == 0o700
+    assert work.stat().st_uid == 12345, "ownership stays with the host user"
+
+
 @pytest.mark.integration
 @pytest.mark.skipif(os.geteuid() != 0, reason="needs root to switch to another uid")
 def test_a_child_with_a_dedicated_uid_cannot_touch_the_work_dir():

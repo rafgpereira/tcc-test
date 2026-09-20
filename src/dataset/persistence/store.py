@@ -7,6 +7,7 @@ directory, then ``os.replace``), so an interruption never leaves a truncated fil
 
 import json
 import os
+import stat
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -75,11 +76,36 @@ def chown_to_host(path: Path) -> None:
     os.chown(path, int(uid), int(gid))
 
 
+def _set_mode(path: Path, mode: int) -> None:
+    """``chmod`` that also works for root WITHOUT ``CAP_FOWNER`` on a directory of another owner.
+
+    The ``sandbox`` service is root but keeps only CHOWN, DAC_OVERRIDE, SETUID, SETGID and KILL.
+    ``DAC_OVERRIDE`` lets it read and write anywhere, but changing the mode of a file it does not
+    own needs ``CAP_FOWNER``. After ``chown_to_host`` the directories belong to the host user, so a
+    second call (for example when a run is resumed) would fail with EPERM. The mode is left alone
+    when it is already right; otherwise root takes ownership (``CAP_CHOWN``), changes the mode as
+    the owner and gives the directory back.
+    """
+    if stat.S_IMODE(path.stat().st_mode) == mode:
+        return
+    try:
+        os.chmod(path, mode)
+    except PermissionError:
+        if os.geteuid() != 0:
+            raise
+        before = path.stat()
+        os.chown(path, os.geteuid(), before.st_gid)
+        try:
+            os.chmod(path, mode)
+        finally:
+            os.chown(path, before.st_uid, before.st_gid)
+
+
 def make_private_dir(path: Path) -> Path:
     """Create a directory with mode 0700, tightening it if it exists (``umask`` cannot loosen it)."""
     path = Path(path)
     path.mkdir(parents=True, exist_ok=True)
-    os.chmod(path, 0o700)
+    _set_mode(path, 0o700)
     chown_to_host(path)
     return path
 

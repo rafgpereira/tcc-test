@@ -183,7 +183,14 @@ extração grava checkpoints por shard (abaixo).
   (tipicamente `0755`), que o filho de uid dedicado consegue **ler**. Decisão: `data/work/` é
   criado com `0700` (dono: usuário do host) por `ensure_work_dir`/`make_private_dir`, com
   `chmod` explícito (o `umask` não pode afrouxá-lo); o orquestrador (root com `DAC_OVERRIDE`) e o
-  serviço `app` (usuário do host) continuam acessando. Arquivos públicos (`data/dataset.zip`)
+  serviço `app` (usuário do host) continuam acessando. **Limitação medida no contêiner `sandbox`
+  (2026-09-20)**: como root **sem** `CAP_FOWNER`, ele lê e escreve em qualquer lugar
+  (`DAC_OVERRIDE`), mas não consegue mudar o modo (`chmod`) de um diretório que já pertence ao
+  usuário do host; na segunda chamada de `ensure_work_dir` (por exemplo, ao retomar uma execução)
+  isso dava `EPERM`. Solução sem capability nova: não mexer no modo quando ele já está certo e,
+  se precisar mudar, tomar posse com `CAP_CHOWN`, aplicar o modo e devolver o diretório. O mesmo
+  vale para qualquer operação que exija ser dono (por exemplo, `utime` com horário explícito): o
+  código não deve depender delas. Arquivos públicos (`data/dataset.zip`)
   ficam legíveis. Vale a mesma restrição para `.env` e `.git`, que não são montados no serviço
   `sandbox` (ver o override do compose no plano).
 

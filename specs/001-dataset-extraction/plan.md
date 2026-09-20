@@ -231,10 +231,14 @@ services:
       - ./README.md:/app/README.md
       - ./pyproject.toml:/app/pyproject.toml
       - ./.gitignore:/app/.gitignore:ro
+      - ./CLAUDE.md:/app/CLAUDE.md:ro
+      - ./.specify:/app/.specify:ro
   sandbox: *dev
 ```
 
-Montagens **explícitas**: `.env` e `.git` NÃO são montados. No serviço `sandbox` o código de
+Montagens **explícitas**: `.env` e `.git` NÃO são montados. `CLAUDE.md` e `.specify/` entram só
+para leitura, porque o `README.md` da raiz os cita e o `check_docs_sync.py` (checagem C3) falha em
+link quebrado (descoberto na rodada em contêiner de 2026-09-20). No serviço `sandbox` o código de
 terceiros roda no mesmo contêiner; com `.env` montado ele poderia ler o token e imprimi-lo, e a
 saída acabaria em `validacao.json`, que é versionado. Mudança de dependência (`uv.lock`) continua
 exigindo `docker compose build`. Os caches de `ruff`, `black` e `pytest` ficam fora do working

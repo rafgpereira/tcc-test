@@ -19,4 +19,6 @@ services:
       - ./README.md:/app/README.md
       - ./pyproject.toml:/app/pyproject.toml
       - ./.gitignore:/app/.gitignore:ro
+      - ./CLAUDE.md:/app/CLAUDE.md:ro
+      - ./.specify:/app/.specify:ro
   sandbox: *dev
