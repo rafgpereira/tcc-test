@@ -1,0 +1,132 @@
+{
+  "rows": [
+    {
+      "id": "D1",
+      "methodology_section": "1.1, 1.5",
+      "needles": [
+        "dataset_split_origem",
+        "generated_tests"
+      ],
+      "source": "spec.md#D1"
+    },
+    {
+      "id": "D2",
+      "methodology_section": "1.4",
+      "needles": [
+        "-Wl,--stack=268435456",
+        "resource.setrlimit(RLIMIT_STACK)"
+      ],
+      "source": "spec.md#D2"
+    },
+    {
+      "id": "D3",
+      "methodology_section": "1.5",
+      "needles": [
+        "extraction_timestamp"
+      ],
+      "source": "spec.md#D3"
+    },
+    {
+      "id": "D4",
+      "methodology_section": "1.4",
+      "needles": [
+        "exatamente 100 WAs"
+      ],
+      "source": "spec.md#D4"
+    },
+    {
+      "id": "D5",
+      "methodology_section": "1.4",
+      "needles": [
+        "menos de 30"
+      ],
+      "source": "spec.md#D5"
+    },
+    {
+      "id": "D6",
+      "methodology_section": "1.6",
+      "needles": [
+        "manifests/dataset.manifest.json"
+      ],
+      "source": "spec.md#D6"
+    },
+    {
+      "id": "D7",
+      "methodology_section": "1.4",
+      "needles": [
+        "src/sandbox/"
+      ],
+      "source": "spec.md#D7"
+    },
+    {
+      "id": "D8",
+      "methodology_section": "1.4, 1.5",
+      "needles": [
+        "triagem manual"
+      ],
+      "source": "spec.md#D8"
+    },
+    {
+      "id": "D9",
+      "methodology_section": "1.2",
+      "needles": [
+        "Sem E/S por arquivo"
+      ],
+      "source": "spec.md#D9"
+    },
+    {
+      "id": "D10",
+      "methodology_section": "1.1, 1.2",
+      "needles": [
+        "13.610",
+        "13.328",
+        "1.279"
+      ],
+      "source": "spec.md#D10"
+    },
+    {
+      "id": "D11",
+      "methodology_section": "1.4",
+      "needles": [
+        "SEED = 42"
+      ],
+      "source": "spec.md#D11"
+    },
+    {
+      "id": "D12",
+      "methodology_section": "1.1, 1.6, 1.7",
+      "needles": [
+        "802411c3010cb00d1b05bad57ca77365a3c699d6",
+        "CC-BY-4.0",
+        "extraction_report.json",
+        "mediana 200"
+      ],
+      "source": "spec.md#D12"
+    },
+    {
+      "id": "D13",
+      "methodology_section": "1.4",
+      "needles": [
+        "operacionais do motor"
+      ],
+      "source": "spec.md#D13"
+    },
+    {
+      "id": "D14",
+      "methodology_section": "8",
+      "needles": [
+        "Histórico de atualizações"
+      ],
+      "source": "spec.md#D14"
+    },
+    {
+      "id": "D15",
+      "methodology_section": "1.4, 1.7",
+      "needles": [
+        "criado com permissão `0700`"
+      ],
+      "source": "spec.md#D15"
+    }
+  ],
+  "schema_version": 1
+}

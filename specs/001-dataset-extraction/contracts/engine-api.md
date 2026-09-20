@@ -19,6 +19,7 @@ definidos em `sandbox/types.py`.
 | `CompileResult` | `ok: bool`, `binary: Path \| None`, `standard_used: str \| None`, `attempts: list[CompileAttempt]` | `attempts` guarda o diagnóstico de cada padrão tentado. |
 | `RunResult` | `status: RunStatus`, `exit_code: int \| None`, `signal: int \| None`, `stdout: bytes`, `stderr_tail: bytes`, `cpu_time_s: float`, `wall_time_s: float`, `peak_rss_bytes: int` | `RunStatus`: `OK`, `TIMEOUT`, `SIGNALED`, `NONZERO_EXIT`, `OUTPUT_LIMIT`. |
 | `Verdict` | enum `AC, WA, TLE, MLE, RE, CE` | Ver [data-model.md](../data-model.md) §1.4. |
+| `Test` | `input: str`, `output: str` | Um teste oficial (entrada por `stdin` e saída esperada). |
 | `TestVerdict` | `verdict`, `run: RunResult`, `expected`, `actual` | Resultado de um teste. |
 | `SuiteVerdict` | `verdict`, `standard_used`, `deciding_index: int \| None`, `tests_run: int`, `max_cpu_time_s`, `max_memory_bytes`, `first_failure: TestVerdict \| None` | Resultado de um programa sobre uma suíte ordenada. |
 
@@ -36,13 +37,15 @@ lançador. **Nunca** vira `TLE/MLE/RE`.
 | `outputs_equal(expected: str, actual: str) -> bool` | Iguais após ignorar espaços em branco no fim de cada linha e linhas vazias/espaços no fim do arquivo (única regra de comparação do projeto). |
 | `run_suite(binary, tests: Sequence[Test], limits, slot) -> SuiteVerdict` | Executa os testes na ordem dada; o **primeiro** teste que não terminar em `AC` decide o veredito (FR-012) e interrompe a suíte (curto-circuito). Todos `AC` ⇒ `AC`. |
 | `judge_source(source, tests, limits, slot, workdir) -> SuiteVerdict` | Atalho: `compile_cpp` + `run_suite`; erro de compilação ⇒ `CE`. |
-| `stack_limit_bytes_to_kib(n: int) -> int` | Conversão explícita bytes → KiB, com verificação de múltiplo de 1024. `stack_limit_bytes_to_kib(268435456) == 262144`. |
+| `stack_limit_bytes_to_kib(n: int) -> int` | Conversão explícita bytes → KiB, com verificação de múltiplo de 1024. `stack_limit_bytes_to_kib(268435456) == 262144`. `kib_to_stack_limit_bytes` é a inversa. |
+| `apply_stack_limit(n: int = STACK_LIMIT_BYTES) -> None` | Aplica `RLIMIT_STACK` com `setrlimit`, em **bytes**, com `soft == hard`. Rejeita (`ValueError`) valores abaixo de 1 MiB, que quase certamente são KiB passados no lugar de bytes; a mesma validação vale para `ExecutionLimits.stack_limit_bytes`. |
+| `cpu_reserve_seconds(limit)` e `wall_reserve_seconds(limit)` | Folgas do motor, não limites do problema: `ceil(limit) + 1` s de CPU no kernel e `limit * 3 + 1` s de relógio, só para matar programas bloqueados. |
 | `selfcheck() -> SelfCheckReport` | Executa a suíte de programas de veredito conhecido embarcada em `sandbox/selfcheck/` (FR-010a). |
 
 ## Garantias (cobertas por testes, Princípio VI)
 
 1. **Unidades do limite de pilha**: `STACK_LIMIT_BYTES == 268_435_456`; `setrlimit` recebe
-   **bytes**; o equivalente do shell `ulimit -s` é **262 144 KiB**; a conversão é uma função
+   **bytes** (valores abaixo de 1 MiB são rejeitados, para não aplicar 256 KiB no lugar de 256 MiB); o equivalente do shell `ulimit -s` é **262 144 KiB**; a conversão é uma função
    única testada nos dois sentidos, e um teste de integração lê o limite efetivo do processo
    filho em `/proc/self/limits` e roda uma recursão de ~150 MB que deve passar.
 2. Nenhum limite de tempo ou memória de problema tem valor padrão ou constante no código.

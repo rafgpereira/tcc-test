@@ -1,0 +1,26 @@
+services:
+  app:                       # extraction, packaging, verification (has network)
+    build: .
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    env_file: [{ path: .env, required: false }]   # long form must be a list; .env is optional
+    environment: { HF_HOME: /tmp/hf }     # read-only root: Hugging Face cache on the tmpfs
+    volumes: ["./data:/app/data", "./manifests:/app/manifests"]
+    tmpfs: ["/tmp:size=2g"]
+
+  sandbox:                   # runs third-party code: NO network
+    build: .
+    user: "0:0"              # only needed to drop privileges per execution (setuid)
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, SETUID, SETGID, KILL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 2048
+    environment: { HOST_UID: "${HOST_UID:-1000}", HOST_GID: "${HOST_GID:-1000}" }
+    volumes: ["./data:/app/data", "./manifests:/app/manifests"]
+    # The exec option is mandatory: Docker mounts tmpfs as noexec by default, which would
+    # prevent running the compiled binary.
+    tmpfs: ["/sandbox:exec,mode=0755,size=2g", "/tmp:size=512m"]

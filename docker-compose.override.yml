@@ -1,0 +1,22 @@
+# Development override, loaded automatically by `docker compose`.
+# Mounts the working tree so tests, black and ruff act on it without rebuilding the image.
+#
+# Explicit mounts only: .env and .git are NOT mounted. In the `sandbox` service third-party
+# code runs in the same container, and with .env mounted it could read the token and print it
+# into validacao.json, which is versioned. A dependency change (uv.lock) still needs
+# `docker compose build`.
+services:
+  app: &dev
+    environment:
+      RUFF_CACHE_DIR: /tmp/.ruff_cache
+      BLACK_CACHE_DIR: /tmp/.black_cache
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./scripts:/app/scripts
+      - ./docs:/app/docs
+      - ./specs:/app/specs
+      - ./README.md:/app/README.md
+      - ./pyproject.toml:/app/pyproject.toml
+      - ./.gitignore:/app/.gitignore:ro
+  sandbox: *dev

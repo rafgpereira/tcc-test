@@ -1,0 +1,5 @@
+.env
+data/
+.git
+.claude/
+__pycache__/

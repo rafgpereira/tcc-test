@@ -1,0 +1,14 @@
+# Experiment data is never versioned as loose files (Constitution, Principle II).
+# The only exception is the packaged dataset.
+data/*
+!data/dataset.zip
+
+# Secrets: only .env.example is versioned.
+.env
+
+# Python and tool caches
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/

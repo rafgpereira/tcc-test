@@ -1,0 +1,29 @@
+[project]
+name = "tcc-testgen-pipeline"
+version = "0.1.0"
+description = "Experimental pipeline that evaluates LLM/SLM unit-test generation for C++ (TCC, UnB)."
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "datasets==5.0.1",
+    "pydantic>=2,<3",
+]
+
+[dependency-groups]
+dev = ["pytest", "ruff", "black"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+# importlib mode avoids basename collisions between tests/dataset and tests/sandbox;
+# no cache provider keeps root-owned .pytest_cache out of the mounted working tree.
+addopts = "--import-mode=importlib -p no:cacheprovider"
+markers = ["integration: compila e executa C++ (serviço sandbox)"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.black]
+line-length = 100

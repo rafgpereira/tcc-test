@@ -122,7 +122,10 @@ extração grava checkpoints por shard (abaixo).
   `stack_limit_bytes_to_kib()` para o equivalente do shell (`262144`), usada em
   documentação, relatórios e testes. Teste unitário nos dois sentidos e teste de integração que
   lê `Max stack size` de `/proc/self/limits` no filho e roda uma recursão de ~150 MB. Limite
-  `soft = hard` para o filho não poder aumentá-lo.
+  `soft = hard` para o filho não poder aumentá-lo. Como defesa em profundidade, valores abaixo de
+  1 MiB são rejeitados (`ValueError`) em `apply_stack_limit` e em `ExecutionLimits`: um número
+  como `262144` quase certamente é KiB passado no lugar de bytes (implementado e testado em
+  2026-09-20).
 - **Alternativa**: `sh -c 'ulimit -s 262144; exec prog'` (literal ao pedido, mas adiciona um
   shell por execução e outra camada de parsing; o efeito é o mesmo).
 

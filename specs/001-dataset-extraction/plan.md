@@ -188,7 +188,7 @@ services:
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
-    env_file: { path: .env, required: false }
+    env_file: [{ path: .env, required: false }]   # forma longa exige lista (validado com `docker compose config`)
     environment: { HF_HOME: /tmp/hf }     # raiz somente leitura: cache do Hugging Face no tmpfs
     volumes: ["./data:/app/data", "./manifests:/app/manifests"]
     tmpfs: ["/tmp:size=2g"]

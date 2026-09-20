@@ -19,6 +19,10 @@ Ambos montam `./data` em `/app/data` (leitura e escrita).
 
 ## Comandos
 
+A linha de uso de `python -m dataset --help` lista os subcomandos no grupo `{a,b,c}` (formato do
+`argparse`); `scripts/check_docs_sync.py` (checagem C2) depende disso para comparar a CLI com os
+READMEs, então esse formato não deve mudar sem ajustar o script.
+
 Códigos de saída comuns: `0` sucesso; `1` falha de verificação/validação de dados (ex.:
 integridade divergente, AC em triagem); `2` uso incorreto; `3` falha de infraestrutura (rede,
 disco, ambiente isolado); `130` interrompido (a retomada é segura).
