@@ -89,7 +89,7 @@ construir a imagem e para a extração do dataset.
 | Etapa | O que fazer | Estado |
 |---|---|---|
 | 0. Obter o projeto | `git clone <url do repositório>` e `cd tcc-testgen-pipeline` | disponível |
-| 1. Construir o ambiente | `docker compose build` (imagem `gcc:13.2.0` + Python 3.11 via `uv`) | planejado (feature 001) |
+| 1. Construir o ambiente | `cp .env.example .env` (ajuste `HOST_UID` e `HOST_GID` com a saída de `id -u` e `id -g`) e depois `docker compose build` (imagem `gcc:13.2.0` + Python 3.11 via `uv`) | planejado (feature 001) |
 | 2. Obter o dataset | **sem rodar a extração**: `unzip data/dataset.zip -d data/` e depois `docker compose run --rm app python scripts/verify_dataset.py --extracted data/dataset` | planejado (o zip só existe depois da feature 001) |
 | 2b. Ou regerar o dataset do zero | `extract`, `validate`, `audit`, `package` do módulo `dataset`; comandos e opções em [`specs/001-dataset-extraction/contracts/cli.md`](specs/001-dataset-extraction/contracts/cli.md); roteiro de aceite em [`quickstart.md`](specs/001-dataset-extraction/quickstart.md) | planejado (feature 001) |
 | 3. Gerar mutantes | — | não especificado |
@@ -144,3 +144,5 @@ Ciclo de cada módulo (spec-kit): `specify → clarify → plan → tasks → im
 Toda informação nova (dado medido, divergência, decisão) MUST ser propagada, no mesmo ciclo de
 trabalho, para os artefatos da feature **e** para a metodologia; todo código gerado com apoio de
 IA é revisado por um dos autores antes de ir para a branch principal. Detalhes na constitution.
+A conformidade da documentação é verificada por
+`docker compose run --rm app python scripts/check_docs_sync.py` (Princípio XI).

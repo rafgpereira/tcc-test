@@ -15,8 +15,13 @@
 3. **Sem ler o código**: uma pessoa que nunca viu o código MUST conseguir executar o módulo
    e entender o que entra e o que sai só com o README.
 4. **Comandos exatos**: todo comando MUST ser copiável e funcionar como escrito, no ambiente
-   containerizado do projeto (`docker compose run --rm <serviço> ...`). Antes de considerar o
-   README pronto, execute cada comando.
+   containerizado do projeto (`docker compose run --rm <serviço> ...`). Cada comando MUST
+   constar na tabela "Comandos verificados" (última seção do README) com a data, a revisão git e
+   a tarefa que o executou de verdade; a linha nasce `pendente` e só é carimbada quando o
+   comando é executado. A revisão é a saída de `git rev-parse --short=7 HEAD` no host, obtida
+   depois de commitar o código e antes de rodar o comando, com o sufixo `+dirty` se `src/`,
+   `scripts/`, `pyproject.toml`, `uv.lock`, `Dockerfile` ou os arquivos do compose tiverem
+   alterações não commitadas; o fechamento da feature rejeita `+dirty`.
 5. **Idioma**: português, espelhando o TCC (Constitution, Convenções Técnicas). Nomes de
    comandos, arquivos, campos e código ficam como no código, em inglês.
 6. **Sincronização**: o README é atualizado no mesmo ciclo de trabalho em que o módulo muda
@@ -24,9 +29,15 @@
    MUST ser resolvida nos dois documentos.
 7. **Status**: enquanto o módulo não estiver implementado, o README MUST declarar isso no
    cabeçalho e MUST NOT descrever comandos como se existissem. O README completo é exigido para
-   a feature ser considerada concluída.
+   a feature ser considerada concluída. Um README com `Status: implementado` MUST NOT ter linha
+   `pendente` na tabela de comandos verificados.
 8. **Referências, sem duplicar**: aponte para o contrato da feature (`specs/NNN-.../contracts/`)
    e para a seção da metodologia; não copie schemas nem regras longas, resuma e linke.
+9. **Verificação automática**: `docker compose run --rm app python scripts/check_docs_sync.py
+   --module src/<modulo>` confere as seções (a) a (f) na ordem, o propósito em uma frase, os
+   comandos contra a CLI (todo subcomando citado deve existir; no README do módulo dono da CLI,
+   `src/dataset`, todo subcomando também deve estar documentado) e os links. A lista de
+   conformidade abaixo cobre só o que o script não decide.
 
 ## Esqueleto
 
@@ -82,6 +93,12 @@ docker compose run --rm <serviço> <comando exato>
 
 - Contratos: `specs/NNN-nome/contracts/...`
 - Testes: `tests/<modulo>/` (`docker compose run --rm sandbox pytest tests/<modulo>`)
+
+## Comandos verificados
+
+| Comando | Verificado em | Revisão | Tarefa |
+|---|---|---|---|
+| `<subcomando>` | pendente | — | — |
 ````
 
 ## Lista de conformidade (usada na revisão, Princípio X)
@@ -91,7 +108,8 @@ Um README de módulo só está em conformidade se **todas** as respostas forem "
 - [ ] O arquivo existe em `src/<modulo>/README.md`?
 - [ ] Tem as seis seções (a) a (f), com os títulos e a ordem deste template?
 - [ ] O propósito cabe em **uma** frase?
-- [ ] Cada comando de (b) foi executado como está escrito e funcionou?
+- [ ] Cada comando de (b) consta na tabela "Comandos verificados", com data, revisão e tarefa (sem `pendente` se o módulo está implementado)?
+- [ ] `check_docs_sync.py --module src/<modulo>` sai com `0`?
 - [ ] (c) e (d) dizem formato **e** origem/destino de cada item?
 - [ ] (e) lista versões e o serviço do Compose?
 - [ ] (f) traz limitações reais (ou "Nenhuma" com justificativa)?

@@ -1,45 +1,3 @@
-<!--
-SYNC IMPACT REPORT (scratch material for human review — remove before committing)
-
-Version change: 1.1.0 → 1.2.0
-Bump rationale: MINOR. A new principle (XI) was added and existing sections (Convenções
-Técnicas, Fluxo de Desenvolvimento, Governance) were materially expanded. No principle was
-removed or redefined, so this is not MAJOR.
-
-Modified principles: none renamed or redefined (I–X unchanged).
-
-Added principles:
-- XI. Documentação Viva, Sincronizada e Padronizada (three obligations: propagation of new
-  information to all affected documents; standardized per-module usage docs with six fields;
-  a root overview document). Completion gate in the spirit of Principle VI.
-
-Other edits:
-- Convenções Técnicas: new "Documentação" bullet (template in docs/template-modulo.md, module
-  README at src/<modulo>/README.md, overview at README.md, methodology reference).
-- Fluxo de Desenvolvimento: a feature is not "implemented" without Principle XI documentation;
-  tasks.md MUST include the documentation tasks.
-- Governance: compliance review now also checks documentation propagation (Principle XI);
-  amendment history records 1.2.0 with date and justification.
-
-Added sections: none. Removed sections: none.
-
-Editorial notes (wording adjusted from the supplied text; intent unchanged):
-- "NÃO MUST ser considerada concluída" was rewritten as "MUST NOT ser considerada concluída"
-  (RFC 2119 form).
-- "os artefatos do spec-kit da feature (spec.md, plan.md)" now reads "(spec.md, plan.md e os
-  demais artefatos que a informação afetar)", since data-model, contracts and quickstart also
-  carry facts.
-- "README próprio do módulo, docstrings e/ou --help da CLI, no mínimo" was made testable: the
-  README at src/<modulo>/README.md is the mandatory minimum; docstrings and --help complement it
-  and MUST NOT contradict it. Loosen if "e/ou" was meant literally.
-- The principle number (XI) and the concrete paths (docs/template-modulo.md, README.md,
-  src/<modulo>/README.md) were fixed here so compliance can be checked.
-
-Follow-up TODOs: none in this file. Related work done in the same change (outside this file):
-retroactive audit and correction of docs/metodologia-referencia.md and the feature 001 artifacts,
-docs/template-modulo.md, root README.md.
--->
-
 # Geração de Casos de Teste com Modelos de Linguagem (TCC) Constitution
 
 ## Contexto do Projeto
@@ -204,8 +162,9 @@ que a metodologia documentada diz divergem sem que ninguém perceba.
   português, espelhando o TCC.
 - **C++ (sandbox)**: compilado via GCC 13.2+, com as flags e a cascata de
   fallback de padrão (gnu++20 → 17 → 14 → 11) descritas na metodologia.
-- **Segredos**: chaves de API NUNCA são commitadas; uso de `.env` +
-  `python-dotenv`, com `.env.example` versionado.
+- **Segredos**: chaves de API NUNCA são commitadas; ficam em `.env` (fora do
+  Git e fora da imagem Docker), injetado no contêiner pelo `env_file` do
+  compose ou carregado com `python-dotenv`, com `.env.example` versionado.
 - **Dados**: a pasta de dados brutos (`data/`) MUST estar em `.gitignore`,
   com a única exceção de `data/dataset.zip` (Princípio II). Toda
   geração/regeneração de dataset ou de mutantes MUST produzir (ou atualizar)
@@ -249,6 +208,14 @@ Este documento tem precedência sobre decisões pontuais de implementação.
   (Princípio XI). Qualquer violação intencional MUST ser justificada por
   escrito na feature correspondente.
 - **Histórico de emendas**:
+  - 1.2.1 (2026-09-19) — Convenções Técnicas, "Segredos": a convenção deixa de
+    exigir literalmente `python-dotenv` e passa a admitir `.env` injetado por
+    `env_file` do compose ou carregado com `python-dotenv`. Justificativa: como
+    todo o pipeline roda em contêiner, o `env_file` cumpre o mesmo objetivo (chaves
+    nunca commitadas nem dentro da imagem, `.env.example` versionado) sem
+    dependência extra, e o mesmo desvio se repetiria em cada feature que usa
+    segredos (a primeira será `ai_clients`); resolvê-lo uma vez na convenção evita
+    justificativas repetidas por feature. Nenhum princípio foi alterado.
   - 1.2.0 (2026-09-19) — Novo Princípio XI (Documentação Viva, Sincronizada e
     Padronizada): propagação de toda informação nova para todos os documentos
     afetados no mesmo ciclo de trabalho, com `docs/metodologia-referencia.md`
@@ -274,4 +241,4 @@ Este documento tem precedência sobre decisões pontuais de implementação.
     ajustada para admitir essa exceção.
   - 1.0.0 (2026-09-18) — Ratificação inicial.
 
-**Version**: 1.2.0 | **Ratified**: 2026-09-18 | **Last Amended**: 2026-09-19
+**Version**: 1.2.1 | **Ratified**: 2026-09-18 | **Last Amended**: 2026-09-19

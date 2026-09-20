@@ -18,14 +18,18 @@ aceite. Nenhum comando executa código C++ de terceiros no host: tudo roda no co
 ## Nível 0 — Ambiente reprodutível
 
 ```bash
+cp .env.example .env    # ajuste HOST_UID e HOST_GID (saída de `id -u` e `id -g`)
 docker compose build
 docker compose run --rm sandbox g++ --version      # esperado: g++ (GCC) 13.2.0
 docker compose run --rm sandbox python --version   # esperado: Python 3.11.16
 docker compose run --rm app ruff check . && docker compose run --rm app black --check .
 ```
 
-Esperado: imagem constrói a partir do `uv.lock` sem resolver dependências novas; versões
-idênticas às fixadas; lint e formatação limpos.
+Esperado: imagem constrói a partir do `uv.lock` sem resolver dependências novas, também em um
+clone limpo; versões idênticas às fixadas; lint e formatação limpos. Laço de desenvolvimento:
+editar um arquivo no host e rodar `docker compose run --rm sandbox pytest` enxerga a edição sem
+rebuild (`docker-compose.override.yml`), e `black`/`ruff --fix` alteram o working tree, com os
+arquivos pertencendo ao usuário do host.
 
 ## Nível 1 — Suíte de testes do módulo (sem rede, sem dataset)
 
@@ -36,8 +40,9 @@ docker compose run --rm sandbox pytest
 Esperado: todos os testes passam, incluindo (Princípio VI) conversão bytes→KiB do limite de
 pilha; macrocategoria pela regra de prioridade (cinco exemplos da metodologia); AC divergente
 registrado em `validacao.json` e problema interrompido; retomada sem duplicar; manifesto que
-bate após regenerar o zip; verificação que falha ao alterar, remover ou acrescentar arquivo.
-Cobre US1, US2 (motor), US3 (validação), US4 (retomada), US5 (integridade) sobre fixtures
+bate após regenerar o zip; verificação que falha ao alterar, remover ou acrescentar arquivo;
+`data/work/` com permissão `0700` e código de terceiros sem acesso a ele; e o script de
+conformidade da documentação (`tests/docs`). Cobre US1, US2 (motor), US3 (validação), US4 (retomada), US5 (integridade) sobre fixtures
 pequenas.
 
 ## Nível 2 — Motor contra programas de veredito conhecido (FR-010a, SC-013)
@@ -96,7 +101,7 @@ docker compose run --rm app     python -m dataset package
 docker compose run --rm app     python scripts/verify_dataset.py
 ```
 
-Esperado (SC-001 a SC-015): 200 problemas `complete` (ou déficit exato no relatório); auditoria
+Esperado (SC-001 a SC-015; o SC-016 é coberto no Nível 7): 200 problemas `complete` (ou déficit exato no relatório); auditoria
 sem divergência; `data/dataset.zip` e `manifests/dataset.manifest.json` gerados; verificação
 com `OK`. Reempacotar o mesmo conjunto produz o mesmo hash de zip (SC-008).
 
@@ -123,16 +128,22 @@ acrescente um arquivo): a verificação termina com `FAIL` e aponta o arquivo em
 
 ## Nível 7 — Documentação (Constitution, Princípio XI; FR-031, FR-032, SC-016)
 
-Sem código nem contêiner; é a revisão que fecha a feature:
+É a revisão que fecha a feature, agora com gate executável:
 
-1. `src/dataset/README.md` e `src/sandbox/README.md` existem e cumprem a lista de conformidade
-   de [`docs/template-modulo.md`](../../docs/template-modulo.md) (seis campos; cada comando foi
-   executado como escrito; `--help` e docstrings coerentes).
-2. O `README.md` da raiz descreve os dois módulos, como se conectam e os comandos exatos para
-   obter (`unzip` + verificação) ou regerar o dataset, e marca essas etapas como disponíveis.
-3. Todo número medido e toda decisão da spec e do plano aparecem em
-   [`docs/metodologia-referencia.md`](../../docs/metodologia-referencia.md), com linha nova no
-   histórico (seção 8).
+```bash
+docker compose run --rm app python scripts/check_docs_sync.py --closing \
+  --module src/dataset --module src/sandbox      # esperado: saída 0
+```
+
+O script confere (C1 a C6): os READMEs de `src/dataset/` e `src/sandbox/` têm as seis seções na
+ordem de [`docs/template-modulo.md`](../../docs/template-modulo.md) e o propósito em uma frase;
+todo comando documentado existe na CLI e consta verificado (data, revisão, tarefa), sem linha
+`pendente`; os links resolvem; o `README.md` da raiz descreve os dois módulos e a frase "Estado
+atual" concorda com os READMEs existentes; toda decisão D# da spec tem linha em
+`specs/001-dataset-extraction/sync-matrix.json` (criado no T021) e seus termos aparecem em
+[`docs/metodologia-referencia.md`](../../docs/metodologia-referencia.md); nenhuma `[PROPOSTA]` ativa
+resta. Depois, os itens da lista de conformidade do template que o script não decide (propósito
+que realmente descreve o módulo, limitações reais, `--help` e docstrings coerentes).
 
 ## Critérios de saída da validação
 

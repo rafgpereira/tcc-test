@@ -175,6 +175,14 @@ extração grava checkpoints por shard (abaixo).
 - **Efeito colateral e mitigação**: arquivos criados como root em um volume de bind ficariam
   com dono `root` no host. O gravador atômico aplica `chown` para `HOST_UID:HOST_GID`
   (variáveis passadas pelo Compose) usando a capability `CHOWN`.
+- **Refinamento (2026-09-19, spec D15)**: a verificação acima usou um diretório `0700` criado
+  dentro do contêiner. No compose real, o `./data` montado herda a permissão do host
+  (tipicamente `0755`), que o filho de uid dedicado consegue **ler**. Decisão: `data/work/` é
+  criado com `0700` (dono: usuário do host) por `ensure_work_dir`/`make_private_dir`, com
+  `chmod` explícito (o `umask` não pode afrouxá-lo); o orquestrador (root com `DAC_OVERRIDE`) e o
+  serviço `app` (usuário do host) continuam acessando. Arquivos públicos (`data/dataset.zip`)
+  ficam legíveis. Vale a mesma restrição para `.env` e `.git`, que não são montados no serviço
+  `sandbox` (ver o override do compose no plano).
 
 ## R9 — Regra de comparação de saída e veredito
 

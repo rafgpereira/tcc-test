@@ -312,7 +312,9 @@ apontando o arquivo divergente.
 - **FR-009**: O sistema MUST executar todo código de terceiros em ambiente isolado, com
   limite de tempo igual a `seconds + nanos/1e9` e limite de memória igual a
   `memory_limit_bytes` do próprio problema, nunca valores fixos, e sem privilégios além do
-  estritamente necessário para compilar e executar (Constitution, Princípio V).
+  estritamente necessário para compilar e executar (Constitution, Princípio V). O diretório de
+  trabalho de dados (`data/work/`) MUST ter permissão de acesso apenas do seu dono (`0700`), de
+  modo que o código de terceiros não o liste, leia nem escreva (ver Divergências, D15).
 - **FR-009a**: O ambiente isolado MUST aplicar, em tempo de execução, um limite de pilha de
   268435456 bytes (256 MiB) a todo código executado, reproduzindo o efeito da opção de linker
   omitida em FR-008; o limite de memória do problema continua valendo sobre o consumo total,
@@ -456,10 +458,12 @@ apontando o arquivo divergente.
   cada um um `README.md` no formato de `docs/template-modulo.md`, com os seis campos
   (propósito em uma frase, como executar com comando exato, entradas, saídas, dependências e
   limitações), acessível sem ler o código. Cada comando documentado MUST ter sido executado
-  como escrito, e a ajuda (`--help`) da CLI e as docstrings MUST NOT contradizer o README.
+  como escrito e constar, com data, revisão e tarefa, na tabela "Comandos verificados" do
+  README, e a ajuda (`--help`) da CLI e as docstrings MUST NOT contradizer o README.
 - **FR-032**: A feature MUST NOT ser considerada concluída enquanto: (a)
-  `docs/metodologia-referencia.md` não refletir todo dado medido e toda decisão desta spec e do
-  plano, com o histórico de atualizações datado; (b) o `README.md` da raiz (visão geral) não
+  `scripts/check_docs_sync.py --closing` não terminar com código 0 (a metodologia deve refletir
+  toda decisão desta spec, conforme `sync-matrix.json`, com o histórico de atualizações
+  datado); (b) o `README.md` da raiz (visão geral) não
   descrever os módulos `dataset` e `sandbox`, como se conectam e os comandos exatos para obter
   ou regerar o dataset.
 
@@ -508,8 +512,9 @@ apontando o arquivo divergente.
 ### Measurable Outcomes
 
 - **SC-001**: Ao final de uma execução bem-sucedida, o dataset contém 200 problemas
-  completos, e 100% deles possuem exatamente 100 falhas validadas e todos os cinco tipos de
-  arquivo exigidos; caso a meta seja inatingível, o relatório informa o déficit exato e o
+  completos, e 100% deles possuem exatamente 100 falhas validadas e todos os seis tipos de
+  arquivo exigidos (`enunciado.md`, `AC_ref.cpp`, `WA_1.cpp` a `WA_100.cpp`, `testes.json`,
+  `metadata.json`, `validacao.json`); caso a meta seja inatingível, o relatório informa o déficit exato e o
   motivo.
 - **SC-002**: Em uma auditoria por reexecução isolada de todas as falhas persistidas, 100%
   delas produzem saída divergente do gabarito dentro dos limites do problema, e 0% se
@@ -527,11 +532,14 @@ apontando o arquivo divergente.
   processamento daquele problema é interrompido imediatamente e `validacao.json` contém
   identificador, motivo e saída divergente (ou diagnóstico do motor); 0 problemas com falha
   de AC constam como completos na amostra ou no pacote, e nenhum é descartado sem registro.
-- **SC-016**: Ao concluir a feature, os READMEs de `src/dataset/` e `src/sandbox/` atendem a
-  100% da lista de conformidade de `docs/template-modulo.md`; a checagem de sincronização não
-  encontra nenhum número medido nem decisão da spec ou do plano ausente de
-  `docs/metodologia-referencia.md`; o README da raiz descreve os dois módulos com comandos
-  exatos, já executados.
+- **SC-016**: Ao concluir a feature, `docker compose run --rm app python
+  scripts/check_docs_sync.py --closing` (checagens C1 a C6, sobre `src/dataset/` e
+  `src/sandbox/`) termina com código 0: os READMEs têm os seis campos na ordem do template e o
+  propósito em uma frase; todo comando documentado existe na CLI e consta verificado (data,
+  revisão, tarefa); os links resolvem; o README da raiz e o estado dos módulos concordam; toda
+  decisão D# da spec tem linha em `sync-matrix.json` e seus termos aparecem em
+  `docs/metodologia-referencia.md`; nenhuma `[PROPOSTA]` ativa resta (as já resolvidas e riscadas
+  não contam).
 - **SC-004**: Uma auditoria da amostra final encontra 0 problemas que violem qualquer
   critério de elegibilidade.
 - **SC-005**: 100% dos problemas da amostra têm exatamente uma macrocategoria, e os cinco
@@ -600,7 +608,8 @@ apontando o arquivo divergente.
 
 Decisões D1–D5 revisadas e confirmadas pelos autores em 2026-09-18; D6–D8 registradas em
 2026-09-18; D9–D11 confirmadas na revisão do plano em 2026-09-19; D12–D14 registradas na auditoria
-retroativa de 2026-09-19 (Princípio XI).
+retroativa de 2026-09-19 (Princípio XI); D15 registrada na revisão da análise de consistência,
+também em 2026-09-19.
 
 - **D1 — Propostas da metodologia adotadas (confirmado)**: a seção 6 da metodologia lista
   três itens como "PROPOSTA — aguardando confirmação"; os autores confirmaram os três como
@@ -709,3 +718,12 @@ retroativa de 2026-09-19 (Princípio XI).
   README da raiz atualizado (FR-031, FR-032, SC-016). Nenhum módulo estava implementado nem
   tinha README quando o princípio foi adotado, então não houve README existente a ajustar; os
   dois READMEs desta feature são tarefas obrigatórias do `tasks.md`.
+- **D15 — Diretório de trabalho de dados privado, `0700` (2026-09-19)**: a premissa documentada
+  é que o código de terceiros não acessa os dados do projeto. Na revisão da análise de
+  consistência verificou-se que o `./data` montado no serviço do motor herda a permissão do
+  host (tipicamente `0755`), que o processo filho de usuário dedicado conseguiria **ler**.
+  Decisão dos autores: `data/work/` (onde ficam `raw`, `building` e `problems`) é criado com
+  permissão `0700`, tendo como dono o usuário do host; o orquestrador (root com
+  `DAC_OVERRIDE`) e o serviço `app` (usuário do host) continuam acessando. Arquivos públicos
+  (`data/dataset.zip`, `data/dataset/`) não precisam de restrição. Reflete-se em FR-009 e nos
+  testes de permissões e de isolamento.

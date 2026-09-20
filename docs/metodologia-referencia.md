@@ -169,7 +169,8 @@ Esse campo é persistido por problema (ver 1.5 — `metadata.json`).
 - O dataset agrega WA/TLE/MLE/RE numa única categoria (`incorrect_solutions`); é
   preciso auditar e filtrar apenas falhas lógicas puras (WA real).
 - **[DECIDIDO] Motor de execução único, construído neste módulo e reutilizado sem
-  alteração na avaliação (seção 4).** Passam por ele **tanto as submissões incorretas
+  alteração na avaliação (seção 4), em pacote próprio (`src/sandbox/`), separado do pacote do
+  dataset, para que a avaliação o use sem depender de internos do dataset.** Passam por ele **tanto as submissões incorretas
   quanto a solução de referência (AC)**, sob as mesmas regras de compilação, limites e
   comparação de saída. Objetivo: nenhum código persistido no dataset pode ser incompatível
   com o motor — isso deve ser descoberto na montagem do dataset, e não depois, com o
@@ -244,7 +245,8 @@ Esse campo é persistido por problema (ver 1.5 — `metadata.json`).
     (`RLIMIT_AS`), que não é idêntico à métrica de memória do juiz original (limitação; ver
     1.7).
   - *Isolamento*: cada execução roda com um usuário dedicado sem privilégios, sem rede, com
-    limites de processos e de tamanho de arquivo; o código de terceiros não acessa `data/`.
+    limites de processos e de tamanho de arquivo; o diretório `data/work/` é criado com permissão `0700`
+    (dono: o usuário do host), de modo que o código de terceiros não o lista, lê nem escreve.
 - **Invariante do dataset**: nenhum código C++ é persistido sem antes ter sido executado
   pelo motor com o veredito esperado (AC_ref aprovada em 100% da suíte oficial; cada WA com
   veredito de resposta errada).
@@ -369,7 +371,10 @@ compactado para 200 problemas.
   virtual, não de memória residente).
 - Isolamento: um filho com usuário dedicado tem zero capabilities, não lê nem escreve em um
   diretório de dados com permissão 0700, não escreve no sistema de arquivos raiz e uma fork
-  bomb é contida pelo limite de processos.
+  bomb é contida pelo limite de processos. Constatado em 2026-09-19, na análise de consistência
+  da spec: o `./data` montado no contêiner do motor herda a permissão do host (tipicamente
+  `0755`) e o filho de usuário dedicado conseguiria **lê-lo**; por isso `data/work/` é criado
+  com `0700` (ver D15 na spec).
 
 **Tempo de extração**: uma passagem completa em streaming, só com colunas leves, levou de 24 a
 28 min (com retentativas automáticas de rede; foram observados resets de conexão).
@@ -600,6 +605,7 @@ evitar inconsistência entre o que a banca aprovou e o que foi construído. Orig
 | 11 | Relatório final da extração versionado junto do manifesto; `schema_version` em todo JSON; `status` do problema em `validacao.json` | 1.5, 1.6 |
 | 12 | Dataset acessado em revisão fixada (`802411c3…`), licença CC-BY-4.0; GCC fixado em 13.2.0 por digest | 1.1, 1.4 |
 | 13 | Dados medidos no planejamento: disponibilidade de submissões em C++ (mediana 200 no `train`, 101 em `valid`/`test`), volume de testes, verificações de ambiente | 1.7 |
+| 14 | Diretório de trabalho de dados `data/work/` com permissão `0700`, para o código de terceiros não acessar os dados de trabalho (verificado que o `./data` montado herda `0755`) | 1.4, 1.7 |
 
 ---
 
@@ -614,4 +620,6 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 | 2026-09-18 | Motor de execução único, AC também validado no motor (`validacao.json`), política de falha de AC com triagem manual (D7, D8) | 1.4, 1.5, 4, 7 |
 | 2026-09-19 | Decisões da revisão do plano: critério "sem E/S por arquivo", seed 42, manifesto em `manifests/`, motor em pacote próprio | 1.2, 1.4, 1.6, 6, 7 |
 | 2026-09-19 | Números do dataset corrigidos por medição (13.610 exemplos; `train` 13.328; 8.101 Codeforces; 118 sem rating; 1.288 elegíveis, 1.279 com E/S por arquivo removida) e funil de elegibilidade | 1.1, 1.2, 7 |
+| 2026-09-19 | Localização do motor em pacote próprio (`src/sandbox/`), decisão confirmada na revisão do plano e que faltava aqui | 1.4 |
 | 2026-09-19 | Auditoria retroativa (Princípio XI): dados medidos de disponibilidade de submissões, volume de testes e verificações de ambiente (1.7); regras operacionais do motor como PROPOSTA; revisão fixada e licença; `schema_version`, `status` e relatório versionado; evidência e mecanismo do limite de pilha; rótulo de `AC_ref` corrigido; este histórico | 1.1, 1.4–1.7, 4, 6–8 |
+| 2026-09-19 | Diretório de trabalho `data/work/` com permissão `0700` para o código de terceiros não o acessar (D15); a premissa "não acessa `data/`" passa a valer para `data/work/` | 1.4, 1.7, 7 |

@@ -61,7 +61,7 @@ compilações; zip estimado em ~10 MB (R15).
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-Constitution v1.2.0.
+Constitution v1.2.1.
 
 | Princípio | Verificação | Resultado |
 |---|---|---|
@@ -69,7 +69,7 @@ Constitution v1.2.0.
 | II. Reprodutibilidade | Seeds documentadas (R12), revisão do HF fixada (R1), `uv.lock`, imagem por digest, Docker, zip determinístico + manifesto, dados soltos nunca versionados (R14) | PASS |
 | III. Sem estado nas chamadas de IA | Este módulo não chama IA | N/A |
 | IV. Contratos explícitos e versionados | Pydantic com `schema_version` para `testes/metadata/validacao/manifesto/pool/relatório` ([data-model.md](./data-model.md)) | PASS |
-| V. Execução isolada e segura | Uid dedicado sem capabilities, rlimits, sem rede, raiz somente leitura, limites vindos dos metadados (R5–R8) | PASS |
+| V. Execução isolada e segura | Uid dedicado sem capabilities, rlimits, sem rede, raiz somente leitura, `data/work/` com permissão `0700` (D15), limites vindos dos metadados (R5–R8) | PASS |
 | VI. O pipeline testa a si próprio | Motor, classificação, persistência, triagem, zip/manifesto e verificação têm testes; portão `selfcheck` | PASS |
 | VII. Idempotência e retomada | Construção atômica + estado no `validacao.json` + descarte de `building/` (R13) | PASS |
 | VIII. Observabilidade de custo de IA | Sem chamadas pagas; o streaming do HF é gratuito. Logs de progresso e tempo por etapa | N/A |
@@ -79,7 +79,8 @@ Constitution v1.2.0.
 
 Convenções técnicas: Python 3.11+, `pytest`, `ruff`/`black`, nomes de código em inglês,
 GCC 13.2+, segredos só em `.env` (com `.env.example`), `data/` em `.gitignore` com a exceção
-do zip, manifesto e comando de verificação. Todas atendidas.
+do zip, manifesto e comando de verificação. Todas atendidas; os segredos seguem a convenção da
+v1.2.1 (`.env` injetado por `env_file` do compose, sem `python-dotenv`).
 
 **Resultado do portão inicial**: PASS. Sem violação a justificar (a tabela de Complexity
 Tracking registra decisões de custo, não violações).
@@ -102,19 +103,22 @@ específico desses módulos é construído agora (Princípio IX).
 ├── .python-version           # 3.11.16
 ├── Dockerfile                # imagem única do projeto
 ├── docker-compose.yml        # serviços `app` (com rede) e `sandbox` (sem rede)
+├── docker-compose.override.yml  # desenvolvimento: monta o working tree (sem `.env` nem `.git`)
 ├── .dockerignore
 ├── .gitignore                # data/* e !data/dataset.zip; .env; caches
-├── .env.example              # HF_TOKEN opcional (segredos só em .env)
-├── manifests/                # versionado: manifesto de hashes e relatório final
-├── scripts/
-│   └── verify_dataset.py     # verificação de integridade pós-clonagem
+├── .env.example              # HF_TOKEN opcional, HOST_UID/HOST_GID (segredos só em .env)
+├── manifests/                # versionado: manifesto de hashes e relatório final (com .gitkeep)
+├── scripts/                  # (com .gitkeep até haver scripts)
+│   ├── verify_dataset.py     # verificação de integridade pós-clonagem
+│   └── check_docs_sync.py    # conformidade da documentação (Princípio XI)
 ├── src/
 │   ├── dataset/              # ESTE módulo (+ README.md pelo template)
 │   └── sandbox/              # motor de execução (compartilhado; D7) (+ README.md)
 │   #   mutation/ ai_clients/ metrics/ cli/  → criados pelas suas features, não agora
 ├── tests/
 │   ├── dataset/              # espelha src/dataset/
-│   └── sandbox/              # espelha src/sandbox/
+│   ├── sandbox/              # espelha src/sandbox/
+│   └── docs/                 # testes do script de sincronização
 └── data/                     # ignorado pelo Git, exceto data/dataset.zip
 ```
 
@@ -141,6 +145,7 @@ RUN useradd --uid 1000 --create-home pipeline
 COPY src ./src
 COPY scripts ./scripts
 COPY tests ./tests
+COPY .gitignore ./.gitignore              # o teste da regra do .gitignore roda no contêiner
 ```
 
 Notas: (1) `uv` só é usado no build; em execução, `python` do `/opt/venv`; (2) não há segredos
@@ -164,6 +169,7 @@ package = false
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+addopts = "--import-mode=importlib -p no:cacheprovider"
 markers = ["integration: compila e executa C++ (serviço sandbox)"]
 
 [tool.ruff]
@@ -178,7 +184,7 @@ line-length = 100
 services:
   app:                       # extração, empacotamento, verificação (com rede)
     build: .
-    user: "1000:1000"
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"   # o mesmo usuário do host nas duas máquinas dos autores
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
@@ -205,6 +211,34 @@ O `tmpfs` de `/sandbox` precisa da opção `exec`: o padrão do Docker é `noexe
 executar o binário compilado. Os comandos de `docker compose run --rm app|sandbox ...` do
 `CLAUDE.md` passam a valer com estes nomes de serviço (o `CLAUDE.md` cita `app` para o `pytest`;
 aqui ele roda em `sandbox`, ver divergências).
+
+### `docker-compose.override.yml` (desenho)
+
+Carregado automaticamente pelo `docker compose`; serve ao ciclo de desenvolvimento (testar e
+formatar o working tree sem reconstruir a imagem). Sem ele, `black .` rodaria sobre a cópia
+dentro da imagem e não alteraria o repositório.
+
+```yaml
+services:
+  app: &dev
+    environment: { RUFF_CACHE_DIR: /tmp/.ruff_cache, BLACK_CACHE_DIR: /tmp/.black_cache }
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./scripts:/app/scripts
+      - ./docs:/app/docs
+      - ./specs:/app/specs
+      - ./README.md:/app/README.md
+      - ./pyproject.toml:/app/pyproject.toml
+      - ./.gitignore:/app/.gitignore:ro
+  sandbox: *dev
+```
+
+Montagens **explícitas**: `.env` e `.git` NÃO são montados. No serviço `sandbox` o código de
+terceiros roda no mesmo contêiner; com `.env` montado ele poderia ler o token e imprimi-lo, e a
+saída acabaria em `validacao.json`, que é versionado. Mudança de dependência (`uv.lock`) continua
+exigindo `docker compose build`. Os caches de `ruff`, `black` e `pytest` ficam fora do working
+tree (`/tmp` no tmpfs; `-p no:cacheprovider`), para não gerar arquivos de root no repositório.
 
 ## Divergência de plataforma: `-Wl,--stack=268435456`
 
@@ -298,6 +332,7 @@ specs/001-dataset-extraction/
 │   ├── cli.md           # comandos e serviços
 │   ├── engine-api.md    # API pública do motor (reutilizada pela avaliação)
 │   └── file-formats.md  # formatos dos arquivos do dataset
+├── sync-matrix.json     # decisão D# da spec → termos na metodologia (checado por scripts/check_docs_sync.py)
 ├── checklists/requirements.md
 └── tasks.md             # Fase 2 (/speckit-tasks; não criado aqui)
 ```
@@ -328,9 +363,11 @@ src/
     ├── persistence/          # store.py report.py
     └── integrity/            # packaging.py manifest.py verify.py
 scripts/verify_dataset.py
+scripts/check_docs_sync.py
 tests/
 ├── sandbox/
-└── dataset/
+├── dataset/
+└── docs/
 manifests/                    # dataset.manifest.json, extraction_report.json (gerados)
 ```
 
@@ -388,6 +425,13 @@ primeiros foram confirmados pelos autores na revisão do plano e já estão refl
 10. **`valid` e `test` dificilmente fecham 100 WAs**: mediana de 101 incorretas brutas contra
     ~200 no `train` (R19). Tende-se a ter uma amostra quase toda do `train`; a spec não impõe
     equilíbrio entre splits. Refletido na spec (D12) e na metodologia (1.7).
+11. **`data/work/` com permissão `0700`** (D15). O `./data` montado herda a permissão do host
+    (tipicamente `0755`) e o filho de uid dedicado conseguiria lê-lo. Criado por
+    `ensure_work_dir`/`make_private_dir` no `store.py`, com teste de permissões e de isolamento.
+    Refletido na spec (D15, FR-009) e na metodologia (1.4, 1.7).
+12. **Segredos**: a convenção foi generalizada na constitution v1.2.1 (`.env` injetado por
+    `env_file` do compose ou carregado com `python-dotenv`); não há dependência nova nem
+    desvio a justificar.
 
 ## Riscos
 
@@ -408,12 +452,15 @@ para cada item (Constitution, Fluxo de Desenvolvimento).
 
 | Entrega | Onde | Regra |
 |---|---|---|
-| README do módulo `dataset` | `src/dataset/README.md` | template `docs/template-modulo.md` (seis campos); comandos de [contracts/cli.md](./contracts/cli.md) executados como escritos |
+| README do módulo `dataset` | `src/dataset/README.md` | template `docs/template-modulo.md` (seis campos); comandos de [contracts/cli.md](./contracts/cli.md) registrados na tabela "Comandos verificados" (`pendente` até a tarefa que os executa carimbar data, revisão e tarefa) |
 | README do módulo `sandbox` | `src/sandbox/README.md` | idem; API de [contracts/engine-api.md](./contracts/engine-api.md); dependências e serviço do Compose (sem rede) |
+| Script de conformidade | `scripts/check_docs_sync.py` (+ `tests/docs/`) | checagens C1 a C6: seções do README, comandos contra a CLI (no README do módulo dono da CLI, `src/dataset`, todo subcomando também precisa estar documentado), links, estado do README raiz, matriz de sincronização, ausência de `[PROPOSTA]` ativa (riscadas e legenda não contam); é o gate do FR-031/FR-032/SC-016 |
+| Matriz de sincronização | `specs/001-dataset-extraction/sync-matrix.json` | toda decisão D# da spec tem linha e termos que precisam aparecer na metodologia |
+| Gate das regras do motor | primeira tarefa da US2 | os autores confirmam ou alteram as regras operacionais, hoje `[PROPOSTA]`, antes dos testes e do código do motor |
 | `--help` e docstrings | `python -m dataset --help` e pacotes | não podem contradizer os READMEs |
-| Visão geral do projeto | `README.md` (raiz) | passa de "planejado" para "disponível" cada etapa concluída, com comandos exatos e já executados |
+| Visão geral do projeto | `README.md` (raiz) | passa de "planejado" para "disponível" cada etapa concluída, com comandos exatos e já executados; a frase "Estado atual" e a data são reescritas a cada atualização (checagem C4) |
 | Metodologia sincronizada | `docs/metodologia-referencia.md` | todo dado medido e toda decisão da implementação entram no mesmo ciclo, com nova linha no histórico (seção 8) |
-| Checagem final | revisão (Princípio X) | lista de conformidade de `docs/template-modulo.md` e verificação de que nenhum número ou decisão da spec/plano falta na metodologia (FR-032, SC-016) |
+| Checagem final | revisão (Princípio X) | `scripts/check_docs_sync.py --closing` com saída 0 e os itens da lista de `docs/template-modulo.md` que o script não decide (FR-032, SC-016) |
 
 Auditoria retroativa (2026-09-19): os itens 5 e 7 a 10 da seção de divergências estavam
 marcados como "a refletir" e não estavam na spec nem na metodologia; foram propagados junto
@@ -426,9 +473,10 @@ Decisões de custo, todas justificadas por um princípio; nenhuma é violação.
 
 | Decisão | Por que é necessária | Alternativa mais simples rejeitada porque |
 |---|---|---|
-| Orquestrador root com 5 capabilities e uid por execução | Princípio V: código de terceiros sem privilégios e sem acesso a `data/` (R8) | Rodar tudo como um usuário: o código de terceiros poderia escrever em `data/` e matar o orquestrador |
+| Orquestrador root com 5 capabilities e uid por execução | Princípio V: código de terceiros sem privilégios e sem acesso a `data/work/` (R8, D15) | Rodar tudo como um usuário: o código de terceiros poderia escrever em `data/` e matar o orquestrador |
 | Dois serviços Compose (`app` com rede, `sandbox` sem rede) | Princípio V: código de terceiros sem rede; a extração precisa de rede | Um serviço só: ou o código de terceiros teria rede, ou a extração não funcionaria |
 | Processos paralelos com consumo em ordem | ~10^5 s de CPU (R11); sem paralelismo, dezenas de horas | Execução serial: inviável; paralelismo com ordem de conclusão: quebra FR-014/FR-025 |
+| Override do compose que monta o working tree (`src`, `tests`, `scripts`, `docs`, `specs`, `README.md`, `pyproject.toml`; sem `.env` nem `.git`) | Laço de desenvolvimento: `black .`, `ruff --fix` e `pytest` agem sobre o repositório sem rebuild a cada edição | Sem override: `black .` roda dentro da imagem e não altera o repositório, e cada teste exigiria `docker compose build` |
 | Pacote `src/sandbox/` separado de `src/dataset/` | D7/FR-010b: o motor é reutilizado sem alteração pela avaliação | Motor dentro de `dataset/`: a avaliação dependeria de internos do dataset |
 
 ## Reavaliação da Constitution após o desenho (Fase 1)

@@ -131,6 +131,9 @@ Sem carimbo de data/hora: regenerar o manifesto a partir do mesmo zip produz arq
 
 ## 2. Entidades de trabalho (não empacotadas, dentro de `data/work/`, ignoradas pelo Git)
 
+O diretório `data/work/` e seus subdiretórios são criados com permissão `0700` (dono: usuário do
+host), para que o código de terceiros não os acesse (spec D15).
+
 ### 2.0 Checkpoint de extração (`data/work/staging/shards/<split>-<NNNNN>.json`)
 
 Um arquivo por shard já processado (`schema_version`, `split`, `shard_index`, `rows_read`,

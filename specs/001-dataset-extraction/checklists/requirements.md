@@ -60,3 +60,13 @@
   ("to reflect") and the data measured during planning were propagated into the spec (D12,
   FR-001, FR-018b, FR-026, D2) and the methodology; documentation requirements added as
   FR-031, FR-032, SC-016 (D14); operational engine rules are tracked as proposals (D13).
+- **Analysis remediation (2026-09-19)**: after `/speckit-analyze`, the authors approved fixes for
+  U1, U2, I1, I2, A1, G1, I3, I4, I5 and C1 (constitution amended to v1.2.1 instead of a
+  per-feature deviation), plus the `data/work/` `0700` permission (D15). SC-001 now says six file
+  types; FR-031/FR-032/SC-016 are tied to `scripts/check_docs_sync.py`. U3, U4, U5, G2, U6, D1,
+  I6, U7, G3 and A2 were intentionally left open.
+- **Second remediation (2026-09-19)**: U8 (C6 ignores struck-through and legend text), U9 (C2 scoped
+  per module: full two-way check only for the CLI owner), I8 (`.gitignore` copied into the image and
+  mounted read-only by the override, `repo_root` fixture), A3 (stamp revision = host
+  `git rev-parse --short=7 HEAD`, `+dirty` rejected at closing; script loaded by
+  `importlib`) and I6 (quickstart range) applied.

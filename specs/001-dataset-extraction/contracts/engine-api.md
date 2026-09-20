@@ -46,7 +46,8 @@ lançador. **Nunca** vira `TLE/MLE/RE`.
    única testada nos dois sentidos, e um teste de integração lê o limite efetivo do processo
    filho em `/proc/self/limits` e roda uma recursão de ~150 MB que deve passar.
 2. Nenhum limite de tempo ou memória de problema tem valor padrão ou constante no código.
-3. O código de terceiros nunca roda como o usuário do orquestrador nem com capabilities.
+3. O código de terceiros nunca roda como o usuário do orquestrador nem com capabilities, e não
+   consegue listar, ler nem escrever `data/work/` (permissão `0700`, D15).
 4. Duas execuções do mesmo programa e das mesmas entradas no mesmo ambiente produzem o mesmo
    veredito (a suíte de veredito conhecido repete cada caso).
 5. Falha de infraestrutura levanta `InfraError`; nunca produz veredito.
