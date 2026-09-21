@@ -2,8 +2,10 @@
 
 `validate` runs the engine self-check FIRST and aborts if it fails (FR-010a). Then it walks the pool
 in the recorded order, skipping closed problems, until enough problems are `complete` (FR-016).
-An AC that fails goes to triage and the run continues with the next problem (FR-011b); problems
-with too few WA are discarded (D4); an `InfraError` is retried once and, if it persists, propagates
+An AC that fails is interrupted at once and goes to triage, and the run continues with the next
+problem (FR-011b); the manual inspection of those cases is DEFERRED (decision D17): they are
+inspected only if the target is missed once the rest of the pool is done, so the exit code is 0
+whenever the target is reached. Problems with too few WA are discarded (D4); an `InfraError` is retried once and, if it persists, propagates
 with the problem left in ``building/`` (FR-010). Nothing here relaxes a criterion: a deficit is
 reported, never hidden (FR-017).
 """
@@ -143,7 +145,6 @@ def run_validate(
     order = [problem] if problem is not None else list(pool.order)
     state = reporting.collect_validation_state(root, pool)
     included = len(state.included)
-    new_triage = 0
     processed_any = False
     runtime = runtime_factory(workers)
     try:
@@ -162,8 +163,6 @@ def run_validate(
             _log(root, result)
             if result.status == "complete":
                 included += 1
-            elif result.status == "pending_triage":
-                new_triage += 1
     finally:
         runtime.close()
     _write_report(root, pool)
@@ -173,11 +172,20 @@ def run_validate(
         return EXIT_OK if ok else EXIT_FAILURE
     deficit = max(0, target - included)
     out(f"included {included} of {target} (deficit {deficit})")
-    if new_triage:
-        out(f"PENDING TRIAGE: {new_triage} new problem(s); each one needs individual inspection")
+    waiting = len(reporting.collect_validation_state(root, pool).pending)
+    if waiting and deficit == 0:
+        out(
+            f"{waiting} problem(s) set aside in pending_triage and not inspected: the target was "
+            "reached without them (decision D17)"
+        )
+    elif waiting:
+        out(
+            f"{waiting} problem(s) in pending_triage need individual inspection now: the target "
+            "was not reached with the rest of the pool (decision D17)"
+        )
     if not processed_any and deficit:
         out("nothing left to validate in the pool")
-    return EXIT_OK if deficit == 0 and new_triage == 0 else EXIT_FAILURE
+    return EXIT_OK if deficit == 0 else EXIT_FAILURE
 
 
 def run_audit(

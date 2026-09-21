@@ -142,10 +142,7 @@ def render_markdown(report: ExtractionReport) -> str:
     if report.pending_triage:
         lines += ["", "## Pendentes de triagem", ""]
         lines += [
-            (
-                "> **PENDENTE DE TRIAGEM**: cada problema abaixo exige inspeção individual antes "
-                "de prosseguir com o experimento, sem limiar de tolerância."
-            ),
+            _triage_notice(report),
             "",
             "| Problema | Etapa | Motivo |",
             "|---|---|---|",
@@ -189,6 +186,25 @@ def _ac_failure_lines(report: ExtractionReport) -> list[str]:
     else:
         lines += ["", f"Limiar de reabertura (D13): {threshold:.0%} dos ACs testados por causa."]
     return lines
+
+
+def _triage_notice(report: ExtractionReport) -> str:
+    """Manual triage is DEFERRED (decision D17): only a missed target makes it necessary."""
+    if report.deficit == 0:
+        return (
+            "> **Triagem adiada (D17)**: os problemas abaixo tiveram o AC reprovado no motor e "
+            "ficaram fora da amostra; como a meta foi atingida com os demais, não exigem inspeção."
+        )
+    if report.selection_final:
+        return (
+            "> **PENDENTE DE TRIAGEM**: a meta não foi atingida com os demais problemas do pool; "
+            "cada problema abaixo exige agora inspeção individual (D17), sem limiar de tolerância."
+        )
+    return (
+        "> **Triagem adiada (D17)**: os problemas abaixo tiveram o AC reprovado no motor e ficaram "
+        "fora da amostra; só serão inspecionados se, esgotados os demais problemas do pool, a "
+        "meta não for atingida."
+    )
 
 
 def write_report(root: Path, report: ExtractionReport) -> tuple[Path, Path]:

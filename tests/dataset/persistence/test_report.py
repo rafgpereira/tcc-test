@@ -135,12 +135,41 @@ def test_the_alert_is_informative_and_changes_nothing():
     assert with_alert.funnel.included == without.funnel.included == 200
 
 
-def test_pending_triage_is_listed_and_highlighted_when_not_empty():
-    pending = [PendingTriageItem(problem_id="1234_C", stage="selection", reason="AC diverged")]
-    report = rep.build_report(make_pool(), pending_triage=pending)
+PENDING = [PendingTriageItem(problem_id="1234_C", stage="selection", reason="AC diverged")]
+
+
+def test_pending_triage_is_listed_with_its_reason_in_every_situation():
+    report = rep.build_report(make_pool(), pending_triage=PENDING)
     text = rep.render_markdown(report)
-    assert report.pending_triage == pending
-    assert "PENDENTE DE TRIAGEM" in text and "1234_C" in text and "AC diverged" in text
+    assert report.pending_triage == PENDING
+    assert "1234_C" in text and "AC diverged" in text
+
+
+def test_triage_is_deferred_while_the_run_can_still_reach_the_target():
+    """D17: no manual inspection while other pool problems can still fill the sample."""
+    text = rep.render_markdown(rep.build_report(make_pool(), pending_triage=PENDING))
+    assert "Triagem adiada" in text and "PENDENTE DE TRIAGEM" not in text
+    assert "só serão inspecionados" in text
+
+
+def test_triage_is_deferred_and_needs_no_inspection_when_the_target_was_reached():
+    report = rep.build_report(
+        make_pool(), included=sample(70, 60, 70), selection_final=True, pending_triage=PENDING
+    )
+    text = rep.render_markdown(report)
+    assert report.deficit == 0
+    assert "Triagem adiada" in text and "PENDENTE DE TRIAGEM" not in text
+    assert "não exigem inspeção" in text
+
+
+def test_triage_needs_inspection_only_when_the_pool_ended_with_a_deficit():
+    report = rep.build_report(
+        make_pool(), included=sample(3, 3, 3), selection_final=True, pending_triage=PENDING
+    )
+    text = rep.render_markdown(report)
+    assert report.deficit > 0
+    assert "PENDENTE DE TRIAGEM" in text and "exige agora inspeção individual" in text
+    assert "Triagem adiada" not in text
     assert "sem limiar de tolerância" in text
 
 

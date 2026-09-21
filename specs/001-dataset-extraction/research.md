@@ -231,7 +231,7 @@ extração grava checkpoints por shard (abaixo).
   programa sobre a suíte: o **primeiro** teste que não termina em `AC` decide (FR-012) e
   interrompe a execução (curto-circuito).
 - **Consequência conhecida**: problemas com mais de uma resposta válida (verificador
-  especial) não têm `AC` reproduzível pela comparação textual e vão para triagem (D8).
+  especial) não têm `AC` reproduzível pela comparação textual e vão para triagem (D8; inspeção adiada, D17).
 
 ## R10 — Estabilidade do veredito
 

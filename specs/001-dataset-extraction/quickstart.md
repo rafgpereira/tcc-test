@@ -119,6 +119,11 @@ unzip data/dataset.zip -d data/            # cria data/dataset/problems/<problem
 python scripts/verify_dataset.py --extracted data/dataset
 ```
 
+> **Sobre a triagem**: problemas em `pending_triage` são esperados (cerca de 1 em cada 5 no
+> piloto) e **não são inspecionados** se a meta de 200 for atingida (D17). Só com déficit ao fim
+> do pool eles passam a exigir inspeção individual. O roteiro completo de quem executa está em
+> `src/dataset/README.md`, seção "Roteiro da execução completa".
+
 ## Nível 6 — Integridade pós-clonagem (US5, SC-009)
 
 > Este nível é o fluxo de quem **recebe** o dataset (o autor que não o gerou). A explicação geral do

@@ -65,7 +65,9 @@ Comportamento: pula problemas já encerrados; refaz `building/`; falha de AC ⇒
 `pending_triage` e segue (FR-011b); WA insuficientes ⇒ `discarded`; `InfraError` ⇒ nova
 tentativa limitada e, persistindo, o problema permanece em `building/` e o comando termina com
 código `3` (nunca vira veredito). Ao final, escreve o relatório e sai com `0` se a meta foi
-atingida e não há triagem pendente novo; `1` caso contrário. Códigos: sem `pool.json` sai com `1`
+atingida (problemas em `pending_triage` não mudam o código: a triagem manual é adiada, D17) e
+com `1` se houver déficit; nesse caso, e só nele, os problemas em triagem passam a exigir
+inspeção individual. Códigos: sem `pool.json` sai com `1`
 (rode `extract`); `--problem` fora do pool sai com `2`. Em `--problem`, o código é `0` só se o
 problema terminou `complete`. Um problema já encerrado nunca é refeito (apague a pasta para
 reprocessá-lo). Efeitos além de `problems/`: `reports/selfcheck.json` (resultado do `selfcheck`),

@@ -183,8 +183,26 @@ def test_an_ac_failure_is_recorded_and_the_next_problem_is_processed(
         "2_A": "complete",
         "3_A": "complete",
     }
-    assert code == 1  # the target was reached but there is a NEW triage case
+    assert code == 0  # D17: the target was reached; the triage case is deferred, not a failure
     assert any("1_A" in line and "pending_triage" in line for line in lines)
+    assert any("set aside" in line and "not inspected" in line for line in lines)
+
+
+def test_a_triage_case_is_not_inspected_unless_the_target_is_missed(
+    root, prepare, factory, make_raw
+):
+    """D17: with a deficit at the end of the pool, the deferred cases now need inspection."""
+    prepare(
+        [
+            make_raw("1_A", ac=("// WA@0\nx",), wa=wa_sources()),
+            make_raw("2_A", wa=wa_sources(tag="2")),
+        ]
+    )
+    code, lines = validate(root, factory, target=5)
+    assert code == 1
+    assert any("deficit 4" in line for line in lines)
+    assert any("inspect" in line and "1 problem" in line for line in lines)
+    assert not any("not inspected" in line for line in lines)
 
 
 def test_a_discarded_problem_does_not_count_and_does_not_stop_the_run(

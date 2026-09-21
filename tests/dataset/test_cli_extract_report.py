@@ -129,7 +129,7 @@ def test_report_reads_the_pool_and_the_validated_problems(in_tmp, install, capsy
     assert "included 1 of 200 (deficit 199)" in out
     assert f"PENDING TRIAGE: {ids[1]} (selection): AC diverged" in out
     text = (in_tmp / config.REPORTS_DIR / "extraction_report.md").read_text(encoding="utf-8")
-    assert "PENDENTE DE TRIAGEM" in text
+    assert "Triagem adiada" in text  # D17: the pool still has open problems, so it is deferred
 
 
 def test_report_alerts_when_the_pool_is_exhausted_with_a_deficit(in_tmp, install, capsys):

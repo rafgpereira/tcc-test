@@ -229,5 +229,8 @@ problems/<id> [complete] ──audit: AC falhou──▶ problems/<id> [pending_
 problems/<id> [pending_triage] ──resolução manual (apagar a pasta)──▶ (ausente; reprocessável)
 ```
 
+A resolução manual de um `pending_triage` é adiada (D17): só se faz se a meta de 200 não for
+atingida com os demais problemas do pool.
+
 Regras de retomada (FR-024): `complete`, `pending_triage` e `discarded` não são reprocessados;
 `building/` é sempre descartado e refeito. Contam para a meta de 200 somente os `complete`.

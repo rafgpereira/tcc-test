@@ -140,7 +140,7 @@ isoladamente, produz saída divergente do gabarito dentro dos limites do problem
    **When** a rejeição ocorre, **Then** o processamento daquele problema é interrompido
    imediatamente, nenhuma outra solução correta é tentada em seu lugar, e `validacao.json`
    do problema registra o identificador, o motivo e a saída divergente, deixando o problema
-   pendente de triagem manual; os demais problemas continuam sendo processados.
+   pendente de triagem manual, adiada (D17); os demais problemas continuam sendo processados.
 8. **Given** um problema completo, **When** seu registro de validação é consultado, **Then**
    ele mostra `AC_ref` aprovada em 100% da suíte oficial e cada uma das 100 falhas com
    veredito de resposta errada, todos produzidos pelo mesmo motor e configuração, com o
@@ -236,9 +236,9 @@ apontando o arquivo divergente.
   junto de `math`): as tags fora da lista são ignoradas na classificação.
 - **Solução "correta" que falha no motor** (por exemplo, problemas cujo enunciado admite
   mais de uma resposta válida, ou seja, com verificador especial, e que escaparam do filtro
-  de tags; ou um defeito do motor): o problema é interrompido e enviado à triagem manual
-  (FR-011b), sem tentar outra solução no lugar. Como a solução é conhecidamente correta, cada
-  ocorrência tem causa própria e exige inspeção individual.
+  de tags; ou um defeito do motor): o problema é interrompido e registrado para triagem manual
+  (FR-011b), adiada (D17), sem tentar outra solução no lugar. Cada ocorrência tem causa própria e,
+  quando a triagem for necessária (a meta não foi atingida), exige inspeção individual.
 - **Submissão com veredito instável** (resultado muda entre execuções repetidas, típico de
   comportamento indefinido): não é aceita como falha validada.
 - **Submissões idênticas em texto**: contam uma única vez entre as 100 falhas.
@@ -358,7 +358,9 @@ apontando o arquivo divergente.
   nunca alterar um veredito (D13). O problema fica em estado
   "pendente de triagem": não conta para a meta de 200, não é empacotado e não é reprocessado
   automaticamente na retomada até resolução manual pelos autores; o processamento dos demais
-  problemas segue. Falhas de infraestrutura do ambiente isolado (FR-010) não são falhas de
+  problemas segue. A inspeção manual é **adiada** (D17): só é exigida se, esgotados os demais
+  problemas do pool, a meta de 200 não for atingida; enquanto a meta é atingida sem eles, os
+  problemas pendentes de triagem ficam registrados e não são inspecionados. Falhas de infraestrutura do ambiente isolado (FR-010) não são falhas de
   AC. Se o registro alterar o `validacao.json` de um problema já empacotado, a verificação de
   integridade (FR-028) passa a apontar a divergência, o que é intencional (ver Divergências,
   D8). Na auditoria, o `validacao.json` do problema passa a `pending_triage` com a lista `wa`
@@ -398,8 +400,9 @@ apontando o arquivo divergente.
   problemas lidos, rejeitados por critério, descartados na validação (por motivo),
   incluídos na amostra, e a distribuição da amostra por macrocategoria. O relatório MUST
   listar também todos os problemas pendentes de triagem (FR-011b), com identificador e
-  motivo, destacados quando existirem: cada um exige inspeção individual antes de prosseguir
-  com o experimento, e não há limiar de tolerância. O relatório MUST trazer ainda a
+  motivo, destacados quando existirem: cada um só é inspecionado individualmente se a meta não
+  for atingida com os demais problemas do pool (D17), e não há limiar de tolerância; enquanto
+  a meta é atingida sem eles, o relatório os marca como triagem adiada. O relatório MUST trazer ainda a
   quantidade de ACs testados e as falhas de AC por causa (só formatação, `TLE` e outras), que
   alimentam o critério de reabertura de D13.
 - **FR-018a**: Após a seleção final (a meta foi atingida ou todos os problemas do pool foram
@@ -509,7 +512,7 @@ apontando o arquivo divergente.
   para `AC_ref` e para cada falha, com os maiores tempo e memória observados.
 - **Registro de triagem**: Parte do registro de validação de um problema cujo AC falhou no
   motor: identificador, motivo, saída divergente ou diagnóstico e estado "pendente de
-  triagem", para inspeção manual individual.
+  triagem", para inspeção manual individual, adiada (D17).
 - **Submissão incorreta candidata**: Código C++ marcado como incorreto no dataset de origem,
   ainda não auditado; pode ser falha lógica real ou outro tipo de falha.
 - **Falha validada (WA)**: Submissão incorreta candidata confirmada por execução isolada
@@ -709,7 +712,8 @@ também em 2026-09-19.
   solução correta e de usar as rejeições como indicador agregado. Reflete-se em FR-011,
   FR-011b, FR-015a, FR-018, FR-021a, FR-023, FR-024 e SC-015. A interrupção vale por
   problema: o processamento dos demais continua, e os pendentes de triagem não contam para a
-  meta de 200.
+  meta de 200. **Atualização de 2026-09-21 (D17)**: a interrupção imediata e o registro não
+  mudam, mas a inspeção manual desses casos é adiada.
 - **D9 — Novo critério de elegibilidade: sem E/S por arquivo (decidido em 2026-09-19)**: a
   metodologia não excluía problemas que leem e escrevem por arquivo (`input.txt`/`output.txt`).
   Medido durante o planejamento: 9 problemas do pool (0,7%), todos de concursos antigos. Como
@@ -798,3 +802,16 @@ também em 2026-09-19.
   Consequências: o `RLIMIT_NPROC` conta o lançador (no máximo 30 filhos por programa) e a imagem
   precisa ser reconstruída (`docker compose build`) depois de um `git pull` que traga o lançador.
   Detalhes na metodologia (1.4 e 1.7) e em research R6, R8 e R11.
+- **D17 — Triagem manual de AC adiada até a meta falhar (decidido em 2026-09-21)**: no piloto,
+  3 dos 14 problemas processados (21%) foram para `pending_triage`. Decisão dos autores: **não
+  triar esses casos**, a menos que, processados todos os demais problemas do pool, a meta de 200
+  problemas completos não seja atingida. Efeitos: (a) a interrupção imediata, o registro em
+  `validacao.json` (D8), a exclusão da meta e do pacote e a ausência de substituição do AC não
+  mudam; (b) `validate` sai com `0` sempre que a meta é atingida, mesmo com problemas em
+  `pending_triage` (antes saía com `1` se houvesse triagem nova); (c) o relatório marca esses
+  problemas como "triagem adiada" enquanto a meta é ou pode ser atingida sem eles, e só como
+  "pendente de triagem, exige inspeção individual" quando o pool se esgotou com déficit; (d) nenhum
+  critério é relaxado: com déficit, os autores inspecionam cada caso e decidem; (e) a expectativa é
+  que o pool dispense a triagem (no piloto, ~71% dos problemas processados fecharam; com 1.234 no
+  pool, o esperado passa de 800 completos para 200 necessários; amostra pequena). Reflete-se em
+  FR-011b, FR-018 e nas tarefas T068, T069 e T072.

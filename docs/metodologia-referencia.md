@@ -223,6 +223,10 @@ Esse campo é persistido por problema (ver 1.5 — `metadata.json`).
   múltiplas saídas válidas (verificador especial) que escapou do filtro de tags; cada caso
   tem causa raiz própria e exige inspeção individual. O problema fica pendente de triagem
   (não conta para os 200, não é empacotado) e o processamento dos demais continua.
+  **[DECIDIDO, 2026-09-21] A inspeção manual é adiada**: esses problemas só serão triados
+  individualmente se, processados todos os demais problemas do pool, a meta de 200 não for
+  atingida; enquanto a meta é atingida sem eles, ficam registrados e não são inspecionados. A
+  interrupção imediata, o registro e a exclusão da amostra não mudam (D17 da spec).
 - Só entra no conjunto final o código que compila, executa dentro dos limites, e
   produz saída divergente do gabarito oficial (WA genuíno). TLE/MLE/RE são
   descartados (não são falha lógica).
@@ -234,6 +238,14 @@ Esse campo é persistido por problema (ver 1.5 — `metadata.json`).
   macrocategoria: a seleção segue ordem determinística definida por seed fixa e documentada
   (**`SEED = 42`**, **[DECIDIDO]** em 2026-09-19; trocá-la depois da primeira extração muda
   a seleção).
+  **Como os 200 são escolhidos**: o pool elegível (1.234 problemas, dos três splits juntos) é
+  embaralhado **uma única vez** com a seed 42 (`Random("42:pool")` sobre os identificadores
+  ordenados) e gravado nessa ordem em `pool.json`. A validação percorre essa ordem e os **200
+  primeiros problemas que completam a validação** (`AC_ref` aprovado e exatamente 100 WA) formam a
+  amostra; os que não completam (descartados por menos de 100 WA, ou com o `AC_ref` reprovado no
+  motor e em triagem) são pulados, e a próxima posição da ordem é usada. Não há estratificação,
+  cota por macrocategoria nem prioridade por split ou dificuldade: a distribuição da amostra por
+  macrocategoria e por split é consequência do sorteio e das exclusões, e o relatório a informa.
   O relatório final emite um **alerta** se qualquer macrocategoria ficar com menos de 30
   problemas após a seleção, que é final quando a meta é atingida ou todos os problemas do pool
   foram encerrados, mesmo com déficit (limiar fixo; alerta informativo, que não bloqueia a execução,
@@ -755,11 +767,9 @@ diretamente ao objetivo específico de mapear desempenho por categoria algorítm
 15. ~~**[PENDENTE]** Fração de incorretas que é WA de verdade, e se a meta de 200 problemas com
     exatamente 100 WAs fecha~~ — **RESOLVIDO** em 2026-09-21 pelo piloto (ver 1.7): 85,5% das
     candidatas viraram WA no `train` e não há déficit projetado.
-16. **[PENDENTE]** Volume de triagens manuais de AC na execução completa: no piloto, 3 dos 14 ACs
-    testados (21%) foram para triagem (verificador especial, gabarito com linha em branco inicial,
-    teste gerado fora das restrições); extrapolados, seriam da ordem de 60 casos, cada um a
-    inspecionar individualmente (D8, sem tolerância). Os autores decidem como seguir antes da
-    execução completa (T072).
+16. ~~**[PENDENTE]** Volume de triagens manuais de AC na execução completa~~ — **RESOLVIDO**
+    em 2026-09-21 (D17): a triagem manual é adiada e só se faz se a meta de 200 não for atingida
+    com os demais problemas do pool (ver 1.4).
 
 ---
 
@@ -801,6 +811,7 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 | 2026-09-19 | Números do dataset corrigidos por medição (13.610 exemplos; `train` 13.328; 8.101 Codeforces; 118 sem rating; 1.288 elegíveis, 1.279 com E/S por arquivo removida) e funil de elegibilidade | 1.1, 1.2, 7 |
 | 2026-09-19 | Localização do motor em pacote próprio (`src/sandbox/`), decisão confirmada na revisão do plano e que faltava aqui | 1.4 |
 | 2026-09-19 | Auditoria retroativa (Princípio XI): dados medidos de disponibilidade de submissões, volume de testes e verificações de ambiente (1.7); regras operacionais do motor como PROPOSTA; revisão fixada e licença; `schema_version`, `status` e relatório versionado; evidência e mecanismo do limite de pilha; rótulo de `AC_ref` corrigido; este histórico | 1.1, 1.4–1.7, 4, 6–8 |
+| 2026-09-21 | **Triagem manual de AC adiada (D17)**: os problemas com o `AC_ref` reprovado seguem interrompidos e registrados, mas só serão inspecionados se a meta de 200 não for atingida com os demais; `validate` sai com 0 sempre que a meta é atingida; explicação de como os 200 problemas são escolhidos (pool embaralhado com a seed 42, os 200 primeiros que completam); item 16 resolvido | 1.4, 6 |
 | 2026-09-21 | **Piloto de validação (T071)**: 14 problemas do `train` (10 completos, 3 em triagem, 1 descartado); 85,5% das candidatas viraram WA (risco de poucas WA não se materializou), mediana de 102 s por problema completo, sem déficit projetado; critério de reabertura de D13 não atingido (regra 2: 7,1%; regra 5: 0%); descoberta de que `generated_tests` do dataset podem ter entradas fora das restrições; item 15 resolvido e item 16 (volume de triagens) aberto | 1.4, 1.7, 6 |
 | 2026-09-21 | **Motor implementado (T049)**: ambiente reconfirmado com o motor (linker, pilha, memória, isolamento); três diferenças encontradas e corrigidas (áreas graváveis por todos, zumbis, pico de memória inflado), com lançador nativo, `init: true` e `tmpfs` privados (D16); custos medidos (compilação de 2,5 s com `bits/stdc++.h`, sobrecarga de 2,5 ms por teste) | 1.4, 1.7 |
 | 2026-09-20 | **Gate T037**: os autores confirmaram as 7 regras operacionais do motor sem alteração (de proposta a decididas) e definiram o critério objetivo de reabertura das regras de comparação de saída e de tempo no piloto (mais de 10% dos ACs testados reprovados por formatação ou por TLE), com o diagnóstico `format_only` e as contagens `ac_tested`/`triage_by_cause` no relatório (T037) | 1.4, 6, 7 |

@@ -107,8 +107,12 @@ no README da raiz.
    Leva cerca de 7 segundos; esperado `selfcheck OK: 9/9 cases` e código `0`. Se rodar no
    serviço `app`, termina com `infrastructure failure` (código `3`), porque o `app` não tem o motor.
 
-6. **Validar os problemas no motor (`validate`).** Para cada problema do pool, na ordem gravada,
-   o motor executa o código correto (`AC_ref`, o primeiro do dataset) sobre **toda** a suíte oficial e
+6. **Validar os problemas no motor (`validate`).** **Como os 200 problemas são escolhidos**: o pool
+   elegível (1.234 problemas dos três splits juntos) foi embaralhado uma única vez com a seed 42 e
+   gravado nessa ordem em `pool.json`; o `validate` percorre essa ordem e a amostra são os **200
+   primeiros problemas que completam a validação**. Os que não completam são pulados e a próxima
+   posição da ordem é usada; não há cota por macrocategoria nem prioridade por split ou
+   dificuldade. Para cada problema, o motor executa o código correto (`AC_ref`, o primeiro do dataset) sobre **toda** a suíte oficial e
    depois as submissões incorretas candidatas, até reunir exatamente 100 falhas de resposta errada
    (WA), cada uma confirmada por duas execuções. O comando roda o `selfcheck` antes de tudo e **aborta**
    se ele falhar. Faça primeiro um **piloto** com 10 problemas, para medir quantas candidatas viram WA
@@ -136,14 +140,17 @@ no README da raiz.
    | Estado | O que significa | O que fica na pasta |
    |---|---|---|
    | `complete` | o `AC_ref` passou em toda a suíte e há exatamente 100 WA validados | `enunciado.md`, `AC_ref.cpp`, `WA_1.cpp` a `WA_100.cpp`, `testes.json`, `metadata.json`, `validacao.json` |
-   | `pending_triage` | o `AC_ref` **falhou no motor**; o problema é interrompido na hora, sem tentar outra solução e sem tolerância, e **não conta para a meta** | só `validacao.json` (com o motivo e a saída divergente) e `AC_candidate.cpp` |
+   | `pending_triage` | o `AC_ref` **falhou no motor**; o problema é interrompido na hora, sem tentar outra solução e sem tolerância, **não conta para a meta** e a inspeção é adiada | só `validacao.json` (com o motivo e a saída divergente) e `AC_candidate.cpp` |
    | `discarded` | menos de 100 WA validáveis (por exemplo, poucas submissões incorretas distintas) | só `validacao.json` |
 
-   Um problema em `pending_triage` exige **inspeção individual** de quem gera o dataset: a causa é um
-   defeito do motor ou um problema com verificador especial que escapou do filtro. Para tentar de
-   novo depois de resolver, apague a pasta dele em `data/work/problems/` e rode `validate` de novo.
-   Códigos de saída: `0` se a meta foi atingida e não houve triagem nova, `1` caso contrário (inclusive
-   déficit), `2` uso incorreto, `3` falha de infraestrutura (o problema em andamento fica em
+   **Problemas em `pending_triage` não são inspecionados agora** (decisão D17): ficam registrados,
+   fora da amostra, e só passam a exigir **inspeção individual** de quem gera o dataset se a meta de
+   200 **não** for atingida com os demais problemas do pool (a causa costuma ser um verificador
+   especial que escapou do filtro, um gabarito do dataset com formatação diferente ou testes fora das
+   restrições do enunciado; ver a metodologia, seção 1.7). Para tentar de novo um problema depois de
+   resolvê-lo, apague a pasta dele em `data/work/problems/` e rode `validate` de novo.
+   Códigos de saída: `0` se a meta foi atingida (problemas em triagem **não** mudam o código), `1`
+   se houve déficit, `2` uso incorreto, `3` falha de infraestrutura (o problema em andamento fica em
    `data/work/building/`, é refeito na próxima execução e nunca vira veredito).
 
    **Conferir o piloto**: rode `docker compose run --rm app python -m dataset report` e leia, em
@@ -163,6 +170,76 @@ no README da raiz.
 
    Código `0` se nada divergiu, `1` se houve qualquer divergência.
 
+### Roteiro da execução completa (quem gera o dataset; tarefa T072)
+
+Esta é a única etapa longa do módulo (várias horas) e **é executada por você, no seu computador**,
+não por uma ferramenta automática. Este roteiro reúne tudo o que é preciso: leia-o inteiro antes de
+começar.
+
+**O que vai acontecer.** O `validate` percorre o pool na ordem gravada e valida cada problema no
+motor até reunir 200 problemas completos. Pela extrapolação do piloto (uma amostra pequena; o tempo
+real só se conhece ao final), são cerca de 280 problemas processados, algo em torno de **7 horas com
+4 processos**. Depois vêm a auditoria (`audit`), que reexecuta os 200 problemas e leva um tempo da
+mesma ordem (o piloto sugere cerca de 5 horas), e o relatório (`report`, segundos). Pode fazer a
+validação hoje e a auditoria em outro momento.
+
+**Antes de começar (uma vez):**
+
+1. Esteja na pasta do repositório, na versão já **commitada**. Confira que não há alteração pendente
+   no código: `git status` não deve listar nada em `src/`, `scripts/`, `Dockerfile`,
+   `docker-compose.yml`, `pyproject.toml` nem `uv.lock`. Anote o hash: `git rev-parse --short=7 HEAD`
+   (os comandos são carimbados na tabela "Comandos verificados" com esse hash).
+2. Deixe a imagem pronta: `docker compose build` (rápido se nada mudou).
+3. Confirme que o motor está bem: `docker compose run --rm sandbox python -m dataset selfcheck`
+   deve terminar com `selfcheck OK: 9/9 cases`. (O `validate` repete essa conferência sozinho.)
+4. Espaço em disco: cada problema completo ocupa cerca de 0,5 MB em `data/work/problems/`
+   (medido nos 14 do piloto), ou seja, em torno de 100 MB para 200; há folga de sobra.
+5. O computador precisa **ficar ligado e sem suspender** durante horas. O `systemd-inhibit` do
+   comando abaixo impede a suspensão enquanto ele roda. Em notebook, mantenha na tomada e não feche
+   a tampa.
+6. O computador ficará bem ocupado (4 processos compilando C++). Se quiser continuar usando a
+   máquina, acrescente `--workers 2` ao comando: só o tempo aumenta, o **resultado é o mesmo** com
+   qualquer número de processos.
+
+**A validação (deixe o terminal aberto):**
+
+```bash
+systemd-inhibit --what=sleep:idle --why="validacao do dataset" \
+  docker compose run --rm sandbox python -m dataset validate
+```
+
+- Aparece uma linha por problema (`1101_A: complete (...)`, `pending_triage`, `discarded`) e, no fim,
+  `included N of 200 (deficit D)`.
+- **Se o terminal fechar, o computador reiniciar ou você apertar Ctrl+C**, rode o **mesmo comando** de
+  novo: os problemas já encerrados são pulados e só o que estava em andamento é refeito. Não apague
+  `data/work/`.
+- Problemas em `pending_triage` são esperados (cerca de 1 em cada 5 no piloto). **Não faça nada com
+  eles**: por decisão dos autores (D17), a triagem manual é adiada e só se faz se a meta não for
+  atingida.
+- **Sucesso**: a última linha é `included 200 of 200 (deficit 0)` e o código de saída é `0`
+  (confira com `echo $?` logo depois).
+- **Se terminar com `deficit` maior que zero** (código `1`), **pare aí** e avise: a meta não foi
+  atingida com os demais problemas do pool e os casos em `pending_triage` passam a exigir inspeção
+  individual. Nada é relaxado automaticamente.
+
+**Depois da validação** (pode ser em outro momento):
+
+```bash
+systemd-inhibit --what=sleep:idle --why="auditoria do dataset" \
+  docker compose run --rm sandbox python -m dataset audit
+docker compose run --rm app python -m dataset report
+```
+
+O `audit` imprime `<id>: ok (...)` por problema e termina com código `0` se nada divergiu; o `report`
+regera `data/work/reports/extraction_report.md`.
+
+**O que guardar e enviar para a documentação ser atualizada** (tarefa T072): as últimas linhas do
+terminal de cada comando (validação, auditoria, relatório), o conteúdo de
+`data/work/reports/extraction_report.md` e o hash de `git rev-parse --short=7 HEAD`. Com isso, os
+números reais (distribuição da amostra por macrocategoria e por split, funil, descartes,
+triagens, tempo total, se o alerta de menos de 30 por categoria disparou) entram na metodologia, na
+spec e no plano, e os comandos são carimbados.
+
 ### Se algo der errado
 
 | O que aparece | O que significa | O que fazer |
@@ -175,7 +252,8 @@ no README da raiz.
 | `selfcheck FAILED: the engine is not trustworthy, nothing was validated` (código `1`) | o `validate` recusou começar porque o motor falhou na conferência | rode `selfcheck` e siga a tabela do `sandbox`; nada foi validado |
 | `error: <id> is not in the pool` (código `2`) | `--problem` com um problema que não está no pool | confira o identificador (`<ContestID>_<Index>`) em `data/work/staging/pool.json` |
 | `<id>: already closed (...) , skipped` | o problema já foi encerrado e não é refeito | apague `data/work/problems/<id>/` se quiser reprocessá-lo |
-| `PENDING TRIAGE: N new problem(s)` (código `1`) | o `AC_ref` de N problemas falhou no motor | inspecione cada um em `data/work/problems/<id>/validacao.json` (campo `triage`) |
+| `N problem(s) set aside in pending_triage and not inspected` | o `AC_ref` de N problemas falhou no motor, mas a meta foi atingida sem eles (D17) | nada: a triagem é adiada e não é necessária |
+| `N problem(s) in pending_triage need individual inspection now` (código `1`) | a meta não foi atingida com o resto do pool | inspecione cada um em `data/work/problems/<id>/validacao.json` (campo `triage`) e decida com os autores; nada é relaxado sozinho |
 | `PermissionError` ao gravar em `data/` | `data/` pertence a `root` (o passo 3 do guia foi pulado) | `sudo chown -R "$(id -u):$(id -g)" data` e rode de novo |
 | quer recomeçar do zero | — | `rm -rf data/work` e rode o passo 2 (só enquanto a validação não existe: depois dela essa pasta guarda os problemas validados) |
 
@@ -260,10 +338,11 @@ ainda vai gerar, com apenas os problemas completos.
   `train`): 85,5% das candidatas viraram WA e não há déficit projetado, mas `valid` e `test` não
   foram testados; a execução completa e a auditoria ainda não rodaram. Se a meta de 200 problemas
   com exatamente 100 WA não fechar, nada é relaxado automaticamente.
-- **Cerca de 1 em cada 5 problemas vai para triagem manual de AC** (3 dos 14 do piloto): verificador
+- **Cerca de 1 em cada 5 problemas vai para `pending_triage`** (3 dos 14 do piloto): verificador
   especial (várias respostas válidas), gabarito do dataset com linha em branco inicial e testes
-  gerados fora das restrições do enunciado. Cada caso exige inspeção individual, sem tolerância
-  (decisão D8); os números e as causas estão na metodologia, seção 1.7.
+  gerados fora das restrições do enunciado. Eles são interrompidos e registrados (decisão D8), mas a
+  inspeção manual é adiada e só ocorre se a meta de 200 falhar (decisão D17); os números e as causas
+  estão na metodologia, seção 1.7.
 - O `AC_ref` é executado no processo principal e as candidatas a WA em paralelo; o resultado não
   depende do número de processos, mas o tempo sim.
 - Um programa pode gravar arquivos no diretório temporário do seu slot; eles persistem entre os testes

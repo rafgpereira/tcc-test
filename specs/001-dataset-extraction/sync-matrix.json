@@ -139,6 +139,15 @@
         "init: true"
       ],
       "source": "spec.md#D16"
+    },
+    {
+      "id": "D17",
+      "methodology_section": "1.4, 6",
+      "needles": [
+        "inspeção manual é adiada",
+        "Como os 200 são escolhidos"
+      ],
+      "source": "spec.md#D17"
     }
   ],
   "schema_version": 1

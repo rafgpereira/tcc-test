@@ -111,6 +111,18 @@ dataset", mais abaixo.
 Cada fase é um comando **separado e manual**: o `validate` não gera o zip sozinho. O zip só existe
 depois que alguém roda `package` (fase 4) com a meta de 200 atingida.
 
+### Como os 200 problemas são escolhidos
+
+O pool elegível (1.234 problemas, dos três splits juntos) foi embaralhado **uma única vez** com a
+seed 42 e gravado nessa ordem em `data/work/staging/pool.json`. A fase 2 (`validate`) percorre essa
+ordem e a amostra são os **200 primeiros problemas que completam a validação** (código correto
+aprovado e exatamente 100 WA). Os que não completam são pulados e usa-se a próxima posição da ordem.
+Não há cota por macrocategoria nem prioridade por split ou dificuldade (a distribuição da amostra é
+consequência do sorteio e das exclusões, e o relatório a informa). Os problemas cujo código correto
+falha no motor ficam em `pending_triage`: a inspeção manual deles é **adiada** e só ocorre se a meta
+de 200 não for atingida com os demais. Detalhes: metodologia, seção 1.4, e spec, decisões D5, D11 e
+D17.
+
 ### O que sobra em `data/work/`
 
 `data/work/` é o espaço de trabalho de **quem gera**: fica só na máquina dele, com permissão `0700`,
@@ -350,7 +362,7 @@ nesta seção).
 | `docker compose run --rm app python -m dataset extract` | `app` | lê o `code_contests` em streaming e grava o pool de problemas elegíveis em `data/work/staging/` (opções `--seed`, `--splits`, `--limit-rows`) | disponível (executado em 2026-09-20) |
 | `docker compose run --rm app python -m dataset report` | `app` | regenera o relatório em `data/work/reports/` a partir do pool e dos problemas validados | disponível |
 | `docker compose run --rm sandbox python -m dataset selfcheck` | `sandbox` | confere o motor de execução com 9 programas de veredito conhecido | disponível (README do `sandbox`) |
-| `docker compose run --rm sandbox python -m dataset validate` | `sandbox` | roda o `selfcheck` e depois executa o código correto e as candidatas a WA de cada problema no motor, até reunir a meta de problemas completos; grava as pastas em `data/work/problems/` (opções `--target`, `--workers`, `--problem`; piloto: `--target 10`) | implementado e testado; piloto de 10 problemas executado em 2026-09-21, execução completa ainda não |
+| `docker compose run --rm sandbox python -m dataset validate` (roteiro completo em [`src/dataset/README.md`](src/dataset/README.md), seção "Roteiro da execução completa") | `sandbox` | roda o `selfcheck` e depois executa o código correto e as candidatas a WA de cada problema no motor, até reunir a meta de problemas completos; grava as pastas em `data/work/problems/` (opções `--target`, `--workers`, `--problem`; piloto: `--target 10`) | implementado e testado; piloto de 10 problemas executado em 2026-09-21, execução completa ainda não |
 | `docker compose run --rm sandbox python -m dataset audit` | `sandbox` | reexecuta o motor sobre os problemas completos e confere com `validacao.json` (opção `--problem`, repetível) | implementado e testado; ainda não executado sobre o dataset real |
 | `package` | `app` | gera `data/dataset.zip` e os manifestos | planejado (feature 001) |
 | `verify` e `scripts/verify_dataset.py` | `app` | confere o zip e a pasta descompactada contra o manifesto | planejado (feature 001) |
