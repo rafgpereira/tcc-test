@@ -12,8 +12,15 @@
    contradizê-lo.
 2. **Conteúdo mínimo**: as seis seções (a) a (f) abaixo, com estes títulos e nesta ordem.
    Seção sem conteúdo real MUST dizer "Nenhuma" (com uma frase), nunca ser omitida.
-3. **Sem ler o código**: uma pessoa que nunca viu o código MUST conseguir executar o módulo
-   e entender o que entra e o que sai só com o README.
+3. **Sem ler o código e sem saber Docker**: uma pessoa que nunca viu o código e não conhece
+   Docker MUST conseguir executar o módulo e entender o que entra e o que sai só com o README e
+   com o guia de execução do `README.md` da raiz. Portanto: o (b) é um **passo a passo**, não uma
+   lista de comandos; explica o serviço usado (`app` tem internet, `sandbox` não), o que aparece
+   na tela, como confirmar que deu certo (código de saída, arquivos gerados e onde abri-los no
+   seu computador) e o que fazer nas falhas comuns; nenhum termo ou valor de configuração é
+   tratado como conhecido; e a preparação única do ambiente é feita apontando para o guia da
+   raiz, sem repeti-la. Não afirme comportamento não observado (tempo de execução, tamanho em
+   disco): diga que será medido.
 4. **Comandos exatos**: todo comando MUST ser copiável e funcionar como escrito, no ambiente
    containerizado do projeto (`docker compose run --rm <serviço> ...`). Cada comando MUST
    constar na tabela "Comandos verificados" (última seção do README) com a data, a revisão git e
@@ -56,14 +63,32 @@ instruções e MUST ser substituídos.
 
 ## (b) Como executar
 
-<Comando exato, no ambiente containerizado. Um bloco por comando, com o efeito esperado
-em uma linha.>
+**Antes de começar** (uma vez por máquina): <link para o guia de execução do README da raiz e
+os passos dele necessários para este módulo>. <Diga em qual serviço o módulo roda e por quê.>
+
+### O que este módulo faz, na prática
+
+<Dois a quatro parágrafos curtos, sem jargão não explicado.>
+
+### Passo a passo
+
+<Passos numerados. Para cada comando: o bloco exato, o que ele faz, quanto costuma levar (só se
+já medido), o que aparece na tela, como conferir o resultado (código de saída, arquivos e onde
+abri-los no host) e os dados que você deve comparar com a documentação.>
 
 ```bash
 docker compose run --rm <serviço> <comando exato>
 ```
 
-<Se houver opções relevantes: tabela com opção, padrão e efeito, ou remeta a `--help`.>
+### Se algo der errado
+
+| O que aparece | O que significa | O que fazer |
+|---|---|---|
+| <mensagem ou código de saída> | <causa> | <ação exata> |
+
+### Opções
+
+<Tabela com opção, padrão e efeito, ou remeta a `--help`.>
 
 ## (c) Entradas esperadas
 
@@ -108,6 +133,8 @@ Um README de módulo só está em conformidade se **todas** as respostas forem "
 - [ ] O arquivo existe em `src/<modulo>/README.md`?
 - [ ] Tem as seis seções (a) a (f), com os títulos e a ordem deste template?
 - [ ] O propósito cabe em **uma** frase?
+- [ ] O (b) é um passo a passo que uma pessoa sem conhecimento de Docker consegue seguir (serviço explicado, resultado esperado, como conferir, falhas comuns), e a preparação do ambiente aponta para o guia da raiz?
+- [ ] O guia do `README.md` da raiz foi atualizado se este módulo mudou o que é preciso para começar (variáveis do `.env`, pastas, serviços)?
 - [ ] Cada comando de (b) consta na tabela "Comandos verificados", com data, revisão e tarefa (sem `pendente` se o módulo está implementado)?
 - [ ] `check_docs_sync.py --module src/<modulo>` sai com `0`?
 - [ ] (c) e (d) dizem formato **e** origem/destino de cada item?
@@ -124,8 +151,8 @@ no `README.md` da raiz).
 
 | Módulo | README | Situação |
 |---|---|---|
-| `src/dataset/` | a criar na feature `001-dataset-extraction` | módulo ainda não implementado; o README é tarefa obrigatória da feature |
-| `src/sandbox/` | a criar na feature `001-dataset-extraction` | idem (motor de execução compartilhado) |
+| `src/dataset/` | [README](../src/dataset/README.md) | em implementação (feature `001-dataset-extraction`): `extract` e `report` documentados em passo a passo; demais subcomandos serão acrescentados |
+| `src/sandbox/` | [README](../src/sandbox/README.md) | em implementação (motor de execução compartilhado): versão parcial (só tipos e limites); a versão completa é a tarefa T050 |
 | `src/mutation/` | a criar na feature própria | ainda sem spec |
 | `src/ai_clients/` | a criar na feature própria | ainda sem spec (metodologia seção 3 tem pontos pendentes) |
 | `src/metrics/` | a criar na feature própria | ainda sem spec (IIC pendente, metodologia seção 5.4) |

@@ -8,9 +8,14 @@ teste unitários em C++.
 > arquitetura do experimento, como os módulos se conectam e como reproduzir o experimento do
 > zero. É atualizado sempre que um módulo é adicionado ou o fluxo entre módulos muda.
 >
-> **Estado atual (2026-09-19)**: nenhum módulo está implementado ainda. A feature
-> `001-dataset-extraction` tem spec e plano prontos; o restante do experimento está descrito na
-> metodologia, mas ainda não especificado. Por isso a seção "Como reproduzir" marca cada etapa
+> **Estado atual (2026-09-20)**: o "Guia de execução, do clone ao primeiro comando" (abaixo) cobre a
+> preparação do ambiente para quem não conhece Docker. A fundação do projeto está pronta e verificada em contêiner
+> (imagem `gcc:13.2.0` com Python 3.11 via `uv`, tipos e limites do motor, armazenamento
+> determinístico, CLI base e o verificador de documentação). No módulo `dataset`, a extração
+> (`extract`) e o relatório (`report`) estão implementados e testados com dados sintéticos, mas
+> ainda não foram executados de verdade; a validação dos códigos, o motor de execução e o
+> empacotamento ainda não existem. A feature `001-dataset-extraction` tem spec, plano e tarefas
+> prontos; o restante do experimento está descrito na metodologia, mas ainda não especificado. Por isso a seção "Executando os módulos" marca cada etapa
 > com o seu estado. **A reprodução completa só será possível quando todas as etapas estiverem
 > implementadas**; este documento será completado à medida que os módulos chegarem.
 
@@ -70,8 +75,8 @@ na avaliação, para que nenhum código do dataset falhe no motor só durante o 
 
 | Módulo | Papel | Metodologia | Estado | README do módulo |
 |---|---|---|---|---|
-| `src/dataset/` | extrai, filtra, valida e empacota o dataset | seção 1 | spec e plano prontos ([`specs/001-dataset-extraction/`](specs/001-dataset-extraction/)); **sem código** | a criar na feature 001 |
-| `src/sandbox/` | motor de execução isolada de C++ | seções 1.4 e 4 | idem (construído na feature 001) | a criar na feature 001 |
+| `src/dataset/` | extrai, filtra, valida e empacota o dataset | seção 1 | em implementação ([`specs/001-dataset-extraction/`](specs/001-dataset-extraction/)): `extract` e `report` implementados, sem execução real ainda | [README](src/dataset/README.md) |
+| `src/sandbox/` | motor de execução isolada de C++ | seções 1.4 e 4 | em implementação (construído na feature 001): só tipos e limites prontos; o motor ainda não existe | [README](src/sandbox/README.md) |
 | `src/mutation/` | gera 100 mutantes por problema | seção 2 | **sem spec** | a criar |
 | `src/ai_clients/` | chamadas stateless aos 3 modelos | seção 3 | **sem spec** (pontos pendentes na metodologia, em especial o oráculo do SLM) | a criar |
 | avaliação | injeta as suítes geradas e registra vereditos em CSV | seção 4 | **sem spec** | a criar |
@@ -80,27 +85,166 @@ na avaliação, para que nenhum código do dataset falhe no motor só durante o 
 
 O formato dos READMEs de módulo é o de [`docs/template-modulo.md`](docs/template-modulo.md).
 
-## Como reproduzir o experimento
+## Guia de execução, do clone ao primeiro comando
 
-Ambiente: **tudo roda containerizado (Docker)**. Nenhum código C++ de terceiros é compilado ou
-executado no host. Requisitos: Docker com Compose v2 e Git; acesso à internet apenas para
-construir a imagem e para a extração do dataset.
+Este guia parte do zero e **não pressupõe conhecimento de Docker**. Ele cobre a preparação do
+ambiente, que se faz **uma vez por máquina**. Depois disso, cada módulo tem o seu próprio passo a
+passo na seção "(b) Como executar" do seu README (links na tabela "Módulos e estado" acima); esses
+passo a passo crescem à medida que os módulos são implementados. O projeto foi desenvolvido e
+testado em **Linux**; macOS e Windows (WSL2) não foram verificados. Nenhum código C++ de terceiros
+é compilado ou executado fora do Docker (Constitution, Princípio V).
+
+### O que você precisa ter instalado
+
+| Programa | Para quê | Como conferir |
+|---|---|---|
+| Git | baixar o projeto | `git --version` |
+| Docker Engine com o plugin Compose v2 | rodar tudo (ver "Docker em poucas palavras") | `docker --version` e `docker compose version` |
+
+Para instalar o Docker, siga a página da sua distribuição em <https://docs.docker.com/engine/install/>,
+incluindo os "Post-installation steps for Linux" (eles permitem usar `docker` sem `sudo`). Você
+também precisa de internet (para baixar a imagem base e o dataset) e de espaço livre em disco: a
+imagem base do GCC tem na ordem de 1 GB; o espaço ocupado pelos dados extraídos ainda não foi medido
+(será, na primeira extração real).
+
+Teste se o Docker está pronto: `docker run --rm hello-world`. Se aparecer `permission denied` com
+`/var/run/docker.sock`, o seu usuário não está no grupo `docker`: rode
+`sudo usermod -aG docker "$USER"`, saia da sessão do sistema e entre de novo.
+
+### Docker em poucas palavras
+
+- **Imagem**: um "computador congelado" com tudo instalado (compilador GCC 13.2.0, Python 3.11 e as
+  bibliotecas do projeto). É igual para todo mundo, e é por isso que o experimento é reprodutível.
+  Você a constrói uma vez (Passo 4).
+- **Contêiner**: uma execução dessa imagem. Nasce quando você roda um comando e some quando o
+  comando termina. O que o contêiner grava *dentro* dele se perde; o que grava em uma pasta
+  compartilhada com o seu computador fica.
+- **Volume (pasta compartilhada)**: uma pasta do seu computador que também aparece dentro do
+  contêiner. Aqui são `./data` e `./manifests` (e, em desenvolvimento, o código). Por isso os
+  arquivos que os comandos criam em `data/` aparecem para você na pasta `data/` do repositório.
+- **Serviço**: uma "receita de contêiner" definida no arquivo `docker-compose.yml`. O projeto tem
+  dois, e você escolhe qual usar em cada comando:
+
+| Serviço | Acesso à internet | Para que serve |
+|---|---|---|
+| `app` | sim | baixar o dataset, gerar relatórios, empacotar e verificar dados, lint e formatação |
+| `sandbox` | **não**, de propósito | compilar e executar código C++ de terceiros com segurança (o dataset e, no futuro, as suítes geradas por IA); também roda os testes do projeto |
+
+Como ler um comando do projeto:
+
+| Pedaço de `docker compose run --rm app python -m dataset extract` | Significado |
+|---|---|
+| `docker compose run` | crie um contêiner de um serviço do `docker-compose.yml` e rode um comando nele |
+| `--rm` | apague o contêiner quando o comando terminar (os arquivos em `data/` ficam) |
+| `app` | o serviço escolhido (com internet) |
+| `python -m dataset extract` | o comando que roda **dentro** do contêiner: o módulo Python `dataset`, subcomando `extract` |
+
+Todos os comandos são executados **na pasta do repositório** (a que contém `docker-compose.yml`).
+
+### Passo 1: baixar o projeto
+
+```bash
+git clone <url do repositório>
+cd tcc-testgen-pipeline
+```
+
+### Passo 2: criar o arquivo `.env`
+
+O `.env` guarda configurações locais suas; ele **nunca** vai para o Git. Ele tem três valores:
+
+| Variável | O que é | Que valor colocar |
+|---|---|---|
+| `HOST_UID` | número que identifica o **seu usuário** no Linux | **não é qualquer valor: é o seu.** Rode `id -u` |
+| `HOST_GID` | número do **seu grupo** principal | rode `id -g` |
+| `HF_TOKEN` | chave opcional do Hugging Face (site de onde vem o dataset) | pode ficar vazia: o dataset é público, o token só aumenta o limite de requisições |
+
+Para que servem `HOST_UID` e `HOST_GID`: o contêiner roda os comandos como um usuário identificado
+por esse número. Se o número for o seu, os arquivos criados em `data/` pertencem a você e você os lê,
+edita e apaga normalmente. Se for outro, eles ficam com outro dono (como `root`) e você precisaria de
+`sudo` para mexer neles, e o serviço `app` pode até falhar ao gravar. Em computadores Linux com um
+único usuário os valores costumam ser `1000` e `1000`, que é o padrão do projeto, mas confira com
+`id -u` e `id -g`.
+
+O comando abaixo cria o `.env` já com os seus números (e não sobrescreve um `.env` que já exista):
+
+```bash
+[ -f .env ] || printf 'HOST_UID=%s\nHOST_GID=%s\nHF_TOKEN=\n' "$(id -u)" "$(id -g)" > .env
+cat .env      # confira: HOST_UID e HOST_GID devem ser iguais à saída de `id -u` e `id -g`
+```
+
+A alternativa manual é `cp .env.example .env` e editar os números. Quando os módulos que chamam
+modelos comerciais existirem, as chaves de API também vão neste arquivo (e só nele).
+
+### Passo 3: criar a pasta `data/`
+
+```bash
+mkdir -p data
+```
+
+O Git não versiona `data/`, então ela não existe em um clone novo. Se você pulasse este passo, o
+Docker a criaria como `root` na primeira execução, e o serviço `app` (que roda com o seu usuário)
+não conseguiria gravar nela.
+
+### Passo 4: construir a imagem
+
+```bash
+docker compose build
+```
+
+Baixa a imagem base do GCC e instala o Python 3.11.16 e as bibliotecas fixadas em `uv.lock`. A
+primeira vez leva alguns minutos e depende da sua conexão; as seguintes são rápidas. Só é preciso
+repetir se o `Dockerfile` ou o `uv.lock` mudarem: o código do projeto é lido diretamente da sua
+pasta (volumes de `docker-compose.override.yml`), então editar código não exige reconstruir.
+
+### Passo 5: conferir que o ambiente funciona
+
+```bash
+docker compose run --rm sandbox pytest
+```
+
+Roda a suíte de testes do projeto. Esperado: a última linha diz `passed` (com o número de testes) e
+não menciona `failed`. Este comando usa o serviço `sandbox` porque parte dos testes compila e
+executa C++, o que só é permitido dentro dele.
+
+### Onde ficam os arquivos
+
+| Onde | O que é | No Git? |
+|---|---|---|
+| `.env` | suas configurações locais | não, nunca |
+| `data/work/` | dados de trabalho da extração e da validação, com permissão `0700` (só o seu usuário lê, para o código de terceiros não o alcançar) | não |
+| `data/dataset.zip` | o dataset validado, compactado (existirá quando a feature 001 terminar) | sim, é a única exceção em `data/` |
+| `manifests/` | manifesto de hashes e relatório final da extração | sim |
+
+### Problemas comuns
+
+| O que aparece | Causa provável | O que fazer |
+|---|---|---|
+| `permission denied` com `docker.sock` | seu usuário não está no grupo `docker` | `sudo usermod -aG docker "$USER"` e reinicie a sessão do sistema |
+| `'compose' is not a docker command` | falta o plugin Compose v2 | instale o `docker-compose-plugin` (página de instalação do Docker acima) |
+| `no configuration file provided: not found` | você não está na pasta do repositório | `cd tcc-testgen-pipeline` |
+| `PermissionError` ao gravar em `data/`, ou arquivos em `data/` que você não consegue apagar | `data/` foi criada por `root` (Passo 3 pulado) | `sudo chown -R "$(id -u):$(id -g)" data` |
+| um comando termina com falha de rede (código de saída `3`) | queda de conexão | rode o **mesmo comando** de novo: a extração retoma de onde parou |
+| você apertou Ctrl+C no meio de um comando | interrupção pedida por você | rode o mesmo comando de novo; é seguro |
+
+Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
+
+### Executando os módulos
 
 | Etapa | O que fazer | Estado |
 |---|---|---|
-| 0. Obter o projeto | `git clone <url do repositório>` e `cd tcc-testgen-pipeline` | disponível |
-| 1. Construir o ambiente | `cp .env.example .env` (ajuste `HOST_UID` e `HOST_GID` com a saída de `id -u` e `id -g`) e depois `docker compose build` (imagem `gcc:13.2.0` + Python 3.11 via `uv`) | planejado (feature 001) |
+| 0 e 1. Preparar o ambiente | Passos 1 a 5 deste guia | disponível |
 | 2. Obter o dataset | **sem rodar a extração**: `unzip data/dataset.zip -d data/` e depois `docker compose run --rm app python scripts/verify_dataset.py --extracted data/dataset` | planejado (o zip só existe depois da feature 001) |
-| 2b. Ou regerar o dataset do zero | `extract`, `validate`, `audit`, `package` do módulo `dataset`; comandos e opções em [`specs/001-dataset-extraction/contracts/cli.md`](specs/001-dataset-extraction/contracts/cli.md); roteiro de aceite em [`quickstart.md`](specs/001-dataset-extraction/quickstart.md) | planejado (feature 001) |
+| 2b. Ou regerar o dataset do zero | [passo a passo do módulo `dataset`](src/dataset/README.md): `docker compose run --rm app python -m dataset extract` e `docker compose run --rm app python -m dataset report` estão implementados, ainda sem execução real; `validate`, `audit` e `package` são planejados ([contrato dos comandos](specs/001-dataset-extraction/contracts/cli.md), [roteiro de aceite](specs/001-dataset-extraction/quickstart.md)) | em implementação (feature 001) |
 | 3. Gerar mutantes | — | não especificado |
-| 4. Gerar suítes com os modelos | — | não especificado (exige chaves de API em `.env`; ver `.env.example`, ainda a criar) |
+| 4. Gerar suítes com os modelos | — | não especificado (exige chaves de API em `.env`; ver `.env.example`) |
 | 5. Avaliar as suítes | — | não especificado |
 | 6. Calcular as métricas | — | não especificado |
 | 7. Executar tudo com um comando | — | não especificado (`src/cli/`) |
 
 Cada linha "não especificado" ou "planejado" MUST virar comandos exatos, testados, quando o
 módulo correspondente for concluído; uma feature só é concluída com isso feito
-(Constitution, Princípio XI).
+(Constitution, Princípio XI). O passo a passo de cada módulo, escrito para quem não conhece
+Docker, MUST estar na seção "(b) Como executar" do README do módulo.
 
 ### Reprodutibilidade
 

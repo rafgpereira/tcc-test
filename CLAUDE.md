@@ -45,6 +45,8 @@ execução de código C++ de terceiros fora do container.
 ## Comandos do dia a dia
 *(ajustar assim que o Dockerfile/compose existir de fato — abaixo é o
 esqueleto esperado)*
+- Preparar o ambiente (uma vez; explicado passo a passo no `README.md`): criar `.env` com
+  `HOST_UID`/`HOST_GID` (saídas de `id -u` e `id -g`) e `mkdir -p data`
 - Build da imagem: `docker compose build`
 - Rodar testes do pipeline: `docker compose run --rm sandbox pytest` (os
   testes compilam e executam C++, então rodam no serviço `sandbox`, sem rede;
@@ -72,6 +74,11 @@ esqueleto esperado)*
   `docs/metodologia-referencia.md`, que precisa estar sempre corrente. Nunca
   registrar em um lugar só, nunca deixar "para refletir depois". Uma tarefa
   não está concluída com essa propagação pendente.
+- Documentação de execução escrita para quem **não conhece Docker**: o `README.md` da raiz traz
+  o guia do clone ao primeiro comando (conceitos, `.env`, `data/`, build, verificação, problemas
+  comuns) e o "(b) Como executar" de cada módulo é um passo a passo (serviço explicado, resultado
+  esperado, como conferir, falhas comuns). Nunca supor que um termo ou valor de configuração é
+  conhecido, e não afirmar tempo ou tamanho não medidos.
 - Todo módulo tem `src/<modulo>/README.md` (template em
   `docs/template-modulo.md`, seis campos) e o `README.md` da raiz é atualizado
   quando um módulo é adicionado ou o fluxo entre módulos muda; sem isso o

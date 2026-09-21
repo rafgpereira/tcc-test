@@ -136,18 +136,25 @@ host), para que o código de terceiros não os acesse (spec D15).
 
 ### 2.0 Checkpoint de extração (`data/work/staging/shards/<split>-<NNNNN>.json`)
 
-Um arquivo por shard já processado (`schema_version`, `split`, `shard_index`, `rows_read`,
-contagens do funil do shard e a lista de `problem_id` elegíveis encontrados, na ordem de
-leitura). Sua existência marca o shard como concluído; é gravado depois dos `raw` do shard, de
-forma atômica. O `pool.json` é derivado destes arquivos, na ordem global determinística, com
-a primeira ocorrência de cada `problem_id` vencendo.
+Um arquivo por shard processado. Campos: `schema_version`, `split`, `shard_index`, `rows_read`,
+`complete` (`false` quando `--limit-rows` interrompeu o shard; só checkpoints completos são
+pulados na retomada), `funnel` (linhas que sobrevivem a cada etapa, no shard), `rejections`
+(linhas com cada motivo de rejeição), `unique_ids` (TODO `problem_id` que passou pela etapa de
+unicidade, elegível ou não, para que a regra "a primeira ocorrência vence" dê o mesmo resultado
+depois de uma retomada) e `eligible` (lista de `PoolEntry`: `problem_id`, `macrocategoria`,
+`raw_wa_count`, `raw_ac_count` e `source_row`, a posição da linha dentro do shard, base 0).
+É gravado depois dos `raw` do shard, de forma atômica. O `pool.json` é derivado destes arquivos,
+na ordem global determinística (splits na ordem pedida, shards em ordem crescente).
 
 ### 2.1 `Pool` (`data/work/staging/pool.json`)
 
 `schema_version`, `hf_dataset`, `hf_revision`, `seed` (`42`), `counts` (funil: lidos, por
 critério rejeitado, elegíveis), `order` (list[`problem_id`], ordem de processamento após embaralhar com
-a seed) e `problems` (mapa `problem_id` → `{split, macrocategoria, raw_wa_count,
-raw_ac_count, source_row}`).
+a seed) e `problems` (mapa `problem_id` → `{split, shard_index, macrocategoria, raw_wa_count,
+raw_ac_count, source_row}`). `counts` traz `funnel` (linhas que sobrevivem a cada etapa, em
+ordem: `read`, `codeforces`, `rating_1000_1600`, `has_allowed_tag`, `no_forbidden_tag`,
+`no_visual_term`, `not_translated`, `unique_id`, `no_file_io`, `has_cpp_solutions`,
+`enough_raw_wa`), `rejections` e `eligible`.
 
 Motivos de rejeição registrados no funil (FR-005; um problema pode ter mais de um), como
 enum `RejectionReason`: `not_codeforces`, `rating_out_of_range` (inclui rating ausente),
@@ -159,7 +166,14 @@ enum `RejectionReason`: `not_codeforces`, `rating_out_of_range` (inclui rating a
 Dados pesados de um problema do pool, em formato próprio do módulo (não é o formato do
 dataset): enunciado, testes (três grupos), soluções corretas C++ (ordem original) e submissões
 incorretas C++ (ordem original, com o índice original), mais os campos de metadados brutos.
-Gravado de forma atômica; reexecutar a extração não reescreve arquivos já completos.
+Campos: `schema_version`, `problem_id`, `split`, `shard_index`, `source_row`, `name`,
+`description`, `cf_contest_id`, `cf_index`, `cf_rating`, `cf_points`, `cf_tags`,
+`is_description_translated`, `time_limit_seconds` (`seconds + nanos/1e9`), `memory_limit_bytes`,
+`public_tests`, `private_tests`, `generated_tests` (cada um com listas paralelas `input` e
+`output` de mesmo tamanho), `correct_solutions` (lista de textos) e `incorrect_solutions` (lista
+de `{index, source}`, `index` = posição em `incorrect_solutions` do dataset, todas as linguagens).
+Gravado de forma atômica e determinística (gzip sem data/hora); reexecutar a extração não
+reescreve arquivos de shards completos.
 
 ### 2.3 Registro de problema em construção/encerrado
 
@@ -171,9 +185,12 @@ Gravado de forma atômica; reexecutar a extração não reescreve arquivos já c
 
 ### 2.4 `ExtractionReport` (`data/work/reports/extraction_report.json` e `.md`) — FR-018/FR-018a
 
-`schema_version`, `funnel` (lidos; rejeitados por critério; descartados por motivo; incluídos),
-`distribution` (por macrocategoria), `category_alerts` (macrocategorias com `< 30` problemas;
-FR-018a), `pending_triage` (lista de `{problem_id, stage, reason}`, destacada quando não
+`schema_version`, `funnel` (`read`; `stages`, linhas que sobrevivem a cada etapa;
+`rejected_by_reason`; `discarded_by_reason`; `included`), `pool_distribution` (pool elegível por
+macrocategoria), `distribution` (amostra incluída por macrocategoria, com as três chaves sempre
+presentes), `selection_final` (a meta foi atingida ou todos os problemas do pool foram
+encerrados), `category_alerts` (macrocategorias com `< 30` problemas na amostra; só calculados
+quando `selection_final`; FR-018a), `pending_triage` (lista de `{problem_id, stage, reason}`, destacada quando não
 vazia), `target` (200), `deficit` (`max(0, 200 - included)`), `engine_selfcheck` (resultado
 da suíte de veredito conhecido) e `provenance`. O comando `package` copia o JSON para
 `manifests/extraction_report.json` (versionado).

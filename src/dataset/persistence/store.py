@@ -5,6 +5,8 @@ same bytes (Constitution, Principle II). Every write is atomic (temporary file i
 directory, then ``os.replace``), so an interruption never leaves a truncated file (Principle VII).
 """
 
+import gzip
+import io
 import json
 import os
 import stat
@@ -56,6 +58,28 @@ def _atomic_write_bytes(path: Path, data: bytes) -> None:
 def atomic_write_json(path: Path, obj: Any) -> None:
     """Write ``obj`` as JSON atomically. Serialization happens first, so a failure touches nothing."""
     _atomic_write_bytes(path, dumps_json(obj).encode("utf-8"))
+
+
+def atomic_write_json_gz(path: Path, obj: Any) -> None:
+    """Write ``obj`` as gzip-compressed JSON atomically.
+
+    The gzip header carries no timestamp and no file name, so the same object always gives the same
+    bytes.
+    """
+    payload = dumps_json(obj).encode("utf-8")
+    buffer = io.BytesIO()
+    with gzip.GzipFile(filename="", mode="wb", fileobj=buffer, mtime=0, compresslevel=6) as gz:
+        gz.write(payload)
+    _atomic_write_bytes(path, buffer.getvalue())
+
+
+def read_json(path: Path) -> Any:
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def read_json_gz(path: Path) -> Any:
+    with gzip.open(path, "rt", encoding="utf-8") as handle:
+        return json.load(handle)
 
 
 def atomic_write_text(path: Path, text: str) -> None:

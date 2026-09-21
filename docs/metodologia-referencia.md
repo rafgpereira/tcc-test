@@ -222,8 +222,22 @@ Esse campo é persistido por problema (ver 1.5 — `metadata.json`).
   (**`SEED = 42`**, **[DECIDIDO]** em 2026-09-19; trocá-la depois da primeira extração muda
   a seleção).
   O relatório final emite um **alerta** se qualquer macrocategoria ficar com menos de 30
-  problemas após a seleção (limiar fixo; alerta informativo, que não bloqueia a execução,
+  problemas após a seleção, que é final quando a meta é atingida ou todos os problemas do pool
+  foram encerrados, mesmo com déficit (limiar fixo; alerta informativo, que não bloqueia a execução,
   não altera a seleção e não relaxa critérios).
+  **Distribuição esperada (estimativa analítica de 2026-09-20, sobre o pool medido de
+  2026-09-19: 417 `estrutural_otimizacao`, 285 `matematica`, 577 `logica_direta`; a estimativa
+  será refeita com o pool da extração real)**: como a ordem é um embaralhamento único do pool
+  (sem estratificação), a amostra de 200 tende a ser proporcional ao pool: em média 65,2
+  (dp 6,1), 44,6 (dp 5,4) e 90,2 (dp 6,5) problemas, respectivamente (distribuição
+  hipergeométrica). Só por acaso amostral, a probabilidade de uma categoria ficar abaixo de 30 é
+  de 2e-3 para `matematica` e desprezível para as demais. O risco real é outro: se a taxa de
+  problemas que se tornam `complete` (não descartados nem em triagem) for diferente entre
+  categorias, a amostra final se desloca. Sem esse efeito, `matematica` só cairia abaixo de 30
+  se sua taxa de validação fosse menor que ~62% da taxa das outras duas juntas (`estrutural_otimizacao`:
+  ~37%; `logica_direta`: ~22%). A taxa por categoria só será conhecida depois da validação
+  (piloto e execução completa); o relatório traz `pool_distribution` e `distribution` lado a lado
+  para permitir esse acompanhamento.
 - **[PROPOSTA — definido na spec e no plano, aguardando confirmação dos autores] Regras
   operacionais do motor**:
   - *Ordem da suíte e veredito*: os testes rodam em ordem fixa (públicos, privados,
@@ -622,4 +636,5 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 | 2026-09-19 | Números do dataset corrigidos por medição (13.610 exemplos; `train` 13.328; 8.101 Codeforces; 118 sem rating; 1.288 elegíveis, 1.279 com E/S por arquivo removida) e funil de elegibilidade | 1.1, 1.2, 7 |
 | 2026-09-19 | Localização do motor em pacote próprio (`src/sandbox/`), decisão confirmada na revisão do plano e que faltava aqui | 1.4 |
 | 2026-09-19 | Auditoria retroativa (Princípio XI): dados medidos de disponibilidade de submissões, volume de testes e verificações de ambiente (1.7); regras operacionais do motor como PROPOSTA; revisão fixada e licença; `schema_version`, `status` e relatório versionado; evidência e mecanismo do limite de pilha; rótulo de `AC_ref` corrigido; este histórico | 1.1, 1.4–1.7, 4, 6–8 |
+| 2026-09-20 | Estimativa analítica da distribuição por macrocategoria sob a seleção sem cota (D5) e limiar de taxa de validação que dispararia o alerta de 30; passo `mkdir -p data` antes do primeiro `docker compose run` (o Docker cria o diretório como root se ele não existir) | 1.4, 1.7 |
 | 2026-09-19 | Diretório de trabalho `data/work/` com permissão `0700` para o código de terceiros não o acessar (D15); a premissa "não acessa `data/`" passa a valer para `data/work/` | 1.4, 1.7, 7 |

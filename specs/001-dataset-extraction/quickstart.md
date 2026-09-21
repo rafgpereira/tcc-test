@@ -10,6 +10,10 @@ aceite. Nenhum comando executa código C++ de terceiros no host: tudo roda no co
 
 ## Pré-requisitos
 
+> Para quem não conhece Docker: o [README da raiz](../../README.md#guia-de-execução-do-clone-ao-primeiro-comando)
+> tem o guia completo, do clone ao primeiro comando, com a explicação de cada passo abaixo (por
+> exemplo, o que são `HOST_UID` e `HOST_GID`). Este roteiro é o de aceite da feature, mais enxuto.
+
 - Docker com Compose v2 e acesso à internet apenas para o `build` e para o comando `extract`.
 - Um clone do repositório na branch da feature.
 - (Opcional) `HF_TOKEN` em `.env` (copie de `.env.example`) para limites de requisição maiores.
@@ -19,6 +23,7 @@ aceite. Nenhum comando executa código C++ de terceiros no host: tudo roda no co
 
 ```bash
 cp .env.example .env    # ajuste HOST_UID e HOST_GID (saída de `id -u` e `id -g`)
+mkdir -p data           # sem isto o Docker cria data/ como root e o serviço `app` não grava nele
 docker compose build
 docker compose run --rm sandbox g++ --version      # esperado: g++ (GCC) 13.2.0
 docker compose run --rm sandbox python --version   # esperado: Python 3.11.16

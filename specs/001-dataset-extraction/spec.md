@@ -393,7 +393,8 @@ apontando o arquivo divergente.
   listar também todos os problemas pendentes de triagem (FR-011b), com identificador e
   motivo, destacados quando existirem: cada um exige inspeção individual antes de prosseguir
   com o experimento, e não há limiar de tolerância.
-- **FR-018a**: Após a seleção final, se qualquer macrocategoria tiver menos de 30 problemas
+- **FR-018a**: Após a seleção final (a meta foi atingida ou todos os problemas do pool foram
+  encerrados, mesmo com déficit), se qualquer macrocategoria tiver menos de 30 problemas
   na amostra, o relatório final MUST incluir um alerta identificando a(s) macrocategoria(s)
   e a quantidade obtida. O alerta é informativo: não bloqueia a execução, não altera a
   seleção e não relaxa critérios (ver Divergências, D5).
@@ -457,7 +458,10 @@ apontando o arquivo divergente.
 - **FR-031**: Os módulos entregues por esta feature (`src/dataset/` e `src/sandbox/`) MUST ter
   cada um um `README.md` no formato de `docs/template-modulo.md`, com os seis campos
   (propósito em uma frase, como executar com comando exato, entradas, saídas, dependências e
-  limitações), acessível sem ler o código. Cada comando documentado MUST ter sido executado
+  limitações), acessível sem ler o código **e escrito para quem não conhece Docker**: o "como
+  executar" (b) MUST ser um passo a passo que explica o serviço usado, o que aparece na tela,
+  como confirmar que funcionou e o que fazer em cada falha comum, e MUST apontar para o guia de
+  execução do `README.md` da raiz para a preparação única do ambiente. Cada comando documentado MUST ter sido executado
   como escrito e constar, com data, revisão e tarefa, na tabela "Comandos verificados" do
   README, e a ajuda (`--help`) da CLI e as docstrings MUST NOT contradizer o README.
 - **FR-032**: A feature MUST NOT ser considerada concluída enquanto: (a)
@@ -465,7 +469,11 @@ apontando o arquivo divergente.
   toda decisão desta spec, conforme `sync-matrix.json`, com o histórico de atualizações
   datado); (b) o `README.md` da raiz (visão geral) não
   descrever os módulos `dataset` e `sandbox`, como se conectam e os comandos exatos para obter
-  ou regerar o dataset.
+  ou regerar o dataset, e não trouxer o guia de execução do clone ao primeiro comando (pré-requisitos
+  e como conferi-los, explicação de Docker, imagem, contêiner, volume e dos serviços `app` e
+  `sandbox`, valor e finalidade de cada variável do `.env`, criação de `data/`, construção da
+  imagem, verificação do ambiente, onde ficam os arquivos e problemas comuns), em português e sem
+  supor conhecimento de Docker.
 
 **Fora de escopo**
 
@@ -649,6 +657,13 @@ também em 2026-09-19.
   contrapartida, o relatório final MUST emitir um alerta se qualquer macrocategoria ficar
   com menos de 30 problemas após a seleção (limiar fixo em 30, informativo: não bloqueia,
   não altera a seleção e não relaxa critérios). Reflete-se em FR-016 e FR-018a.
+  **Estimativa analítica (2026-09-20, sobre o pool medido de 2026-09-19)**: a ordem é um
+  embaralhamento único do pool, sem estratificação, então a amostra de 200 tende a ser
+  proporcional ao pool (417/285/577): em média 65,2, 44,6 e 90,2 problemas, e só por acaso
+  amostral a chance de `matematica` ficar abaixo de 30 é de ~2e-3. O que pode disparar o
+  alerta é uma taxa de validação desigual entre categorias (`matematica` abaixo de ~62% da
+  taxa das outras), conhecida só depois da validação; não há mecanismo de correção, por
+  decisão desta D5. Detalhes na metodologia, seção 1.4.
 - **D6 — Escopo de versionamento de dados**: conforme a Constitution v1.1.0, somente o
   dataset (não os mutantes) pode ser versionado, e apenas compactado em `data/dataset.zip`
   com manifesto. Confirmado em 2026-09-19: o manifesto fica em `manifests/`, **fora** de

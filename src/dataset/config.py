@@ -16,6 +16,9 @@ HF_REVISION = "802411c3010cb00d1b05bad57ca77365a3c699d6"
 HF_SOURCE_CODEFORCES = 2  # ClassLabel index of `source`
 HF_LANGUAGE_CPP = 2  # ClassLabel index of `language`
 
+# Splits in the order they are read; the first occurrence of a problem wins (spec FR-002, FR-003).
+SPLITS = ("train", "valid", "test")
+
 # Sample size and validation (spec FR-014, FR-016, FR-018a).
 TARGET_PROBLEMS = 200
 WA_PER_PROBLEM = 100
@@ -58,9 +61,9 @@ DATASET_ZIP = DATA_DIR / "dataset.zip"
 MANIFEST_PATH = Path("manifests") / "dataset.manifest.json"
 
 
-def seeded_random(context: str) -> random.Random:
+def seeded_random(context: str, seed: int = SEED) -> random.Random:
     """Return the random stream of a context, e.g. ``"pool"`` or ``"wa:1101_A"``.
 
     The textual seed does not depend on ``PYTHONHASHSEED``, so the stream is reproducible.
     """
-    return random.Random(f"{SEED}:{context}")
+    return random.Random(f"{seed}:{context}")

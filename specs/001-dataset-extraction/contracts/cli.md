@@ -81,8 +81,9 @@ divergência.
 ### `report` (serviço `app`)
 
 Regenera `reports/extraction_report.{json,md}` a partir de `staging/pool.json` e
-`problems/*/validacao.json`, sem executar nada. Inclui alertas de FR-018a e a lista de
-triagem.
+`problems/*/validacao.json`, sem executar nada. Inclui alertas de FR-018a (só quando a seleção
+é final: meta atingida ou todos os problemas do pool encerrados) e a lista de triagem. Sem
+`pool.json`, sai com código `1`.
 
 ### `package` (serviço `app`)
 

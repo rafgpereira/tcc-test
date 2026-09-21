@@ -295,7 +295,8 @@ opção é aceita.
 
 - `config.py`: `SEED`, `HF_DATASET`, `HF_REVISION`, alvo 200, WAs por problema 100, limiar 30,
   listas de tags/termos.
-- `schemas/`: modelos Pydantic (`Metadata`, `Testes`, `Validacao`, `Manifest`, `Pool`, `Report`).
+- `schemas/`: modelos Pydantic (`Metadata`, `Testes`, `Validacao`, `Manifest`, `Pool`, `Report`) e
+  `common.py` (base `Schema` com `extra="forbid"`, `Macrocategoria`, `Split`, `schema_version`).
 - `extraction/`: `stream.py` (streaming e `staging`).
 - `filtering/`: `eligibility.py` (critérios e motivos), `classification.py` (macrocategoria).
 - `validation/`: `ac.py` (escolha e execução do `AC_ref`, triagem), `wa.py` (candidatas em lotes,
@@ -360,7 +361,7 @@ src/
     ├── __init__.py
     ├── __main__.py
     ├── config.py
-    ├── schemas/              # metadata.py testes.py validacao.py manifest.py pool.py report.py
+    ├── schemas/              # common.py metadata.py testes.py validacao.py manifest.py pool.py report.py
     ├── extraction/           # stream.py
     ├── filtering/            # eligibility.py classification.py
     ├── validation/           # ac.py wa.py problem.py audit.py
@@ -456,13 +457,13 @@ para cada item (Constitution, Fluxo de Desenvolvimento).
 
 | Entrega | Onde | Regra |
 |---|---|---|
-| README do módulo `dataset` | `src/dataset/README.md` | template `docs/template-modulo.md` (seis campos); comandos de [contracts/cli.md](./contracts/cli.md) registrados na tabela "Comandos verificados" (`pendente` até a tarefa que os executa carimbar data, revisão e tarefa) |
+| README do módulo `dataset` | `src/dataset/README.md` | template `docs/template-modulo.md` (seis campos), com (b) em passo a passo para quem não conhece Docker; comandos de [contracts/cli.md](./contracts/cli.md) registrados na tabela "Comandos verificados" (`pendente` até a tarefa que os executa carimbar data, revisão e tarefa) |
 | README do módulo `sandbox` | `src/sandbox/README.md` | idem; API de [contracts/engine-api.md](./contracts/engine-api.md); dependências e serviço do Compose (sem rede) |
 | Script de conformidade | `scripts/check_docs_sync.py` (+ `tests/docs/`) | checagens C1 a C6: seções do README, comandos contra a CLI (no README do módulo dono da CLI, `src/dataset`, todo subcomando também precisa estar documentado), links, estado do README raiz, matriz de sincronização, ausência de `[PROPOSTA]` ativa (riscadas e legenda não contam); é o gate do FR-031/FR-032/SC-016 |
 | Matriz de sincronização | `specs/001-dataset-extraction/sync-matrix.json` | toda decisão D# da spec tem linha e termos que precisam aparecer na metodologia |
 | Gate das regras do motor | primeira tarefa da US2 | os autores confirmam ou alteram as regras operacionais, hoje `[PROPOSTA]`, antes dos testes e do código do motor |
 | `--help` e docstrings | `python -m dataset --help` e pacotes | não podem contradizer os READMEs |
-| Visão geral do projeto | `README.md` (raiz) | passa de "planejado" para "disponível" cada etapa concluída, com comandos exatos e já executados; a frase "Estado atual" e a data são reescritas a cada atualização (checagem C4) |
+| Visão geral do projeto | `README.md` (raiz) | traz o guia de execução do clone ao primeiro comando, para quem não conhece Docker (pré-requisitos, conceitos, `.env`, `data/`, build, verificação, problemas comuns); passa de "planejado" para "disponível" cada etapa concluída, com comandos exatos e já executados; a frase "Estado atual" e a data são reescritas a cada atualização (checagem C4) |
 | Metodologia sincronizada | `docs/metodologia-referencia.md` | todo dado medido e toda decisão da implementação entram no mesmo ciclo, com nova linha no histórico (seção 8) |
 | Checagem final | revisão (Princípio X) | `scripts/check_docs_sync.py --closing` com saída 0 e os itens da lista de `docs/template-modulo.md` que o script não decide (FR-032, SC-016) |
 

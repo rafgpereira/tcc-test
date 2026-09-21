@@ -25,5 +25,9 @@ markers = ["integration: compila e executa C++ (serviço sandbox)"]
 [tool.ruff]
 line-length = 100
 
+[tool.ruff.lint.per-file-ignores]
+# Test builders use the keyword style `dict(a=1)` on purpose, for readability.
+"tests/**" = ["C408"]
+
 [tool.black]
 line-length = 100
