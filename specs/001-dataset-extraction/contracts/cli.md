@@ -65,7 +65,13 @@ Comportamento: pula problemas já encerrados; refaz `building/`; falha de AC ⇒
 `pending_triage` e segue (FR-011b); WA insuficientes ⇒ `discarded`; `InfraError` ⇒ nova
 tentativa limitada e, persistindo, o problema permanece em `building/` e o comando termina com
 código `3` (nunca vira veredito). Ao final, escreve o relatório e sai com `0` se a meta foi
-atingida e não há triagem pendente novo; `1` caso contrário.
+atingida e não há triagem pendente novo; `1` caso contrário. Códigos: sem `pool.json` sai com `1`
+(rode `extract`); `--problem` fora do pool sai com `2`. Em `--problem`, o código é `0` só se o
+problema terminou `complete`. Um problema já encerrado nunca é refeito (apague a pasta para
+reprocessá-lo). Efeitos além de `problems/`: `reports/selfcheck.json` (resultado do `selfcheck`),
+`reports/validation_log.jsonl` (uma linha JSON por problema, com o estado, as contagens de
+candidatas por resultado e o tempo; não é determinístico e não é empacotado) e
+`reports/extraction_report.{json,md}` regerado.
 
 ### `audit` (serviço `sandbox`)
 
@@ -76,9 +82,12 @@ Reexecuta o motor (FR-015a): `AC_ref` primeiro, depois as WAs, e compara com o
 |---|---|---|
 | `--problem ID` (repetível) | todos os `complete` | escopo da auditoria |
 
-Falha do AC ⇒ interrompe aquele problema, grava `triage` (estágio `audit`) e muda o `status`
-para `pending_triage`. Divergência em WA ⇒ apenas reportada. Código `1` se houver qualquer
-divergência.
+Falha do AC ⇒ interrompe aquele problema, grava `triage` (estágio `audit`, com o veredito do
+motor) e muda o `status` para `pending_triage`; a lista `wa` do `validacao.json` é esvaziada (as
+WAs não são avaliadas) e os arquivos da pasta permanecem para inspeção. Divergência em WA
+(veredito ou teste decisivo diferente do registrado) ⇒ apenas reportada, sem alterar nada. Só os
+problemas `complete` são auditados. Código `1` se houver qualquer divergência. Ao final, regera o
+relatório.
 
 ### `report` (serviço `app`)
 

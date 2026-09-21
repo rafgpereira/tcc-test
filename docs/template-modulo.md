@@ -43,7 +43,8 @@
 9. **Verificação automática**: `docker compose run --rm app python scripts/check_docs_sync.py
    --module src/<modulo>` confere as seções (a) a (f) na ordem, o propósito em uma frase, os
    comandos contra a CLI (todo subcomando citado deve existir; no README do módulo dono da CLI,
-   `src/dataset`, todo subcomando também deve estar documentado) e os links. A lista de
+   `src/dataset`, todo subcomando também deve estar documentado), os links e a seção "Referência de
+   comandos" do `README.md` da raiz (todo subcomando da CLI deve constar nela). A lista de
    conformidade abaixo cobre só o que o script não decide.
 
 ## Esqueleto
@@ -135,6 +136,7 @@ Um README de módulo só está em conformidade se **todas** as respostas forem "
 - [ ] O propósito cabe em **uma** frase?
 - [ ] O (b) é um passo a passo que uma pessoa sem conhecimento de Docker consegue seguir (serviço explicado, resultado esperado, como conferir, falhas comuns), e a preparação do ambiente aponta para o guia da raiz?
 - [ ] O guia do `README.md` da raiz foi atualizado se este módulo mudou o que é preciso para começar (variáveis do `.env`, pastas, serviços)?
+- [ ] Todos os comandos do módulo (inclusive os de teste e de verificação, e os planejados como `planejado`) constam na seção "Referência de comandos" do `README.md` da raiz?
 - [ ] Cada comando de (b) consta na tabela "Comandos verificados", com data, revisão e tarefa (sem `pendente` se o módulo está implementado)?
 - [ ] `check_docs_sync.py --module src/<modulo>` sai com `0`?
 - [ ] (c) e (d) dizem formato **e** origem/destino de cada item?
@@ -152,7 +154,7 @@ no `README.md` da raiz).
 | Módulo | README | Situação |
 |---|---|---|
 | `src/dataset/` | [README](../src/dataset/README.md) | em implementação (feature `001-dataset-extraction`): `extract` e `report` documentados em passo a passo; demais subcomandos serão acrescentados |
-| `src/sandbox/` | [README](../src/sandbox/README.md) | em implementação (motor de execução compartilhado): README completo, em passo a passo; falta só carimbar os comandos e passar o status a `implementado` (T050) |
+| `src/sandbox/` | [README](../src/sandbox/README.md) | implementado (motor de execução compartilhado): README completo, em passo a passo, com os comandos carimbados em 2026-09-21 (T050) |
 | `src/mutation/` | a criar na feature própria | ainda sem spec |
 | `src/ai_clients/` | a criar na feature própria | ainda sem spec (metodologia seção 3 tem pontos pendentes) |
 | `src/metrics/` | a criar na feature própria | ainda sem spec (IIC pendente, metodologia seção 5.4) |

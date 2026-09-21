@@ -1,6 +1,6 @@
 # Módulo `sandbox` (motor de execução)
 
-> **Status**: em implementação · **Feature**:
+> **Status**: implementado · **Feature**:
 > `specs/001-dataset-extraction/` · **Metodologia**: `docs/metodologia-referencia.md`, seções 1.4 e 4
 
 ## (a) Propósito
@@ -142,5 +142,5 @@ no repositório.
 
 | Comando | Verificado em | Revisão | Tarefa |
 |---|---|---|---|
-| `selfcheck` | pendente | — | — |
-| `pytest tests/sandbox` | pendente | — | — |
+| `selfcheck` | 2026-09-21 | 5121759 | T050 |
+| `pytest tests/sandbox` | 2026-09-21 | 5121759 | T050 |

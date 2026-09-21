@@ -361,7 +361,8 @@ apontando o arquivo divergente.
   problemas segue. Falhas de infraestrutura do ambiente isolado (FR-010) não são falhas de
   AC. Se o registro alterar o `validacao.json` de um problema já empacotado, a verificação de
   integridade (FR-028) passa a apontar a divergência, o que é intencional (ver Divergências,
-  D8).
+  D8). Na auditoria, o `validacao.json` do problema passa a `pending_triage` com a lista `wa`
+  esvaziada, e os arquivos da pasta permanecem para inspeção.
 - **FR-011a**: Nenhum código C++ MUST ser persistido no dataset sem antes ter sido executado
   pelo motor com o veredito esperado: `AC_ref` aprovada em 100% da suíte oficial e cada
   falha com veredito de resposta errada (invariante do dataset).
@@ -481,7 +482,9 @@ apontando o arquivo divergente.
   e como conferi-los, explicação de Docker, imagem, contêiner, volume e dos serviços `app` e
   `sandbox`, valor e finalidade de cada variável do `.env`, criação de `data/`, construção da
   imagem, verificação do ambiente, onde ficam os arquivos e problemas comuns), em português e sem
-  supor conhecimento de Docker.
+  supor conhecimento de Docker; e não trouxer a seção "Referência de comandos", que lista todos os
+  comandos do projeto (execução, teste e verificação, com serviço e estado) para que nenhum exista
+  só no código.
 
 **Fora de escopo**
 
@@ -740,7 +743,13 @@ também em 2026-09-19.
   impossível e a amostra tende a vir quase toda do `train`; se a fração de WA for baixa, a
   meta de 200 pode não fechar sem relaxar D4 ou critérios (decisão dos autores, nunca
   automática; FR-017). (iv) O zip é estimado em ~10 MB. Detalhes e fontes na metodologia,
-  seção 1.7.
+  seção 1.7. **Piloto de validação (2026-09-21, T071)**: 14 problemas do `train` processados;
+  85,5% das candidatas a WA viraram WA (o risco de poucas WA não se materializou no `train`),
+  mediana de 102 s por problema completo e nenhum déficit projetado (pool de 1.234; ~71% de
+  problemas completos observados). Três ACs foram para triagem (21%): verificador especial
+  (`616_D`), gabarito com linha em branco inicial (`1529_B`) e teste gerado fora das restrições
+  do enunciado (`13_A`); os `generated_tests` do dataset podem ter entradas inválidas. Números e
+  análise na metodologia, seção 1.7.
 - **D13 — Regras operacionais do motor (decidido em 2026-09-20, gate T037)**: os autores
   confirmaram, sem alteração, ordem da suíte e veredito pelo primeiro teste que falha
   (FR-012), comparação de saída sem espaços finais de linha e sem linhas em branco no fim do
@@ -756,7 +765,8 @@ também em 2026-09-19.
   reprovados por divergência só de formatação (regra 2: veredito `WA` com saída igual à
   esperada comparando tokens separados por espaço em branco, diagnóstico
   `divergence.format_only`) ou por `TLE` (regra 5), a regra correspondente volta a ser proposta
-  para nova decisão dos autores, e o piloto para; não há mudança automática. O valor de 10% foi
+  para nova decisão dos autores, e o piloto para; não há mudança automática. **Resultado do
+  piloto (2026-09-21)**: regra 2, 1 de 14 ACs testados (7,1%); regra 5, 0 de 14; nenhuma reabre. O valor de 10% foi
   escolhido no gate (os autores deixaram o limiar em aberto) e, com cerca de 10 a 12 ACs
   testados, equivale a 2 ou mais casos. Reflete-se em FR-011b, FR-018 e nas tarefas T054, T056,
   T062, T064, T069 e T071.

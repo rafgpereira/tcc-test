@@ -43,14 +43,20 @@ dataset — isso é resolvido pelo `data/dataset.zip` commitado no repositório
 execução de código C++ de terceiros fora do container.
 
 ## Comandos do dia a dia
-*(ajustar assim que o Dockerfile/compose existir de fato — abaixo é o
-esqueleto esperado)*
+A lista completa e atual de comandos (com serviço, estado e onde está o passo a passo) é a seção
+"Referência de comandos" do `README.md`; todo comando novo entra lá, e o
+`scripts/check_docs_sync.py` confere que cada subcomando da CLI aparece nela. Resumo:
 - Preparar o ambiente (uma vez; explicado passo a passo no `README.md`): criar `.env` com
   `HOST_UID`/`HOST_GID` (saídas de `id -u` e `id -g`) e `mkdir -p data`
 - Build da imagem: `docker compose build`
 - Rodar testes do pipeline: `docker compose run --rm sandbox pytest` (os
   testes compilam e executam C++, então rodam no serviço `sandbox`, sem rede;
-  o serviço `app` é o que tem rede, para extração e empacotamento)
+  o serviço `app` é o que tem rede, para extração e empacotamento); de uma
+  parte só: `docker compose run --rm sandbox pytest tests/sandbox`
+- Conferir o motor de execução: `docker compose run --rm sandbox python -m dataset selfcheck`
+- Extrair o pool do dataset (`app`, com rede): `docker compose run --rm app python -m dataset extract`
+  e `... report`
+- Conferir a documentação: `docker compose run --rm app python scripts/check_docs_sync.py`
 - Lint/formatação: `docker compose run --rm app ruff check .` /
   `docker compose run --rm app black .`
 - Verificar integridade do dataset local (compara contra

@@ -10,7 +10,9 @@ C1  module README structure: Status line, sections (a) to (f) in the template or
     purpose of one sentence.
 C2  commands: every ``python -m dataset <sub>`` in a module README must exist in the CLI; in the
     README of the module that owns the CLI (``--cli-owner``) every CLI subcommand must also be
-    documented.
+    documented. Outside module mode the root README must also have a "Referência de comandos"
+    section that lists every CLI subcommand (and cites none that does not exist), so that no
+    command lives only in the code.
 C3  relative markdown links resolve.
 C4  root README state: ``Estado atual (AAAA-MM-DD)`` line, its date against the newest row of the
     methodology history (section 8), the module table against the module READMEs on disk, and
@@ -55,6 +57,7 @@ SECTIONS = (
 )
 STATUS_VALUES = ("planejado", "em implementação", "implementado")
 VERIFIED_HEADING = "## Comandos verificados"
+COMMAND_REFERENCE = "Referência de comandos"
 METHODOLOGY = "docs/metodologia-referencia.md"
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -239,7 +242,7 @@ def check_c2(ctx: Context) -> list[Finding]:
         if text is not None:
             docs[module.rstrip("/")] = (rel, documented_subcommands(text))
     owner = ctx.cli_owner.rstrip("/")
-    if not any(subs for _, subs in docs.values()) and owner not in docs:
+    if ctx.module_mode and not any(subs for _, subs in docs.values()) and owner not in docs:
         return findings
     try:
         cli_subs = list_cli_subcommands(ctx)
@@ -262,6 +265,39 @@ def check_c2(ctx: Context) -> list[Finding]:
                     findings.append(
                         Finding("C2", rel, f"CLI subcommand `{sub}` is not documented here")
                     )
+    if not ctx.module_mode:
+        findings += _root_reference_findings(ctx, cli_subs)
+    return findings
+
+
+def _root_reference_findings(ctx: Context, cli_subs: list[str]) -> list[Finding]:
+    """The root README must list every CLI subcommand in its "Referência de comandos" section."""
+    text = ctx.read("README.md")
+    if text is None:
+        return []  # a missing root README is reported by C4
+    section = section_body(text, COMMAND_REFERENCE)
+    if section is None:
+        return [Finding("C2", "README.md", f"missing the section `## {COMMAND_REFERENCE}`")]
+    listed = documented_subcommands(section)
+    findings = [
+        Finding(
+            "C2",
+            "README.md",
+            f"CLI subcommand `{sub}` is missing from the section `{COMMAND_REFERENCE}`",
+        )
+        for sub in cli_subs
+        if sub not in listed
+    ]
+    findings += [
+        Finding(
+            "C2",
+            "README.md",
+            f"the section `{COMMAND_REFERENCE}` cites `python -m dataset {sub}`, "
+            f"but the CLI has no such subcommand",
+        )
+        for sub in listed
+        if sub not in cli_subs
+    ]
     return findings
 
 

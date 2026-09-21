@@ -6,6 +6,8 @@ package and verify). Exit codes (specs/001-dataset-extraction/contracts/cli.md):
 """
 
 import argparse
+import os
+import signal
 import sys
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -16,6 +18,7 @@ from dataset.extraction import stream
 from dataset.persistence import report as reporting
 from dataset.persistence import store
 from dataset.schemas.pool import Pool
+from dataset.validation import pipeline
 from sandbox.selfcheck import selfcheck
 from sandbox.types import InfraError
 
@@ -162,6 +165,89 @@ def _run_selfcheck(args: argparse.Namespace) -> int:
     return EXIT_OK if report.ok else EXIT_DATA_FAILURE
 
 
+# ---------------------------------------------------------------------------- validate and audit
+
+
+def default_workers() -> int:
+    return max(1, (os.cpu_count() or 2) // 2)
+
+
+def _positive_int(text: str) -> int:
+    value = int(text)
+    if value < 1:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return value
+
+
+def _configure_validate(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--target",
+        type=_positive_int,
+        default=config.TARGET_PROBLEMS,
+        help=f"complete problems to reach (default {config.TARGET_PROBLEMS})",
+    )
+    parser.add_argument(
+        "--workers",
+        type=_positive_int,
+        default=default_workers(),
+        help="parallel processes per problem, default half of the CPUs; never changes the result",
+    )
+    parser.add_argument(
+        "--problem", default=None, help="validate only this problem and ignore the target"
+    )
+
+
+def _configure_audit(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--problem",
+        action="append",
+        default=[],
+        help="audit only this problem (repeatable); default: every complete problem",
+    )
+    parser.add_argument(
+        "--workers", type=_positive_int, default=default_workers(), help="parallel processes"
+    )
+
+
+def _served(action: Callable[[], int]) -> int:
+    try:
+        return action()
+    except pipeline.NoPoolError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_DATA_FAILURE
+    except pipeline.UsageError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+
+
+def _run_validate(args: argparse.Namespace) -> int:
+    from dataset.validation.runtime import PoolRuntime
+
+    return _served(
+        lambda: pipeline.run_validate(
+            Path("."),
+            target=args.target,
+            workers=args.workers,
+            problem=args.problem,
+            runtime_factory=PoolRuntime,
+            selfcheck_fn=selfcheck,
+        )
+    )
+
+
+def _run_audit(args: argparse.Namespace) -> int:
+    from dataset.validation.runtime import PoolRuntime
+
+    return _served(
+        lambda: pipeline.run_audit(
+            Path("."),
+            problems=list(args.problem),
+            workers=args.workers,
+            runtime_factory=PoolRuntime,
+        )
+    )
+
+
 register(
     "extract",
     "read the dataset in streaming mode and write the pool of eligible problems",
@@ -175,11 +261,27 @@ register(
     _run_report,
 )
 register(
+    "validate",
+    "run the engine over the pool until enough problems are complete (run it in the sandbox service)",
+    _configure_validate,
+    _run_validate,
+)
+register(
+    "audit",
+    "re-run the engine over the complete problems and compare with validacao.json",
+    _configure_audit,
+    _run_audit,
+)
+register(
     "selfcheck",
     "run programs of known verdict through the engine (run it in the sandbox service)",
     lambda parser: None,
     _run_selfcheck,
 )
+
+
+def _raise_interrupt(signum: int, frame: object) -> None:
+    raise KeyboardInterrupt
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -203,6 +305,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command is None:
         parser.print_help(sys.stderr)
         return EXIT_USAGE
+    # `docker stop` and the end of a session send SIGTERM: treat it like Ctrl+C, so `finally`
+    # blocks run (worker processes and their children are cleaned up) and the run can resume.
+    previous = signal.signal(signal.SIGTERM, _raise_interrupt)
     try:
         return _REGISTRY[args.command].run(args)
     except KeyboardInterrupt:
@@ -211,6 +316,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     except InfraError as exc:
         print(f"infrastructure failure: {exc}", file=sys.stderr)
         return EXIT_INFRA
+    finally:
+        signal.signal(signal.SIGTERM, previous)
 
 
 if __name__ == "__main__":

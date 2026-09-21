@@ -45,6 +45,12 @@ class ExtractionReport(Schema):
     target: int
     deficit: int
     engine_selfcheck: dict[str, Any] | None = None
+    # ACs whose `AC_ref` was executed by the engine, and the failures among them by cause (only the
+    # selection stage): the numbers of the reopening criterion of decision D13.
+    ac_tested: int = 0
+    triage_by_cause: dict[str, int] = Field(
+        default_factory=lambda: {"format_only": 0, "tle": 0, "other": 0}
+    )
     provenance: Provenance
 
     @model_validator(mode="after")

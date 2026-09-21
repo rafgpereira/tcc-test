@@ -9,6 +9,7 @@ import gzip
 import io
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -47,6 +48,7 @@ def _atomic_write_bytes(path: Path, data: bytes) -> None:
             os.fsync(handle.fileno())
         os.chmod(tmp_name, 0o644)
         os.replace(tmp_name, path)
+        chown_to_host(path)  # a no-op unless root with HOST_UID/HOST_GID (the sandbox service)
     except BaseException:
         try:
             os.unlink(tmp_name)
@@ -145,3 +147,82 @@ def ensure_work_dir(root: Path = Path(".")) -> Path:
     for sub in config.WORK_SUBDIRS:
         make_private_dir(work / sub)
     return work
+
+
+# ---------------------------------------------------------------------------- problem life cycle
+#
+# A problem is built in `data/work/building/<id>/` and closed with ONE atomic rename to
+# `data/work/problems/<id>/` (FR-023, FR-024). A folder still in `building/` is partial by
+# definition: it is discarded and rebuilt on the next run. Closed problems are never reprocessed.
+
+CLOSED_STATUSES = ("complete", "pending_triage", "discarded")
+
+
+def building_path(root: Path, problem_id: str) -> Path:
+    return Path(root) / config.BUILDING_DIR / problem_id
+
+
+def problem_path(root: Path, problem_id: str) -> Path:
+    return Path(root) / config.PROBLEMS_DIR / problem_id
+
+
+def reset_building(root: Path) -> int:
+    """Remove every partial problem left in ``building/``; return how many were removed."""
+    folder = Path(root) / config.BUILDING_DIR
+    if not folder.is_dir():
+        return 0
+    removed = 0
+    for child in folder.iterdir():
+        shutil.rmtree(child) if child.is_dir() else child.unlink()
+        removed += 1
+    return removed
+
+
+def start_building(root: Path, problem_id: str) -> Path:
+    """Create an EMPTY, private ``building/<id>/`` (anything there is stale and is removed)."""
+    folder = building_path(root, problem_id)
+    if folder.exists():
+        shutil.rmtree(folder)
+    return make_private_dir(folder)
+
+
+def write_problem_text(folder: Path, name: str, text: str) -> None:
+    """Write a statement or source file: UTF-8, LF, atomically, given to the host user."""
+    atomic_write_text(Path(folder) / name, text)
+
+
+def write_problem_json(folder: Path, name: str, obj: Any) -> None:
+    atomic_write_json(Path(folder) / name, obj)
+
+
+def finalize_building(root: Path, problem_id: str) -> Path:
+    """Close the problem: one atomic rename from ``building/`` to ``problems/``."""
+    source, target = building_path(root, problem_id), problem_path(root, problem_id)
+    make_private_dir(target.parent)
+    if target.exists():
+        raise FileExistsError(f"{target} is already closed")
+    os.rename(source, target)
+    return target
+
+
+def problem_status(root: Path, problem_id: str) -> str | None:
+    """Final status of a closed problem, or ``None`` if it is absent or still being built."""
+    path = problem_path(root, problem_id) / "validacao.json"
+    if not path.is_file():
+        return None
+    status = read_json(path).get("status")
+    return status if status in CLOSED_STATUSES else None
+
+
+def is_closed(root: Path, problem_id: str) -> bool:
+    return problem_status(root, problem_id) is not None
+
+
+def preserved_timestamp(folder: Path, *, now: str) -> str:
+    """The ``extraction_timestamp`` already written in ``folder/metadata.json``, else ``now``."""
+    path = Path(folder) / "metadata.json"
+    if path.is_file():
+        existing = read_json(path).get("extraction_timestamp")
+        if existing:
+            return existing
+    return now

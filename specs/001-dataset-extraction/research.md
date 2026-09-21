@@ -353,6 +353,15 @@ extração grava checkpoints por shard (abaixo).
   a meta de 200 problemas com exatamente 100 WAs pode não fechar sem relaxar D4 ou os critérios
   de elegibilidade. Ver "Riscos" em [plan.md](./plan.md).
 
+- **Medido no piloto (2026-09-21, 14 problemas do `train`)**: 1.000 de 1.169 candidatas
+  consumidas viraram WA (85,5%); 121 passam em todos os testes (10,3%), 33 não compilam, 9 `RE`,
+  3 `TLE`, 2 `MLE`, 1 instável; por problema completo, 101 a 203 candidatas consumidas (mediana
+  108). O risco residual acima não se materializou no `train`. Três ACs em triagem por causas
+  distintas (verificador especial, gabarito com linha em branco inicial, teste gerado fora das
+  restrições); ver metodologia 1.7.
+- **Tempo medido (R11)**: mediana de 102 s por problema completo com 4 processos; ~7 h
+  extrapoladas para 200 completos.
+
 ## R20 — Documentação de módulo e sincronização (Princípio XI)
 
 - **Decisão**: cada pacote de `src/` tem `README.md` no formato de `docs/template-modulo.md`;

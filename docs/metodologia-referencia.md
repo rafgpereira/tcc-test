@@ -301,7 +301,8 @@ Esse campo é persistido por problema (ver 1.5 — `metadata.json`).
   O limiar de 10% foi escolhido no gate T037 (os autores deixaram o valor em aberto); alterá-lo
   exige atualizar este item, a spec (D13) e as tarefas T071 e T069. O relatório traz as
   contagens (`ac_tested`, `triage_by_cause`) para a execução completa também, sem reabertura
-  automática.
+  automática. **Resultado do piloto de 2026-09-21 (1.7)**: regra 2, 1 de 14 ACs testados (7,1%);
+  regra 5, 0 de 14; nenhuma das duas reabre.
 - **[MEDIDO, 2026-09-21 — T049] Refinamentos da implementação do motor** (não alteram as
   regras decididas; detalhes e números em 1.7): (i) o pico de memória de um programa é medido por
   um lançador nativo minúsculo (`sandbox-launch`, compilado na imagem com o GCC fixado), porque o
@@ -432,7 +433,8 @@ isso só o motor mede. Em `valid`/`test` (~101 incorretas brutas) fechar 100 é 
 impossível, então a amostra de 200 tende a vir quase toda do `train`; a especificação não
 impõe equilíbrio entre splits. Se a fração de WA validada for baixa, a meta de 200 problemas
 com exatamente 100 WAs pode não fechar sem relaxar critérios (decisão dos autores; nenhuma
-relaxação é automática). A medição da fração real é o "piloto" do roteiro de aceite.
+relaxação é automática). A medição da fração real é o "piloto" do roteiro de aceite, feito em
+2026-09-21 (resultado logo abaixo: 85,5% das candidatas viraram WA no `train`).
 
 **Extração real (2026-09-20; revisão `802411c3…`, seed 42, código na revisão git `7440706`)**,
 medida sobre os 1.234 problemas do pool:
@@ -455,6 +457,45 @@ medida sobre os 1.234 problemas do pool:
   1.234 arquivos `raw` são exatamente os problemas do `pool.json`; todos validam nos schemas;
   `problem_id`, rating (1000 a 1600), tradução, macrocategoria (reclassificada a partir das tags)
   e contagens de soluções conferem em todos, sem nenhuma inconsistência.
+
+**Piloto de validação (2026-09-21, T071; `validate --target 10`, 4 processos em 8 CPUs, código da
+feature 001 na revisão git `5121759` mais a US3, ainda sem commit)**. O piloto foi interrompido
+uma vez por SIGTERM ao fim de uma sessão e retomado: a retomada descartou o parcial de `building/`
+e pulou os problemas encerrados, como projetado; o episódio levou a tratar SIGTERM como
+interrupção segura. Números sobre os 14 problemas processados, todos do `train` (a ordem do pool é
+embaralhada e o piloto não chegou a `valid`/`test`):
+
+- Estados: 10 `complete` (3 `matematica`, 5 `estrutural_otimizacao`, 2 `logica_direta`), 3
+  `pending_triage` e 1 `discarded`.
+- Candidatas a WA consumidas (1.169, nos 11 problemas cujo `AC_ref` passou): **1.000 viraram WA
+  (85,5%)**, 121 passam em todos os testes oficiais (10,3%; 91 delas só em `1_B`, e 3,1% nos
+  demais), 33 não compilam (2,8%), 9 têm `RE` (0,8%), 3 `TLE`, 2 `MLE` e 1 tem veredito instável
+  entre as duas execuções. Por problema completo, o motor consumiu de 101 a 203 candidatas
+  (mediana 108) para reunir 100 WA; a fração de WA por problema tem mediana de 93% e mínimo de
+  49% (`1_B`). O risco de que poucas incorretas fossem WA de verdade **não se materializou no
+  `train`**.
+- Descarte: `340_D` (`insufficient_wa`): só 100 textos distintos e 1 deles passa em todos os
+  testes, então 100 WA já eram impossíveis; a parada antecipada o encerrou em 10 s.
+- Tempo por problema `complete`: mediana 102 s (mín. 76 s, máx. 338 s, média 127 s; 1.270 s no
+  total); uma triagem custa de 4 a 6 s; os 14 problemas somaram 1.294 s. **Extrapolação, de uma
+  amostra pequena e não medida**: 10 completos em 14 processados (71%) dão ~281 problemas para
+  200 completos, a ~92 s cada com 4 processos: ~7 h (a estimativa do planejamento era ~6 h com 8
+  processos). O tempo real é o da execução completa (T072).
+- Projeção de déficit: nenhuma. O pool tem 1.234 problemas (1.206 no `train`) e a taxa de
+  conclusão observada daria cerca de 850 completos, muito acima de 200; o comportamento de
+  `valid`/`test` (28 problemas) segue desconhecido.
+- **Triagens de AC: 3 dos 14 ACs testados (21%), cada uma inspecionada individualmente**:
+  `616_D` (enunciado: "if there are several longest segments you can print any of them":
+  várias respostas válidas, o verificador especial que escapou do filtro de tags, o caso
+  previsto em D8); `1529_B` (o gabarito de `public_tests[0]` começa com uma linha em branco,
+  `"\n4\n5\n..."`, e o `AC_ref` imprime `"4\n5\n..."`: tokens idênticos, `format_only`; a regra 2
+  reprova e o verificador do Codeforces aceitaria); `13_A` (o enunciado limita `3 <= A <= 1000`,
+  mas 23 dos 100 `generated_tests` têm `A > 1000`, até 1.869, e o `AC_ref`, correto dentro das
+  restrições, erra neles: em `generated_tests[17]`, `A = 1209`, o gabarito `263450/1207` bate com
+  um cálculo independente e o `AC_ref` imprime `15497/71`). **Os `generated_tests` do dataset
+  podem conter entradas fora das restrições do problema**, o que reprova um AC correto.
+- Critério de reabertura de D13 (1.4): regra 2, 1 de 14 = 7,1% (limiar de 10%: **não reabre**);
+  regra 5, 0 de 14; as outras 2 de 14 (14%) não fazem parte do critério.
 
 **Volume de testes (`valid`+`test`, 29 problemas)**: mediana de 202 testes por problema (mín.
 43, máx. 241), dos quais mediana de 200 são `generated_tests` (mín. 41); carga de texto dos
@@ -711,8 +752,14 @@ diretamente ao objetivo específico de mapear desempenho por categoria algorítm
     estabilidade, tempo de CPU, memória por espaço de endereçamento, isolamento, escolha do
     `AC_ref`)~~ — **RESOLVIDO** em 2026-09-20 (gate T037; ver 1.4, com o critério de reabertura
     das regras 2 e 5).
-15. **[PENDENTE]** Fração de incorretas que é WA de verdade, e se a meta de 200 problemas com
-    exatamente 100 WAs fecha; só o piloto com o motor responde (ver 1.7).
+15. ~~**[PENDENTE]** Fração de incorretas que é WA de verdade, e se a meta de 200 problemas com
+    exatamente 100 WAs fecha~~ — **RESOLVIDO** em 2026-09-21 pelo piloto (ver 1.7): 85,5% das
+    candidatas viraram WA no `train` e não há déficit projetado.
+16. **[PENDENTE]** Volume de triagens manuais de AC na execução completa: no piloto, 3 dos 14 ACs
+    testados (21%) foram para triagem (verificador especial, gabarito com linha em branco inicial,
+    teste gerado fora das restrições); extrapolados, seriam da ordem de 60 casos, cada um a
+    inspecionar individualmente (D8, sem tolerância). Os autores decidem como seguir antes da
+    execução completa (T072).
 
 ---
 
@@ -754,6 +801,7 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 | 2026-09-19 | Números do dataset corrigidos por medição (13.610 exemplos; `train` 13.328; 8.101 Codeforces; 118 sem rating; 1.288 elegíveis, 1.279 com E/S por arquivo removida) e funil de elegibilidade | 1.1, 1.2, 7 |
 | 2026-09-19 | Localização do motor em pacote próprio (`src/sandbox/`), decisão confirmada na revisão do plano e que faltava aqui | 1.4 |
 | 2026-09-19 | Auditoria retroativa (Princípio XI): dados medidos de disponibilidade de submissões, volume de testes e verificações de ambiente (1.7); regras operacionais do motor como PROPOSTA; revisão fixada e licença; `schema_version`, `status` e relatório versionado; evidência e mecanismo do limite de pilha; rótulo de `AC_ref` corrigido; este histórico | 1.1, 1.4–1.7, 4, 6–8 |
+| 2026-09-21 | **Piloto de validação (T071)**: 14 problemas do `train` (10 completos, 3 em triagem, 1 descartado); 85,5% das candidatas viraram WA (risco de poucas WA não se materializou), mediana de 102 s por problema completo, sem déficit projetado; critério de reabertura de D13 não atingido (regra 2: 7,1%; regra 5: 0%); descoberta de que `generated_tests` do dataset podem ter entradas fora das restrições; item 15 resolvido e item 16 (volume de triagens) aberto | 1.4, 1.7, 6 |
 | 2026-09-21 | **Motor implementado (T049)**: ambiente reconfirmado com o motor (linker, pilha, memória, isolamento); três diferenças encontradas e corrigidas (áreas graváveis por todos, zumbis, pico de memória inflado), com lançador nativo, `init: true` e `tmpfs` privados (D16); custos medidos (compilação de 2,5 s com `bits/stdc++.h`, sobrecarga de 2,5 ms por teste) | 1.4, 1.7 |
 | 2026-09-20 | **Gate T037**: os autores confirmaram as 7 regras operacionais do motor sem alteração (de proposta a decididas) e definiram o critério objetivo de reabertura das regras de comparação de saída e de tempo no piloto (mais de 10% dos ACs testados reprovados por formatação ou por TLE), com o diagnóstico `format_only` e as contagens `ac_tested`/`triage_by_cause` no relatório (T037) | 1.4, 6, 7 |
 | 2026-09-20 | **Extração real (T035)**: funil reconfirmado (13.610; 8.101; 2.399; 2.155; 1.751; 1.288; 1.279 idênticos aos do planejamento) e completado com as etapas de soluções em C++ (1.250) e de pelo menos 100 incorretas (1.234); pool final 407/278/549 (`train` 1.206, `valid` 9, `test` 19), em vez de 1.279 (417/285/577); dados de disponibilidade de WAs brutas, volume de testes, limites, tempo (~23 min) e disco (104 MB); estimativa de distribuição por macrocategoria refeita | 1.1, 1.2, 1.4, 1.7 |

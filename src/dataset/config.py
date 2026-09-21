@@ -24,6 +24,9 @@ TARGET_PROBLEMS = 200
 WA_PER_PROBLEM = 100
 CATEGORY_ALERT_THRESHOLD = 30
 STABILITY_RUNS = 2
+# Reopening criterion of decision D13 (rules 2 and 5): in the pilot, more than this fraction of the
+# ACs tested rejected only for formatting, or only for TLE, sends that rule back to the authors.
+AC_REOPEN_THRESHOLD = 0.10
 
 # Eligibility (spec FR-004).
 RATING_MIN = 1000

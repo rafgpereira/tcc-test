@@ -184,6 +184,13 @@ reescreve arquivos de shards completos.
 - `data/work/problems/<problem_id>/` — problema encerrado. O `validacao.json.status` decide:
   `complete` (pasta completa, com os 6 tipos de arquivo), `pending_triage` (contém só
   `validacao.json` e `AC_candidate.cpp` para inspeção) ou `discarded` (só `validacao.json`).
+  Uma falha de AC na **auditoria** muda o `status` de um problema já `complete` para
+  `pending_triage` e esvazia `wa` (o invariante exige `wa` vazio fora de `complete`), mas mantém os
+  demais arquivos da pasta para inspeção. O `reason` de um registro de triagem traz o veredito e a
+  etapa (por exemplo, `AC diverged from the official answer on public_tests[1] (verdict WA, stage
+  selection)`); na auditoria `verdict` é o veredito do motor (`AUDIT_MISMATCH` fica reservado).
+  Sem submissões incorretas brutas suficientes (`< 100`), o problema é `discarded` com
+  `insufficient_raw_wa` e nada é executado (`ac_ref` é `null`).
 
 ### 2.4 `ExtractionReport` (`data/work/reports/extraction_report.json` e `.md`) — FR-018/FR-018a
 
@@ -198,6 +205,16 @@ da suíte de veredito conhecido), `ac_tested` (problemas cujo `AC_ref` foi execu
 `triage_by_cause` (`{format_only, tle, other}`: falhas de AC por causa, critério de reabertura
 de D13; campos acrescentados na T069) e `provenance`. O comando `package` copia o JSON para
 `manifests/extraction_report.json` (versionado).
+
+### 2.5 Registros da execução de `validate` (dentro de `data/work/reports/`)
+
+- `selfcheck.json`: resultado do `selfcheck` rodado pelo `validate` (`ok`, `passed` e uma entrada por
+  caso com veredito esperado e obtido, padrão usado e estabilidade); alimenta `engine_selfcheck`
+  do relatório.
+- `validation_log.jsonl`: uma linha JSON por problema processado (`problem_id`, `status`,
+  `discard_reason`, `ac_verdict`, `stats` com as candidatas por resultado `wa`, `ce`, `tle`, `mle`,
+  `re`, `ac` (passa em todos os testes) e `unstable`, `consumed` e `seconds`). Serve à leitura do
+  piloto (T071); contém tempos, então não é determinístico, e não é empacotado.
 
 ## 3. Máquina de estados de um problema
 

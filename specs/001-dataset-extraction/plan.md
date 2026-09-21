@@ -47,7 +47,9 @@ qualquer um com Docker Compose v2. Nenhum código C++ de terceiros roda no host.
 **Project Type**: pipeline em Python (CLI + bibliotecas por módulo), estrutura `src/<modulo>/`.
 
 **Performance Goals**: validar ~350 problemas processados (para chegar a 200 completos) em
-~5 h com 8 trabalhadores, com paralelismo por candidata (R11); extração em uma única passagem
+~5 h com 8 trabalhadores, com paralelismo por candidata (R11); **medido no piloto de 2026-09-21**:
+mediana de 102 s por problema completo com 4 processos e ~71% de problemas completos, o que
+extrapola para ~281 problemas e ~7 h com 4 processos (o número real vem da execução completa); extração em uma única passagem
 pelo dataset de origem (≥ 30 min: a passagem só com colunas leves levou ~28 min, R1).
 
 **Constraints**: nenhum limite de tempo/memória de problema é constante no código; sem rede
@@ -316,8 +318,13 @@ Explicação para os autores no `README.md` da raiz ("Como o dataset circula ent
   `common.py` (base `Schema` com `extra="forbid"`, `Macrocategoria`, `Split`, `schema_version`).
 - `extraction/`: `stream.py` (streaming e `staging`).
 - `filtering/`: `eligibility.py` (critérios e motivos), `classification.py` (macrocategoria).
-- `validation/`: `ac.py` (escolha e execução do `AC_ref`, triagem), `wa.py` (candidatas em lotes,
-  estabilidade, contagem 100), `problem.py` (orquestra um problema), `audit.py` (FR-015a).
+- `validation/`: `suite.py` (a suíte oficial em ordem, com grupo e índice de cada teste),
+  `engine.py` (o motor visto pela validação: `compile`, `run_suite` e a versão do GCC, injetável nos
+  testes), `ac.py` (escolha e execução do `AC_ref`, triagem, `format_only`), `wa.py` (seleção
+  determinística das candidatas, estabilidade, consumo em ordem, parada antecipada),
+  `runtime.py` (onde as candidatas são avaliadas: no processo, em threads nos testes, ou em um
+  `ProcessPoolExecutor` com um `slot` por trabalhador), `problem.py` (valida um problema e fecha a
+  pasta), `audit.py` (FR-015a) e `pipeline.py` (`validate` e `audit` sem a linha de comando).
 - `persistence/`: `store.py` (escrita atômica, `building/` → `problems/`, `chown`), `report.py`.
 - `integrity/`: `packaging.py` (zip determinístico), `manifest.py`, `verify.py`.
 - `__main__.py`: subcomandos (`argparse`).
@@ -382,7 +389,7 @@ src/
     ├── schemas/              # common.py metadata.py testes.py validacao.py manifest.py pool.py report.py
     ├── extraction/           # stream.py
     ├── filtering/            # eligibility.py classification.py
-    ├── validation/           # ac.py wa.py problem.py audit.py
+    ├── validation/           # suite.py engine.py ac.py wa.py runtime.py problem.py audit.py pipeline.py
     ├── persistence/          # store.py report.py
     └── integrity/            # packaging.py manifest.py verify.py
 scripts/verify_dataset.py
@@ -460,7 +467,7 @@ primeiros foram confirmados pelos autores na revisão do plano e já estão refl
 
 | # | Risco | Impacto | Mitigação |
 |---|---|---|---|
-| 1 | A fração de incorretas que é WA de verdade pode ser baixa (o resto é TLE/RE/CE); só o motor a mede (R19) | A meta de 200 problemas com exatamente 100 WAs pode não fechar sem relaxar D4 ou critérios | Piloto de ~10 problemas do `train` logo após o motor; parada antecipada; relatório mostra o déficit exato (FR-017); nenhuma relaxação automática |
+| 1 | (Medido em 2026-09-21: 85,5% das candidatas viraram WA no `train`; sem déficit projetado.) A fração de incorretas que é WA de verdade pode ser baixa (o resto é TLE/RE/CE); só o motor a mede (R19) | A meta de 200 problemas com exatamente 100 WAs pode não fechar sem relaxar D4 ou critérios | Piloto de ~10 problemas do `train` logo após o motor; parada antecipada; relatório mostra o déficit exato (FR-017); nenhuma relaxação automática |
 | 2 | Vereditos por tempo variam entre execuções (carga da máquina) e podem mudar a seleção | Quebra de determinismo (FR-025) | Tempo de CPU, não de parede; `stability_runs = 2`; `--workers` padrão deixa folga de CPU |
 | 3 | Queda de rede/reset de conexão durante o streaming (observado) | Perda de tempo | Retentativas da biblioteca + checkpoint por shard |
 | 4 | Problemas com verificador especial que escaparam do filtro de tags | Volume de triagens manuais (D8) | Cada uma é registrada com a saída divergente; o relatório as lista; sem tolerância agregada |
@@ -479,7 +486,7 @@ para cada item (Constitution, Fluxo de Desenvolvimento).
 |---|---|---|
 | README do módulo `dataset` | `src/dataset/README.md` | template `docs/template-modulo.md` (seis campos), com (b) em passo a passo para quem não conhece Docker; comandos de [contracts/cli.md](./contracts/cli.md) registrados na tabela "Comandos verificados" (`pendente` até a tarefa que os executa carimbar data, revisão e tarefa) |
 | README do módulo `sandbox` | `src/sandbox/README.md` | idem; API de [contracts/engine-api.md](./contracts/engine-api.md); dependências e serviço do Compose (sem rede) |
-| Script de conformidade | `scripts/check_docs_sync.py` (+ `tests/docs/`) | checagens C1 a C6: seções do README, comandos contra a CLI (no README do módulo dono da CLI, `src/dataset`, todo subcomando também precisa estar documentado), links, estado do README raiz, matriz de sincronização, ausência de `[PROPOSTA]` ativa (riscadas e legenda não contam); é o gate do FR-031/FR-032/SC-016 |
+| Script de conformidade | `scripts/check_docs_sync.py` (+ `tests/docs/`) | checagens C1 a C6: seções do README, comandos contra a CLI (no README do módulo dono da CLI, `src/dataset`, todo subcomando também precisa estar documentado), links, estado do README raiz, matriz de sincronização, ausência de `[PROPOSTA]` ativa (riscadas e legenda não contam); é o gate do FR-031/FR-032/SC-016; a checagem C2 confere também que a seção "Referência de comandos" do `README.md` da raiz lista todo subcomando da CLI |
 | Matriz de sincronização | `specs/001-dataset-extraction/sync-matrix.json` | toda decisão D# da spec tem linha e termos que precisam aparecer na metodologia |
 | Gate das regras do motor | primeira tarefa da US2 | os autores confirmaram, sem alteração, as regras operacionais em 2026-09-20 (D13, agora decididas), antes dos testes e do código do motor |
 | `--help` e docstrings | `python -m dataset --help` e pacotes | não podem contradizer os READMEs |

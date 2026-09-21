@@ -24,6 +24,14 @@ from dataset.schemas.report import (
     ReportFunnel,
 )
 
+EMPTY_CAUSES = {"format_only": 0, "tle": 0, "other": 0}
+
+
+def load_selfcheck(root: Path) -> dict[str, Any] | None:
+    """The result of the last `selfcheck` run by `validate`, if any."""
+    path = Path(root) / config.REPORTS_DIR / "selfcheck.json"
+    return store.read_json(path) if path.is_file() else None
+
 
 def build_report(
     pool: Pool,
@@ -34,6 +42,8 @@ def build_report(
     selection_final: bool = False,
     target: int = config.TARGET_PROBLEMS,
     engine_selfcheck: dict[str, Any] | None = None,
+    ac_tested: int = 0,
+    triage_by_cause: Mapping[str, int] | None = None,
 ) -> ExtractionReport:
     """Build the report from the pool and the state of the validation. Inputs are not modified."""
     counts = pool.counts
@@ -73,6 +83,8 @@ def build_report(
         target=target,
         deficit=max(0, target - len(included)),
         engine_selfcheck=engine_selfcheck,
+        ac_tested=ac_tested,
+        triage_by_cause={**EMPTY_CAUSES, **(triage_by_cause or {})},
         provenance=Provenance(
             hf_dataset=pool.hf_dataset, hf_revision=pool.hf_revision, seed=pool.seed
         ),
@@ -115,6 +127,7 @@ def render_markdown(report: ExtractionReport) -> str:
         )
     lines += ["", f"Problemas completos na amostra: {report.funnel.included} de {report.target}."]
     lines += [f"Déficit da meta: {report.deficit}."]
+    lines += _ac_failure_lines(report)
 
     for alert in report.category_alerts:
         lines += [
@@ -141,6 +154,43 @@ def render_markdown(report: ExtractionReport) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _ac_failure_lines(report: ExtractionReport) -> list[str]:
+    """ACs tested and failures by cause, against the reopening threshold of decision D13."""
+    tested = report.ac_tested
+    causes = report.triage_by_cause
+    threshold = config.AC_REOPEN_THRESHOLD
+    lines = ["", "## Falhas de AC por causa (critério de reabertura, D13)", ""]
+    lines += [f"ACs testados: {tested}.", ""]
+    lines += ["| Causa | Casos | Razão sobre os ACs testados |", "|---|---:|---:|"]
+    labels = {
+        "format_only": "divergência só de formatação (regra 2)",
+        "tle": "tempo excedido (regra 5)",
+        "other": "outras",
+    }
+    reopen = []
+    for key, label in labels.items():
+        count = causes.get(key, 0)
+        if tested:
+            ratio = count / tested
+            lines.append(f"| {label} | {count} | {ratio:.0%} |")
+            if key != "other" and ratio > threshold:
+                reopen.append(label)
+        else:
+            lines.append(f"| {label} | {count} | — |")
+    if reopen:
+        lines += [
+            "",
+            (
+                f"> **REABRIR**: acima de {threshold:.0%} dos ACs testados ({', '.join(reopen)}). "
+                "Pelo critério de D13, no piloto a regra correspondente volta a ser proposta "
+                "para nova decisão dos autores; a execução completa não segue."
+            ),
+        ]
+    else:
+        lines += ["", f"Limiar de reabertura (D13): {threshold:.0%} dos ACs testados por causa."]
+    return lines
+
+
 def write_report(root: Path, report: ExtractionReport) -> tuple[Path, Path]:
     """Write ``extraction_report.json`` and ``.md`` under ``data/work/reports/``."""
     store.ensure_work_dir(root)
@@ -153,6 +203,8 @@ def write_report(root: Path, report: ExtractionReport) -> tuple[Path, Path]:
 
 @dataclass
 class ValidationState:
+    ac_tested: int = 0  # problems whose `AC_ref` was executed by the engine
+    triage_by_cause: dict[str, int] = field(default_factory=lambda: dict(EMPTY_CAUSES))
     included: list[Macrocategoria] = field(default_factory=list)
     pending: list[PendingTriageItem] = field(default_factory=list)
     discarded: dict[str, int] = field(default_factory=dict)
@@ -163,6 +215,16 @@ class ValidationState:
         if len(self.included) >= target:
             return True
         return bool(pool.problems) and self.closed >= len(pool.problems)
+
+
+def _cause_of(triage: Mapping[str, Any]) -> str:
+    """`format_only` (WA differing only in formatting), `tle`, or `other` (decision D13)."""
+    if triage.get("verdict") == "TLE":
+        return "tle"
+    divergence = triage.get("divergence") or {}
+    if triage.get("verdict") == "WA" and divergence.get("format_only"):
+        return "format_only"
+    return "other"
 
 
 def collect_validation_state(root: Path, pool: Pool) -> ValidationState:
@@ -178,12 +240,16 @@ def collect_validation_state(root: Path, pool: Pool) -> ValidationState:
             continue
         data = store.read_json(path)
         pid, status = data.get("problem_id", folder.name), data.get("status")
+        if data.get("ac_ref") is not None:
+            state.ac_tested += 1
         if pid in pool.problems and status in ("complete", "pending_triage", "discarded"):
             state.closed += 1
         if status == "complete" and pid in pool.problems:
             state.included.append(pool.problems[pid].macrocategoria)
         elif status == "pending_triage":
             triage = data.get("triage") or {}
+            if triage.get("stage", "selection") == "selection":
+                state.triage_by_cause[_cause_of(triage)] += 1
             reason = triage.get("reason") or str(triage.get("verdict") or "unknown")
             state.pending.append(
                 PendingTriageItem(

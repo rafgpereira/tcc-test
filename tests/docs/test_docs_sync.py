@@ -80,7 +80,14 @@ def root_readme(
     dataset_cell=None,
     sandbox_cell="[README](src/sandbox/README.md)",
     extra="",
+    reference=None,
 ):
+    if reference is None:
+        reference = (
+            "## Referência de comandos\n\n"
+            "| Comando | O que faz |\n|---|---|\n"
+            "| `python -m dataset alpha` | a |\n| `python -m dataset beta` | b |\n"
+        )
     dataset_cell = dataset_cell or "[README](src/dataset/README.md)"
     template = textwrap.dedent("""\
         # Projeto
@@ -96,6 +103,8 @@ def root_readme(
         | `src/mutation/` | mutantes | seção 2 | sem spec | a criar |
 
         @EXTRA@
+
+        @REFERENCE@
         """)
     for key, value in {
         "@DATE@": date,
@@ -103,6 +112,7 @@ def root_readme(
         "@DATASET@": dataset_cell,
         "@SANDBOX@": sandbox_cell,
         "@EXTRA@": extra,
+        "@REFERENCE@": reference,
     }.items():
         template = template.replace(key, value)
     return template
@@ -294,6 +304,42 @@ def test_c2_cli_that_cannot_run_is_reported(sync, tmp_path):
     make_repo(tmp_path)
     argv = ["--root", str(tmp_path), "--cli", f"{sys.executable} {tmp_path / 'missing.py'}"]
     assert sync.main(argv + ["--module", "src/dataset", "--only", "C2"]) == 1
+
+
+def test_c2_root_readme_command_reference_lists_every_cli_subcommand_and_passes(sync, tmp_path):
+    make_repo(tmp_path)
+    assert run(sync, tmp_path, "--only", "C2") == 0
+
+
+def test_c2_root_readme_without_a_command_reference_fails(sync, tmp_path, capsys):
+    make_repo(tmp_path, root_readme=root_readme(reference="no section here"))
+    assert run(sync, tmp_path, "--only", "C2") == 1
+    assert "Referência de comandos" in capsys.readouterr().out
+
+
+def test_c2_root_readme_reference_must_list_every_cli_subcommand(sync, tmp_path, capsys):
+    reference = "## Referência de comandos\n\n| `python -m dataset alpha` | a |\n"
+    make_repo(tmp_path, root_readme=root_readme(reference=reference))
+    assert run(sync, tmp_path, "--only", "C2") == 1
+    out = capsys.readouterr().out
+    assert "beta" in out and "README.md" in out
+
+
+def test_c2_root_readme_reference_cannot_cite_a_subcommand_that_does_not_exist(
+    sync, tmp_path, capsys
+):
+    reference = (
+        "## Referência de comandos\n\n| `python -m dataset alpha` | a |\n"
+        "| `python -m dataset beta` | b |\n| `python -m dataset ghost` | g |\n"
+    )
+    make_repo(tmp_path, root_readme=root_readme(reference=reference))
+    assert run(sync, tmp_path, "--only", "C2") == 1
+    assert "ghost" in capsys.readouterr().out
+
+
+def test_c2_module_mode_does_not_check_the_root_readme_reference(sync, tmp_path):
+    make_repo(tmp_path, root_readme=root_readme(reference="no section here"))
+    assert run(sync, tmp_path, "--module", "src/dataset", "--only", "C2") == 0
 
 
 # --------------------------------------------------------------------------- C3
