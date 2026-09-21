@@ -664,11 +664,11 @@ também em 2026-09-19.
   contrapartida, o relatório final MUST emitir um alerta se qualquer macrocategoria ficar
   com menos de 30 problemas após a seleção (limiar fixo em 30, informativo: não bloqueia,
   não altera a seleção e não relaxa critérios). Reflete-se em FR-016 e FR-018a.
-  **Estimativa analítica (2026-09-20, sobre o pool medido de 2026-09-19)**: a ordem é um
-  embaralhamento único do pool, sem estratificação, então a amostra de 200 tende a ser
-  proporcional ao pool (417/285/577): em média 65,2, 44,6 e 90,2 problemas, e só por acaso
-  amostral a chance de `matematica` ficar abaixo de 30 é de ~2e-3. O que pode disparar o
-  alerta é uma taxa de validação desigual entre categorias (`matematica` abaixo de ~62% da
+  **Estimativa analítica (2026-09-20, sobre o pool real da extração de 2026-09-20)**: a ordem é
+  um embaralhamento único do pool, sem estratificação, então a amostra de 200 tende a ser
+  proporcional ao pool (407/278/549): em média 66,0, 45,1 e 89,0 problemas, e só por acaso
+  amostral a chance de `matematica` ficar abaixo de 30 é de ~1,4e-3. O que pode disparar o
+  alerta é uma taxa de validação desigual entre categorias (`matematica` abaixo de ~61% da
   taxa das outras), conhecida só depois da validação; não há mecanismo de correção, por
   decisão desta D5. Detalhes na metodologia, seção 1.4.
 - **D6 — Escopo de versionamento de dados**: conforme a Constitution v1.1.0, somente o
@@ -712,7 +712,12 @@ também em 2026-09-19.
   `test` 165); 8.101 de origem Codeforces; 118 problemas Codeforces sem `cf_rating`
   (inelegíveis, FR-004(b)); 1.288 elegíveis antes de FR-004(h) e 1.279 depois (sem contar a
   checagem de soluções em C++, que exige as colunas pesadas). O texto do TCC deve ser
-  atualizado. Detalhes do funil na metodologia, seção 1.2.
+  atualizado. Detalhes do funil na metodologia, seção 1.2. **Atualização de 2026-09-20 (extração
+  real, T035)**: o funil reproduziu esses números exatamente e, com a checagem de FR-004(g) e a
+  pré-checagem de 100 incorretas em C++ (D4), o **pool final tem 1.234 problemas** (1.250 após
+  ter ao menos uma solução correta e uma incorreta em C++, 1.234 após ter ao menos 100
+  incorretas): `estrutural_otimizacao` 407, `matematica` 278, `logica_direta` 549; `train`
+  1.206, `valid` 9, `test` 19. Os 1.279 eram o pool antes dessas duas etapas.
 - **D11 — Seed fixa (confirmado em 2026-09-19)**: `42`. Ela define a ordem de processamento
   dos problemas elegíveis (FR-016) e das candidatas a WA (FR-014). É gravada no pool, no
   manifesto e no relatório; trocá-la depois da primeira extração muda a seleção.

@@ -37,9 +37,12 @@ def build_report(
 ) -> ExtractionReport:
     """Build the report from the pool and the state of the validation. Inputs are not modified."""
     counts = pool.counts
+    # Funnel order, not the order of the stored JSON (its keys are sorted); unknown stages last.
+    known = [s for s in config.FUNNEL_STAGES if s in counts.funnel]
+    extra = sorted(s for s in counts.funnel if s != "read" and s not in config.FUNNEL_STAGES)
     funnel = ReportFunnel(
         read=counts.funnel.get("read", 0),
-        stages={stage: n for stage, n in counts.funnel.items() if stage != "read"},
+        stages={stage: counts.funnel[stage] for stage in (*known, *extra)},
         rejected_by_reason=dict(counts.rejections),
         discarded_by_reason=dict(discarded_by_reason or {}),
         included=len(included),

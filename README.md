@@ -12,9 +12,9 @@ teste unitários em C++.
 > preparação do ambiente para quem não conhece Docker. A fundação do projeto está pronta e verificada em contêiner
 > (imagem `gcc:13.2.0` com Python 3.11 via `uv`, tipos e limites do motor, armazenamento
 > determinístico, CLI base e o verificador de documentação). No módulo `dataset`, a extração
-> (`extract`) e o relatório (`report`) estão implementados e testados com dados sintéticos, mas
-> ainda não foram executados de verdade; a validação dos códigos, o motor de execução e o
-> empacotamento ainda não existem. A feature `001-dataset-extraction` tem spec, plano e tarefas
+> (`extract`) foi **executada de verdade em 2026-09-20** (13.610 exemplos lidos, pool de 1.234
+> problemas elegíveis) e o relatório (`report`) está implementado; a validação dos códigos, o
+> motor de execução e o empacotamento ainda não existem. A feature `001-dataset-extraction` tem spec, plano e tarefas
 > prontos; o restante do experimento está descrito na metodologia, mas ainda não especificado. Por isso a seção "Executando os módulos" marca cada etapa
 > com o seu estado. **A reprodução completa só será possível quando todas as etapas estiverem
 > implementadas**; este documento será completado à medida que os módulos chegarem.
@@ -75,7 +75,7 @@ na avaliação, para que nenhum código do dataset falhe no motor só durante o 
 
 | Módulo | Papel | Metodologia | Estado | README do módulo |
 |---|---|---|---|---|
-| `src/dataset/` | extrai, filtra, valida e empacota o dataset | seção 1 | em implementação ([`specs/001-dataset-extraction/`](specs/001-dataset-extraction/)): `extract` e `report` implementados, sem execução real ainda | [README](src/dataset/README.md) |
+| `src/dataset/` | extrai, filtra, valida e empacota o dataset | seção 1 | em implementação ([`specs/001-dataset-extraction/`](specs/001-dataset-extraction/)): `extract` executado de verdade em 2026-09-20 (pool de 1.234 problemas) e `report` implementados; validação, motor e empacotamento ainda não | [README](src/dataset/README.md) |
 | `src/sandbox/` | motor de execução isolada de C++ | seções 1.4 e 4 | em implementação (construído na feature 001): só tipos e limites prontos; o motor ainda não existe | [README](src/sandbox/README.md) |
 | `src/mutation/` | gera 100 mutantes por problema | seção 2 | **sem spec** | a criar |
 | `src/ai_clients/` | chamadas stateless aos 3 modelos | seção 3 | **sem spec** (pontos pendentes na metodologia, em especial o oráculo do SLM) | a criar |
@@ -99,7 +99,7 @@ dataset", mais abaixo.
 
 | Fase | Comando (`docker compose run --rm <serviço> python -m dataset <comando>`) | O que acontece | O que fica em disco | Estado |
 |---|---|---|---|---|
-| 1 | `extract` (serviço `app`, com internet) | lê **todos** os 13.610 exemplos do `code_contests` em streaming, descarta na hora os que não servem e grava só os ~1.279 elegíveis, cada um com enunciado, testes, códigos corretos e **todas as submissões incorretas em C++ como candidatas** a WA. **Não executa nenhum código** | `data/work/staging/` | disponível (ainda sem execução real) |
+| 1 | `extract` (serviço `app`, com internet) | lê **todos** os 13.610 exemplos do `code_contests` em streaming, descarta na hora os que não servem e grava só os 1.234 elegíveis (medido na extração real de 2026-09-20), cada um com enunciado, testes, códigos corretos e **todas as submissões incorretas em C++ como candidatas** a WA. **Não executa nenhum código** | `data/work/staging/` | disponível (ainda sem execução real) |
 | 2 | `validate` (serviço `sandbox`) | executa, no motor isolado, o código correto e as candidatas a WA de cada problema, na ordem do pool, até reunir 200 problemas completos com exatamente 100 WAs cada | `data/work/problems/` | planejado |
 | 3 | `audit` (serviço `sandbox`) | reexecuta os problemas completos como conferência | — | planejado |
 | 4 | `package` (serviço `app`) | copia **só os problemas completos** para um zip determinístico e gera o manifesto e o relatório final | `data/dataset.zip`, `manifests/` | planejado |
@@ -113,7 +113,7 @@ depois que alguém roda `package` (fase 4) com a meta de 200 atingida.
 
 `data/work/` é o espaço de trabalho de **quem gera**: fica só na máquina dele, com permissão `0700`,
 e nunca vai para o Git. **Nenhum comando o apaga automaticamente** (a spec não prevê limpeza).
-Nela ficam os ~1.279 problemas elegíveis extraídos, inclusive os que a validação não chegou a
+Nela ficam os 1.234 problemas elegíveis extraídos, inclusive os que a validação não chegou a
 processar (ela para ao reunir 200 completos), e os problemas descartados ou em triagem. Os que não
 entram no zip continuam ali, sem uso. Apagar `data/work/` é uma decisão manual e só faz sentido
 depois do `package` e do commit; quem apaga aceita refazer extração e validação (horas) se precisar
@@ -166,8 +166,8 @@ testado em **Linux**; macOS e Windows (WSL2) não foram verificados. Nenhum cód
 Para instalar o Docker, siga a página da sua distribuição em <https://docs.docker.com/engine/install/>,
 incluindo os "Post-installation steps for Linux" (eles permitem usar `docker` sem `sudo`). Você
 também precisa de internet (para baixar a imagem base e o dataset) e de espaço livre em disco: a
-imagem base do GCC tem na ordem de 1 GB; o espaço ocupado pelos dados extraídos ainda não foi medido
-(será, na primeira extração real).
+imagem base do GCC tem na ordem de 1 GB; a extração real de 2026-09-20 ocupou cerca de 104 MB em
+`data/work/`.
 
 Teste se o Docker está pronto: `docker run --rm hello-world`. Se aparecer `permission denied` com
 `/var/run/docker.sock`, o seu usuário não está no grupo `docker`: rode
@@ -296,7 +296,7 @@ Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
 |---|---|---|
 | 0 e 1. Preparar o ambiente | Passos 1 a 5 deste guia | disponível |
 | 2. Obter o dataset (quem recebe) | **sem rodar a extração**: `unzip data/dataset.zip -d data/` e depois `docker compose run --rm app python scripts/verify_dataset.py --extracted data/dataset` (detalhes e o caso de atualização em "Como o dataset circula entre os autores") | planejado (o zip só existe depois da feature 001) |
-| 2b. Ou gerar o dataset do zero (quem gera, uma vez) | [passo a passo do módulo `dataset`](src/dataset/README.md): `docker compose run --rm app python -m dataset extract` e `docker compose run --rm app python -m dataset report` estão implementados, ainda sem execução real; `validate`, `audit` e `package` são planejados ([contrato dos comandos](specs/001-dataset-extraction/contracts/cli.md), [roteiro de aceite](specs/001-dataset-extraction/quickstart.md)) | em implementação (feature 001) |
+| 2b. Ou gerar o dataset do zero (quem gera, uma vez) | [passo a passo do módulo `dataset`](src/dataset/README.md): `docker compose run --rm app python -m dataset extract` e `docker compose run --rm app python -m dataset report` estão **disponíveis** (`extract` executado de verdade em 2026-09-20); `validate`, `audit` e `package` são planejados ([contrato dos comandos](specs/001-dataset-extraction/contracts/cli.md), [roteiro de aceite](specs/001-dataset-extraction/quickstart.md)) | em implementação (feature 001) |
 | 3. Gerar mutantes | — | não especificado |
 | 4. Gerar suítes com os modelos | — | não especificado (exige chaves de API em `.env`; ver `.env.example`) |
 | 5. Avaliar as suítes | — | não especificado |

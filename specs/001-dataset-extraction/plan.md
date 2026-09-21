@@ -54,7 +54,7 @@ pelo dataset de origem (≥ 30 min: a passagem só com colunas leves levou ~28 m
 durante a execução de código de terceiros; mesmos resultados em duas execuções (exceto
 `extraction_timestamp`); `data/` fora do Git salvo `data/dataset.zip`.
 
-**Scale/Scope**: 200 problemas completos a partir de um pool de 1.279 elegíveis, já sem os 9 de E/S por arquivo (R1); ~10^5
+**Scale/Scope**: 200 problemas completos a partir de um pool de 1.234 elegíveis (medido na extração real de 2026-09-20: 1.279 sem E/S por arquivo, 1.250 com soluções em C++, 1.234 com ao menos 100 incorretas; R1); ~10^5
 compilações; zip estimado em ~10 MB (R15).
 
 ## Constitution Check

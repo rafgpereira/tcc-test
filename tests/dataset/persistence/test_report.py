@@ -6,6 +6,7 @@ import stat
 
 from dataset import config
 from dataset.persistence import report as rep
+from dataset.persistence import store
 from dataset.schemas.common import Macrocategoria as M
 from dataset.schemas.pool import Pool, PoolCounts, PoolProblem
 from dataset.schemas.report import PendingTriageItem
@@ -47,6 +48,24 @@ def test_funnel_counts_come_from_the_pool_by_reason_and_stage():
     assert report.funnel.read == 50
     assert report.funnel.stages == {"codeforces": 30, "enough_raw_wa": 3}
     assert report.funnel.rejected_by_reason == {"file_io": 4, "translated": 2}
+
+
+def test_the_funnel_stages_keep_the_funnel_order_after_the_json_roundtrip():
+    # The stored pool has sorted keys, so a report built from the file must not follow that order
+    # (found in the first real run: `report` listed the stages alphabetically).
+    funnel = {"read": 100, **{stage: 90 - i for i, stage in enumerate(config.FUNNEL_STAGES)}}
+    pool = make_pool()
+    pool.counts.funnel = funnel
+    stored = Pool.model_validate_json(store.dumps_json(pool))
+    assert list(stored.counts.funnel) != ["read", *config.FUNNEL_STAGES]
+    report = rep.build_report(stored)
+    assert list(report.funnel.stages) == list(config.FUNNEL_STAGES)
+    stages_in_markdown = [
+        line.split("|")[1].strip()
+        for line in rep.render_markdown(report).splitlines()
+        if line.startswith("| ") and line.split("|")[1].strip() in config.FUNNEL_STAGES
+    ]
+    assert stages_in_markdown[: len(config.FUNNEL_STAGES)] == list(config.FUNNEL_STAGES)
 
 
 def test_discarded_by_reason_are_reported_as_given():

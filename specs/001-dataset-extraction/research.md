@@ -51,11 +51,16 @@ as colunas pesadas). Este é o mesmo funil registrado na metodologia (seção 1.
 | Sem termo de dependência visual | 1.288 |
 | `is_description_translated == false` | 1.288 (nenhum removido nesta etapa) |
 | `problem_id` único entre os splits | 1.288 (nenhuma duplicata) |
-| Sem E/S por arquivo (`input_file` e `output_file` vazios) | **1.279** (9 removidos) |
+| Sem E/S por arquivo (`input_file` e `output_file` vazios) | 1.279 (9 removidos) |
+| Ao menos uma solução correta e uma incorreta em C++ (medido na extração real de 2026-09-20) | 1.250 (29 removidos) |
+| Ao menos 100 incorretas em C++ brutas (idem) | **1.234** (16 removidos) |
 
-Os **1.288** problemas são os elegíveis antes do critério de E/S por arquivo; os **1.279**
-são o pool final. Distribuição do pool final: `estrutural_otimizacao` 417, `matematica` 285,
-`logica_direta` 577; por origem, `train` 1.250, `valid` 9, `test` 20. Os 9 removidos por E/S
+Os **1.288** problemas são os elegíveis antes do critério de E/S por arquivo e os **1.279** são
+o pool antes da checagem de soluções em C++. **Atualização de 2026-09-20**: a extração real
+reproduziu exatamente as nove primeiras etapas e o **pool final tem 1.234 problemas**:
+`estrutural_otimizacao` 407, `matematica` 278, `logica_direta` 549; por origem, `train` 1.206,
+`valid` 9, `test` 19. (A distribuição do pool de 1.279, sem a checagem em C++, era 417/285/577,
+com `train` 1.250 e `test` 20.) Os 9 removidos por E/S
 por arquivo (todos com `input.txt`/`output.txt`) são `120_A`, `120_B`, `120_C`, `234_B`,
 `234_C`, `253_A`, `253_B`, `253_C` e `36_A` (2 matemática, 3 estrutural/otimização, 4 lógica
 direta).
@@ -294,6 +299,12 @@ extração grava checkpoints por shard (abaixo).
   `typer`/`click` (Princípio IX). A CLI de projeto (`src/cli/`) é escopo de outra feature.
 
 ## R19 — Quantas submissões incorretas existem, e quantas chegam a 100 WAs
+
+- **Medido na extração real (2026-09-20), pool de 1.234**: `raw_wa_count` mín. 100 (pré-checagem),
+  **mediana 200**, máx. 679; `train` (1.206) mediana 201; `valid` (9) mediana 101; `test` (19)
+  mediana 101. 138 problemas têm entre 100 e 109 e 167 têm menos de 150 (144 `train`, 8 `valid`,
+  15 `test`). A amostra de 150 do `train` estimava 99% com ≥ 100; na população, 1.206 dos 1.250
+  problemas do `train` (96,5%) passam nas duas checagens em C++.
 
 - **Medido, `train`** (amostra aleatória de 150 problemas elegíveis, streaming embaralhado):
   incorretas em C++ por problema: mín. 0, p10 102, p25 196, **mediana 200**, p75 281, p90 317,

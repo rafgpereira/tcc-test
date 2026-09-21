@@ -22,7 +22,7 @@ Lê o dataset público `code_contests` no Hugging Face **em streaming** (lê aos
 dataset inteiro para o disco), separa os problemas que servem ao experimento (critérios de
 elegibilidade da metodologia, seção 1.2), classifica cada um em uma macrocategoria e guarda na sua
 máquina, dentro de `data/work/`, o enunciado, os testes e os códigos C++ de cada problema
-elegível. Cerca de 1.279 problemas são esperados (medição de 2026-09-19). **Ainda não valida** se os
+elegível. A extração real de 2026-09-20 resultou em **1.234 problemas** elegíveis. **Ainda não valida** se os
 códigos funcionam: isso vem nas próximas etapas da feature.
 
 `extract` é a **fase 1 de 5** do ciclo do módulo (`extract`, `validate`, `audit`, `package`,
@@ -53,13 +53,15 @@ no README da raiz.
    docker compose run --rm app python -m dataset extract
    ```
 
-   A spec estima **30 minutos ou mais** (tempo e volume de transferência ainda serão medidos na
-   primeira execução real). Pode apertar Ctrl+C e repetir o mesmo comando depois: só o trecho
-   (shard) em andamento é refeito. Durante a execução aparece uma linha por trecho, no formato
-   `train shard 3/N: 350 rows, 12 eligible` (número de linhas lidas e de problemas elegíveis
-   naquele trecho; `already done` quando ele já estava pronto de uma execução anterior). No fim
-   aparecem `read R rows; M eligible problems`, uma linha com o total por macrocategoria
-   e `report:` com o caminho do relatório.
+   Na primeira execução real (2026-09-20) levou cerca de **23 minutos**; a duração depende da sua
+   rede. Pode apertar Ctrl+C e repetir o mesmo comando depois: só o trecho (shard) em andamento é
+   refeito. Aparecem primeiro barras de progresso do Hugging Face (`README.md`,
+   `dataset_infos.json`, `Resolving data files`), que são normais. Depois vem uma linha por trecho,
+   no formato `train shard 3/39: 342 rows, 32 eligible` (linhas lidas e problemas elegíveis
+   naquele trecho; `already done` quando ele já estava pronto de uma execução anterior): 39 trechos
+   de `train`, 1 de `valid` e 1 de `test`. No fim aparecem `pool: 1234 eligible problems`,
+   `read 13610 rows; 1234 eligible problems`, uma linha com o total por macrocategoria e `report:`
+   com o caminho do relatório.
 
 3. **Conferir o resultado.** Veja o código de saída (`echo $?`, esperado `0`) e abra os arquivos,
    que estão na sua pasta `data/work/` (não dentro de um contêiner):
@@ -69,10 +71,16 @@ no README da raiz.
    less data/work/reports/extraction_report.md   # funil de elegibilidade e distribuição
    ```
 
-   No relatório, confira o funil (quantos problemas cada critério eliminou) e a distribuição do
-   pool por macrocategoria. Os números medidos em 2026-09-19 foram 13.610 linhas lidas e 417 / 285 /
-   577 problemas em `estrutural_otimizacao` / `matematica` / `logica_direta`; se os seus diferirem,
-   avise os autores, porque a documentação precisa ser corrigida.
+   No relatório, confira o funil (quantos problemas restam após cada critério) e a distribuição do
+   pool por macrocategoria. Como a revisão do dataset e a seed são fixas, o resultado é
+   **determinístico** e o seu deve ser exatamente o da extração real de 2026-09-20: 13.610 linhas
+   lidas e **1.234 problemas** no pool (`estrutural_otimizacao` 407, `matematica` 278,
+   `logica_direta` 549; `train` 1.206, `valid` 9, `test` 19). O funil, em ordem, termina assim:
+   1.288 (sem termo visual) → 1.279 (sem E/S por arquivo) → 1.250 (com soluções em C++) →
+   1.234 (com ao menos 100 incorretas em C++). A tabela de "motivos de rejeição" conta cada critério
+   sobre todas as linhas lidas (uma linha pode ter vários motivos), por isso ela não soma como o
+   funil. Se os seus números diferirem, avise os autores, porque a documentação precisa ser
+   corrigida. Depois da extração, `data/work/` ocupa cerca de 104 MB.
 
 4. **Regenerar o relatório (opcional).** Refaz o relatório a partir dos arquivos já gravados, sem
    baixar nada:
@@ -146,12 +154,14 @@ ainda vai gerar, com apenas os problemas completos.
 
 - Problemas que leem e escrevem por arquivo (`input.txt` e `output.txt`) são excluídos, porque o
   motor injeta a entrada por `stdin`: 9 problemas medidos em 2026-09-19 (metodologia, seção 1.2).
-- O pool esperado é de cerca de 1.279 problemas (medição de 2026-09-19); o número real desta
-  implementação será confirmado na primeira extração real.
-- Em `valid` e `test` a mediana é de ~101 submissões incorretas em C++ por problema, então poucos
-  vão alcançar 100 falhas validadas (metodologia, seção 1.7).
-- O streaming lê todas as colunas de cada linha (não há projeção de colunas); o tempo e o volume de
-  transferência da extração completa serão medidos na primeira execução real.
+- O pool é de 1.234 problemas (extração real de 2026-09-20). O número de 1.279 que aparecia na
+  medição de 2026-09-19 não incluía a checagem de soluções em C++ nem a de 100 incorretas
+  (metodologia, seção 1.2). Só 28 deles vêm de `valid`/`test`.
+- Em `valid` e `test` a mediana é de 101 submissões incorretas em C++ por problema (medido em
+  2026-09-20), então poucos vão alcançar 100 falhas validadas; no pool inteiro, 167 problemas têm
+  menos de 150 incorretas brutas (metodologia, seção 1.7).
+- O streaming lê todas as colunas de cada linha (não há projeção de colunas): a extração completa
+  levou cerca de 23 minutos em 2026-09-20; o volume de rede não foi medido.
 - A validação dos códigos e o empacotamento ainda não existem: `report` mostra uma amostra vazia.
 
 ## Referências
@@ -164,5 +174,5 @@ ainda vai gerar, com apenas os problemas completos.
 
 | Comando | Verificado em | Revisão | Tarefa |
 |---|---|---|---|
-| `extract` | pendente | — | — |
+| `extract` | 2026-09-20 | 7440706 | T035 |
 | `report` | pendente | — | — |

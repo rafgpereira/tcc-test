@@ -32,18 +32,7 @@ from dataset.schemas.pool import (
 
 # Eligibility stages in the order of the funnel. A row is counted in a stage only if it passed
 # every earlier stage, which reproduces the funnel measured on 2026-09-19 (methodology 1.2).
-STAGES = (
-    "codeforces",
-    "rating_1000_1600",
-    "has_allowed_tag",
-    "no_forbidden_tag",
-    "no_visual_term",
-    "not_translated",
-    "unique_id",
-    "no_file_io",
-    "has_cpp_solutions",
-    "enough_raw_wa",
-)
+STAGES = config.FUNNEL_STAGES
 _STAGE_REASONS: dict[str, set[R]] = {
     "codeforces": {R.NOT_CODEFORCES},
     "rating_1000_1600": {R.RATING_OUT_OF_RANGE},

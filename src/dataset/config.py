@@ -45,6 +45,21 @@ VISUAL_TERMS = (
     ".jpg",
 )
 
+# Eligibility stages in the order of the funnel (methodology 1.2). The stored JSON has sorted keys,
+# so consumers that list the stages (the report) must use this order, not the order of the file.
+FUNNEL_STAGES = (
+    "codeforces",
+    "rating_1000_1600",
+    "has_allowed_tag",
+    "no_forbidden_tag",
+    "no_visual_term",
+    "not_translated",
+    "unique_id",
+    "no_file_io",
+    "has_cpp_solutions",
+    "enough_raw_wa",
+)
+
 # Layout under the repository root. `data/work/` is private (mode 0700, spec decision D15).
 DATA_DIR = Path("data")
 WORK_DIR = DATA_DIR / "work"

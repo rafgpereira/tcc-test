@@ -50,6 +50,8 @@ módulo, evitando suposições erradas de schema:
   anteriores desta seção (4.044 exemplos, `train` 3.760)**, que estavam desatualizados: não
   correspondem à revisão atual. O tamanho em disco (≈7,62 GB, informado na página do
   dataset) não foi reverificado; o acesso é via streaming, nunca baixado por completo.
+  **Reconfirmado em 2026-09-20** pela extração real: 13.610 linhas lidas, em 41 shards (39 de
+  `train` com 341 ou 342 linhas, 1 de `valid` com 117 e 1 de `test` com 165).
   **[DECIDIDO]** Os três splits são combinados (`train`+`valid`+`test`); o split de origem
   de cada problema é registrado em `dataset_split_origem` (ver 1.5).
 
@@ -102,9 +104,11 @@ módulo, evitando suposições erradas de schema:
 
 #### Funil de elegibilidade medido (2026-09-19)
 
-**[CORRIGIDO]** Números medidos empiricamente em streaming durante o `/speckit-plan`, em
-**2026-09-19**, sobre os três splits na revisão `802411c3…`, aplicando os critérios acima
-(exceto a checagem de soluções em C++, que exige as colunas pesadas e é feita na validação):
+**[CORRIGIDO]** Números medidos empiricamente em streaming sobre os três splits na revisão
+`802411c3…`. As etapas até "Sem E/S por arquivo" foram medidas durante o `/speckit-plan`, em
+**2026-09-19**, sem a checagem de soluções em C++ (que exige as colunas pesadas); a **extração
+real de 2026-09-20** (seed 42, código na revisão git `7440706`) reproduziu esses números
+exatamente e acrescentou as duas últimas etapas:
 
 | Etapa | Problemas restantes |
 |---|---:|
@@ -116,11 +120,20 @@ módulo, evitando suposições erradas de schema:
 | Sem termo de dependência visual | 1.288 |
 | `is_description_translated == false` | 1.288 (nenhum removido nesta etapa) |
 | `problem_id` único entre os splits | 1.288 (nenhuma duplicata) |
-| Sem E/S por arquivo (`input_file` e `output_file` vazios) | **1.279** (9 removidos) |
+| Sem E/S por arquivo (`input_file` e `output_file` vazios) | 1.279 (9 removidos) |
+| Ao menos uma solução correta e uma incorreta em C++ | 1.250 (29 removidos) |
+| Ao menos 100 submissões incorretas em C++, contadas antes de remover duplicatas (pré-checagem de D4) | **1.234** (16 removidos) |
 
-Os **1.288** problemas são os elegíveis antes do critério de E/S por arquivo; os **1.279**
-são o pool final. Distribuição do pool final: `estrutural_otimizacao` 417, `matematica` 285,
-`logica_direta` 577; por origem, `train` 1.250, `valid` 9, `test` 20. Os 9 removidos por E/S
+Os **1.288** problemas são os elegíveis antes do critério de E/S por arquivo e os **1.279** são
+o pool antes da checagem de soluções em C++ (a medição de 2026-09-19 chamava esse número de pool
+final). O **pool final, medido pela extração real de 2026-09-20, tem 1.234 problemas**:
+`estrutural_otimizacao` 407, `matematica` 278, `logica_direta` 549; por origem, `train` 1.206,
+`valid` 9, `test` 19 (o `train` perde 44 problemas e o `test` perde 1 nas duas últimas etapas).
+Para comparação, a distribuição dos 1.279, medida em 2026-09-19 sem a checagem em C++, era
+417/285/577, com `train` 1.250, `valid` 9 e `test` 20. No relatório de extração, a tabela do
+funil é sequencial, enquanto "linhas com cada motivo de rejeição" conta cada critério sobre todas
+as linhas lidas (uma linha pode ter vários motivos, FR-005), então as duas tabelas não somam igual.
+Os 9 removidos por E/S
 por arquivo (todos com `input.txt`/`output.txt`) são `120_A`, `120_B`, `120_C`, `234_B`,
 `234_C`, `253_A`, `253_B`, `253_C` e `36_A` (2 matemática, 3 estrutural/otimização, 4 lógica
 direta).
@@ -225,19 +238,21 @@ Esse campo é persistido por problema (ver 1.5 — `metadata.json`).
   problemas após a seleção, que é final quando a meta é atingida ou todos os problemas do pool
   foram encerrados, mesmo com déficit (limiar fixo; alerta informativo, que não bloqueia a execução,
   não altera a seleção e não relaxa critérios).
-  **Distribuição esperada (estimativa analítica de 2026-09-20, sobre o pool medido de
-  2026-09-19: 417 `estrutural_otimizacao`, 285 `matematica`, 577 `logica_direta`; a estimativa
-  será refeita com o pool da extração real)**: como a ordem é um embaralhamento único do pool
-  (sem estratificação), a amostra de 200 tende a ser proporcional ao pool: em média 65,2
-  (dp 6,1), 44,6 (dp 5,4) e 90,2 (dp 6,5) problemas, respectivamente (distribuição
-  hipergeométrica). Só por acaso amostral, a probabilidade de uma categoria ficar abaixo de 30 é
-  de 2e-3 para `matematica` e desprezível para as demais. O risco real é outro: se a taxa de
-  problemas que se tornam `complete` (não descartados nem em triagem) for diferente entre
-  categorias, a amostra final se desloca. Sem esse efeito, `matematica` só cairia abaixo de 30
-  se sua taxa de validação fosse menor que ~62% da taxa das outras duas juntas (`estrutural_otimizacao`:
-  ~37%; `logica_direta`: ~22%). A taxa por categoria só será conhecida depois da validação
-  (piloto e execução completa); o relatório traz `pool_distribution` e `distribution` lado a lado
-  para permitir esse acompanhamento.
+  **Distribuição esperada (estimativa analítica de 2026-09-20, refeita com o pool real da
+  extração de 2026-09-20: 407 `estrutural_otimizacao`, 278 `matematica`, 549 `logica_direta`,
+  1.234 no total)**: como a ordem é um embaralhamento único do pool (sem estratificação), a
+  amostra de 200 tende a ser proporcional ao pool: em média 66,0 (dp 6,1), 45,1 (dp 5,4) e 89,0
+  (dp 6,4) problemas, respectivamente (distribuição hipergeométrica). Só por acaso amostral, a
+  probabilidade de uma categoria ficar abaixo de 30 é de 1,4e-3 para `matematica` e desprezível
+  para as demais. Como `valid` e `test` (28 problemas) dificilmente fecham 100 WAs (1.7), a
+  amostra real virá quase toda do `train` (391/269/546, 1.206 no total), com proporções
+  praticamente iguais. O risco real é outro: se a taxa de problemas que se tornam `complete`
+  (não descartados nem em triagem) for diferente entre categorias, a amostra final se desloca.
+  Sem esse efeito, `matematica` só cairia abaixo de 30 se sua taxa de validação fosse menor que
+  ~61% da taxa das outras duas juntas (`estrutural_otimizacao`: ~36%; `logica_direta`: ~22%). A
+  taxa por categoria só será conhecida depois da validação (piloto e execução completa); o
+  relatório traz `pool_distribution` e `distribution` lado a lado para permitir esse
+  acompanhamento.
 - **[PROPOSTA — definido na spec e no plano, aguardando confirmação dos autores] Regras
   operacionais do motor**:
   - *Ordem da suíte e veredito*: os testes rodam em ordem fixa (públicos, privados,
@@ -381,6 +396,28 @@ impõe equilíbrio entre splits. Se a fração de WA validada for baixa, a meta 
 com exatamente 100 WAs pode não fechar sem relaxar critérios (decisão dos autores; nenhuma
 relaxação é automática). A medição da fração real é o "piloto" do roteiro de aceite.
 
+**Extração real (2026-09-20; revisão `802411c3…`, seed 42, código na revisão git `7440706`)**,
+medida sobre os 1.234 problemas do pool:
+
+- Incorretas em C++ por problema (`raw_wa_count`, antes de remover duplicatas): todas ≥ 100 por
+  construção (é a pré-checagem); mín. 100, **mediana 200**, máx. 679. `train` (1.206): mediana
+  201; `valid` (9): mediana 101, máx. 192; `test` (19): mediana 101, máx. 217. Muitos problemas
+  ficam perto do corte: 138 têm entre 100 e 109 e 167 têm menos de 150 (144 no `train`, 8 no
+  `valid` e 15 no `test`; 23 dos 28 de `valid`+`test`). Esses são os que mais provavelmente não
+  chegam a 100 WAs validados (D4); o piloto mede isso.
+- Soluções corretas em C++ por problema (`raw_ac_count`): mín. 28, mediana 195.
+- Testes por problema, no pool inteiro (medianas): 2 públicos, 17 privados e 91 gerados
+  (`generated_tests`, máx. 200). O número de 200 gerados citado abaixo é de `valid`+`test`, uma
+  população menor e diferente.
+- Limites lidos dos metadados: tempo de 0,5 a 10 s; memória de 61,0 MiB (64 MB) a 976,6 MiB
+  (1.024 MB).
+- Disco: `data/work/` ocupou 104 MB, sendo 103 MB em `staging/raw` (1.234 arquivos `json.gz`);
+  `pool.json` tem 248 KB.
+- Consistência (verificação de 2026-09-20): 41 checkpoints completos somando 13.610 linhas; os
+  1.234 arquivos `raw` são exatamente os problemas do `pool.json`; todos validam nos schemas;
+  `problem_id`, rating (1000 a 1600), tradução, macrocategoria (reclassificada a partir das tags)
+  e contagens de soluções conferem em todos, sem nenhuma inconsistência.
+
 **Volume de testes (`valid`+`test`, 29 problemas)**: mediana de 202 testes por problema (mín.
 43, máx. 241), dos quais mediana de 200 são `generated_tests` (mín. 41); carga de texto dos
 testes com mediana de ~12,7 KB por problema (máx. 65 KB); ~170 KB de código-fonte para 100
@@ -404,7 +441,9 @@ compactado para 200 problemas.
   com `0700` (ver D15 na spec).
 
 **Tempo de extração**: uma passagem completa em streaming, só com colunas leves, levou de 24 a
-28 min (com retentativas automáticas de rede; foram observados resets de conexão).
+28 min (com retentativas automáticas de rede; foram observados resets de conexão). A extração
+real de 2026-09-20, com todas as colunas e gravando os problemas do pool, levou cerca de 23 min
+(pelos horários dos arquivos gravados, das 22:41 às 23:04); o volume de rede não foi medido.
 
 ---
 
@@ -649,6 +688,7 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 | 2026-09-19 | Números do dataset corrigidos por medição (13.610 exemplos; `train` 13.328; 8.101 Codeforces; 118 sem rating; 1.288 elegíveis, 1.279 com E/S por arquivo removida) e funil de elegibilidade | 1.1, 1.2, 7 |
 | 2026-09-19 | Localização do motor em pacote próprio (`src/sandbox/`), decisão confirmada na revisão do plano e que faltava aqui | 1.4 |
 | 2026-09-19 | Auditoria retroativa (Princípio XI): dados medidos de disponibilidade de submissões, volume de testes e verificações de ambiente (1.7); regras operacionais do motor como PROPOSTA; revisão fixada e licença; `schema_version`, `status` e relatório versionado; evidência e mecanismo do limite de pilha; rótulo de `AC_ref` corrigido; este histórico | 1.1, 1.4–1.7, 4, 6–8 |
+| 2026-09-20 | **Extração real (T035)**: funil reconfirmado (13.610; 8.101; 2.399; 2.155; 1.751; 1.288; 1.279 idênticos aos do planejamento) e completado com as etapas de soluções em C++ (1.250) e de pelo menos 100 incorretas (1.234); pool final 407/278/549 (`train` 1.206, `valid` 9, `test` 19), em vez de 1.279 (417/285/577); dados de disponibilidade de WAs brutas, volume de testes, limites, tempo (~23 min) e disco (104 MB); estimativa de distribuição por macrocategoria refeita | 1.1, 1.2, 1.4, 1.7 |
 | 2026-09-20 | Fluxo de circulação do dataset entre os autores (geração única, distribuição por zip e manifesto, recebimento sem extração; `data/work/` local e sem limpeza automática) | 1.6 |
 | 2026-09-20 | Estimativa analítica da distribuição por macrocategoria sob a seleção sem cota (D5) e limiar de taxa de validação que dispararia o alerta de 30; passo `mkdir -p data` antes do primeiro `docker compose run` (o Docker cria o diretório como root se ele não existir) | 1.4, 1.7 |
 | 2026-09-19 | Diretório de trabalho `data/work/` com permissão `0700` para o código de terceiros não o acessar (D15); a premissa "não acessa `data/`" passa a valer para `data/work/` | 1.4, 1.7, 7 |
