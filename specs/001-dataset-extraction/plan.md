@@ -277,6 +277,13 @@ opção é aceita.
                                        3. grava atomicamente; status no validacao.json
 ```
 
+**Ciclo de vida dos dados** (2026-09-20). As fases são comandos manuais e separados; `validate`
+não chama `package`. `data/work/` (`staging/`, `building/`, `problems/`, `reports/`) pertence a
+quem gera, fica fora do Git e nenhuma fase o limpa. Só `package` produz o que é publicado (o zip com
+os problemas `complete`, o manifesto e o relatório final). Quem recebe o dataset descompacta o zip
+em `data/dataset/` no host e o contêiner o lê pelo volume `./data`, sem reconstruir a imagem.
+Explicação para os autores no `README.md` da raiz ("Como o dataset circula entre os autores").
+
 ### Módulos e responsabilidades
 
 `src/sandbox/` (fundação compartilhada, sem conhecimento de dataset/IA):

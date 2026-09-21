@@ -25,6 +25,14 @@ máquina, dentro de `data/work/`, o enunciado, os testes e os códigos C++ de ca
 elegível. Cerca de 1.279 problemas são esperados (medição de 2026-09-19). **Ainda não valida** se os
 códigos funcionam: isso vem nas próximas etapas da feature.
 
+`extract` é a **fase 1 de 5** do ciclo do módulo (`extract`, `validate`, `audit`, `package`,
+`verify`); só `extract` e `report` existem hoje. O ciclo completo é feito **uma vez, por um dos
+autores**, que publica no Git o `data/dataset.zip` e os manifestos; o outro autor só descompacta e
+confere, sem rodar nada disso. O que cada fase faz, o que sobra em `data/work/` e como cada autor e o
+Docker de cada um se encaixam estão em
+[Como o dataset circula entre os autores](../../README.md#como-o-dataset-circula-entre-os-autores),
+no README da raiz.
+
 ### Passo a passo
 
 1. **Teste rápido (opcional, poucos minutos).** Confirma que a rede e as permissões funcionam antes
@@ -111,7 +119,10 @@ mesmo formato de passo a passo, quando existirem.
 
 Tudo em `data/work/`, um diretório privado (permissão `0700`) e ignorado pelo Git. Como `./data`
 é um volume do Compose, os arquivos aparecem no host, em `data/work/` na raiz do repositório, com o
-seu usuário como dono; o contêiner não guarda nada que não esteja lá.
+seu usuário como dono; o contêiner não guarda nada que não esteja lá. Esses arquivos são o **espaço
+de trabalho de quem gera o dataset**: ficam só na sua máquina, não vão para o Git, e nenhum comando
+os apaga (a extração não tem etapa de limpeza). O que será distribuído é o zip que a fase `package`
+ainda vai gerar, com apenas os problemas completos.
 
 | Saída | Formato | Destino |
 |---|---|---|

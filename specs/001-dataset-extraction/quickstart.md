@@ -119,6 +119,9 @@ python scripts/verify_dataset.py --extracted data/dataset
 
 ## Nível 6 — Integridade pós-clonagem (US5, SC-009)
 
+> Este nível é o fluxo de quem **recebe** o dataset (o autor que não o gerou). A explicação geral do
+> ciclo está no README da raiz, seção "Como o dataset circula entre os autores".
+
 Em um clone novo, sem rodar extração:
 
 ```bash

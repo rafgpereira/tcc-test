@@ -85,6 +85,68 @@ na avaliação, para que nenhum código do dataset falhe no motor só durante o 
 
 O formato dos READMEs de módulo é o de [`docs/template-modulo.md`](docs/template-modulo.md).
 
+## Como o dataset circula entre os autores
+
+**Ideia central**: o dataset é **gerado uma única vez**, por um dos autores, e depois **distribuído
+pelo Git** como um arquivo compactado (`data/dataset.zip`) mais um manifesto de hashes
+(`manifests/dataset.manifest.json`). Quem recebe o zip **não roda extração nem validação**: só
+descompacta e confere. Gerar de novo não é necessário nem recomendado, porque a validação executa
+código e o resultado pode variar com o ambiente; a reexecução completa existe para retomada e
+auditoria, não para redistribuição. Em um clone novo, você só executa o que está em "Quem recebe o
+dataset", mais abaixo.
+
+### O ciclo de geração (quem gera, uma vez)
+
+| Fase | Comando (`docker compose run --rm <serviço> python -m dataset <comando>`) | O que acontece | O que fica em disco | Estado |
+|---|---|---|---|---|
+| 1 | `extract` (serviço `app`, com internet) | lê **todos** os 13.610 exemplos do `code_contests` em streaming, descarta na hora os que não servem e grava só os ~1.279 elegíveis, cada um com enunciado, testes, códigos corretos e **todas as submissões incorretas em C++ como candidatas** a WA. **Não executa nenhum código** | `data/work/staging/` | disponível (ainda sem execução real) |
+| 2 | `validate` (serviço `sandbox`) | executa, no motor isolado, o código correto e as candidatas a WA de cada problema, na ordem do pool, até reunir 200 problemas completos com exatamente 100 WAs cada | `data/work/problems/` | planejado |
+| 3 | `audit` (serviço `sandbox`) | reexecuta os problemas completos como conferência | — | planejado |
+| 4 | `package` (serviço `app`) | copia **só os problemas completos** para um zip determinístico e gera o manifesto e o relatório final | `data/dataset.zip`, `manifests/` | planejado |
+| 5 | `verify` (serviço `app`) | confere o zip contra o manifesto | — | planejado |
+| 6 | `git add data/dataset.zip manifests/` e commit/push | é o único jeito de o dataset chegar ao outro autor; nada mais de `data/` é versionado | — | planejado |
+
+Cada fase é um comando **separado e manual**: o `validate` não gera o zip sozinho. O zip só existe
+depois que alguém roda `package` (fase 4) com a meta de 200 atingida.
+
+### O que sobra em `data/work/`
+
+`data/work/` é o espaço de trabalho de **quem gera**: fica só na máquina dele, com permissão `0700`,
+e nunca vai para o Git. **Nenhum comando o apaga automaticamente** (a spec não prevê limpeza).
+Nela ficam os ~1.279 problemas elegíveis extraídos, inclusive os que a validação não chegou a
+processar (ela para ao reunir 200 completos), e os problemas descartados ou em triagem. Os que não
+entram no zip continuam ali, sem uso. Apagar `data/work/` é uma decisão manual e só faz sentido
+depois do `package` e do commit; quem apaga aceita refazer extração e validação (horas) se precisar
+retomar ou auditar. O espaço em disco real ocupado será medido na primeira extração.
+
+### Quem recebe o dataset (o outro autor, ou você em outra máquina)
+
+Uma vez por máquina, faça os Passos 1 a 5 do guia abaixo. Depois, sempre que o zip mudar no
+repositório (`git pull` trouxe um `data/dataset.zip` ou um manifesto novo):
+
+```bash
+rm -rf data/dataset                 # só se já existir uma versão anterior
+unzip data/dataset.zip -d data/
+docker compose run --rm app python scripts/verify_dataset.py --extracted data/dataset
+```
+
+Esperado: a última linha da verificação é `OK`. O `unzip` cria `data/dataset/problems/<id>/`, com
+`enunciado.md`, `AC_ref.cpp`, `WA_1.cpp` a `WA_100.cpp`, `testes.json`, `metadata.json` e
+`validacao.json` de cada problema. Estes três comandos ainda **não existem por inteiro**
+(`scripts/verify_dataset.py` é planejado) e não foram testados; a tabela "Executando os módulos"
+registra o estado.
+
+### Como isso funciona com o Docker de cada autor
+
+- **Cada autor constrói a sua própria imagem** (`docker compose build`); as duas ficam idênticas
+  porque a imagem base, o Python e as bibliotecas têm versão fixada. Não há imagem compartilhada.
+- **O dataset não vai dentro da imagem.** A pasta `data/` do seu computador é montada nos contêineres
+  como `/app/data`. Por isso, depois do `unzip` no seu computador, os contêineres enxergam
+  `data/dataset/` imediatamente, sem reconstruir nada, e os módulos futuros a leem de lá.
+- **O `.env` é pessoal** (cada um usa o seu `HOST_UID`/`HOST_GID`) e nunca vai para o Git.
+- **O que é sempre local**: `.env`, `data/work/`, `data/dataset/` (descompactado). **O que vai pelo
+  Git**: `data/dataset.zip` e `manifests/`, além do código e da documentação.
+
 ## Guia de execução, do clone ao primeiro comando
 
 Este guia parte do zero e **não pressupõe conhecimento de Docker**. Ele cobre a preparação do
@@ -233,8 +295,8 @@ Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
 | Etapa | O que fazer | Estado |
 |---|---|---|
 | 0 e 1. Preparar o ambiente | Passos 1 a 5 deste guia | disponível |
-| 2. Obter o dataset | **sem rodar a extração**: `unzip data/dataset.zip -d data/` e depois `docker compose run --rm app python scripts/verify_dataset.py --extracted data/dataset` | planejado (o zip só existe depois da feature 001) |
-| 2b. Ou regerar o dataset do zero | [passo a passo do módulo `dataset`](src/dataset/README.md): `docker compose run --rm app python -m dataset extract` e `docker compose run --rm app python -m dataset report` estão implementados, ainda sem execução real; `validate`, `audit` e `package` são planejados ([contrato dos comandos](specs/001-dataset-extraction/contracts/cli.md), [roteiro de aceite](specs/001-dataset-extraction/quickstart.md)) | em implementação (feature 001) |
+| 2. Obter o dataset (quem recebe) | **sem rodar a extração**: `unzip data/dataset.zip -d data/` e depois `docker compose run --rm app python scripts/verify_dataset.py --extracted data/dataset` (detalhes e o caso de atualização em "Como o dataset circula entre os autores") | planejado (o zip só existe depois da feature 001) |
+| 2b. Ou gerar o dataset do zero (quem gera, uma vez) | [passo a passo do módulo `dataset`](src/dataset/README.md): `docker compose run --rm app python -m dataset extract` e `docker compose run --rm app python -m dataset report` estão implementados, ainda sem execução real; `validate`, `audit` e `package` são planejados ([contrato dos comandos](specs/001-dataset-extraction/contracts/cli.md), [roteiro de aceite](specs/001-dataset-extraction/quickstart.md)) | em implementação (feature 001) |
 | 3. Gerar mutantes | — | não especificado |
 | 4. Gerar suítes com os modelos | — | não especificado (exige chaves de API em `.env`; ver `.env.example`) |
 | 5. Avaliar as suítes | — | não especificado |

@@ -575,6 +575,13 @@ apontando o arquivo divergente.
 
 - **Usuários**: os dois autores do TCC executam o módulo localmente; não há usuários finais
   externos.
+- **Circulação do dataset entre os autores** (2026-09-20): um autor gera o dataset uma única vez
+  (`extract`, `validate`, `audit`, `package`, comandos manuais e separados) e publica no Git só
+  `data/dataset.zip` e `manifests/`; o outro autor apenas descompacta e verifica, sem extrair nem
+  validar. `data/work/` é local a quem gera, fora do Git, e nenhum comando desta feature o apaga
+  (limpeza automática está fora de escopo; apagar é manual). Cada autor constrói a própria imagem
+  Docker e o dataset chega aos contêineres pelo volume `./data`, não pela imagem. Descrito no
+  `README.md` da raiz e na metodologia (1.6).
 - **Ambiente e conectividade**: há acesso à internet para leitura do dataset de origem e uma
   máquina Linux com toolchain C++ adequada; o ambiente de execução é reprodutível conforme a
   Constitution (Princípio II).

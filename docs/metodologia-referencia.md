@@ -343,6 +343,19 @@ abaixo do limite de 100 MB por arquivo do GitHub; o comando de empacotamento avi
 da biblioteca zlib); a identidade do conteúdo entre ambientes é garantida pelos hashes por
 arquivo do manifesto.
 
+**Circulação do dataset entre os autores** (descrição do fluxo especificado, 2026-09-20). O
+dataset é gerado uma única vez, por um dos autores, com as fases `extract`, `validate`, `audit` e
+`package`, cada uma um comando manual e separado (o zip só existe depois de `package`, com a meta
+de 200 problemas atingida, ou com `--allow-partial`). Só `data/dataset.zip` e `manifests/` são
+versionados; o outro autor recebe o dataset por `git pull`, descompacta com
+`unzip data/dataset.zip -d data/` e confere com a verificação de integridade, sem rodar extração
+nem validação. O espaço de trabalho `data/work/` (problemas extraídos, inclusive os que a validação
+não processou, e os descartados ou em triagem) é local a quem gera, permanece fora do Git e não é
+apagado por nenhum comando (a especificação não prevê limpeza); as fases posteriores só leem o
+que está em `data/work/` e o resultado publicado é o zip. Cada autor constrói a própria imagem
+Docker, idêntica pela fixação de versões, e o dataset chega aos contêineres pelo volume `./data`,
+não pela imagem.
+
 ### 1.7 Dados empíricos medidos durante o planejamento (2026-09-19)
 
 **[CORRIGIDO]** Números medidos durante o `/speckit-plan` da feature `001-dataset-extraction`,
@@ -636,5 +649,6 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 | 2026-09-19 | Números do dataset corrigidos por medição (13.610 exemplos; `train` 13.328; 8.101 Codeforces; 118 sem rating; 1.288 elegíveis, 1.279 com E/S por arquivo removida) e funil de elegibilidade | 1.1, 1.2, 7 |
 | 2026-09-19 | Localização do motor em pacote próprio (`src/sandbox/`), decisão confirmada na revisão do plano e que faltava aqui | 1.4 |
 | 2026-09-19 | Auditoria retroativa (Princípio XI): dados medidos de disponibilidade de submissões, volume de testes e verificações de ambiente (1.7); regras operacionais do motor como PROPOSTA; revisão fixada e licença; `schema_version`, `status` e relatório versionado; evidência e mecanismo do limite de pilha; rótulo de `AC_ref` corrigido; este histórico | 1.1, 1.4–1.7, 4, 6–8 |
+| 2026-09-20 | Fluxo de circulação do dataset entre os autores (geração única, distribuição por zip e manifesto, recebimento sem extração; `data/work/` local e sem limpeza automática) | 1.6 |
 | 2026-09-20 | Estimativa analítica da distribuição por macrocategoria sob a seleção sem cota (D5) e limiar de taxa de validação que dispararia o alerta de 30; passo `mkdir -p data` antes do primeiro `docker compose run` (o Docker cria o diretório como root se ele não existir) | 1.4, 1.7 |
 | 2026-09-19 | Diretório de trabalho `data/work/` com permissão `0700` para o código de terceiros não o acessar (D15); a premissa "não acessa `data/`" passa a valer para `data/work/` | 1.4, 1.7, 7 |
