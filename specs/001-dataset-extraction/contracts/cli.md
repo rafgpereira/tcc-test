@@ -45,8 +45,10 @@ final. Saída: resumo do funil na saída padrão; detalhes em `reports/`.
 
 ### `selfcheck` (serviço `sandbox`)
 
-Executa a suíte de programas de veredito conhecido contra o motor (FR-010a). Código `0` só se
-todos os vereditos coincidirem. Sem opções.
+Executa a suíte de programas de veredito conhecido contra o motor (FR-010a): 9 programas, cada um
+duas vezes (estabilidade). Imprime uma linha por caso e `selfcheck OK: 9/9 cases`. Código `0` só se
+todos os vereditos coincidirem (e forem estáveis), `1` se algum falhar e `3` se o ambiente não
+permite (por exemplo, rodado no serviço `app`, que não tem o motor). Sem opções.
 
 ### `validate` (serviço `sandbox`)
 

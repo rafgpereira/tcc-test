@@ -16,6 +16,7 @@ from dataset.extraction import stream
 from dataset.persistence import report as reporting
 from dataset.persistence import store
 from dataset.schemas.pool import Pool
+from sandbox.selfcheck import selfcheck
 from sandbox.types import InfraError
 
 EXIT_OK = 0
@@ -151,6 +152,16 @@ def _run_report(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+# ---------------------------------------------------------------------------- selfcheck
+
+
+def _run_selfcheck(args: argparse.Namespace) -> int:
+    """Run the known-verdict programs through the engine; exit 0 only if every verdict matches."""
+    report = selfcheck()
+    print(report.render())
+    return EXIT_OK if report.ok else EXIT_DATA_FAILURE
+
+
 register(
     "extract",
     "read the dataset in streaming mode and write the pool of eligible problems",
@@ -162,6 +173,12 @@ register(
     "regenerate the extraction report from the pool and the validated problems",
     lambda parser: None,
     _run_report,
+)
+register(
+    "selfcheck",
+    "run programs of known verdict through the engine (run it in the sandbox service)",
+    lambda parser: None,
+    _run_selfcheck,
 )
 
 

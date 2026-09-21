@@ -108,7 +108,9 @@
       "id": "D13",
       "methodology_section": "1.4",
       "needles": [
-        "operacionais do motor"
+        "operacionais do motor",
+        "reabertura",
+        "format_only"
       ],
       "source": "spec.md#D13"
     },
@@ -127,6 +129,16 @@
         "criado com permissão `0700`"
       ],
       "source": "spec.md#D15"
+    },
+    {
+      "id": "D16",
+      "methodology_section": "1.4, 1.7",
+      "needles": [
+        "sandbox-launch",
+        "/dev/shm",
+        "init: true"
+      ],
+      "source": "spec.md#D16"
     }
   ],
   "schema_version": 1

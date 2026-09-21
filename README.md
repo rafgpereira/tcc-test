@@ -8,13 +8,14 @@ teste unitários em C++.
 > arquitetura do experimento, como os módulos se conectam e como reproduzir o experimento do
 > zero. É atualizado sempre que um módulo é adicionado ou o fluxo entre módulos muda.
 >
-> **Estado atual (2026-09-20)**: o "Guia de execução, do clone ao primeiro comando" (abaixo) cobre a
+> **Estado atual (2026-09-21)**: o "Guia de execução, do clone ao primeiro comando" (abaixo) cobre a
 > preparação do ambiente para quem não conhece Docker. A fundação do projeto está pronta e verificada em contêiner
 > (imagem `gcc:13.2.0` com Python 3.11 via `uv`, tipos e limites do motor, armazenamento
 > determinístico, CLI base e o verificador de documentação). No módulo `dataset`, a extração
 > (`extract`) foi **executada de verdade em 2026-09-20** (13.610 exemplos lidos, pool de 1.234
-> problemas elegíveis) e o relatório (`report`) está implementado; a validação dos códigos, o
-> motor de execução e o empacotamento ainda não existem. A feature `001-dataset-extraction` tem spec, plano e tarefas
+> problemas elegíveis) e o relatório (`report`) está implementado. O motor de execução (módulo
+> `sandbox`) está implementado e passa em todos os testes no contêiner, inclusive isolamento e o
+> `selfcheck`; a validação dos códigos no motor e o empacotamento ainda não existem. A feature `001-dataset-extraction` tem spec, plano e tarefas
 > prontos; o restante do experimento está descrito na metodologia, mas ainda não especificado. Por isso a seção "Executando os módulos" marca cada etapa
 > com o seu estado. **A reprodução completa só será possível quando todas as etapas estiverem
 > implementadas**; este documento será completado à medida que os módulos chegarem.
@@ -76,7 +77,7 @@ na avaliação, para que nenhum código do dataset falhe no motor só durante o 
 | Módulo | Papel | Metodologia | Estado | README do módulo |
 |---|---|---|---|---|
 | `src/dataset/` | extrai, filtra, valida e empacota o dataset | seção 1 | em implementação ([`specs/001-dataset-extraction/`](specs/001-dataset-extraction/)): `extract` executado de verdade em 2026-09-20 (pool de 1.234 problemas) e `report` implementados; validação, motor e empacotamento ainda não | [README](src/dataset/README.md) |
-| `src/sandbox/` | motor de execução isolada de C++ | seções 1.4 e 4 | em implementação (construído na feature 001): só tipos e limites prontos; o motor ainda não existe | [README](src/sandbox/README.md) |
+| `src/sandbox/` | motor de execução isolada de C++ | seções 1.4 e 4 | em implementação (construído na feature 001): motor (compilação, execução isolada, veredito) e `selfcheck` implementados e testados no contêiner em 2026-09-21; falta carimbar os comandos do README | [README](src/sandbox/README.md) |
 | `src/mutation/` | gera 100 mutantes por problema | seção 2 | **sem spec** | a criar |
 | `src/ai_clients/` | chamadas stateless aos 3 modelos | seção 3 | **sem spec** (pontos pendentes na metodologia, em especial o oráculo do SLM) | a criar |
 | avaliação | injeta as suítes geradas e registra vereditos em CSV | seção 4 | **sem spec** | a criar |
@@ -297,6 +298,7 @@ Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
 | 0 e 1. Preparar o ambiente | Passos 1 a 5 deste guia | disponível |
 | 2. Obter o dataset (quem recebe) | **sem rodar a extração**: `unzip data/dataset.zip -d data/` e depois `docker compose run --rm app python scripts/verify_dataset.py --extracted data/dataset` (detalhes e o caso de atualização em "Como o dataset circula entre os autores") | planejado (o zip só existe depois da feature 001) |
 | 2b. Ou gerar o dataset do zero (quem gera, uma vez) | [passo a passo do módulo `dataset`](src/dataset/README.md): `docker compose run --rm app python -m dataset extract` e `docker compose run --rm app python -m dataset report` estão **disponíveis** (`extract` executado de verdade em 2026-09-20); `validate`, `audit` e `package` são planejados ([contrato dos comandos](specs/001-dataset-extraction/contracts/cli.md), [roteiro de aceite](specs/001-dataset-extraction/quickstart.md)) | em implementação (feature 001) |
+| Verificar o motor de execução | `docker compose run --rm sandbox python -m dataset selfcheck` (passo a passo em [`src/sandbox/README.md`](src/sandbox/README.md)) | disponível (implementado e testado em 2026-09-21; falta o carimbo do README) |
 | 3. Gerar mutantes | — | não especificado |
 | 4. Gerar suítes com os modelos | — | não especificado (exige chaves de API em `.env`; ver `.env.example`) |
 | 5. Avaliar as suítes | — | não especificado |

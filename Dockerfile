@@ -26,6 +26,10 @@ RUN useradd --uid 1000 --create-home pipeline
 # Code and tests are copied so the image works without mounts; docker-compose.override.yml
 # mounts the working tree for development. No secrets: .env is excluded by .dockerignore.
 COPY src ./src
+# The launcher measures the peak memory of a program from a tiny process (see launcher.cpp).
+# Built here, with the same pinned GCC as everything else, and kept outside /app so the bind mounts
+# of the development override do not hide it.
+RUN g++ -O2 -static -o /usr/local/bin/sandbox-launch src/sandbox/launcher/launcher.cpp
 COPY scripts ./scripts
 COPY tests ./tests
 # The .gitignore rule test runs inside the container.

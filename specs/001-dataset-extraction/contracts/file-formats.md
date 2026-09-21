@@ -127,7 +127,8 @@ modelos.
       "input": "3\n1 2 3\n",
       "expected": "YES\n",
       "actual": "NO\n",
-      "truncated": false
+      "truncated": false,
+      "format_only": false
     },
     "engine_diagnostic": null
   }

@@ -78,7 +78,9 @@ categoria (FR-018a).
 R19)**: depois do motor pronto, `validate --target 10` sobre problemas do `train` e leia no
 relatório quantos candidatos viraram WA, TLE, MLE, RE e CE. Se a fração de WA for baixa, a
 meta de 200 problemas com exatamente 100 WAs pode não fechar; melhor saber antes das ~5 h de
-execução completa.
+execução completa. Leia também `ac_tested` e `triage_by_cause`: se mais de 10% dos ACs
+testados forem reprovados por formatação (`format_only`) ou por `TLE`, a regra de comparação de
+saída ou a de tempo é reaberta (D13; metodologia 1.4) e a execução completa não segue.
 
 Prova de retomada (SC-006): interrompa `validate` com Ctrl+C no meio de um problema e execute o
 mesmo comando de novo; o conjunto final é idêntico ao de uma execução sem interrupção, sem

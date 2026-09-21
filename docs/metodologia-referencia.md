@@ -212,7 +212,7 @@ Esse campo é persistido por problema (ver 1.5 — `metadata.json`).
 - Execução isolada (sandbox), limites de tempo/memória extraídos dinamicamente de
   `time_limit` (seconds + nanos/1e9) e `memory_limit_bytes` — nunca hardcoded.
 - **[DECIDIDO] Solução de referência (AC)**: adota-se como `AC_ref` uma solução correta em
-  C++ (a escolha da *primeira em ordem determinística do dataset* é **[PROPOSTA]**, ver
+  C++ (a *primeira em ordem determinística do dataset*, **[DECIDIDO]** em 2026-09-20; ver
   "Regras operacionais do motor") que deve compilar e reproduzir o gabarito de toda a suíte
   oficial dentro dos limites, executada pelo motor. **Qualquer falha de AC no motor**
   (na escolha do `AC_ref` ou na reexecução de auditoria) **interrompe imediatamente o
@@ -253,29 +253,67 @@ Esse campo é persistido por problema (ver 1.5 — `metadata.json`).
   taxa por categoria só será conhecida depois da validação (piloto e execução completa); o
   relatório traz `pool_distribution` e `distribution` lado a lado para permitir esse
   acompanhamento.
-- **[PROPOSTA — definido na spec e no plano, aguardando confirmação dos autores] Regras
+- **[DECIDIDO, 2026-09-20 — gate T037, confirmadas pelos autores sem alteração] Regras
   operacionais do motor**:
   - *Ordem da suíte e veredito*: os testes rodam em ordem fixa (públicos, privados,
     `generated_tests`); o **primeiro** que não termina com sucesso decide o veredito e
     interrompe a execução (curto-circuito). Uma submissão que estoura o tempo em um teste e
     responde errado em outro recebe o veredito do primeiro que falhar.
-  - *Comparação de saída*: iguais após ignorar espaços em branco ao final de cada linha e
-    linhas ou espaços em branco ao final do arquivo; qualquer outra diferença é divergência.
+  - *Comparação de saída* (regra 2): iguais após ignorar espaços em branco ao final de cada
+    linha e linhas ou espaços em branco ao final do arquivo; qualquer outra diferença é
+    divergência (resto exato, sem comparação por tokens). É a **única** regra de comparação do
+    projeto: o mesmo motor avalia depois as suítes geradas pelos modelos. Candidata a reabertura
+    segundo o critério objetivo abaixo.
   - *Estabilidade*: um candidato só é retido como WA se duas execuções independentes, até o
     teste decisivo, derem o mesmo veredito e o mesmo teste decisivo (evita reter falhas
-    instáveis por comportamento indefinido).
+    instáveis por comportamento indefinido). O `AC_ref` roda uma vez na seleção e outra na
+    auditoria.
   - *Ordem e duplicatas*: as candidatas a WA são percorridas em ordem determinística definida
-    pela seed, contando textos idênticos uma única vez; `AC_ref` é a primeira solução correta
-    em C++ na ordem original do dataset.
-  - *Tempo*: medido como tempo de **CPU** do processo filho (não de parede), por robustez à
-    carga da máquina; há uma reserva de tempo de parede (3× o limite + 1 s) apenas para
-    detectar programas bloqueados.
+    pela seed (`42`), contando textos idênticos uma única vez; `AC_ref` é a primeira solução
+    correta em C++ na ordem original do dataset (sem substituição se ela falhar, ver acima).
+  - *Tempo* (regra 5): medido como tempo de **CPU** do processo filho (não de parede), por
+    robustez à carga da máquina; há uma reserva de tempo de parede (3× o limite + 1 s) apenas
+    para detectar programas bloqueados. Candidata a reabertura segundo o critério objetivo
+    abaixo.
   - *Memória*: o limite do problema é aplicado como limite de **espaço de endereçamento**
     (`RLIMIT_AS`), que não é idêntico à métrica de memória do juiz original (limitação; ver
     1.7).
-  - *Isolamento*: cada execução roda com um usuário dedicado sem privilégios, sem rede, com
-    limites de processos e de tamanho de arquivo; o diretório `data/work/` é criado com permissão `0700`
-    (dono: o usuário do host), de modo que o código de terceiros não o lista, lê nem escreve.
+  - *Isolamento*: cada execução roda com um usuário dedicado por worker, sem privilégios, sem
+    rede, com limites de processos e de tamanho de arquivo; o diretório `data/work/` é criado
+    com permissão `0700` (dono: o usuário do host), de modo que o código de terceiros não o
+    lista, lê nem escreve.
+- **[DECIDIDO, 2026-09-20] Critério objetivo de reabertura das regras 2 e 5 (piloto,
+  T071)**: as regras de comparação de saída (2) e de tempo (5) são as candidatas mais prováveis
+  a revisão, porque uma solução correta (`AC_ref`) reprovada por elas vai para triagem manual
+  (D8). O piloto `validate --target 10` (10 problemas do `train`) mede, para cada regra, a
+  fração de ACs testados que ela reprova indevidamente. **Definições**: *ACs testados* = os
+  problemas do piloto cujo `AC_ref` foi executado pelo motor (qualquer status final, exceto os
+  interrompidos por falha de infraestrutura). *Reprovado pela regra 2* = `AC_ref` com veredito
+  `WA` cuja saída, no teste decisivo, é igual à esperada quando comparadas por tokens separados
+  por espaço em branco (divergência só de formatação; o campo de diagnóstico
+  `divergence.format_only` do registro de triagem, que nunca altera um veredito). *Reprovado pela
+  regra 5* = `AC_ref` com veredito `TLE`. **Critério**: se, em qualquer uma das duas causas,
+  a razão (reprovados ÷ ACs testados) for **maior que 10%** (com cerca de 10 a 12 ACs testados,
+  isso significa 2 ou mais casos; 1 caso é tolerado como ruído), a regra correspondente **volta
+  a ser marcada como proposta** neste documento, com a etiqueta de proposta descrita na legenda
+  do início (o que faz a checagem C6 do gate de documentação falhar até nova decisão), o piloto para e os autores decidem a nova regra; não há mudança automática.
+  Cada caso, dentro ou fora do limiar, é inspecionado individualmente (T071) e registrado aqui.
+  O limiar de 10% foi escolhido no gate T037 (os autores deixaram o valor em aberto); alterá-lo
+  exige atualizar este item, a spec (D13) e as tarefas T071 e T069. O relatório traz as
+  contagens (`ac_tested`, `triage_by_cause`) para a execução completa também, sem reabertura
+  automática.
+- **[MEDIDO, 2026-09-21 — T049] Refinamentos da implementação do motor** (não alteram as
+  regras decididas; detalhes e números em 1.7): (i) o pico de memória de um programa é medido por
+  um lançador nativo minúsculo (`sandbox-launch`, compilado na imagem com o GCC fixado), porque o
+  `ru_maxrss` medido a partir do processo Python herda o conjunto residente do processo que fez o
+  `fork` (40 MB para um programa que usa 0,6 MB) e daria falso MLE em limites pequenos (o menor
+  do pool é 61 MiB); (ii) `/tmp` e `/dev/shm` do serviço do motor são privados (`0700`, só do
+  orquestrador) e as filas POSIX ficam desligadas (`RLIMIT_MSGQUEUE = 0`), porque essas áreas são
+  graváveis por qualquer uid e deixariam o código de terceiros guardar estado entre execuções,
+  quebrando o determinismo e a estabilidade; (iii) o serviço usa `init: true`, para recolher os
+  órfãos dos grupos de processos mortos; (iv) o `RLIMIT_NPROC = 32` conta o lançador e o
+  programa, então um programa consegue criar no máximo 30 filhos. Decisão registrada como D16 da
+  spec.
 - **Invariante do dataset**: nenhum código C++ é persistido sem antes ter sido executado
   pelo motor com o veredito esperado (AC_ref aprovada em 100% da suíte oficial; cada WA com
   veredito de resposta errada).
@@ -439,6 +477,33 @@ compactado para 200 problemas.
   da spec: o `./data` montado no contêiner do motor herda a permissão do host (tipicamente
   `0755`) e o filho de usuário dedicado conseguiria **lê-lo**; por isso `data/work/` é criado
   com `0700` (ver D15 na spec).
+
+**Reconfirmado com o motor implementado (2026-09-21, T049; contêiner `sandbox`, GCC 13.2.0)**
+
+- `-Wl,--stack=268435456` continua falhando no linker (`/usr/bin/ld: unrecognized option
+  '--stack=268435456'`); sem ele, compila.
+- Pilha: uma recursão de ~150 MB (150.000 níveis de ~1 KB) termina em falha de segmentação com a
+  pilha padrão de 8 MiB (código 139), conclui com `ulimit -s 262144` e com o motor, e uma de
+  ~600 MB estoura os 256 MiB; o teste do motor com 400.000 níveis (~416 MB) termina como `RE`.
+- Memória: sob `RLIMIT_AS` de 128 MiB, alocar 512 MB termina com `SIGABRT` e `std::bad_alloc` no
+  `stderr`, classificado como `MLE` (o planejamento usou 256 MiB e 300 MB; mesmo mecanismo).
+- Isolamento (todos como no planejamento): o filho roda como uid e gid `10000 + slot`, sem
+  nenhuma capability (`CapEff = CapPrm = 0`) e sem grupos suplementares; não lista, lê nem grava
+  `data/work/` (`0700`), nem grava em `/`, `/etc`, `/sandbox` ou no diretório de outro slot; uma
+  fork bomb é contida (30 filhos no máximo, nenhum sobrevive à execução); só existe a interface
+  `lo`.
+- **Diferenças encontradas (corrigidas, D16)**: (a) `/tmp`, `/dev/shm` e `/dev/mqueue` eram
+  graváveis pelo filho, o que permitiria guardar estado entre execuções; agora `/tmp` e
+  `/dev/shm` são `tmpfs` `0700` e `RLIMIT_MSGQUEUE = 0`; (b) sem processo de init, os órfãos de um
+  grupo morto ficavam como zumbis (o PID 1 era o próprio Python), então o serviço passou a usar
+  `init: true`; (c) `ru_maxrss` medido a partir do Python vinha inflado (40 MB para um programa de
+  0,6 MB): com o lançador, o mesmo programa mede 652 KiB e um programa que toca 100 MB mede entre
+  100 e 130 MiB. O pico de memória só existe quando o lançador termina normalmente (não no
+  estouro da reserva de tempo de parede, onde o veredito é `TLE` de qualquer forma).
+- Custos medidos: compilar com `gnu++20 -O2 -static` leva 0,07 s para um programa mínimo e
+  **2,5 s** com `#include <bits/stdc++.h>` (a estimativa do planejamento era ~2 s); executar um
+  teste tem 2,5 ms de sobrecarga (mediana; p95 de 3,1 ms); o `selfcheck` (9 programas, cada um
+  duas vezes) leva cerca de 7 s.
 
 **Tempo de extração**: uma passagem completa em streaming, só com colunas leves, levou de 24 a
 28 min (com retentativas automáticas de rede; foram observados resets de conexão). A extração
@@ -642,9 +707,10 @@ diretamente ao objetivo específico de mapear desempenho por categoria algorítm
     (ver 1.1 e 1.2).
 13. ~~Onde fica o manifesto de integridade~~ — **RESOLVIDO**: `manifests/`, fora de `data/`
     (ver 1.6).
-14. **[PROPOSTA — aguardando confirmação]** Regras operacionais do motor definidas na spec e
-    no plano (ordem da suíte, comparação de saída, estabilidade, tempo de CPU, memória por
-    espaço de endereçamento, isolamento, escolha do `AC_ref`; ver 1.4).
+14. ~~**[PROPOSTA]** Regras operacionais do motor (ordem da suíte, comparação de saída,
+    estabilidade, tempo de CPU, memória por espaço de endereçamento, isolamento, escolha do
+    `AC_ref`)~~ — **RESOLVIDO** em 2026-09-20 (gate T037; ver 1.4, com o critério de reabertura
+    das regras 2 e 5).
 15. **[PENDENTE]** Fração de incorretas que é WA de verdade, e se a meta de 200 problemas com
     exatamente 100 WAs fecha; só o piloto com o motor responde (ver 1.7).
 
@@ -667,7 +733,7 @@ evitar inconsistência entre o que a banca aprovou e o que foi construído. Orig
 | 7 | Falha de AC no motor (escolha ou auditoria) interrompe o problema e o envia à triagem manual, sem tolerância percentual nem substituição automática do AC | 1.4, 1.5 |
 | 8 | Novo critério de elegibilidade: sem E/S por arquivo (`input_file`/`output_file` vazios); 9 problemas removidos | 1.2 |
 | 9 | Números do dataset corrigidos por medição em 2026-09-19: 13.610 exemplos (`train` 13.328, `valid` 117, `test` 165), no lugar de 4.044 (`train` 3.760); 118 problemas Codeforces sem rating | 1.1, 1.2 |
-| 10 | Regras operacionais do motor definidas na spec/plano (veredito pelo primeiro teste que falha, comparação sem espaços finais, estabilidade, tempo de CPU, memória por espaço de endereçamento, isolamento) — a confirmar | 1.4 |
+| 10 | Regras operacionais do motor (veredito pelo primeiro teste que falha, comparação sem espaços finais, estabilidade, tempo de CPU, memória por espaço de endereçamento, isolamento, escolha do `AC_ref`) confirmadas pelos autores em 2026-09-20, com critério objetivo de reabertura das regras de comparação e de tempo | 1.4 |
 | 11 | Relatório final da extração versionado junto do manifesto; `schema_version` em todo JSON; `status` do problema em `validacao.json` | 1.5, 1.6 |
 | 12 | Dataset acessado em revisão fixada (`802411c3…`), licença CC-BY-4.0; GCC fixado em 13.2.0 por digest | 1.1, 1.4 |
 | 13 | Dados medidos no planejamento: disponibilidade de submissões em C++ (mediana 200 no `train`, 101 em `valid`/`test`), volume de testes, verificações de ambiente | 1.7 |
@@ -688,6 +754,8 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 | 2026-09-19 | Números do dataset corrigidos por medição (13.610 exemplos; `train` 13.328; 8.101 Codeforces; 118 sem rating; 1.288 elegíveis, 1.279 com E/S por arquivo removida) e funil de elegibilidade | 1.1, 1.2, 7 |
 | 2026-09-19 | Localização do motor em pacote próprio (`src/sandbox/`), decisão confirmada na revisão do plano e que faltava aqui | 1.4 |
 | 2026-09-19 | Auditoria retroativa (Princípio XI): dados medidos de disponibilidade de submissões, volume de testes e verificações de ambiente (1.7); regras operacionais do motor como PROPOSTA; revisão fixada e licença; `schema_version`, `status` e relatório versionado; evidência e mecanismo do limite de pilha; rótulo de `AC_ref` corrigido; este histórico | 1.1, 1.4–1.7, 4, 6–8 |
+| 2026-09-21 | **Motor implementado (T049)**: ambiente reconfirmado com o motor (linker, pilha, memória, isolamento); três diferenças encontradas e corrigidas (áreas graváveis por todos, zumbis, pico de memória inflado), com lançador nativo, `init: true` e `tmpfs` privados (D16); custos medidos (compilação de 2,5 s com `bits/stdc++.h`, sobrecarga de 2,5 ms por teste) | 1.4, 1.7 |
+| 2026-09-20 | **Gate T037**: os autores confirmaram as 7 regras operacionais do motor sem alteração (de proposta a decididas) e definiram o critério objetivo de reabertura das regras de comparação de saída e de tempo no piloto (mais de 10% dos ACs testados reprovados por formatação ou por TLE), com o diagnóstico `format_only` e as contagens `ac_tested`/`triage_by_cause` no relatório (T037) | 1.4, 6, 7 |
 | 2026-09-20 | **Extração real (T035)**: funil reconfirmado (13.610; 8.101; 2.399; 2.155; 1.751; 1.288; 1.279 idênticos aos do planejamento) e completado com as etapas de soluções em C++ (1.250) e de pelo menos 100 incorretas (1.234); pool final 407/278/549 (`train` 1.206, `valid` 9, `test` 19), em vez de 1.279 (417/285/577); dados de disponibilidade de WAs brutas, volume de testes, limites, tempo (~23 min) e disco (104 MB); estimativa de distribuição por macrocategoria refeita | 1.1, 1.2, 1.4, 1.7 |
 | 2026-09-20 | Fluxo de circulação do dataset entre os autores (geração única, distribuição por zip e manifesto, recebimento sem extração; `data/work/` local e sem limpeza automática) | 1.6 |
 | 2026-09-20 | Estimativa analítica da distribuição por macrocategoria sob a seleção sem cota (D5) e limiar de taxa de validação que dispararia o alerta de 30; passo `mkdir -p data` antes do primeiro `docker compose run` (o Docker cria o diretório como root se ele não existir) | 1.4, 1.7 |

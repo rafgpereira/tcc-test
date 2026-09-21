@@ -136,6 +136,14 @@ extração grava checkpoints por shard (abaixo).
 
 ## R6 — Limite de memória e classificação de MLE
 
+- **Medição do pico (2026-09-21, T049)**: `ru_maxrss` de um filho lido do processo Python herda o
+  conjunto residente do `fork` (40 MB medidos para um programa de 0,6 MB), o que geraria falso
+  `MLE` (pico `>=` limite) em limites pequenos, como os 61 MiB do menor problema do pool. O pico
+  passa a ser medido por `sandbox-launch` (`src/sandbox/launcher/`), que executa o programa e lê
+  `wait4` de um processo minúsculo: o mesmo programa mede 652 KiB. Só existe quando o lançador
+  termina normalmente (no estouro da reserva de tempo de parede, o veredito é `TLE` de qualquer
+  forma). D16.
+
 - **Verificado** (binário estático): `RLIMIT_AS` (`ulimit -v`) coexiste com a pilha de 256 MiB
   (recursão de ~150 MB com `AS=256 MiB` conclui); um `hello` estático roda com `AS=20 MB`;
   alocar 300 MB sob `AS=256 MiB` termina com `SIGABRT` (`rc=134`, `std::bad_alloc`);
@@ -151,6 +159,9 @@ extração grava checkpoints por shard (abaixo).
 
 ## R7 — Limite de tempo
 
+- **Confirmada pelos autores em 2026-09-20 (D13)**, com critério objetivo de reabertura no
+  piloto: mais de 10% dos ACs testados reprovados por `TLE` reabre a regra (metodologia, 1.4).
+
 - **Decisão**: o tempo medido é o de CPU do processo filho (`wait4` → `ru_utime + ru_stime`),
   o que é robusto a carga da máquina; `TLE` se `> time_limit_seconds`. Reserva no kernel:
   `RLIMIT_CPU = ceil(limite) + 1`. Reserva de parede para programas bloqueados:
@@ -160,6 +171,14 @@ extração grava checkpoints por shard (abaixo).
   parede é do motor.
 
 ## R8 — Isolamento do código de terceiros
+
+- **Reverificação com o motor (2026-09-21, T049, D16)**: os fatos abaixo se confirmaram, com três
+  correções: (a) `/tmp`, `/dev/shm` e `/dev/mqueue` eram graváveis pelo uid do slot; agora `/tmp`
+  e `/dev/shm` são `tmpfs` `0700` e `RLIMIT_MSGQUEUE = 0`; (b) sem init, órfãos de grupos mortos
+  viravam zumbis (o PID 1 era o Python), então o serviço usa `init: true`; (c) o `RLIMIT_NPROC`
+  passou a contar também o lançador, então um programa cria no máximo 30 filhos (medido). Os
+  processos que saem da sessão (`setsid`) sobrevivem à morte do grupo; o motor os mata por uid
+  quando `killpg` encontra sobreviventes.
 
 - **Verificado** (contêiner com `--network none`, raiz somente leitura, `cap_drop ALL` +
   `SETUID, SETGID, CHOWN, KILL, DAC_OVERRIDE`, `no-new-privileges`): o filho lançado com uid
@@ -201,6 +220,12 @@ extração grava checkpoints por shard (abaixo).
 
 ## R9 — Regra de comparação de saída e veredito
 
+- **Confirmada pelos autores em 2026-09-20 (D13)**, com critério objetivo de reabertura no
+  piloto: mais de 10% dos ACs testados reprovados por divergência só de formatação reabre a
+  regra (metodologia, 1.4). Diagnóstico: `TriageRecord.divergence.format_only`, calculado
+  fora do motor (`dataset.validation.ac`), comparando tokens separados por espaço em branco;
+  `outputs_equal` continua sendo a única regra que decide vereditos.
+
 - **Decisão**: uma função única `outputs_equal` (sem diferença após remover espaços no fim de
   cada linha e linhas em branco no fim do arquivo), como definido na spec. Veredito de um
   programa sobre a suíte: o **primeiro** teste que não termina em `AC` decide (FR-012) e
@@ -220,7 +245,10 @@ extração grava checkpoints por shard (abaixo).
 
 - **Estimativa**: cada problema do `train` traz ~200 candidatas (mediana; ver R19); com ~2 s
   de compilação cada e ~350 problemas processados para chegar a 200 completos, são ~1,4×10^5 s
-  de CPU: ~39 h em série, ~5 h com 8 trabalhadores. Parada antecipada quando
+  de CPU: ~39 h em série, ~5 h com 8 trabalhadores. **Medido em 2026-09-21 (T049)**: compilar com
+  `#include <bits/stdc++.h>` leva **2,5 s** (não 2 s) e cada teste tem 2,5 ms de sobrecarga, então
+  o mesmo cálculo dá ~1,75×10^5 s: ~49 h em série, ~6 h com 8 trabalhadores, sem contar o corte
+  por parada antecipada. Parada antecipada quando
   `retidas + candidatas restantes < 100` corta o custo dos problemas que não vão fechar.
 - **Decisão**: `ProcessPoolExecutor` com trabalhadores fixos (cada um com seu `slot` de uid e
   seu diretório de trabalho); as candidatas são despachadas em lotes na ordem determinística e

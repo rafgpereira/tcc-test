@@ -105,7 +105,9 @@ Invariantes (validadas a cada gravação, FR-022):
 
 `TriageRecord` (FR-011b): `problem_id`, `stage` (`selection` \| `audit`), `verdict` (enum
 `Verdict` \| `"AUDIT_MISMATCH"`), `reason` (str legível), `divergence`
-(`{group, index, input, expected, actual, truncated}` \| null), `engine_diagnostic`
+(`{group, index, input, expected, actual, truncated, format_only}` \| null; `format_only` é
+`true` quando `actual` e `expected` coincidem comparando tokens separados por espaço em branco:
+diagnóstico da regra 2 de D13, que nunca altera um veredito), `engine_diagnostic`
 (str \| null; ex.: saída do compilador). Campos de texto longos são truncados em 64 KiB com
 `truncated = true`. Sem timestamp (mantém o registro determinístico).
 
@@ -192,7 +194,9 @@ presentes), `selection_final` (a meta foi atingida ou todos os problemas do pool
 encerrados), `category_alerts` (macrocategorias com `< 30` problemas na amostra; só calculados
 quando `selection_final`; FR-018a), `pending_triage` (lista de `{problem_id, stage, reason}`, destacada quando não
 vazia), `target` (200), `deficit` (`max(0, 200 - included)`), `engine_selfcheck` (resultado
-da suíte de veredito conhecido) e `provenance`. O comando `package` copia o JSON para
+da suíte de veredito conhecido), `ac_tested` (problemas cujo `AC_ref` foi executado pelo motor),
+`triage_by_cause` (`{format_only, tle, other}`: falhas de AC por causa, critério de reabertura
+de D13; campos acrescentados na T069) e `provenance`. O comando `package` copia o JSON para
 `manifests/extraction_report.json` (versionado).
 
 ## 3. Máquina de estados de um problema

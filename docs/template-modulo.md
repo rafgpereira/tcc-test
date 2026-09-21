@@ -152,7 +152,7 @@ no `README.md` da raiz).
 | Módulo | README | Situação |
 |---|---|---|
 | `src/dataset/` | [README](../src/dataset/README.md) | em implementação (feature `001-dataset-extraction`): `extract` e `report` documentados em passo a passo; demais subcomandos serão acrescentados |
-| `src/sandbox/` | [README](../src/sandbox/README.md) | em implementação (motor de execução compartilhado): versão parcial (só tipos e limites); a versão completa é a tarefa T050 |
+| `src/sandbox/` | [README](../src/sandbox/README.md) | em implementação (motor de execução compartilhado): README completo, em passo a passo; falta só carimbar os comandos e passar o status a `implementado` (T050) |
 | `src/mutation/` | a criar na feature própria | ainda sem spec |
 | `src/ai_clients/` | a criar na feature própria | ainda sem spec (metodologia seção 3 tem pontos pendentes) |
 | `src/metrics/` | a criar na feature própria | ainda sem spec (IIC pendente, metodologia seção 5.4) |

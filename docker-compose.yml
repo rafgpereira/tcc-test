@@ -13,6 +13,7 @@ services:
   sandbox:                   # runs third-party code: NO network
     build: .
     user: "0:0"              # only needed to drop privileges per execution (setuid)
+    init: true               # PID 1 reaps the orphans of killed process groups (no zombie buildup)
     network_mode: none
     read_only: true
     cap_drop: [ALL]
@@ -23,4 +24,7 @@ services:
     volumes: ["./data:/app/data", "./manifests:/app/manifests"]
     # The exec option is mandatory: Docker mounts tmpfs as noexec by default, which would
     # prevent running the compiled binary.
-    tmpfs: ["/sandbox:exec,mode=0755,size=2g", "/tmp:size=512m"]
+    # /tmp and /dev/shm are 0700 root-only: they are world-writable by default, which would let
+    # third-party code (uid 10000+) keep state between runs. The engine uses per-slot workdirs
+    # under /sandbox and TMPDIR points there.
+    tmpfs: ["/sandbox:exec,mode=0755,size=2g", "/tmp:mode=0700,size=512m", "/dev/shm:mode=0700,size=64m"]

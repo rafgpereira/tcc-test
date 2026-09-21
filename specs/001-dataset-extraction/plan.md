@@ -143,6 +143,7 @@ COPY .python-version pyproject.toml uv.lock ./
 RUN uv sync --frozen                     # CPython 3.11.16 + dependências (incluindo grupo dev)
 RUN useradd --uid 1000 --create-home pipeline
 COPY src ./src
+RUN g++ -O2 -static -o /usr/local/bin/sandbox-launch src/sandbox/launcher/launcher.cpp   # D16
 COPY scripts ./scripts
 COPY tests ./tests
 COPY .gitignore ./.gitignore              # o teste da regra do .gitignore roda no contêiner
@@ -150,7 +151,9 @@ COPY .gitignore ./.gitignore              # o teste da regra do .gitignore roda 
 
 Notas: (1) `uv` só é usado no build; em execução, `python` do `/opt/venv`; (2) não há segredos
 na imagem (`.dockerignore` exclui `.env` e `data/`); (3) os uids do sandbox (`10000 + slot`)
-não precisam de entradas em `/etc/passwd`.
+não precisam de entradas em `/etc/passwd`; (4) o lançador `sandbox-launch` (D16) é compilado aqui e
+instalado fora de `/app`, para os bind mounts do override não o esconderem; depois de um `git pull`
+que o traga, é preciso `docker compose build`.
 
 ### `pyproject.toml` (desenho)
 
@@ -202,13 +205,16 @@ services:
     cap_add: [CHOWN, DAC_OVERRIDE, SETUID, SETGID, KILL]
     security_opt: ["no-new-privileges:true"]
     pids_limit: 2048
+    init: true                # PID 1 recolhe os órfãos de grupos de processos mortos (D16)
     environment: { HOST_UID: "${HOST_UID:-1000}", HOST_GID: "${HOST_GID:-1000}" }
     volumes: ["./data:/app/data", "./manifests:/app/manifests"]
-    tmpfs: ["/sandbox:exec,mode=0755,size=2g", "/tmp:size=512m"]
+    tmpfs: ["/sandbox:exec,mode=0755,size=2g", "/tmp:mode=0700,size=512m", "/dev/shm:mode=0700,size=64m"]
 ```
 
 O `tmpfs` de `/sandbox` precisa da opção `exec`: o padrão do Docker é `noexec`, o que impediria
-executar o binário compilado. Os comandos de `docker compose run --rm app|sandbox ...` do
+executar o binário compilado. `/tmp` e `/dev/shm` são `0700` porque, por padrão, são graváveis por
+qualquer uid e o código de terceiros poderia guardar estado entre execuções (D16); o compilador
+usa `TMPDIR` no diretório do slot. `init: true` evita zumbis (D16). Os comandos de `docker compose run --rm app|sandbox ...` do
 `CLAUDE.md` passam a valer com estes nomes de serviço (o `CLAUDE.md` cita `app` para o `pytest`;
 aqui ele roda em `sandbox`, ver divergências).
 
@@ -291,10 +297,14 @@ Explicação para os autores no `README.md` da raiz ("Como o dataset circula ent
 - `types.py`: `ExecutionLimits`, `CompileResult`, `RunResult`, `Verdict`, `SuiteVerdict`,
   `InfraError`.
 - `limits.py`: `STACK_LIMIT_BYTES`, `stack_limit_bytes_to_kib`, fatores de folga de tempo.
-- `isolation.py`: `preexec` de isolamento (sessão, `setgroups`, `setgid`, `setuid`, `setrlimit`),
-  alocação de `slot` (uid `10000 + slot`) e diretório de trabalho do slot.
+- `isolation.py`: `preexec` de isolamento (sessão, `setgroups`, `setgid`, `setuid`, `setrlimit`,
+  inclusive `RLIMIT_MSGQUEUE = 0`), alocação de `slot` (uid `10000 + slot`), diretório de trabalho
+  do slot (`0700`) e limpeza de processos do slot.
 - `compiler.py`: flags do juiz, cascata de padrões, `compile_cpp`.
-- `runner.py`: `run_binary` (rlimits, `wait4`, teto de saída, morte por grupo).
+- `runner.py`: `execute` genérico e `run_binary` (laço de `selectors` sem threads, reserva de
+  parede, teto de saída, morte por grupo); o programa roda por `sandbox-launch` (D16).
+- `launcher/launcher.cpp`: lançador nativo que executa o programa e reporta status, CPU e o pico
+  de memória a partir de um processo pequeno (D16).
 - `judge.py`: `outputs_equal`, `judge_test`, `run_suite`, `judge_source`.
 - `selfcheck/`: programas C++ de veredito conhecido + `selfcheck()`.
 
@@ -362,6 +372,7 @@ src/
 │   ├── compiler.py
 │   ├── runner.py
 │   ├── judge.py
+│   ├── launcher/             # launcher.cpp: lançador nativo compilado no Dockerfile (D16)
 │   └── selfcheck/            # programas .cpp de veredito conhecido + selfcheck.py
 └── dataset/
     ├── README.md             # pelo template docs/template-modulo.md
@@ -455,6 +466,8 @@ primeiros foram confirmados pelos autores na revisão do plano e já estão refl
 | 4 | Problemas com verificador especial que escaparam do filtro de tags | Volume de triagens manuais (D8) | Cada uma é registrada com a saída divergente; o relatório as lista; sem tolerância agregada |
 | 5 | `RLIMIT_AS` conta espaço de endereçamento (ex.: arenas do glibc em programas com threads) | Falso MLE em AC ou WA | Programas C++ de competição raramente usam threads; qualquer falso MLE em AC aparece na triagem, não passa silenciosamente |
 | 6 | Docker rootless ou sem as 5 capabilities | Motor não consegue soltar privilégios | `selfcheck` falha de forma explícita antes de qualquer validação; documentar o requisito |
+| 9 | Áreas graváveis por qualquer uid (`/tmp`, `/dev/shm`, filas POSIX) deixariam o código de terceiros guardar estado entre execuções (encontrado na T049) | Quebra de determinismo e de estabilidade; garantia de isolamento falsa | `tmpfs` `0700` em `/tmp` e `/dev/shm`, `RLIMIT_MSGQUEUE = 0`, testes de escrita nesses caminhos (D16) |
+| 8 | As regras de comparação de saída (2) e de tempo (5) reprovam ACs corretos (formatação, TLE por diferença de máquina) e geram triagem manual | Volume de triagens no piloto; a regra de comparação é também o oráculo das suítes geradas | Critério objetivo de reabertura (D13): no piloto, mais de 10% dos ACs testados reprovados por formatação ou por TLE reabre a regra; o registro de triagem traz `divergence.format_only` e o relatório `ac_tested`/`triage_by_cause` |
 | 7 | Hash do zip depende do zlib da imagem | Hash diferente fora da imagem fixada | Identidade do conteúdo vem dos hashes por arquivo; o zip é reproduzido dentro da imagem (R14) |
 
 ## Documentação (Princípio XI)
@@ -468,7 +481,7 @@ para cada item (Constitution, Fluxo de Desenvolvimento).
 | README do módulo `sandbox` | `src/sandbox/README.md` | idem; API de [contracts/engine-api.md](./contracts/engine-api.md); dependências e serviço do Compose (sem rede) |
 | Script de conformidade | `scripts/check_docs_sync.py` (+ `tests/docs/`) | checagens C1 a C6: seções do README, comandos contra a CLI (no README do módulo dono da CLI, `src/dataset`, todo subcomando também precisa estar documentado), links, estado do README raiz, matriz de sincronização, ausência de `[PROPOSTA]` ativa (riscadas e legenda não contam); é o gate do FR-031/FR-032/SC-016 |
 | Matriz de sincronização | `specs/001-dataset-extraction/sync-matrix.json` | toda decisão D# da spec tem linha e termos que precisam aparecer na metodologia |
-| Gate das regras do motor | primeira tarefa da US2 | os autores confirmam ou alteram as regras operacionais, hoje `[PROPOSTA]`, antes dos testes e do código do motor |
+| Gate das regras do motor | primeira tarefa da US2 | os autores confirmaram, sem alteração, as regras operacionais em 2026-09-20 (D13, agora decididas), antes dos testes e do código do motor |
 | `--help` e docstrings | `python -m dataset --help` e pacotes | não podem contradizer os READMEs |
 | Visão geral do projeto | `README.md` (raiz) | traz o guia de execução do clone ao primeiro comando, para quem não conhece Docker (pré-requisitos, conceitos, `.env`, `data/`, build, verificação, problemas comuns); passa de "planejado" para "disponível" cada etapa concluída, com comandos exatos e já executados; a frase "Estado atual" e a data são reescritas a cada atualização (checagem C4) |
 | Metodologia sincronizada | `docs/metodologia-referencia.md` | todo dado medido e toda decisão da implementação entram no mesmo ciclo, com nova linha no histórico (seção 8) |

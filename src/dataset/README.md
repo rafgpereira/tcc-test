@@ -12,9 +12,10 @@ Extrai do dataset `code_contests`, em streaming, os problemas elegíveis do expe
 **Antes de começar** (uma vez por máquina): faça os passos 1 a 5 do
 [guia de execução do README da raiz](../../README.md#guia-de-execução-do-clone-ao-primeiro-comando):
 baixar o projeto, criar o `.env`, criar a pasta `data/`, construir a imagem e conferir com o
-`pytest`. Sem isso os comandos abaixo não funcionam. Todos rodam **dentro do Docker**, no serviço
-`app`, que tem acesso à internet (o serviço `sandbox` não tem, por isso não serve para baixar o
-dataset). Rode-os na pasta do repositório.
+`pytest`. Sem isso os comandos abaixo não funcionam. Todos rodam **dentro do Docker**: `extract` e
+`report` no serviço `app`, que tem acesso à internet (o serviço `sandbox` não tem, por isso não
+serve para baixar o dataset), e `selfcheck` no serviço `sandbox`, que é o que compila e executa
+C++ de terceiros. Rode-os na pasta do repositório.
 
 ### O que este módulo faz, na prática
 
@@ -91,6 +92,18 @@ no README da raiz.
 
    Enquanto a validação não existir, a amostra aparece vazia; é o esperado.
 
+5. **Conferir o motor de execução (`selfcheck`).** Não baixa nem valida nada do dataset: roda 9
+   programas de veredito conhecido pelo motor (módulo [`sandbox`](../sandbox/README.md)) e confere
+   os vereditos. É o portão de entrada do `validate`, quando ele existir. Note o serviço
+   `sandbox`, não `app`:
+
+   ```bash
+   docker compose run --rm sandbox python -m dataset selfcheck
+   ```
+
+   Leva cerca de 7 segundos; esperado `selfcheck OK: 9/9 cases` e código `0`. Se rodar no
+   serviço `app`, termina com `infrastructure failure` (código `3`), porque o `app` não tem o motor.
+
 ### Se algo der errado
 
 | O que aparece | O que significa | O que fazer |
@@ -99,6 +112,7 @@ no README da raiz.
 | `interrupted; it is safe to run the command again` (código `130`) | você apertou Ctrl+C | rode o mesmo comando de novo |
 | `error: no pool found; run ...` (código `1`) | você rodou `report` antes de `extract` | rode `extract` primeiro |
 | `error: --splits must list ...` (código `2`) | valor inválido em `--splits` | use `train`, `valid` e/ou `test`, separados por vírgula |
+| `selfcheck` com `FAIL` (código `1`) ou `infrastructure failure` (código `3`) | motor com veredito errado, ou rodado fora do serviço `sandbox` | veja a tabela de erros do [`sandbox`](../sandbox/README.md) |
 | `PermissionError` ao gravar em `data/` | `data/` pertence a `root` (o passo 3 do guia foi pulado) | `sudo chown -R "$(id -u):$(id -g)" data` e rode de novo |
 | quer recomeçar do zero | — | `rm -rf data/work` e rode o passo 2 (só enquanto a validação não existe: depois dela essa pasta guarda os problemas validados) |
 
@@ -175,4 +189,5 @@ ainda vai gerar, com apenas os problemas completos.
 | Comando | Verificado em | Revisão | Tarefa |
 |---|---|---|---|
 | `extract` | 2026-09-20 | 7440706 | T035 |
-| `report` | pendente | — | — |
+| `report` | 2026-09-20 | 71747a1 | T035 |
+| `selfcheck` | pendente | — | — |

@@ -28,6 +28,18 @@ WALL_EXTRA_S = 1
 MAX_OUTPUT_BYTES = 64 * 1024 * 1024
 RUN_NPROC = 32
 RUN_FSIZE_BYTES = 1024 * 1024
+STDERR_TAIL_BYTES = 4096
+LAUNCHER_PATH = "/usr/local/bin/sandbox-launch"
+
+# The compiler is third-party-controlled input too (a source can be a template bomb), so it runs
+# isolated with its own limits. These are engine constants, not problem limits. The address space
+# is generous because cc1plus reserves a lot of virtual memory.
+COMPILE_CPU_S = 60
+COMPILE_WALL_S = 120
+COMPILE_AS_BYTES = 4 * 1024 * 1024 * 1024
+COMPILE_NPROC = 64
+COMPILE_FSIZE_BYTES = 64 * 1024 * 1024
+DIAGNOSTIC_BYTES = 64 * 1024
 
 
 def stack_limit_bytes_to_kib(n: int) -> int:

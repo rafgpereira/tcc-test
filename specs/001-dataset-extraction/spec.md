@@ -314,7 +314,10 @@ apontando o arquivo divergente.
   `memory_limit_bytes` do próprio problema, nunca valores fixos, e sem privilégios além do
   estritamente necessário para compilar e executar (Constitution, Princípio V). O diretório de
   trabalho de dados (`data/work/`) MUST ter permissão de acesso apenas do seu dono (`0700`), de
-  modo que o código de terceiros não o liste, leia nem escreva (ver Divergências, D15).
+  modo que o código de terceiros não o liste, leia nem escreva (ver Divergências, D15). O
+  ambiente isolado MUST também impedir que o código de terceiros guarde estado entre execuções
+  fora do diretório de trabalho do seu slot: as áreas graváveis por qualquer uid (`/tmp`,
+  `/dev/shm`, filas POSIX) ficam privadas do orquestrador (ver Divergências, D16).
 - **FR-009a**: O ambiente isolado MUST aplicar, em tempo de execução, um limite de pilha de
   268435456 bytes (256 MiB) a todo código executado, reproduzindo o efeito da opção de linker
   omitida em FR-008; o limite de memória do problema continua valendo sobre o consumo total,
@@ -349,7 +352,10 @@ apontando o arquivo divergente.
   número antes de alertar. O registro MUST constar no `validacao.json` do problema com:
   identificador do problema; motivo (veredito e etapa em que ocorreu); e a saída divergente
   (teste, entrada, saída esperada e saída obtida) ou, quando a falha não produz saída a
-  comparar (por exemplo, compilação), o diagnóstico do motor. O problema fica em estado
+  comparar (por exemplo, compilação), o diagnóstico do motor. Quando a divergência é de
+  saída, o registro MUST indicar também se ela é só de formatação (`format_only`: iguais
+  quando comparadas por tokens separados por espaço em branco), apenas como diagnóstico, sem
+  nunca alterar um veredito (D13). O problema fica em estado
   "pendente de triagem": não conta para a meta de 200, não é empacotado e não é reprocessado
   automaticamente na retomada até resolução manual pelos autores; o processamento dos demais
   problemas segue. Falhas de infraestrutura do ambiente isolado (FR-010) não são falhas de
@@ -392,7 +398,9 @@ apontando o arquivo divergente.
   incluídos na amostra, e a distribuição da amostra por macrocategoria. O relatório MUST
   listar também todos os problemas pendentes de triagem (FR-011b), com identificador e
   motivo, destacados quando existirem: cada um exige inspeção individual antes de prosseguir
-  com o experimento, e não há limiar de tolerância.
+  com o experimento, e não há limiar de tolerância. O relatório MUST trazer ainda a
+  quantidade de ACs testados e as falhas de AC por causa (só formatação, `TLE` e outras), que
+  alimentam o critério de reabertura de D13.
 - **FR-018a**: Após a seleção final (a meta foi atingida ou todos os problemas do pool foram
   encerrados, mesmo com déficit), se qualquer macrocategoria tiver menos de 30 problemas
   na amostra, o relatório final MUST incluir um alerta identificando a(s) macrocategoria(s)
@@ -599,8 +607,8 @@ apontando o arquivo divergente.
 - **Suíte oficial como oráculo**: todos os grupos de teste (públicos, privados,
   `generated_tests`) participam da validação de AC_ref e de WAs; o volume e o tempo de
   execução resultantes são preocupação do planejamento.
-- **Veredito estável**: a quantidade de repetições para confirmar estabilidade de veredito
-  (FR-013) é decidida no planejamento.
+- **Veredito estável**: duas execuções independentes até o teste decisivo, com o mesmo
+  veredito e o mesmo teste decisivo (FR-013; D13).
 - **Palavras-chave visuais**: os termos de FR-004(e) seguem a metodologia. Medido durante o
   planejamento (D10), eles removem 463 dos 1.751 problemas que já passavam nas tags (26%),
   e o pool total ainda é cerca de seis vezes a meta de 200; qualquer relaxamento continua
@@ -733,13 +741,25 @@ também em 2026-09-19.
   meta de 200 pode não fechar sem relaxar D4 ou critérios (decisão dos autores, nunca
   automática; FR-017). (iv) O zip é estimado em ~10 MB. Detalhes e fontes na metodologia,
   seção 1.7.
-- **D13 — Regras operacionais do motor, ainda como proposta**: ordem da suíte e veredito pelo
-  primeiro teste que falha (FR-012), comparação de saída sem espaços finais, estabilidade de
-  veredito com duas execuções, tempo medido como CPU, memória como limite de espaço de
-  endereçamento, isolamento por usuário dedicado e escolha do `AC_ref` como a primeira
-  solução correta em ordem do dataset. Estão na spec (Assumptions e FRs) e no plano, mas os
-  autores ainda não as confirmaram explicitamente; a metodologia (1.4) as registra como
-  **[PROPOSTA]** e a seção 6, item 14, as lista como pendentes de confirmação.
+- **D13 — Regras operacionais do motor (decidido em 2026-09-20, gate T037)**: os autores
+  confirmaram, sem alteração, ordem da suíte e veredito pelo primeiro teste que falha
+  (FR-012), comparação de saída sem espaços finais de linha e sem linhas em branco no fim do
+  arquivo (resto exato), estabilidade de veredito com duas execuções concordantes, ordem
+  determinística por seed `42` com textos idênticos contados uma vez e `AC_ref` como a primeira
+  solução correta na ordem original do dataset, tempo medido como CPU do processo filho com
+  reserva de parede de 3× + 1 s, memória como limite de espaço de endereçamento
+  (`RLIMIT_AS`) e isolamento por usuário dedicado por worker, sem rede e sem privilégios, com
+  `data/work/` em `0700`. A metodologia (1.4) as registra como decididas. **Critério objetivo
+  de reabertura das regras de comparação de saída (2) e de tempo (5)**, que são as candidatas
+  mais prováveis a revisão: no piloto de 10 problemas (T071), se mais de **10%** dos ACs
+  testados (problemas cujo `AC_ref` foi executado, exceto falhas de infraestrutura) forem
+  reprovados por divergência só de formatação (regra 2: veredito `WA` com saída igual à
+  esperada comparando tokens separados por espaço em branco, diagnóstico
+  `divergence.format_only`) ou por `TLE` (regra 5), a regra correspondente volta a ser proposta
+  para nova decisão dos autores, e o piloto para; não há mudança automática. O valor de 10% foi
+  escolhido no gate (os autores deixaram o limiar em aberto) e, com cerca de 10 a 12 ACs
+  testados, equivale a 2 ou mais casos. Reflete-se em FR-011b, FR-018 e nas tarefas T054, T056,
+  T062, T064, T069 e T071.
 - **D14 — Documentação como requisito de conclusão (Princípio XI, constitution v1.2.0)**: a
   feature só é concluída com README de módulo conforme o template, metodologia sincronizada e
   README da raiz atualizado (FR-031, FR-032, SC-016). Nenhum módulo estava implementado nem
@@ -754,3 +774,17 @@ também em 2026-09-19.
   `DAC_OVERRIDE`) e o serviço `app` (usuário do host) continuam acessando. Arquivos públicos
   (`data/dataset.zip`, `data/dataset/`) não precisam de restrição. Reflete-se em FR-009 e nos
   testes de permissões e de isolamento.
+- **D16 — Endurecimento do serviço do motor e medição de memória pelo lançador (2026-09-21,
+  T049)**: ao reverificar o ambiente com o motor implementado, os testes de isolamento e de
+  medição revelaram três divergências em relação ao planejado, todas corrigidas sem mudar
+  nenhuma regra decidida em D13. (a) `/tmp`, `/dev/shm` e `/dev/mqueue` eram graváveis por
+  qualquer uid: o código de terceiros poderia guardar estado entre execuções (quebrando o
+  determinismo e a estabilidade) e a garantia "não grava fora do diretório do slot" era falsa;
+  agora `/tmp` e `/dev/shm` são `tmpfs` `0700` e `RLIMIT_MSGQUEUE = 0`. (b) Sem processo de init,
+  os órfãos de grupos de processos mortos viravam zumbis; o serviço usa `init: true`. (c) O
+  `ru_maxrss` medido a partir do processo Python herda o conjunto residente do `fork` (40 MB para
+  um programa de 0,6 MB), o que geraria falso MLE em limites pequenos; o pico passou a ser medido
+  por um lançador nativo (`sandbox-launch`, compilado no `Dockerfile`, em `src/sandbox/launcher/`).
+  Consequências: o `RLIMIT_NPROC` conta o lançador (no máximo 30 filhos por programa) e a imagem
+  precisa ser reconstruída (`docker compose build`) depois de um `git pull` que traga o lançador.
+  Detalhes na metodologia (1.4 e 1.7) e em research R6, R8 e R11.

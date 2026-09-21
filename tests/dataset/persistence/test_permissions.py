@@ -170,7 +170,9 @@ def test_a_work_dir_owned_by_the_host_user_can_be_reused_and_tightened(tmp_path,
 @pytest.mark.skipif(os.geteuid() != 0, reason="needs root to switch to another uid")
 def test_a_child_with_a_dedicated_uid_cannot_touch_the_work_dir():
     """The child must not list, read or write data/work/, but public files stay readable."""
-    root = Path(tempfile.mkdtemp(prefix="perm-test-", dir="/tmp"))
+    # /sandbox (0755) mirrors the production layout; /tmp is root-only (0700) in the sandbox service,
+    # so a child could not even reach a public file placed there.
+    root = Path(tempfile.mkdtemp(prefix="perm-test-", dir="/sandbox"))
     os.chmod(root, 0o755)
     try:
         work = store.ensure_work_dir(root)
