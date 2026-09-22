@@ -428,6 +428,16 @@ ignorado pelo Git exceto o zip). Arquivos soltos do
 dataset e mutantes nunca são versionados. Um comando de verificação recalcula os hashes e
 os compara com o manifesto. Ver Constitution, princípio 2 (v1.1.0).
 
+**[IMPLEMENTADO E TESTADO, 2026-09-22 — T082 a T092]** `package` (constrói o zip e o manifesto,
+recusa empacotar com déficit a menos que `--allow-partial`) e `verify`/`scripts/verify_dataset.py`
+(recompara os hashes; funciona só com o zip, logo após um clone, ou também com `--extracted DIR`)
+estão implementados exatamente como decidido acima e cobertos por 47 testes automatizados
+(zip determinístico, manifesto que bate após reempacotar, `changed`/`missing`/`extra` para byte
+alterado/arquivo removido/arquivo extra, regra do `.gitignore`). **Nenhuma divergência do desenho
+já decidido foi encontrada na implementação.** Ainda não rodaram sobre o dataset real: falta a
+auditoria de fechamento antes (T093); os números reais desta seção (tamanho do zip, hash) só
+existem depois disso — a estimativa de ~10 MB abaixo permanece uma estimativa até lá.
+
 **[DECIDIDO no plano]** O relatório final da extração (funil, motivos de exclusão,
 distribuição por macrocategoria, alertas, problemas pendentes de triagem) também é versionado,
 em `manifests/extraction_report.json`, para que os números citados no trabalho escrito
@@ -853,7 +863,7 @@ diretamente ao objetivo específico de mapear desempenho por categoria algorítm
 
 Registro exigido pela Constitution (princípio 1), para atualizar o texto final do TCC e
 evitar inconsistência entre o que a banca aprovou e o que foi construído. Origem:
-`specs/001-dataset-extraction/spec.md`, decisões de 2026-09-18 e 2026-09-19.
+`specs/001-dataset-extraction/spec.md`, decisões de 2026-09-18 a 2026-09-22.
 
 | # | Divergência | Onde |
 |---|---|---|
@@ -871,6 +881,8 @@ evitar inconsistência entre o que a banca aprovou e o que foi construído. Orig
 | 12 | Dataset acessado em revisão fixada (`802411c3…`), licença CC-BY-4.0; GCC fixado em 13.2.0 por digest | 1.1, 1.4 |
 | 13 | Dados medidos no planejamento: disponibilidade de submissões em C++ (mediana 200 no `train`, 101 em `valid`/`test`), volume de testes, verificações de ambiente | 1.7 |
 | 14 | Diretório de trabalho de dados `data/work/` com permissão `0700`, para o código de terceiros não acessar os dados de trabalho (verificado que o `./data` montado herda `0755`) | 1.4, 1.7 |
+| 15 | Uma WA que diverge na auditoria não é só reportada: é **reparada automaticamente**, substituída pelo próximo candidato não tentado da mesma ordem determinística, com confirmação de 6 execuções concordantes (D18, 2026-09-22); causa raiz é comportamento indefinido do código incorreto ou tempo de execução no limiar do limite, nunca a entrada | 1.4, 1.6 |
+| 16 | `extraction_timestamp` não é o único campo que varia entre duas execuções independentes de `validate`: `max_cpu_time_s` de `validacao.json` também varia, por ruído real de medição de hardware (D19, 2026-09-22); `max_memory_bytes` permanece estável | 1.5 |
 
 ---
 
@@ -891,6 +903,7 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 | 2026-09-22 | **Convergência aceita (D18)**: 3 rodadas de `audit` (16, 11 e 10 WA reparadas; 20 dos 200 problemas tocados ao todo); decisão dos autores de aceitar o estado atual e fazer só mais uma auditoria de fechamento antes do `package`, sem perseguir zero divergências (ruído estatístico esperado ao testar ~26.400 WA com um crivo de 2 execuções) | 1.4, 1.7, 8 |
 | 2026-09-22 | **Bug de confirmação corrigido (D18)**: a segunda execução real do `audit`, sobre o dataset já reparado, achou 8 das 13 WA reparadas (62%) divergindo de novo; a causa era um bug na confirmação (só duas de quatro chamadas eram de fato comparadas, e o valor gravado vinha de uma chamada nunca conferida); corrigido para exigir que todas as passadas concordem com a primeira, e o número de passadas subiu de 2 para 3 (6 execuções); teste de regressão específico | 1.4, 8 |
 | 2026-09-22 | **Retomada verificada de propósito e limite da garantia de determinismo (T080, D19)**: `validate` interrompido com `SIGTERM` no meio de um problema sintético (motor real) e retomado confirma SC-006 (0 pastas duplicadas, 0 arquivos truncados) e SC-007/FR-025 para tudo que decide a seleção; achado que `max_cpu_time_s` de `validacao.json`, além de `extraction_timestamp`, também varia entre execuções (ruído real de medição, não de seleção); `max_memory_bytes` permanece estável; não afeta o hash do zip ao reempacotar o mesmo conjunto (SC-008) | 1.4, 1.5, 8 |
+| 2026-09-22 | **Empacotamento e verificação implementados (T082 a T092)**: `package` e `verify`/`scripts/verify_dataset.py` implementados exatamente como já decidido em 1.6 (zip determinístico, manifesto SHA-256, `--allow-partial`, aviso de 95 MB), sem nenhuma divergência do desenho encontrada; 47 testes automatizados novos. Ainda não rodaram sobre o dataset real — falta a auditoria de fechamento (T093) antes; o tamanho real do zip e o hash continuam pendentes | 1.6, 8 |
 | 2026-09-21 | **Validação completa (T072, parte `validate`)**: 200 de 200 em 5 h 06 min (4 processos), 264 problemas processados (75,8% completos), 21 descartados, 43 em triagem adiada (16,3%; causas em 1.7); amostra 98/61/41 por macrocategoria e 198 `train` + 2 `test`; alerta de menos de 30 não disparou; 84,6% das candidatas viraram WA; `audit` ainda pendente | 1.2, 1.4, 1.7 |
 | 2026-09-21 | **Triagem manual de AC adiada (D17)**: os problemas com o `AC_ref` reprovado seguem interrompidos e registrados, mas só serão inspecionados se a meta de 200 não for atingida com os demais; `validate` sai com 0 sempre que a meta é atingida; explicação de como os 200 problemas são escolhidos (pool embaralhado com a seed 42, os 200 primeiros que completam); item 16 resolvido | 1.4, 6 |
 | 2026-09-21 | **Piloto de validação (T071)**: 14 problemas do `train` (10 completos, 3 em triagem, 1 descartado); 85,5% das candidatas viraram WA (risco de poucas WA não se materializou), mediana de 102 s por problema completo, sem déficit projetado; critério de reabertura de D13 não atingido (regra 2: 7,1%; regra 5: 0%); descoberta de que `generated_tests` do dataset podem ter entradas fora das restrições; item 15 resolvido e item 16 (volume de triagens) aberto | 1.4, 1.7, 6 |
