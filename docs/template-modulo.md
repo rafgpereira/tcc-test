@@ -153,7 +153,7 @@ no `README.md` da raiz).
 
 | Módulo | README | Situação |
 |---|---|---|
-| `src/dataset/` | [README](../src/dataset/README.md) | em implementação (feature `001-dataset-extraction`): `extract` e `report` documentados em passo a passo; demais subcomandos serão acrescentados |
+| `src/dataset/` | [README](../src/dataset/README.md) | implementado (feature `001-dataset-extraction`): os sete subcomandos (`extract`, `report`, `selfcheck`, `validate`, `audit`, `package`, `verify`) documentados em passo a passo e carimbados, com o ciclo completo executado sobre o dataset real em 2026-09-20/22 |
 | `src/sandbox/` | [README](../src/sandbox/README.md) | implementado (motor de execução compartilhado): README completo, em passo a passo, com os comandos carimbados em 2026-09-21 (T050) |
 | `src/mutation/` | a criar na feature própria | ainda sem spec |
 | `src/ai_clients/` | a criar na feature própria | ainda sem spec (metodologia seção 3 tem pontos pendentes) |

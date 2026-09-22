@@ -1,6 +1,6 @@
 # Módulo `dataset`
 
-> **Status**: em implementação · **Feature**:
+> **Status**: implementado · **Feature**:
 > `specs/001-dataset-extraction/` · **Metodologia**: `docs/metodologia-referencia.md`, seção 1
 
 ## (a) Propósito
@@ -28,13 +28,13 @@ códigos funcionam: isso vem nas próximas etapas da feature.
 
 `extract` é a **fase 1 de 5** do ciclo do módulo (`extract`, `validate`, `audit`, `package`,
 `verify`); todas as cinco existem hoje (`extract`, `report`, `selfcheck`, `validate`, `audit`,
-`package`, `verify`), implementadas e testadas. O `validate`
-foi executado sobre o dataset real em 2026-09-21 (piloto de 10 problemas e execução completa de 200,
-que levou 5 h 06 min; resultados na metodologia, seção 1.7); o `audit` rodou em 3 rodadas em
-2026-09-21/22 até os autores aceitarem a convergência (20 dos 200 problemas tocados por reparo
-automático em alguma rodada; decisão D18). **`package` e `verify` ainda não rodaram sobre o
-dataset real**: falta a auditoria de fechamento, de praxe, antes do empacotamento (T093) — o
-roteiro completo, incluindo essa etapa, está mais abaixo. O ciclo completo é feito **uma vez, por
+`package`, `verify`), implementadas, testadas e **já executadas de verdade, do início ao fim**. O
+`validate` foi executado sobre o dataset real em 2026-09-21 (piloto de 10 problemas e execução
+completa de 200, que levou 5 h 06 min; resultados na metodologia, seção 1.7); o `audit` rodou 4
+rodadas em 2026-09-21/22 (3 registradas na decisão D18, mais uma de fechamento sem reparo novo)
+até convergir; `package` gerou o `data/dataset.zip` real (200 problemas, 12.891.474 bytes ≈
+12,3 MiB, revisão `9b87d7e`) e `verify` confirmou `OK`, inclusive no cenário de pós-clonagem
+(descompactar e verificar a árvore, T094). O ciclo completo é feito **uma vez, por
 um dos autores**, que publica no Git o `data/dataset.zip` e os manifestos; o outro autor só
 descompacta e confere (`verify`), sem rodar `extract`/`validate`/`audit`/`package`. O que cada
 fase faz, o que sobra em `data/work/` e como cada autor e o Docker de cada um se encaixam estão em
@@ -387,6 +387,10 @@ spec e no plano, e os comandos são carimbados.
 
 Última etapa: depois que a validação (acima) terminou com `deficit 0` e você já tem os 200
 problemas `complete`. É rápida (segundos a poucos minutos; não precisa de `systemd-inhibit`).
+**Já foi seguido de verdade em 2026-09-22** (revisão `9b87d7e`): auditoria de fechamento sem
+reparo novo, `package` (200 problemas, 12,3 MiB) e `verify` (`OK`); os números reais estão nas
+seções (d) e (f) e na metodologia, seção 1.6. O roteiro abaixo continua valendo tal como está,
+para a próxima vez que o dataset precisar ser gerado do zero.
 
 1. **Auditoria de fechamento.** Antes de empacotar, rode `audit` mais uma vez, mesmo que já o
    tenha rodado antes: é a conferência final sobre o estado atual da pasta (decisão registrada na
@@ -588,10 +592,13 @@ para o Git, e nenhum comando os apaga (nenhuma fase tem etapa de limpeza). A ÚN
   mudança de seleção; decisão D19, metodologia 1.4/1.5). `max_memory_bytes` se mostrou estável.
 - Um programa pode gravar arquivos no diretório temporário do seu slot; eles persistem entre os testes
   de uma mesma suíte (e são apagados a cada nova compilação).
-- **`package` e `verify` estão implementados e testados, mas ainda não rodaram sobre o dataset
-  real** (2026-09-22): falta a auditoria de fechamento (T093) e então a execução real do
-  empacotamento; até lá `data/dataset.zip` não existe. O roteiro completo está mais abaixo, e o
-  README raiz explica o fluxo entre os dois autores.
+- **O empacotamento real foi executado** (2026-09-22, T093/T094, revisão `9b87d7e`): a auditoria
+  de fechamento não achou nada para reparar, `package` gerou `data/dataset.zip` com os 200
+  problemas completos (12.891.474 bytes ≈ 12,3 MiB, 21.000 arquivos, hash em
+  `manifests/dataset.manifest.json`) e `verify` confirmou `OK`; o cenário de pós-clonagem
+  (`unzip`, a alternativa `python -m zipfile -e`, e os três casos de adulteração de propósito —
+  byte alterado, arquivo removido, arquivo extra) também foi confirmado. O tamanho real ficou
+  29% acima da estimativa de ~10 MB (research R15), mas bem abaixo do aviso de 95 MB.
 - O hash do zip depende da versão do `zlib` da imagem (research R14): reempacotar o MESMO
   conjunto de problemas na MESMA imagem dá sempre o mesmo hash (SC-008), mas comparar hashes de
   builds de imagem diferentes não é uma garantia do projeto — é por isso que o manifesto guarda o
@@ -616,12 +623,12 @@ para o Git, e nenhum comando os apaga (nenhuma fase tem etapa de limpeza). A ÚN
 | `selfcheck` | 2026-09-21 | 5121759 | T050 |
 | `validate` | 2026-09-21 | ee3a422 | T072 |
 | `audit` | 2026-09-22 | 7784486 | T072 |
-| `package` | pendente | — | — |
-| `verify` | pendente | — | — |
-| `scripts/verify_dataset.py` | pendente | — | — |
+| `package` | 2026-09-22 | 9b87d7e | T093 |
+| `verify` | 2026-09-22 | 9b87d7e | T094 |
+| `scripts/verify_dataset.py` | 2026-09-22 | 9b87d7e | T094 |
 
 O comportamento de retomada do `validate` (US4) não é um subcomando novo, então não ganha linha
 própria: foi verificado de propósito em **2026-09-22, revisão `c4c394a`, tarefa T080** (ver
-seção (f) e metodologia, seção 1.4). `package`, `verify` e `scripts/verify_dataset.py` estão
-implementados e testados (testes automatizados, não o dataset real) desde 2026-09-22; a linha
-`pendente` vira carimbo real na T093/T094, quando rodarem sobre o dataset real.
+seção (f) e metodologia, seção 1.4). `audit` também rodou uma quarta rodada de fechamento em
+2026-09-22 (revisão `9b87d7e`), sem nenhum reparo novo, imediatamente antes do `package` acima —
+a linha `audit` não foi reescrita porque a convergência que ela documenta (D18) não mudou.

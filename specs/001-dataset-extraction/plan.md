@@ -58,7 +58,7 @@ durante a execução de código de terceiros; mesmos resultados em duas execuç�
 `extraction_timestamp`); `data/` fora do Git salvo `data/dataset.zip`.
 
 **Scale/Scope**: 200 problemas completos a partir de um pool de 1.234 elegíveis (medido na extração real de 2026-09-20: 1.279 sem E/S por arquivo, 1.250 com soluções em C++, 1.234 com ao menos 100 incorretas; R1); ~10^5
-compilações; zip estimado em ~10 MB (R15).
+compilações; zip medido de verdade em 12.891.474 bytes (≈ 12,3 MiB; 2026-09-22, T093, R15), no lugar da estimativa de ~10 MB.
 
 ## Constitution Check
 
@@ -77,7 +77,7 @@ Constitution v1.2.1.
 | VII. Idempotência e retomada | Construção atômica + estado no `validacao.json` + descarte de `building/` (R13) | PASS |
 | VIII. Observabilidade de custo de IA | Sem chamadas pagas; o streaming do HF é gratuito. Logs de progresso e tempo por etapa | N/A |
 | IX. Simplicidade | Uma imagem, `argparse`, sem `common/` nem pacotes vazios, sem abstração para outros datasets/linguagens; complexidade justificada em "Complexity Tracking" | PASS |
-| X. Revisão humana | Processo, não código; registrado no fluxo (PR revisado por um dos autores) | PASS |
+| X. Revisão humana | Processo, não código; registrado no fluxo (PR revisado por um dos autores) | PASS (revisto na implementação — ver T102 abaixo: o fluxo real não usou PR) |
 | XI. Documentação viva, sincronizada e padronizada | Dados medidos e decisões propagados para spec, plano, pesquisa e metodologia (auditoria de 2026-09-19); READMEs de `dataset` e `sandbox` pelo template, README da raiz e sincronização da metodologia como tarefas obrigatórias (seção "Documentação") | PASS |
 
 Convenções técnicas: Python 3.11+, `pytest`, `ruff`/`black`, nomes de código em inglês,
@@ -451,8 +451,10 @@ primeiros foram confirmados pelos autores na revisão do plano e já estão refl
    `manifests/extraction_report.json`, para que os números citados no TCC acompanhem a versão
    do dataset (pequeno acréscimo; sem impacto no pacote). Refletido na spec (FR-018b, D12) e na
    metodologia (1.6).
-9. **Tamanho do zip**: estimado em ~10 MB (R15); Git LFS não é planejado. Refletido na
-   metodologia (1.6, 1.7) e na spec (D12).
+9. **Tamanho do zip**: estimado em ~10 MB (R15); **medido de verdade em 2026-09-22 (T093):
+   12.891.474 bytes (≈ 12,3 MiB)**, 29% acima da estimativa mas nem de longe uma ordem de
+   grandeza; Git LFS confirmado como não necessário. Refletido na metodologia (1.6, 1.7) e na
+   spec (D12).
 10. **`valid` e `test` dificilmente fecham 100 WAs**: mediana de 101 incorretas brutas contra
     ~200 no `train` (R19). Tende-se a ter uma amostra quase toda do `train`; a spec não impõe
     equilíbrio entre splits. Refletido na spec (D12) e na metodologia (1.7).
@@ -519,3 +521,29 @@ adicionado na v1.2.0 (seção "Documentação"). Pontos de atenção
 carregados para `/speckit-tasks`: (a) teste de integração do isolamento dentro do motor (R8);
 (b) medir o tamanho real do zip e decidir Git LFS (R15); (c) fixar o digest da imagem do `uv` no
 `Dockerfile` (o da imagem `gcc:13.2.0` já está no desenho).
+
+## Revisão da Constitution ao final da implementação (T102, 2026-09-22)
+
+Reexecução da tabela do "Constitution Check" acima contra o código e a documentação
+efetivamente implementados (não mais contra o desenho). **PASS** em todos os princípios
+aplicáveis, com uma divergência de processo a registrar:
+
+- **Princípio X (Revisão Humana Obrigatória) — divergência de processo, não de código**: o
+  desenho original desta linha do "Constitution Check" previa revisão por *pull request*. Na
+  prática, ao longo da feature `001-dataset-extraction`, o código gerado com apoio de IA (Claude
+  Code) foi commitado **diretamente na `main`**, sem branch de feature nem PR — o autor (Rafael)
+  trabalhou com o agente numa sessão de chat contínua, revisando e commitando cada etapa (ou
+  pedindo correções) diretamente. A garantia de fundo do Princípio X (nenhum dos dois autores
+  aceita saída de IA sem entender o que ela faz) foi cumprida por esse processo alternativo, não
+  pela ausência de revisão: o autor confirmou, em 2026-09-22, ter revisado o código desta feature
+  antes deste fechamento. **Revisor: Rafael. Data: 2026-09-22.** Não há violação do princípio,
+  só do detalhe de mecanismo (PR) que o desenho original presumia; a Constitution (Princípio X,
+  v1.4.0) já foi emendada nesta mesma feature para descrever esse processo real com precisão
+  (o agente nunca commita por conta própria, trabalha direto no checkout do autor, e é sempre o
+  autor quem decide o quê e quando commitar).
+- Todos os demais princípios (I a IX, XI) permanecem **PASS** sem ressalva, pelas mesmas
+  evidências já citadas na tabela acima, agora confirmadas pela execução real: dataset
+  empacotado e verificado (II, T093/T094), 649 testes automatizados cobrindo motor, persistência,
+  triagem e integridade (VI), retomada comprovada com o motor real (VII, T080), e documentação
+  sincronizada ao longo de toda a feature, incluindo esta própria revisão de fechamento (XI,
+  T098/T099).

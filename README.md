@@ -17,11 +17,13 @@ teste unitários em C++.
 > `sandbox`) está implementado e passa em todos os testes no contêiner, inclusive isolamento e o
 > `selfcheck`; a validação dos códigos no motor (`validate` e `audit`) está implementada; `validate`
 > foi executado por completo em 2026-09-21 (200 problemas validados em 5 h 06 min) e `audit` em
-> 2026-09-22, em 3 rodadas até convergir (decisão D18: 20 dos 200 problemas precisaram de reparo
-> automático em alguma rodada; ver metodologia, seção 1.7); `package` e `verify` (empacotamento e
-> verificação de integridade) estão **implementados e testados**, mas ainda não rodaram sobre o
-> dataset real — falta uma última auditoria de fechamento antes (T093), então ainda não existe
-> `data/dataset.zip`. A feature `001-dataset-extraction` tem spec, plano e tarefas
+> 2026-09-22, em 4 rodadas até convergir (decisão D18: 20 dos 200 problemas precisaram de reparo
+> automático em alguma das 3 primeiras; a quarta, de fechamento, não achou mais nada; ver
+> metodologia, seção 1.7). **O dataset já foi empacotado e verificado de verdade**: `package`
+> gerou `data/dataset.zip` (200 problemas, 12,3 MiB) em 2026-09-22 e `verify` confirmou `OK`,
+> inclusive no cenário de pós-clonagem (T093/T094). O zip e os manifestos já estão commitados no
+> repositório — quem clonar agora recebe o dataset completo, sem rodar nada além de `unzip` e
+> `verify`. A feature `001-dataset-extraction` tem spec, plano e tarefas
 > prontos; o restante do experimento está descrito na metodologia, mas ainda não especificado. Por isso a seção "Executando os módulos" marca cada etapa
 > com o seu estado. **A reprodução completa só será possível quando todas as etapas estiverem
 > implementadas**; este documento será completado à medida que os módulos chegarem.
@@ -82,7 +84,7 @@ na avaliação, para que nenhum código do dataset falhe no motor só durante o 
 
 | Módulo | Papel | Metodologia | Estado | README do módulo |
 |---|---|---|---|---|
-| `src/dataset/` | extrai, filtra, valida e empacota o dataset | seção 1 | em implementação ([`specs/001-dataset-extraction/`](specs/001-dataset-extraction/)): `extract`, `report`, `validate` e `audit` executados de verdade (pool de 1.234 problemas em 2026-09-20; 200 problemas validados e auditados em 2026-09-21/22); `package`/`verify` implementados e testados (2026-09-22), execução real pendente | [README](src/dataset/README.md) |
+| `src/dataset/` | extrai, filtra, valida e empacota o dataset | seção 1 | em implementação ([`specs/001-dataset-extraction/`](specs/001-dataset-extraction/)): todo o ciclo (`extract`, `validate`, `audit`, `package`, `verify`) executado de verdade (pool de 1.234 problemas em 2026-09-20; 200 problemas validados, auditados e empacotados em 12,3 MiB em 2026-09-21/22) | [README](src/dataset/README.md) |
 | `src/sandbox/` | motor de execução isolada de C++ | seções 1.4 e 4 | implementado (construído na feature 001): motor (compilação, execução isolada, veredito) e `selfcheck`, testados no contêiner e com os comandos carimbados em 2026-09-21 | [README](src/sandbox/README.md) |
 | `src/mutation/` | gera 100 mutantes por problema | seção 2 | **sem spec** | a criar |
 | `src/ai_clients/` | chamadas stateless aos 3 modelos | seção 3 | **sem spec** (pontos pendentes na metodologia, em especial o oráculo do SLM) | a criar |
@@ -109,9 +111,9 @@ dataset", mais abaixo.
 | 1 | `extract` (serviço `app`, com internet) | lê **todos** os 13.610 exemplos do `code_contests` em streaming, descarta na hora os que não servem e grava só os 1.234 elegíveis (medido na extração real de 2026-09-20), cada um com enunciado, testes, códigos corretos e **todas as submissões incorretas em C++ como candidatas** a WA. **Não executa nenhum código** | `data/work/staging/` | **executado em 2026-09-20**: 1.234 elegíveis de 13.610 lidos, ~23 min |
 | 2 | `validate` (serviço `sandbox`) | executa, no motor isolado, o código correto e as candidatas a WA de cada problema, na ordem do pool, até reunir 200 problemas completos com exatamente 100 WAs cada | `data/work/problems/` | **executado em 2026-09-21**: 200 de 200 em 5 h 06 min (264 problemas processados); o relatório é regerado ao fim |
 | 3 | `audit` (serviço `sandbox`) | conferência, repetida até convergir, antes do `package`: reexecuta no motor o código correto e as 100 WA de cada problema completo, a partir dos arquivos gravados, e compara com o registrado; uma WA que diverge é **reparada automaticamente**, substituída pelo próximo candidato não tentado com confirmação reforçada (decisão D18) | — | **executado em 3 rodadas em 2026-09-21/22** até os autores aceitarem o estado (20 de 200 problemas tocados); uma última rodada de fechamento roda antes do `package`; detalhes no README do módulo |
-| 4 | `package` (serviço `app`) | copia **só os problemas completos** para um zip determinístico e gera o manifesto e o relatório final | `data/dataset.zip`, `manifests/` | implementado e testado (2026-09-22); ainda não executado sobre o dataset real — falta a auditoria de fechamento (fase 3) antes |
-| 5 | `verify` (serviço `app`) | confere o zip contra o manifesto | — | implementado e testado (2026-09-22); ainda não executado sobre o dataset real |
-| 6 | `git add data/dataset.zip manifests/` e commit/push | é o único jeito de o dataset chegar ao outro autor; nada mais de `data/` é versionado. **Isso não é automático**: nenhuma fase anterior commita nada sozinha, e é sempre um dos autores quem decide rodar este passo | — | disponível (é só Git; depende da fase 4 já ter gerado o zip) |
+| 4 | `package` (serviço `app`) | copia **só os problemas completos** para um zip determinístico e gera o manifesto e o relatório final | `data/dataset.zip`, `manifests/` | **executado em 2026-09-22**: 200 problemas, 12.891.474 bytes (≈ 12,3 MiB), 21.000 arquivos |
+| 5 | `verify` (serviço `app`) | confere o zip contra o manifesto | — | **executado em 2026-09-22**: `OK`, inclusive no cenário de pós-clonagem (descompactar e verificar a árvore) |
+| 6 | `git add data/dataset.zip manifests/` e commit/push | é o único jeito de o dataset chegar ao outro autor; nada mais de `data/` é versionado. **Isso não é automático**: nenhuma fase anterior commita nada sozinha, e é sempre um dos autores quem decide rodar este passo | — | **feito em 2026-09-22**: zip e manifestos commitados (revisão `9b87d7e`) |
 
 Cada fase é um comando **separado e manual**: o `validate` não gera o zip sozinho. O zip só existe
 depois que alguém roda `package` (fase 4) com a meta de 200 atingida.
@@ -151,9 +153,10 @@ docker compose run --rm app python scripts/verify_dataset.py --extracted data/da
 
 Esperado: a última linha da verificação é `OK`. O `unzip` cria `data/dataset/problems/<id>/`, com
 `enunciado.md`, `AC_ref.cpp`, `WA_1.cpp` a `WA_100.cpp`, `testes.json`, `metadata.json` e
-`validacao.json` de cada problema. Os três comandos **existem, estão implementados e testados**
-(2026-09-22), mas ainda não há um `data/dataset.zip` de verdade para exercitá-los: isso só
-acontece depois que `package` rodar sobre o dataset real (T093); a tabela "Executando os módulos"
+`validacao.json` de cada problema. **Estes três comandos já foram executados de verdade**
+(2026-09-22, T093/T094): `data/dataset.zip` real existe e está commitado, `verify` confirmou `OK`
+sobre ele e sobre uma extração real, e os três casos de adulteração de propósito (byte alterado,
+arquivo removido, arquivo extra) foram apontados corretamente; a tabela "Executando os módulos"
 registra o estado.
 
 ### Como isso funciona com o Docker de cada autor
@@ -315,8 +318,8 @@ Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
 | Etapa | O que fazer | Estado |
 |---|---|---|
 | 0 e 1. Preparar o ambiente | Passos 1 a 5 deste guia | disponível |
-| 2. Obter o dataset (quem recebe) | **sem rodar a extração**: `unzip data/dataset.zip -d data/` e depois `docker compose run --rm app python scripts/verify_dataset.py --extracted data/dataset` (detalhes e o caso de atualização em "Como o dataset circula entre os autores") | implementado e testado; o zip só existirá depois que `package` rodar de verdade (T093) |
-| 2b. Ou gerar o dataset do zero (quem gera, uma vez) | [passo a passo do módulo `dataset`](src/dataset/README.md): `docker compose run --rm app python -m dataset extract` e `docker compose run --rm app python -m dataset report` estão **disponíveis** (`extract` executado de verdade em 2026-09-20); `validate` e `audit` também estão **disponíveis** e já rodaram sobre o dataset real (`validate` completo em 2026-09-21, 200 de 200 em 5 h 06 min; `audit` em 3 rodadas em 2026-09-21/22 até convergir, decisão D18); **aviso do piloto (T071)**: a fração de candidatas que viram WA depende do problema (85,5% no piloto de 10), e `valid`/`test` raramente reúnem 100 WA por problema (mediana de 101 submissões incorretas brutas nesses splits), então a amostra final tende a vir majoritariamente do `train` — detalhes na metodologia, seção 1.7; `package` e `verify` estão **implementados e testados** (2026-09-22), mas ainda não rodaram sobre o dataset real — falta a auditoria de fechamento e a execução real (T093); roteiro completo no [README do módulo](src/dataset/README.md#roteiro-do-empacotamento-quem-gera-o-dataset-tarefa-t093) ([contrato dos comandos](specs/001-dataset-extraction/contracts/cli.md), [roteiro de aceite](specs/001-dataset-extraction/quickstart.md)) | `extract`/`report`/`validate`/`audit` disponíveis; `package`/`verify` implementados, execução real pendente (T093) |
+| 2. Obter o dataset (quem recebe) | **sem rodar a extração**: `unzip data/dataset.zip -d data/` e depois `docker compose run --rm app python scripts/verify_dataset.py --extracted data/dataset` (detalhes e o caso de atualização em "Como o dataset circula entre os autores") | **disponível**: o zip real já existe e está commitado (2026-09-22, 200 problemas, 12,3 MiB) |
+| 2b. Ou gerar o dataset do zero (quem gera, uma vez) | [passo a passo do módulo `dataset`](src/dataset/README.md): `docker compose run --rm app python -m dataset extract` e `docker compose run --rm app python -m dataset report` estão **disponíveis** (`extract` executado de verdade em 2026-09-20); `validate` e `audit` também estão **disponíveis** e já rodaram sobre o dataset real (`validate` completo em 2026-09-21, 200 de 200 em 5 h 06 min; `audit` em 4 rodadas em 2026-09-21/22 até convergir — 3 com reparo, D18, e uma de fechamento sem nada a reparar); **aviso do piloto (T071)**: a fração de candidatas que viram WA depende do problema (85,5% no piloto de 10), e `valid`/`test` raramente reúnem 100 WA por problema (mediana de 101 submissões incorretas brutas nesses splits), então a amostra final tende a vir majoritariamente do `train` — detalhes na metodologia, seção 1.7; `package` e `verify` também estão **disponíveis** e já rodaram sobre o dataset real (2026-09-22, T093/T094); roteiro completo no [README do módulo](src/dataset/README.md#roteiro-do-empacotamento-quem-gera-o-dataset-tarefa-t093) ([contrato dos comandos](specs/001-dataset-extraction/contracts/cli.md), [roteiro de aceite](specs/001-dataset-extraction/quickstart.md)) | `extract`/`report`/`validate`/`audit`/`package`/`verify` disponíveis e já executados sobre o dataset real |
 | Verificar o motor de execução | `docker compose run --rm sandbox python -m dataset selfcheck` (passo a passo em [`src/sandbox/README.md`](src/sandbox/README.md)) | disponível (verificado em 2026-09-21) |
 | 3. Gerar mutantes | — | não especificado |
 | 4. Gerar suítes com os modelos | — | não especificado (exige chaves de API em `.env`; ver `.env.example`) |
@@ -370,9 +373,9 @@ nesta seção).
 | `docker compose run --rm sandbox python -m dataset selfcheck` | `sandbox` | confere o motor de execução com 9 programas de veredito conhecido | disponível (README do `sandbox`) |
 | `docker compose run --rm sandbox python -m dataset validate` (roteiro completo em [`src/dataset/README.md`](src/dataset/README.md), seção "Roteiro da execução completa") | `sandbox` | roda o `selfcheck` e depois executa o código correto e as candidatas a WA de cada problema no motor, até reunir a meta de problemas completos; grava as pastas em `data/work/problems/` (opções `--target`, `--workers`, `--problem`; piloto: `--target 10`) | **executado em 2026-09-21** (200 de 200 em 5 h 06 min); comandos carimbados no README do módulo |
 | `docker compose run --rm sandbox python -m dataset audit` | `sandbox` | reexecuta o motor sobre os problemas completos e confere com `validacao.json`, reparando automaticamente quem divergir (opção `--problem`, repetível; decisão D18) | **executado em 3 rodadas em 2026-09-21/22** até os autores aceitarem a convergência (20 de 200 problemas tocados); comandos carimbados no README do módulo |
-| `docker compose run --rm app python -m dataset package` | `app` | gera `data/dataset.zip` (só problemas `complete`) e `manifests/dataset.manifest.json`/`manifests/extraction_report.json`; recusa se a meta não foi atingida (`--allow-partial` força) | implementado e testado (2026-09-22); execução real pendente (T093) |
-| `docker compose run --rm app python -m dataset verify` (ou `python scripts/verify_dataset.py`) | `app` | confere o zip (e, com `--extracted DIR`, a pasta descompactada) contra o manifesto; funciona logo após um `git clone`, sem extração | implementado e testado (2026-09-22); execução real pendente (T093/T094) |
-| `unzip data/dataset.zip -d data/` | (host) | descompacta o dataset recebido pelo Git, em `data/dataset/` (quem recebe o dataset) | disponível quando o comando acima existe; o zip em si só existirá depois de `package` rodar de verdade (T093) |
+| `docker compose run --rm app python -m dataset package` | `app` | gera `data/dataset.zip` (só problemas `complete`) e `manifests/dataset.manifest.json`/`manifests/extraction_report.json`; recusa se a meta não foi atingida (`--allow-partial` força) | disponível (executado em 2026-09-22: 200 problemas, 12,3 MiB) |
+| `docker compose run --rm app python -m dataset verify` (ou `python scripts/verify_dataset.py`) | `app` | confere o zip (e, com `--extracted DIR`, a pasta descompactada) contra o manifesto; funciona logo após um `git clone`, sem extração | disponível (executado em 2026-09-22: `OK`, inclusive pós-clonagem) |
+| `unzip data/dataset.zip -d data/` | (host) | descompacta o dataset recebido pelo Git, em `data/dataset/` (quem recebe o dataset) | disponível (o zip real já está commitado) |
 
 Os comandos planejados são escritos só com o nome do subcomando porque ainda não existem; ganham a
 forma completa (`docker compose run --rm <serviço> python -m dataset <comando>`) quando forem

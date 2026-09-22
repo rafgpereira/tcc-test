@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-18
 
-**Status**: Draft
+**Status**: Implemented (2026-09-22 — T095 a T103 concluídas; ver `docs/metodologia-referencia.md`, seção 8)
 
 **Input**: User description: "Especificar o módulo de extração, filtragem, validação e persistência do dataset experimental, conforme docs/metodologia-referencia.md, seção 1. [...] Este módulo NÃO inclui geração de mutantes, chamadas a modelos de IA, nem cálculo de métricas — isso é escopo de módulos futuros."
 
@@ -762,7 +762,19 @@ também em 2026-09-19.
   5 h 06 min com 4 processos; 264 problemas processados (200 completos, 21 descartados por
   `insufficient_wa` e 43 em `pending_triage`, 16,3%); amostra de 98 `logica_direta`, 61
   `estrutural_otimizacao` e 41 `matematica`, e de 198 `train` e 2 `test`; sem alerta de menos de 30
-  por macrocategoria; 84,6% das candidatas viraram WA. A auditoria (`audit`) ainda não rodou.
+  por macrocategoria; 84,6% das candidatas viraram WA. A auditoria (`audit`) rodou 4 rodadas ao
+  todo (3 registradas em D18 mais uma de fechamento em 2026-09-22, sem nenhum reparo novo) e
+  convergiu. **Empacotamento real (2026-09-22, T093/T094, revisão `9b87d7e`)**: `package` gerou
+  `data/dataset.zip` com os 200 problemas completos, **12.891.474 bytes (≈ 12,3 MiB)** — acima
+  da estimativa de ~10 MB (iv, acima) por ≈29%, mas bem abaixo do aviso de 95 MB e do limite de
+  100 MB do GitHub, então a estimativa não estava errada por uma ordem de grandeza e o Git LFS
+  continua não sendo necessário; 21.000 arquivos dentro do zip (200 × 105, exatamente as 6
+  categorias de arquivo por problema); hash SHA-256 do zip
+  `bd5398a85800a3c772d8c8c89904562a1db5fca6d4a556d440e78b3bc2af0c32` (registrado em
+  `manifests/dataset.manifest.json`). `verify` (e `scripts/verify_dataset.py`, e a alternativa
+  `python -m zipfile -e`) confirmados sobre o zip real e sobre uma extração real: `OK` no estado
+  íntegro, e `FAIL` apontando corretamente o arquivo em `changed`/`missing`/`extra` nos três
+  casos de adulteração testados de propósito.
 - **D13 — Regras operacionais do motor (decidido em 2026-09-20, gate T037)**: os autores
   confirmaram, sem alteração, ordem da suíte e veredito pelo primeiro teste que falha
   (FR-012), comparação de saída sem espaços finais de linha e sem linhas em branco no fim do

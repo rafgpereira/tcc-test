@@ -165,3 +165,22 @@ que realmente descreve o módulo, limitações reais, `--help` e docstrings coer
 O módulo está pronto para `/speckit-converge` quando: os níveis 1 e 2 passam; o nível 3
 comprova retomada segura; o nível 4 comprova a triagem; a execução completa (níveis 5 e 6)
 está registrada no relatório versionado; e o nível 7 (documentação) está cumprido.
+
+## Resultado da validação (T097, 2026-09-22)
+
+Todos os níveis passaram; nenhum bloqueou a feature.
+
+| Nível | O que foi verificado | Resultado | Quando |
+|---|---|---|---|
+| 0 — Ambiente reprodutível | `docker compose build`, versões fixadas de GCC/Python, laço de desenvolvimento (edição sem rebuild, `black`/`ruff --fix` no host) | OK, reconfirmado ao longo da feature | 2026-09-19 (T010) |
+| 1 — Suíte de testes do módulo | `docker compose run --rm sandbox pytest` (unidade + integração) | **649 testes, 0 falhas** | 2026-09-22 (execução mais recente) |
+| 2 — Motor contra programas de veredito conhecido | `python -m dataset selfcheck` | `9/9` casos, código `0`, estável | 2026-09-21 (T049); repetido a cada `validate` |
+| 3 — Fumaça com poucos problemas + prova de retomada (SC-006) | `extract --limit-rows` + `validate --target 2` (fumaça, T034); interrupção de propósito com `SIGTERM` no meio de um problema e retomada com o mesmo comando | Fumaça OK; retomada confirma SC-006 integralmente (mesmo problema `complete`, 0 pastas duplicadas, 0 arquivos truncados); achado D19 (campo medido `max_cpu_time_s` varia por ruído de hardware, não a seleção) | 2026-09-22 (T080) |
+| 4 — Triagem de AC (FR-011b, SC-015) | `validate --problem <ID>` sobre um problema cujo AC diverge; também observado 43 vezes na execução real (D8, D17) | Código `1`, `validacao.json` com `status: pending_triage` e `triage` completo; problema fora da amostra e não refeito | Testes automatizados (T056) + execução real, 2026-09-21 (T072) |
+| 5 — Execução completa e empacotamento | `extract`, `validate`, `audit`, `package`, `verify_dataset.py` sobre o dataset real | 1.234 elegíveis (T035); 200 de 200 completos em 5 h 06 min (T072); `audit` convergiu em 4 rodadas, a última sem reparo (T072/D18); `data/dataset.zip` real, 200 problemas, 12.891.474 bytes ≈ 12,3 MiB, `OK` na verificação (T093); reempacotar dá o mesmo hash (SC-008, confirmado em teste automatizado) | 2026-09-20 a 2026-09-22 |
+| 6 — Integridade pós-clonagem (SC-009) | `verify_dataset.py` no zip; `unzip` e a alternativa `python -m zipfile -e` (árvores idênticas); `--extracted`; byte alterado, arquivo removido, arquivo extra | `OK` no estado íntegro; `FAIL` apontando corretamente o arquivo em `changed`/`missing`/`extra` nos três casos testados de propósito | 2026-09-22 (T094) |
+| 7 — Documentação (Princípio XI, FR-031, FR-032, SC-016) | `check_docs_sync.py --closing --module src/dataset --module src/sandbox` (C1 a C6, CV) | Sai com `0`; nenhuma linha `pendente`; `src/dataset/README.md` passa a `Status: implementado`; todas as decisões D1–D19 com linha em `sync-matrix.json` e termos na metodologia | 2026-09-22 (T098/T099) |
+
+**Conclusão**: a feature `001-dataset-extraction` está pronta para `/speckit-converge` pelos
+critérios acima; os itens que faltam (T102, revisão humana do código gerado com IA antes do
+merge) são de responsabilidade dos autores, não do roteiro de validação técnica.

@@ -434,18 +434,32 @@ recusa empacotar com déficit a menos que `--allow-partial`) e `verify`/`scripts
 estão implementados exatamente como decidido acima e cobertos por 47 testes automatizados
 (zip determinístico, manifesto que bate após reempacotar, `changed`/`missing`/`extra` para byte
 alterado/arquivo removido/arquivo extra, regra do `.gitignore`). **Nenhuma divergência do desenho
-já decidido foi encontrada na implementação.** Ainda não rodaram sobre o dataset real: falta a
-auditoria de fechamento antes (T093); os números reais desta seção (tamanho do zip, hash) só
-existem depois disso — a estimativa de ~10 MB abaixo permanece uma estimativa até lá.
+já decidido foi encontrada na implementação.**
+
+**[EXECUTADO SOBRE O DATASET REAL, 2026-09-22 — T093/T094, revisão `9b87d7e`]** Depois de uma
+quarta rodada de `audit` de fechamento (sem nenhum reparo novo — as três rodadas anteriores, D18,
+já tinham convergido), `package` gerou `data/dataset.zip` real com os 200 problemas completos:
+**12.891.474 bytes (≈ 12,3 MiB), 21.000 arquivos** (200 problemas × 105 arquivos cada:
+`enunciado.md`, `AC_ref.cpp`, `WA_1.cpp` a `WA_100.cpp`, `testes.json`, `metadata.json` e
+`validacao.json`), hash SHA-256
+`bd5398a85800a3c772d8c8c89904562a1db5fca6d4a556d440e78b3bc2af0c32` (em
+`manifests/dataset.manifest.json`). `verify` confirmou `OK` sobre o zip; o cenário completo de
+pós-clonagem (quickstart Nível 6) também foi executado de propósito: `unzip data/dataset.zip -d
+data/` e `python -m zipfile -e data/dataset.zip` produzem árvores idênticas (`diff -rq` vazio);
+`verify --extracted data/dataset` deu `OK` sobre a árvore íntegra e, testado de propósito,
+apontou corretamente um byte alterado (`changed`), um arquivo removido (`missing`) e um arquivo
+extra deixado por uma descompactação anterior sem `rm` prévio (`extra`) — os três casos exigidos
+pela SC-009.
 
 **[DECIDIDO no plano]** O relatório final da extração (funil, motivos de exclusão,
 distribuição por macrocategoria, alertas, problemas pendentes de triagem) também é versionado,
 em `manifests/extraction_report.json`, para que os números citados no trabalho escrito
-acompanhem a versão exata do dataset. O tamanho do zip é estimado em ~10 MB (ver 1.7), bem
-abaixo do limite de 100 MB por arquivo do GitHub; o comando de empacotamento avisa a partir de
-95 MB. O hash do `.zip` é reproduzível dentro da imagem fixada (a compressão depende da versão
-da biblioteca zlib); a identidade do conteúdo entre ambientes é garantida pelos hashes por
-arquivo do manifesto.
+acompanhem a versão exata do dataset. O tamanho do zip foi **estimado em ~10 MB** (ver 1.7) e
+**medido de verdade em 12,3 MiB** (acima), 29% maior que a estimativa mas nem de longe uma ordem
+de grandeza — bem abaixo do limite de 100 MB por arquivo do GitHub; o comando de empacotamento
+avisa a partir de 95 MB (não disparou). O hash do `.zip` é reproduzível dentro da imagem fixada
+(a compressão depende da versão da biblioteca zlib); a identidade do conteúdo entre ambientes é
+garantida pelos hashes por arquivo do manifesto.
 
 **Circulação do dataset entre os autores** (descrição do fluxo especificado, 2026-09-20). O
 dataset é gerado uma única vez, por um dos autores, com as fases `extract`, `validate`, `audit` e
@@ -904,6 +918,9 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 | 2026-09-22 | **Bug de confirmação corrigido (D18)**: a segunda execução real do `audit`, sobre o dataset já reparado, achou 8 das 13 WA reparadas (62%) divergindo de novo; a causa era um bug na confirmação (só duas de quatro chamadas eram de fato comparadas, e o valor gravado vinha de uma chamada nunca conferida); corrigido para exigir que todas as passadas concordem com a primeira, e o número de passadas subiu de 2 para 3 (6 execuções); teste de regressão específico | 1.4, 8 |
 | 2026-09-22 | **Retomada verificada de propósito e limite da garantia de determinismo (T080, D19)**: `validate` interrompido com `SIGTERM` no meio de um problema sintético (motor real) e retomado confirma SC-006 (0 pastas duplicadas, 0 arquivos truncados) e SC-007/FR-025 para tudo que decide a seleção; achado que `max_cpu_time_s` de `validacao.json`, além de `extraction_timestamp`, também varia entre execuções (ruído real de medição, não de seleção); `max_memory_bytes` permanece estável; não afeta o hash do zip ao reempacotar o mesmo conjunto (SC-008) | 1.4, 1.5, 8 |
 | 2026-09-22 | **Empacotamento e verificação implementados (T082 a T092)**: `package` e `verify`/`scripts/verify_dataset.py` implementados exatamente como já decidido em 1.6 (zip determinístico, manifesto SHA-256, `--allow-partial`, aviso de 95 MB), sem nenhuma divergência do desenho encontrada; 47 testes automatizados novos. Ainda não rodaram sobre o dataset real — falta a auditoria de fechamento (T093) antes; o tamanho real do zip e o hash continuam pendentes | 1.6, 8 |
+| 2026-09-22 | **Empacotamento real e verificação pós-clonagem (T093/T094, revisão `9b87d7e`)**: quarta rodada de `audit` de fechamento sem reparo novo; `package` gerou o `data/dataset.zip` real (200 problemas, 12.891.474 bytes ≈ 12,3 MiB, 21.000 arquivos, 29% acima da estimativa de ~10 MB mas nem de longe uma ordem de grandeza) e o manifesto (hash do zip `bd5398a8…af0c32`); `verify` deu `OK`; cenário de pós-clonagem (quickstart Nível 6) confirmado: `unzip` e `python -m zipfile -e` produzem árvores idênticas, e os três casos de adulteração de propósito (byte alterado, arquivo removido, arquivo extra) foram apontados corretamente pela verificação | 1.6, 8 |
+| 2026-09-22 | **Checagem de sincronização de fechamento (T099)**: `check_docs_sync.py --closing` (C1 a C6, ambos os módulos) sai com `0`; todas as decisões D1 a D19 têm linha em `sync-matrix.json` com os termos presentes neste documento; `src/dataset/README.md` passa a `Status: implementado` (as sete fases do ciclo — `extract`, `report`, `selfcheck`, `validate`, `audit`, `package`, `verify` — estão documentadas, carimbadas e executadas de verdade); nenhuma linha `pendente` resta | 1–8 |
+| 2026-09-22 | **Feature `001-dataset-extraction` concluída (T103)**: `spec.md` passa a `Status: Implemented`; 649 testes automatizados (0 falhas), lint e formatação limpos (T095/T096); os 8 níveis do `quickstart.md` validados e registrados (T097); revisão de conformidade da documentação e da Constitution feitas (T098/T102 — única divergência: o fluxo real usou commits diretos na `main`, revisados continuamente pelo autor, em vez de PR; revisor Rafael, 2026-09-22). Módulos `dataset` e `sandbox` ambos `Status: implementado`. O que resta do experimento (mutação, chamadas de IA, avaliação, métricas, orquestrador) é escopo de features futuras, ainda sem spec | 1–8 |
 | 2026-09-21 | **Validação completa (T072, parte `validate`)**: 200 de 200 em 5 h 06 min (4 processos), 264 problemas processados (75,8% completos), 21 descartados, 43 em triagem adiada (16,3%; causas em 1.7); amostra 98/61/41 por macrocategoria e 198 `train` + 2 `test`; alerta de menos de 30 não disparou; 84,6% das candidatas viraram WA; `audit` ainda pendente | 1.2, 1.4, 1.7 |
 | 2026-09-21 | **Triagem manual de AC adiada (D17)**: os problemas com o `AC_ref` reprovado seguem interrompidos e registrados, mas só serão inspecionados se a meta de 200 não for atingida com os demais; `validate` sai com 0 sempre que a meta é atingida; explicação de como os 200 problemas são escolhidos (pool embaralhado com a seed 42, os 200 primeiros que completam); item 16 resolvido | 1.4, 6 |
 | 2026-09-21 | **Piloto de validação (T071)**: 14 problemas do `train` (10 completos, 3 em triagem, 1 descartado); 85,5% das candidatas viraram WA (risco de poucas WA não se materializou), mediana de 102 s por problema completo, sem déficit projetado; critério de reabertura de D13 não atingido (regra 2: 7,1%; regra 5: 0%); descoberta de que `generated_tests` do dataset podem ter entradas fora das restrições; item 15 resolvido e item 16 (volume de triagens) aberto | 1.4, 1.7, 6 |

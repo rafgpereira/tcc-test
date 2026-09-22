@@ -297,7 +297,10 @@ extração grava checkpoints por shard (abaixo).
   sem compressão e ~10 MB compactado, bem abaixo do limite.
 - **Decisão**: o comando `package` mede o zip e avisa a partir de 95 MB. Git LFS só seria
   necessário se a estimativa estiver errada por uma ordem de grandeza; não é planejado.
-- **A verificar na implementação**: tamanho do zip para a amostra real.
+- **Medido de verdade (2026-09-22, T093, revisão `9b87d7e`)**: `data/dataset.zip` real, dos 200
+  problemas completos, tem **12.891.474 bytes (≈ 12,3 MiB)** — 29% acima da estimativa de ~10 MB,
+  mas nem de longe uma ordem de grandeza; bem abaixo do aviso de 95 MB e do limite de 100 MB do
+  GitHub. Git LFS confirmado como não necessário.
 
 ## R16 — Problemas com entrada/saída por arquivo (`input_file`, `output_file`)
 
