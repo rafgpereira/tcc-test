@@ -112,15 +112,29 @@ autores antes de integrar à branch principal. Nenhum dos dois aceita saída de
 IA sem entender o que ela faz.
 
 Nenhum agente de IA (Claude Code ou equivalente) MUST executar `git commit`,
-`git push` ou qualquer operação que altere o histórico do repositório (merge,
-rebase, reset de branch compartilhada) por conta própria, em nenhuma
-circunstância, mesmo quando as mudanças forem só de documentação ou o agente
-estiver isolado em worktree. O agente prepara as mudanças no working tree (ou
-staged, com `git add`) e devolve ao autor a revisão e as instruções exatas do
-que rodar; é sempre um dos dois autores quem decide o quê e quando commitar,
-seguindo essa orientação. Motivo: commitar é o ponto em que a revisão humana
-do parágrafo anterior se torna efetiva — se o próprio agente já commitou, a
-revisão vira formalidade sobre um histórico já escrito.
+`git add`, `git push` ou qualquer operação que altere o histórico do
+repositório (merge, rebase, reset de branch compartilhada) por conta própria,
+em nenhuma circunstância, mesmo quando as mudanças forem só de documentação.
+O agente MUST trabalhar diretamente no checkout normal do autor, na branch
+corrente (`main`, tipicamente) — **não** em um worktree ou branch própria só
+sua — e deixar toda alteração como `modified`/`untracked` no `git status`,
+nunca sequer `staged`. Ele devolve ao autor a revisão e as instruções exatas
+do que rodar; é sempre um dos dois autores quem decide o quê e quando
+commitar, e quando (se algum dia fizer sentido) usar um worktree, seguindo
+essa orientação. Motivo: commitar é o ponto em que a revisão humana do
+parágrafo anterior se torna efetiva — se o próprio agente já commitou, ou já
+isolou o trabalho numa branch que o autor precisa ir buscar e mesclar, a
+revisão vira uma etapa extra que o autor não pediu. Esta regra é do projeto,
+não de uma conversa: `.claude/settings.json` (`worktree.bgIsolation: "none"`)
+é versionado para que nenhuma sessão isole o trabalho por padrão.
+
+Ao terminar uma etapa de trabalho e parar para revisão (fim de uma user
+story, de uma tarefa 📌 PROPAGAR ou de qualquer ponto em que o agente aguarda
+o autor), o relato MUST detalhar o que foi feito — arquivos alterados,
+decisões tomadas, achados e números, não um resumo genérico — e MUST dizer
+explicitamente quais comandos o autor pode rodar para conferir o trabalho por
+si mesmo (os testes novos ou afetados, `check_docs_sync.py`, `ruff`/`black`,
+conforme o caso).
 
 ### XI. Documentação Viva, Sincronizada e Padronizada
 
@@ -225,6 +239,19 @@ Este documento tem precedência sobre decisões pontuais de implementação.
   (Princípio XI). Qualquer violação intencional MUST ser justificada por
   escrito na feature correspondente.
 - **Histórico de emendas**:
+  - 1.4.0 (2026-09-22) — Princípio X: o agente de IA trabalha sempre no
+    checkout normal do autor, nunca isolado em worktree ou branch própria, e
+    nunca roda `git add` (nem só `git commit`); toda alteração fica
+    `modified`/`untracked`, nunca `staged`; `.claude/settings.json`
+    (`worktree.bgIsolation: "none"`) versionado para que nenhuma sessão
+    isole por padrão. Novo parágrafo: ao parar para revisão, o relato MUST
+    detalhar o que foi feito (arquivos, decisões, achados, números) e dizer
+    os comandos de conferência (testes, `check_docs_sync.py`, lint).
+    Justificativa: a primeira versão desta regra (1.3.0) ainda permitia
+    isolar o trabalho num worktree e deixar mudanças `staged`; os autores
+    pediram explicitamente que o trabalho aconteça direto na branch corrente
+    e sem nem `git add`, e que os relatos de parada sejam detalhados o
+    bastante para conferência sem reabrir o código.
   - 1.3.0 (2026-09-22) — Princípio X: nenhum agente de IA executa `git
     commit`, `git push` ou qualquer operação que altere o histórico do
     repositório por conta própria, mesmo isolado em worktree ou só para
@@ -273,4 +300,4 @@ Este documento tem precedência sobre decisões pontuais de implementação.
     ajustada para admitir essa exceção.
   - 1.0.0 (2026-09-18) — Ratificação inicial.
 
-**Version**: 1.3.0 | **Ratified**: 2026-09-18 | **Last Amended**: 2026-09-22
+**Version**: 1.4.0 | **Ratified**: 2026-09-18 | **Last Amended**: 2026-09-22

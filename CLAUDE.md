@@ -66,12 +66,24 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
   `git pull && unzip data/dataset.zip -d data/`
 
 ## Regras rápidas (resumo — detalhe está na constitution)
-- **O agente de IA nunca commita, nunca dá push e nunca altera o histórico do
-  Git** (merge, rebase, reset de branch compartilhada) por conta própria — nem
-  mesmo mudanças só de documentação, nem mesmo isolado em worktree
-  (Constitution, Princípio X). Ele prepara as mudanças (working tree, ou
-  staged com `git add`) e devolve ao autor a revisão e o comando exato para
-  rodar; quem decide o quê e quando commitar é sempre um dos dois autores.
+- **O agente de IA trabalha direto no checkout normal do autor (a branch
+  `main` local), nunca em worktree ou branch própria, e nunca roda `git add`,
+  `git commit`, `git push` nem qualquer operação que altere o histórico do
+  Git** (merge, rebase, reset de branch compartilhada) — nem mesmo mudanças
+  só de documentação (Constitution, Princípio X). Ele edita os arquivos
+  normalmente, deixa tudo como alteração **não adicionada e não commitada**
+  (`git status` mostra `modified`/`untracked`, nunca `staged`), e diz ao
+  autor, com o comando exato, quando algo está pronto para ser commitado;
+  quem decide o quê e quando commitar é sempre um dos dois autores. Regra
+  igual em toda sessão deste projeto, não só na conversa em que foi
+  combinada — por isso `.claude/settings.json` (`worktree.bgIsolation:
+  "none"`) também é versionado, para nenhuma sessão futura isolar o trabalho
+  num worktree por padrão.
+- **Ao terminar uma etapa de trabalho e parar para o autor revisar**, o
+  agente detalha o que foi feito (arquivos, decisões, achados, números) e diz
+  explicitamente quais comandos o autor pode rodar para conferir por si (por
+  exemplo, os testes novos ou afetados, `check_docs_sync.py`, `ruff`/`black`)
+  — nunca só "feito" ou um resumo genérico.
 - Toda chamada de IA é stateless — nunca reaproveitar contexto entre requisições.
 - Nenhum limite de tempo/memória de sandbox é hardcoded — sempre lido dos
   metadados do problema.

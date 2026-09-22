@@ -1,0 +1,355 @@
+{
+  "ac_tested": 264,
+  "category_alerts": [],
+  "deficit": 0,
+  "distribution": {
+    "estrutural_otimizacao": 61,
+    "logica_direta": 98,
+    "matematica": 41
+  },
+  "engine_selfcheck": {
+    "cases": [
+      {
+        "expected": "AC",
+        "name": "ac",
+        "obtained": "AC",
+        "passed": true,
+        "stable": true,
+        "standard_used": "gnu++20"
+      },
+      {
+        "expected": "WA",
+        "name": "wa",
+        "obtained": "WA",
+        "passed": true,
+        "stable": true,
+        "standard_used": "gnu++20"
+      },
+      {
+        "expected": "TLE",
+        "name": "tle",
+        "obtained": "TLE",
+        "passed": true,
+        "stable": true,
+        "standard_used": "gnu++20"
+      },
+      {
+        "expected": "MLE",
+        "name": "mle",
+        "obtained": "MLE",
+        "passed": true,
+        "stable": true,
+        "standard_used": "gnu++20"
+      },
+      {
+        "expected": "RE",
+        "name": "re",
+        "obtained": "RE",
+        "passed": true,
+        "stable": true,
+        "standard_used": "gnu++20"
+      },
+      {
+        "expected": "CE",
+        "name": "ce",
+        "obtained": "CE",
+        "passed": true,
+        "stable": true,
+        "standard_used": null
+      },
+      {
+        "expected": "AC",
+        "name": "deep_recursion",
+        "obtained": "AC",
+        "passed": true,
+        "stable": true,
+        "standard_used": "gnu++20"
+      },
+      {
+        "expected": "AC",
+        "name": "cascade_fallback",
+        "obtained": "AC",
+        "passed": true,
+        "stable": true,
+        "standard_used": "gnu++14"
+      },
+      {
+        "expected": "AC",
+        "name": "stable",
+        "obtained": "AC",
+        "passed": true,
+        "stable": true,
+        "standard_used": "gnu++20"
+      }
+    ],
+    "ok": true,
+    "passed": 9
+  },
+  "funnel": {
+    "discarded_by_reason": {
+      "insufficient_wa": 21
+    },
+    "included": 200,
+    "read": 13610,
+    "rejected_by_reason": {
+      "file_io": 22,
+      "forbidden_tag": 1988,
+      "insufficient_raw_wa": 1670,
+      "no_allowed_tag": 7061,
+      "no_cpp_correct": 2242,
+      "no_cpp_incorrect": 2480,
+      "not_codeforces": 5509,
+      "rating_out_of_range": 11211,
+      "translated": 1088,
+      "visual_dependency": 4380
+    },
+    "stages": {
+      "codeforces": 8101,
+      "enough_raw_wa": 1234,
+      "has_allowed_tag": 2155,
+      "has_cpp_solutions": 1250,
+      "no_file_io": 1279,
+      "no_forbidden_tag": 1751,
+      "no_visual_term": 1288,
+      "not_translated": 1288,
+      "rating_1000_1600": 2399,
+      "unique_id": 1288
+    }
+  },
+  "pending_triage": [
+    {
+      "problem_id": "1041_B",
+      "reason": "AC ended with RE on public_tests[0] (stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1095_C",
+      "reason": "AC diverged from the official answer on public_tests[2] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1131_C",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1155_A",
+      "reason": "AC diverged from the official answer on private_tests[7] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1155_C",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1157_C1",
+      "reason": "AC ended with TLE on private_tests[0] (stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1175_C",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1243_B2",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1253_A",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1263_B",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1281_B",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1303_C",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1363_A",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "13_A",
+      "reason": "AC diverged from the official answer on generated_tests[17] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1407_B",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1487_B",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1487_D",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1492_C",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1499_C",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1519_C",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1529_B",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "1623_B",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "167_A",
+      "reason": "AC diverged from the official answer on generated_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "174_A",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "203_C",
+      "reason": "AC diverged from the official answer on private_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "30_A",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "331_A2",
+      "reason": "AC diverged from the official answer on private_tests[7] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "334_A",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "381_C",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "416_A",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "424_B",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "53_D",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "558_B",
+      "reason": "AC diverged from the official answer on private_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "597_B",
+      "reason": "AC diverged from the official answer on generated_tests[41] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "616_D",
+      "reason": "AC diverged from the official answer on private_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "660_C",
+      "reason": "AC diverged from the official answer on public_tests[1] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "669_B",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "702_B",
+      "reason": "AC does not compile in any of the four standards (verdict CE, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "716_B",
+      "reason": "AC diverged from the official answer on public_tests[1] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "825_D",
+      "reason": "AC diverged from the official answer on private_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "830_B",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "898_C",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    },
+    {
+      "problem_id": "907_A",
+      "reason": "AC diverged from the official answer on public_tests[0] (verdict WA, stage selection)",
+      "stage": "selection"
+    }
+  ],
+  "pool_distribution": {
+    "estrutural_otimizacao": 407,
+    "logica_direta": 549,
+    "matematica": 278
+  },
+  "provenance": {
+    "gcc_version": null,
+    "hf_dataset": "deepmind/code_contests",
+    "hf_revision": "802411c3010cb00d1b05bad57ca77365a3c699d6",
+    "seed": 42
+  },
+  "schema_version": 1,
+  "selection_final": true,
+  "target": 200,
+  "triage_by_cause": {
+    "format_only": 9,
+    "other": 33,
+    "tle": 1
+  }
+}

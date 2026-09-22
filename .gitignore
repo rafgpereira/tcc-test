@@ -12,3 +12,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .venv/
+
+# Claude Code worktrees (not used by default in this project, Constitution Princípio X;
+# ignored so a one-off worktree never shows up as noise in `git status`)
+.claude/worktrees/

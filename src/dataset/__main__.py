@@ -15,10 +15,15 @@ from pathlib import Path
 
 from dataset import config
 from dataset.extraction import stream
+from dataset.integrity import manifest as manifest_module
+from dataset.integrity import packaging
+from dataset.integrity import verify as verify_module
 from dataset.persistence import report as reporting
 from dataset.persistence import store
 from dataset.schemas.pool import Pool
+from dataset.schemas.report import Provenance
 from dataset.validation import pipeline
+from dataset.validation.engine import gcc_version
 from sandbox.selfcheck import selfcheck
 from sandbox.types import InfraError
 
@@ -248,6 +253,94 @@ def _run_audit(args: argparse.Namespace) -> int:
     )
 
 
+# ---------------------------------------------------------------------------------- package and verify
+
+
+def _configure_package(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--target",
+        type=_positive_int,
+        default=config.TARGET_PROBLEMS,
+        help=f"complete problems required to package (default {config.TARGET_PROBLEMS})",
+    )
+    parser.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help="package even if fewer than --target problems are complete",
+    )
+
+
+def _run_package(args: argparse.Namespace) -> int:
+    root = Path(".")
+    pool_path = root / config.STAGING_DIR / "pool.json"
+    if not pool_path.is_file():
+        print("error: no pool found; run `python -m dataset extract` first", file=sys.stderr)
+        return EXIT_DATA_FAILURE
+    pool = Pool.model_validate(store.read_json(pool_path))
+    included = len(packaging.list_complete_problems(root))
+    if included < args.target and not args.allow_partial:
+        print(
+            f"error: only {included} of {args.target} complete problems; pass --allow-partial "
+            "to package anyway",
+            file=sys.stderr,
+        )
+        return EXIT_DATA_FAILURE
+    result = packaging.build_dataset_zip(root, config.DATASET_ZIP)
+    if result.over_size_warning:
+        print(
+            f"warning: {result.zip_path} is {result.size} bytes, above the 95 MB warning "
+            "threshold (GitHub refuses pushes above 100 MB)",
+            file=sys.stderr,
+        )
+    provenance = Provenance(
+        hf_dataset=pool.hf_dataset,
+        hf_revision=pool.hf_revision,
+        seed=pool.seed,
+        gcc_version=gcc_version(),
+    )
+    manifest = manifest_module.build_manifest(root, result.zip_path, provenance=provenance)
+    manifest_path = manifest_module.write_manifest(root, manifest)
+    print(
+        f"packaged {result.problem_count} of {args.target} problems: {result.zip_path} ({result.size} bytes)"
+    )
+    print(f"manifest: {manifest_path}")
+    report_path = root / config.REPORTS_DIR / "extraction_report.json"
+    if report_path.is_file():
+        print(f"extraction report: {manifest_module.copy_extraction_report(root)}")
+    else:
+        print(
+            "warning: no data/work/reports/extraction_report.json to copy; run "
+            "`python -m dataset report` if you need it in manifests/",
+            file=sys.stderr,
+        )
+    return EXIT_OK
+
+
+def _configure_verify(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--zip", default=str(config.DATASET_ZIP), help="packaged dataset to verify")
+    parser.add_argument("--manifest", default=str(config.MANIFEST_PATH), help="integrity manifest")
+    parser.add_argument(
+        "--extracted", default=None, metavar="DIR", help="also check the extracted `dataset/` tree"
+    )
+
+
+def _run_verify(args: argparse.Namespace) -> int:
+    manifest_path = Path(args.manifest)
+    if not manifest_path.is_file():
+        print(f"error: manifest not found: {manifest_path}", file=sys.stderr)
+        return EXIT_USAGE
+    extracted = Path(args.extracted) if args.extracted else None
+    result = verify_module.verify(Path(args.zip), manifest_path, extracted_dir=extracted)
+    for path in result.changed:
+        print(f"changed: {path}")
+    for path in result.missing:
+        print(f"missing: {path}")
+    for path in result.extra:
+        print(f"extra: {path}")
+    print("OK" if result.ok else "FAIL")
+    return EXIT_OK if result.ok else EXIT_DATA_FAILURE
+
+
 register(
     "extract",
     "read the dataset in streaming mode and write the pool of eligible problems",
@@ -271,6 +364,18 @@ register(
     "re-run the engine over the complete problems and compare with validacao.json",
     _configure_audit,
     _run_audit,
+)
+register(
+    "package",
+    "build data/dataset.zip and its manifest from the complete problems",
+    _configure_package,
+    _run_package,
+)
+register(
+    "verify",
+    "recompute hashes and compare with the manifest (works right after cloning)",
+    _configure_verify,
+    _run_verify,
 )
 register(
     "selfcheck",

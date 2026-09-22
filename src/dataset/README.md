@@ -27,16 +27,17 @@ elegível. A extração real de 2026-09-20 resultou em **1.234 problemas** eleg�
 códigos funcionam: isso vem nas próximas etapas da feature.
 
 `extract` é a **fase 1 de 5** do ciclo do módulo (`extract`, `validate`, `audit`, `package`,
-`verify`); existem hoje `extract`, `report`, `selfcheck`, `validate` e `audit` (`package` e `verify`
-ainda não). A validação (`validate` e `audit`) está implementada e testada. O `validate`
+`verify`); todas as cinco existem hoje (`extract`, `report`, `selfcheck`, `validate`, `audit`,
+`package`, `verify`), implementadas e testadas. O `validate`
 foi executado sobre o dataset real em 2026-09-21 (piloto de 10 problemas e execução completa de 200,
 que levou 5 h 06 min; resultados na metodologia, seção 1.7); o `audit` rodou em 3 rodadas em
 2026-09-21/22 até os autores aceitarem a convergência (20 dos 200 problemas tocados por reparo
-automático em alguma rodada; decisão D18). Uma última rodada de fechamento, de praxe, roda antes do
-`package` (T093). O ciclo completo é feito **uma vez, por um dos
-autores**, que publica no Git o `data/dataset.zip` e os manifestos; o outro autor só descompacta e
-confere, sem rodar nada disso. O que cada fase faz, o que sobra em `data/work/` e como cada autor e o
-Docker de cada um se encaixam estão em
+automático em alguma rodada; decisão D18). **`package` e `verify` ainda não rodaram sobre o
+dataset real**: falta a auditoria de fechamento, de praxe, antes do empacotamento (T093) — o
+roteiro completo, incluindo essa etapa, está mais abaixo. O ciclo completo é feito **uma vez, por
+um dos autores**, que publica no Git o `data/dataset.zip` e os manifestos; o outro autor só
+descompacta e confere (`verify`), sem rodar `extract`/`validate`/`audit`/`package`. O que cada
+fase faz, o que sobra em `data/work/` e como cada autor e o Docker de cada um se encaixam estão em
 [Como o dataset circula entre os autores](../../README.md#como-o-dataset-circula-entre-os-autores),
 no README da raiz.
 
@@ -203,6 +204,75 @@ no README da raiz.
    Código `0` se nada ficou sem solução (um reparo bem-sucedido não conta como divergência), `1`
    se algum problema não pôde ser reparado ou teve o `AC_ref` reprovado.
 
+8. **Empacotar (`package`).** É a última fase de quem **gera** o dataset: só depois dela existe
+   algo para mandar para o outro autor. Reúne todos os problemas `complete` de
+   `data/work/problems/` num único arquivo, `data/dataset.zip`, e grava o manifesto de hashes
+   (`manifests/dataset.manifest.json`). **Quando rodar**: uma vez, depois que `validate` chegou a
+   `deficit 0` e `audit` convergiu (sem nada para reparar, ou os reparos já aceitos — ver a
+   auditoria de fechamento no roteiro abaixo); rodar `package` mais cedo não é proibido, mas
+   embarca no zip só os problemas que já estavam `complete` naquele momento (`pending_triage` e
+   `discarded` nunca entram). **Não é automático**: `validate` e `audit` não chamam `package`
+   sozinhos, e `package` não roda `validate`/`audit` de novo — cada fase é um comando manual e
+   separado (ver "Como o dataset circula entre os autores" no README da raiz).
+
+   ```bash
+   docker compose run --rm app python -m dataset package
+   ```
+
+   Roda no serviço `app` (não precisa do motor nem de rede: só lê arquivos já validados e
+   compacta). Recusa empacotar se menos de 200 problemas estiverem `complete` (a menos que você
+   passe `--allow-partial`, para os casos de teste ou de déficit aceito) e avisa, sem impedir, se
+   o zip passar de 95 MB (limite de push comum do GitHub: 100 MB). Grava também
+   `manifests/extraction_report.json` (cópia do relatório final, versionada). Determinístico: rodar
+   de novo sobre o mesmo `data/work/problems/` gera o mesmo zip, byte a byte, no mesmo ambiente
+   (SC-008) — reempacotar não tem custo nem risco.
+
+   ```text
+   packaged 200 of 200 problems: data/dataset.zip (12345678 bytes)
+   manifest: manifests/dataset.manifest.json
+   extraction report: manifests/extraction_report.json
+   ```
+
+   Depois de `package`, confira com `verify` (passo 9) e então **é isso que você commita e
+   publica**: `git add data/dataset.zip manifests/ && git commit -m "..." && git push` (você
+   mesmo decide a mensagem e roda o commit; nada aqui commita por você). Nenhum outro arquivo de
+   `data/` deve aparecer no `git status` além desses — se aparecer, algo além do zip e dos
+   manifestos está tentando ser versionado, o que a regra do `.gitignore` (FR-029) já impede por
+   padrão, então isso indicaria um problema a investigar, não algo a ignorar.
+
+9. **Verificar a integridade (`verify` e `scripts/verify_dataset.py`).** Recalcula os hashes de
+   tudo e compara com o manifesto. Há duas formas do MESMO comando: **`verify`**, o subcomando da
+   CLI (`data/dataset.zip` e `manifests/dataset.manifest.json` nos caminhos padrão),
+
+   ```bash
+   docker compose run --rm app python -m dataset verify
+   ```
+
+   e **`scripts/verify_dataset.py`**, pensado para rodar **antes mesmo de haver
+   um `pool.json`**, por qualquer pessoa que só recebeu o zip pelo Git — é o comando da seção
+   "Quem recebe o dataset" do README da raiz.
+
+   ```bash
+   docker compose run --rm app python scripts/verify_dataset.py
+   ```
+
+   Sem opções, verifica só o zip contra o manifesto (não precisa descompactar nada, funciona logo
+   após um `git clone` + `git pull`). Com `--extracted DIR`, confere também a árvore já
+   descompactada, arquivo a arquivo:
+
+   ```bash
+   unzip data/dataset.zip -d data/
+   docker compose run --rm app python scripts/verify_dataset.py --extracted data/dataset
+   ```
+
+   Esperado, nos dois casos: última linha `OK` e código de saída `0`. Se qualquer arquivo mudou
+   (mesmo um único byte), sumiu ou apareceu a mais, a saída lista cada um em `changed:`,
+   `missing:` ou `extra:`, termina com `FAIL` e o código de saída é `1` (nunca falha silenciosa).
+   Quem gera o dataset roda `verify` logo depois de `package`, como conferência antes de
+   commitar; quem recebe roda `scripts/verify_dataset.py` (mesma lógica, script fora da CLI, para
+   não exigir um `pool.json` que quem recebe não tem) depois de um `git pull` que trouxe um zip ou
+   manifesto novo.
+
 ### O que são `audit` e `report`, para que servem e quando rodar cada um
 
 | | `audit` | `report` |
@@ -313,6 +383,70 @@ números reais (distribuição da amostra por macrocategoria e por split, funil,
 triagens, tempo total, se o alerta de menos de 30 por categoria disparou) entram na metodologia, na
 spec e no plano, e os comandos são carimbados.
 
+### Roteiro do empacotamento (quem gera o dataset; tarefa T093)
+
+Última etapa: depois que a validação (acima) terminou com `deficit 0` e você já tem os 200
+problemas `complete`. É rápida (segundos a poucos minutos; não precisa de `systemd-inhibit`).
+
+1. **Auditoria de fechamento.** Antes de empacotar, rode `audit` mais uma vez, mesmo que já o
+   tenha rodado antes: é a conferência final sobre o estado atual da pasta (decisão registrada na
+   T072). Qualquer reparo que ela fizer entra no ciclo normal, sem exigir mais uma rodada:
+
+   ```bash
+   docker compose run --rm sandbox python -m dataset audit
+   ```
+
+   Esperado: código `0` (nada para reparar, ou tudo reparado com sucesso). Se aparecer
+   `could not be repaired`, **pare e decida com o outro autor antes de empacotar** — não
+   empacote um problema com uma WA sem solução.
+
+2. **Empacotar.**
+
+   ```bash
+   docker compose run --rm app python -m dataset package
+   ```
+
+   Esperado: `packaged 200 of 200 problems: data/dataset.zip (N bytes)`, seguido dos caminhos do
+   manifesto e do relatório. Se aparecer `error: only N of 200 complete problems`, a validação não
+   está em `deficit 0` — não use `--allow-partial` para o dataset real; volte ao passo 6
+   (`validate`).
+
+3. **Verificar antes de publicar.**
+
+   ```bash
+   docker compose run --rm app python scripts/verify_dataset.py
+   ```
+
+   Esperado: `OK`. Se aparecer `FAIL`, **não publique**: algo no empacotamento divergiu do que foi
+   lido do disco (não deveria acontecer; se acontecer, é um bug a reportar, não a ignorar).
+
+4. **Conferir o que vai para o Git.**
+
+   ```bash
+   git status
+   ```
+
+   Esperado: só `data/dataset.zip`, `manifests/dataset.manifest.json` e
+   `manifests/extraction_report.json` como arquivos novos/alterados (fora do que você já tinha
+   mexido no código). Nada mais de `data/` deve aparecer — o `.gitignore` já impede isso por
+   padrão (FR-029), mas confira mesmo assim.
+
+5. **Guardar para a propagação e me avisar.** Tamanho real do zip (bytes), quantidade de
+   arquivos, o hash SHA-256 do zip (está em `manifests/dataset.manifest.json`, campo
+   `dataset_zip.sha256`) e o hash de `git rev-parse --short=7 HEAD`. Com isso a tarefa T093
+   atualiza a metodologia (seções 1.6/1.7, que hoje só têm uma estimativa de ~10 MB) e carimba
+   `package`/`verify` no README.
+
+6. **Commitar e publicar** (quando eu disser "pode commitar"): `git add data/dataset.zip
+   manifests/ && git commit -m "..." && git push`. É o único jeito de o outro autor receber o
+   dataset — nada disso é automático.
+
+**Do outro lado, quem recebe** (`git pull` trouxe um `data/dataset.zip` ou manifesto novo): os
+passos exatos, para quem não gerou nada, estão no README da raiz, seção "Quem recebe o dataset" —
+em resumo, `unzip data/dataset.zip -d data/` e depois
+`docker compose run --rm app python scripts/verify_dataset.py --extracted data/dataset`, esperando
+`OK`. Quem recebe **nunca** roda `extract`, `validate`, `audit` ou `package`.
+
 ### Se algo der errado
 
 | O que aparece | O que significa | O que fazer |
@@ -329,6 +463,10 @@ spec e no plano, e os comandos são carimbados.
 | `N problem(s) in pending_triage need individual inspection now` (código `1`) | a meta não foi atingida com o resto do pool | inspecione cada um em `data/work/problems/<id>/validacao.json` (campo `triage`) e decida com os autores; nada é relaxado sozinho |
 | `PermissionError` ao gravar em `data/` | `data/` pertence a `root` (o passo 3 do guia foi pulado) | `sudo chown -R "$(id -u):$(id -g)" data` e rode de novo |
 | quer recomeçar do zero | — | `rm -rf data/work` e rode o passo 2 (só enquanto a validação não existe: depois dela essa pasta guarda os problemas validados) |
+| `error: only N of 200 complete problems; pass --allow-partial to package anyway` (código `1`) | `package` rodado antes da meta ser atingida | rode `validate` até `deficit 0`, ou use `--allow-partial` de propósito (só para teste; o dataset real precisa dos 200) |
+| `warning: ... is N bytes, above the 95 MB warning threshold` | o zip passou de 95 MB (aviso, não impede) | seção (f), "Limitações conhecidas": seja avisado antes de tentar dar `git push` (o GitHub recusa acima de 100 MB) |
+| `error: manifest not found: ...` (código `2`) | `verify` sem `data/dataset.zip`/manifesto nos caminhos esperados | rode `package` primeiro (quem gera) ou confira se o `git pull`/`unzip` trouxe os arquivos certos (quem recebe) |
+| `changed:` / `missing:` / `extra:` seguido de `FAIL` (código `1`) | integridade divergente: um arquivo mudou, sumiu ou apareceu a mais | não use esse dataset; refaça o `git pull`/`unzip`, ou avise o autor que gerou o zip |
 
 ### Opções de `validate` e `audit`
 
@@ -339,6 +477,16 @@ spec e no plano, e os comandos são carimbados.
 | `validate` | `--problem ID` | — | valida só este problema e ignora a meta; útil para triagem |
 | `audit` | `--problem ID` (repetível) | todos os `complete` | escopo da auditoria |
 | `audit` | `--workers N` | metade das CPUs | processos em paralelo |
+
+### Opções de `package`, `verify` e `scripts/verify_dataset.py`
+
+| Comando | Opção | Padrão | Efeito |
+|---|---|---|---|
+| `package` | `--target N` | `200` | problemas `complete` exigidos antes de empacotar |
+| `package` | `--allow-partial` | desligado | empacota mesmo com menos de `--target` problemas `complete` |
+| `verify` / `verify_dataset.py` | `--zip PATH` | `data/dataset.zip` | pacote a verificar |
+| `verify` / `verify_dataset.py` | `--manifest PATH` | `manifests/dataset.manifest.json` | manifesto |
+| `verify` / `verify_dataset.py` | `--extracted DIR` | — | confere também a árvore descompactada (`DIR` é a pasta `dataset/` em si, por exemplo `data/dataset`, não `data/`) |
 
 ### Opções de `extract`
 
@@ -364,12 +512,12 @@ passo, quando existirem.
 
 ## (d) Saídas produzidas
 
-Tudo em `data/work/`, um diretório privado (permissão `0700`) e ignorado pelo Git. Como `./data`
-é um volume do Compose, os arquivos aparecem no host, em `data/work/` na raiz do repositório, com o
-seu usuário como dono; o contêiner não guarda nada que não esteja lá. Esses arquivos são o **espaço
-de trabalho de quem gera o dataset**: ficam só na sua máquina, não vão para o Git, e nenhum comando
-os apaga (a extração não tem etapa de limpeza). O que será distribuído é o zip que a fase `package`
-ainda vai gerar, com apenas os problemas completos.
+A maior parte fica em `data/work/`, um diretório privado (permissão `0700`) e ignorado pelo Git.
+Como `./data` é um volume do Compose, os arquivos aparecem no host, em `data/work/` na raiz do
+repositório, com o seu usuário como dono; o contêiner não guarda nada que não esteja lá. Esses
+arquivos são o **espaço de trabalho de quem gera o dataset**: ficam só na sua máquina, não vão
+para o Git, e nenhum comando os apaga (nenhuma fase tem etapa de limpeza). A ÚNICA saída que é
+**distribuída** (vai para o Git) é a de `package`: `data/dataset.zip` e `manifests/`.
 
 | Saída | Formato | Destino |
 |---|---|---|
@@ -377,10 +525,13 @@ ainda vai gerar, com apenas os problemas completos.
 | `data/work/staging/raw/<problem_id>.json.gz` | JSON comprimido, modelo `RawProblem` | lido pela validação dos códigos |
 | `data/work/staging/shards/<split>-<NNNNN>.json` | JSON, modelo `ShardCheckpoint` | marca o shard como concluído (retomada) |
 | `data/work/reports/extraction_report.json` e `.md` | JSON e Markdown, modelo `ExtractionReport` (com `ac_tested` e `triage_by_cause`) | leitura humana e citação no trabalho escrito |
-| `data/work/problems/<problem_id>/` | pasta por problema encerrado: `complete`, `pending_triage` ou `discarded` (conteúdo na tabela do passo 6); modelos `Metadata`, `Testes` e `Validacao` | será empacotada por `package` (só os `complete`) |
+| `data/work/problems/<problem_id>/` | pasta por problema encerrado: `complete`, `pending_triage` ou `discarded` (conteúdo na tabela do passo 6); modelos `Metadata`, `Testes` e `Validacao` | empacotada por `package` (só os `complete`) |
 | `data/work/building/<problem_id>/` | problema em construção; é apagado e refeito se a execução for interrompida | só o `validate` |
 | `data/work/reports/selfcheck.json` | resultado do `selfcheck` que o `validate` rodou | campo `engine_selfcheck` do relatório |
 | `data/work/reports/validation_log.jsonl` | uma linha JSON por problema: estado, contagens de candidatas por resultado e tempo | leitura humana (piloto) |
+| **`data/dataset.zip`** | zip determinístico, raiz `dataset/`, só problemas `complete` (`package`) | **versionado** (única exceção em `data/`) — é isto que se manda para o outro autor pelo Git |
+| **`manifests/dataset.manifest.json`** | JSON, modelo `Manifest` ([data-model.md](../../specs/001-dataset-extraction/data-model.md), §1.5): hash SHA-256 do zip e de cada arquivo dentro dele | **versionado**, fora de `data/`; conferido por `verify` |
+| **`manifests/extraction_report.json`** | cópia do relatório final (`package`, FR-018b) | **versionado**, fora de `data/` |
 
 ## (e) Dependências e pré-requisitos
 
@@ -437,7 +588,18 @@ ainda vai gerar, com apenas os problemas completos.
   mudança de seleção; decisão D19, metodologia 1.4/1.5). `max_memory_bytes` se mostrou estável.
 - Um programa pode gravar arquivos no diretório temporário do seu slot; eles persistem entre os testes
   de uma mesma suíte (e são apagados a cada nova compilação).
-- O empacotamento e a verificação ainda não existem: sem `package`, não há `data/dataset.zip`.
+- **`package` e `verify` estão implementados e testados, mas ainda não rodaram sobre o dataset
+  real** (2026-09-22): falta a auditoria de fechamento (T093) e então a execução real do
+  empacotamento; até lá `data/dataset.zip` não existe. O roteiro completo está mais abaixo, e o
+  README raiz explica o fluxo entre os dois autores.
+- O hash do zip depende da versão do `zlib` da imagem (research R14): reempacotar o MESMO
+  conjunto de problemas na MESMA imagem dá sempre o mesmo hash (SC-008), mas comparar hashes de
+  builds de imagem diferentes não é uma garantia do projeto — é por isso que o manifesto guarda o
+  hash de cada arquivo individual, não só o do zip: a integridade do conteúdo não depende de
+  todo mundo ter exatamente a mesma versão do `zlib`.
+- `package` nunca roda `validate` nem `audit` de novo: ele só lê o que já está em
+  `data/work/problems/` naquele momento. Rodar `package` antes de terminar a validação empacota
+  um subconjunto (com `--allow-partial`) ou é recusado (sem ela).
 
 ## Referências
 
@@ -454,7 +616,12 @@ ainda vai gerar, com apenas os problemas completos.
 | `selfcheck` | 2026-09-21 | 5121759 | T050 |
 | `validate` | 2026-09-21 | ee3a422 | T072 |
 | `audit` | 2026-09-22 | 7784486 | T072 |
+| `package` | pendente | — | — |
+| `verify` | pendente | — | — |
+| `scripts/verify_dataset.py` | pendente | — | — |
 
 O comportamento de retomada do `validate` (US4) não é um subcomando novo, então não ganha linha
 própria: foi verificado de propósito em **2026-09-22, revisão `c4c394a`, tarefa T080** (ver
-seção (f) e metodologia, seção 1.4).
+seção (f) e metodologia, seção 1.4). `package`, `verify` e `scripts/verify_dataset.py` estão
+implementados e testados (testes automatizados, não o dataset real) desde 2026-09-22; a linha
+`pendente` vira carimbo real na T093/T094, quando rodarem sobre o dataset real.
