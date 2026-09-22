@@ -368,7 +368,7 @@ extração grava checkpoints por shard (abaixo).
 
 - **Medido (2026-09-21/22)**: 13 dos ~26.400 WA gravados (0,05%) divergiram na auditoria; código-fonte confirma comportamento indefinido ou tempo no limiar em todos os casos inspecionados.
 - **Alternativa investigada e descartada**: desligar ASLR (`personality(ADDR_NO_RANDOMIZE)`) eliminaria a fonte de variação de memória, mas o perfil de seccomp padrão do Docker bloqueia essa chamada mesmo para root (`EPERM`, verificado); um perfil customizado é um risco de infraestrutura à parte, e não resolveria os casos de tempo no limiar.
-- **Decisão**: substituir o candidato pelo próximo não tentado da mesma ordem determinística, com confirmação reforçada (4 execuções concordantes em vez de 2); `dataset.validation.repair`.
+- **Decisão**: substituir o candidato pelo próximo não tentado da mesma ordem determinística, com confirmação reforçada (6 execuções concordantes em vez de 2, depois de corrigir um bug em que a confirmação inicial só chegava a comparar 2 chamadas de fato; ver spec D18); `dataset.validation.repair`.
 
 ## R20 — Documentação de módulo e sincronização (Princípio XI)
 

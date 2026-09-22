@@ -169,8 +169,9 @@ no README da raiz.
 
    **Uma WA cujo veredito ou teste decisivo mudou é reparada, não só relatada** (decisão D18,
    2026-09-22): é substituída pelo próximo candidato não tentado da mesma ordem determinística que
-   gerou o problema, agora exigindo uma confirmação mais forte (4 execuções concordantes, em vez
-   das 2 da seleção original). O número de WA continua exatamente 100, na mesma numeração, e
+   gerou o problema, agora exigindo uma confirmação mais forte (6 execuções concordantes, em vez
+   das 2 da seleção original; corrigido em 2026-09-22 depois que a versão inicial se mostrou mais
+   fraca do que o pretendido — detalhes na metodologia, seção 1.4). O número de WA continua exatamente 100, na mesma numeração, e
    nenhum outro arquivo do problema muda. Por quê: a auditoria da execução completa achou WA cujo
    resultado dependia de comportamento indefinido do código (acesso fora dos limites de um vetor,
    variável não inicializada) ou de tempo de execução bem no limiar do limite — não da entrada —,

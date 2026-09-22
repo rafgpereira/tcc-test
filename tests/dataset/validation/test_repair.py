@@ -19,6 +19,8 @@ from dataset.schemas.validacao import Validacao
 from dataset.validation import repair, wa
 from dataset.validation.audit import WaMismatch
 from dataset.validation.runtime import InlineRuntime
+from dataset.validation.suite import suite_from_raw
+from sandbox.types import ExecutionLimits
 
 LIMITS_KW = {}  # engine limits come from the raw problem, as everywhere else
 
@@ -167,6 +169,78 @@ def test_repair_raises_when_the_pool_of_untried_candidates_is_exhausted(built, f
     mismatch = WaMismatch(file="WA_1.cpp", recorded="wa", obtained="unstable")
     with pytest.raises(repair.RepairExhausted, match="1_A"):
         repair.repair_problem(root, pid, [mismatch], runtime, consumed=consumed, raw=starved)
+
+
+def _script_outcomes(candidate, suite, limits, engine, slot, deciding_indices):
+    """Return one real `evaluate_candidate` result per index, with the deciding test overwritten
+    to a chosen index — a script of independently confirmed but artificially-disagreeing passes,
+    without needing a special engine mark for every combination."""
+    from dataset.schemas.validacao import DecidingTest
+
+    outcomes = []
+    for index in deciding_indices:
+        real = wa.evaluate_candidate(candidate, suite, limits, engine, slot)
+        moved = real.validation.model_copy(
+            update={"deciding_test": DecidingTest(group="public_tests", index=index)}
+        )
+        outcomes.append(wa.CandidateOutcome(candidate, "wa", moved))
+    return outcomes
+
+
+def test_confirm_rejects_a_candidate_whose_first_pass_disagrees_with_later_passes(
+    built, fake, make_raw, monkeypatch
+):
+    """The exact bug found in the second real run: pass 1 differed from passes 2 and 3, but the
+    OLD code only ever compared the last two passes (the first was overwritten, never checked,
+    and a fourth, uncompared call supplied the recorded value). `_confirm` must reject this: ANY
+    pass that disagrees with the first makes the candidate untrusted, even if the others agree
+    with each other.
+    """
+    import dataset.validation.wa as wa_module
+    from dataset.validation import repair as repair_mod
+
+    _root, _pid, _folder, runtime, raw, consumed = built
+    candidates, _ = wa.select_candidates(raw)
+    candidate = candidates[consumed]
+    limits = ExecutionLimits(raw.time_limit_seconds, raw.memory_limit_bytes)
+    suite = suite_from_raw(raw)
+
+    # pass 1 decides on test index 0; passes 2 and 3 agree with EACH OTHER on index 1, not #1.
+    scripted = iter(
+        _script_outcomes(candidate, suite, limits, runtime.engine, runtime.main_slot, [0, 1, 1])
+    )
+    calls: list[int] = []
+
+    def fake_evaluate(*args, **kwargs):
+        calls.append(1)
+        return next(scripted)
+
+    monkeypatch.setattr(wa_module, "evaluate_candidate", fake_evaluate)
+    result = repair_mod._confirm(candidate, suite, limits, runtime.engine, runtime.main_slot)
+
+    assert result is None, "pass 1 disagreed with passes 2 and 3: must not be trusted"
+    assert len(calls) == repair_mod.CONFIRMATION_PASSES  # exactly the passes, no extra call
+
+
+def test_confirm_accepts_only_when_every_pass_agrees_with_the_first(
+    built, fake, make_raw, monkeypatch
+):
+    import dataset.validation.wa as wa_module
+    from dataset.validation import repair as repair_mod
+
+    _root, _pid, _folder, runtime, raw, consumed = built
+    candidates, _ = wa.select_candidates(raw)
+    candidate = candidates[consumed]
+    limits = ExecutionLimits(raw.time_limit_seconds, raw.memory_limit_bytes)
+    suite = suite_from_raw(raw)
+
+    scripted = iter(
+        _script_outcomes(candidate, suite, limits, runtime.engine, runtime.main_slot, [2, 2, 2])
+    )
+    monkeypatch.setattr(wa_module, "evaluate_candidate", lambda *a, **k: next(scripted))
+    result = repair_mod._confirm(candidate, suite, limits, runtime.engine, runtime.main_slot)
+
+    assert result is not None and result.deciding_test.index == 2
 
 
 def test_repair_of_a_problem_with_no_mismatches_is_a_no_op(built, fake):

@@ -97,10 +97,13 @@ exato depende de coisas fora da entrada (o conteúdo da memória, a variação d
 da lógica do candidato. Um candidato assim é um mau "gabarito" para as métricas, que pressupõem uma
 falha fixa e reprodutível. A auditoria substitui cada WA divergente pelo **próximo candidato não
 tentado, na mesma ordem determinística da seleção original** (`wa.select_candidates`, FR-014),
-exigindo dele uma confirmação mais forte que a original: duas checagens de estabilidade
-independentes (2 execuções cada), ou seja, 4 execuções concordantes antes de aceitar, contra as 2
+exigindo dele uma confirmação mais forte que a original: três checagens de estabilidade
+independentes (2 execuções cada), ou seja, 6 execuções concordantes antes de aceitar, contra as 2
 da seleção original. Repete até achar um candidato que passe, ou esgota os candidatos não tentados
-e falha explicitamente (nenhum reparo silencioso). O número de WA continua exatamente 100, na mesma
+e falha explicitamente (nenhum reparo silencioso). **Correção de 2026-09-22**: a primeira versão
+comparava só as duas últimas de três chamadas e gravava uma quarta chamada nunca conferida contra
+nada; corrigida para exigir que todas as passadas concordem com a primeira (ver spec D18 e
+metodologia 1.4 para os detalhes). O número de WA continua exatamente 100, na mesma
 numeração (`WA_<n>.cpp`), e nenhum outro arquivo do problema é tocado. Só depois disso, se ainda
 houver problema sem solução (auditoria com AC divergente, ou reparo esgotado), o comando termina
 com código `1`; um reparo bem-sucedido não conta como divergência. Só os problemas `complete` são

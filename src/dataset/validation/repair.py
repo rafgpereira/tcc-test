@@ -10,11 +10,24 @@ fixed, reproducible failure (FR-014 already requires exactly 100 WA in a fixed o
 "exactly" hold up under re-execution too).
 
 The fix does not touch the engine or `outputs_equal`: it raises the bar for how many times a
-candidate must independently agree before it is trusted (from 2 runs to 4: the same two-run
-stability check of `wa.evaluate_candidate`, done TWICE), and, for any candidate that still fails,
-walks the SAME deterministic order used by the original selection (FR-014, `wa.select_candidates`)
-to the next untried candidate, keeping the `WA_<n>.cpp` numbering and the 100 count fixed. It never
+candidate must independently agree before it is trusted (from 2 runs to CONFIRMATION_PASSES
+independent calls of the same two-run stability check of `wa.evaluate_candidate`, ALL of which must
+agree with EACH OTHER, not just the last two), and, for any candidate that still fails, walks the
+SAME deterministic order used by the original selection (FR-014, `wa.select_candidates`) to the
+next untried candidate, keeping the `WA_<n>.cpp` numbering and the 100 count fixed. It never
 weakens a verdict and never accepts a candidate on the strength of a single confirmation.
+
+**Bug found and fixed (2026-09-22, second real run)**: the first version of this module ran
+``CONFIRMATION_PASSES`` calls in a loop but only kept the LAST one (each iteration overwrote the
+same variable), then made one more separate call and compared only those last two — the very
+first call was used solely to gate on "still WA", never cross-checked, and a fourth, completely
+separate call supplied the value actually written to disk without ever being compared to anything.
+So a candidate could be recorded on the strength of two calls agreeing by chance while an earlier,
+never-compared call had already disagreed. This explains why several repaired candidates from the
+first real run showed up divergent again on the very next audit. Fixed by collecting every pass
+and requiring all of them to agree with the first one, and by writing the same, already-confirmed
+outcome that was checked (never an extra, unchecked call). ``CONFIRMATION_PASSES`` was also raised
+from 2 to 3 (6 runs, not 4) given how often a real repaired candidate still turned out flaky.
 """
 
 from dataclasses import dataclass, field
@@ -30,7 +43,8 @@ from dataset.validation.runtime import Runtime
 from dataset.validation.suite import suite_from_raw
 from sandbox.types import ExecutionLimits
 
-CONFIRMATION_PASSES = 2  # each is wa.STABILITY_RUNS independent executions: 4 runs in total
+CONFIRMATION_PASSES = 3  # each is wa.STABILITY_RUNS (2) independent runs: 6 runs in total,
+# raised from 2 after the second real audit still found repaired candidates flaky (see above)
 
 
 class RepairExhausted(Exception):
@@ -49,21 +63,25 @@ def _load_raw(root: Path, problem_id: str) -> RawProblem:
     return RawProblem.model_validate(store.read_json_gz(path))
 
 
-def _confirmed(candidate: wa.Candidate, suite, limits, engine, slot: int) -> bool:
-    """True only if TWO independent stability-checked evaluations both retain it as WA.
+def _confirm(candidate: wa.Candidate, suite, limits, engine, slot: int):
+    """Run ``CONFIRMATION_PASSES`` independent stability-checked evaluations of ``candidate``.
 
-    Each call already runs the candidate twice (``wa.STABILITY_RUNS``) and requires them to agree;
-    doing it twice more, independently, needs all four executions to agree before trusting it.
+    Each pass already runs the candidate twice (``wa.STABILITY_RUNS``) and requires them to agree
+    with each other; here EVERY pass, not just the last two, must also agree with the first pass
+    (same verdict WA, same deciding test) before the candidate is trusted. Returns the confirmed
+    ``WaValidation`` — one of the passes that were actually checked, never an extra unchecked call
+    — or ``None`` if any pass disagreed.
     """
+    passes: list[wa.CandidateOutcome] = []
     for _ in range(CONFIRMATION_PASSES):
         outcome = wa.evaluate_candidate(candidate, suite, limits, engine, slot)
         if outcome.kind != "wa":
-            return False
-        first = outcome
-    second = wa.evaluate_candidate(candidate, suite, limits, engine, slot)
-    if second.kind != "wa":
-        return False
-    return first.validation.deciding_test == second.validation.deciding_test
+            return None
+        passes.append(outcome)
+    reference = passes[0].validation.deciding_test
+    if any(p.validation.deciding_test != reference for p in passes[1:]):
+        return None
+    return passes[-1].validation
 
 
 def repair_problem(
@@ -93,12 +111,10 @@ def repair_problem(
         for candidate in untried:
             if ac.sha256_of(candidate.source) in existing_sha:
                 continue  # already one of the other 99 (candidates are pre-deduplicated globally)
-            if not _confirmed(candidate, suite, limits, runtime.engine, runtime.main_slot):
+            confirmed = _confirm(candidate, suite, limits, runtime.engine, runtime.main_slot)
+            if confirmed is None:
                 continue
-            confirmed = wa.evaluate_candidate(
-                candidate, suite, limits, runtime.engine, runtime.main_slot
-            )
-            replacement = confirmed.validation.model_copy(update={"file": mismatch.file})
+            replacement = confirmed.model_copy(update={"file": mismatch.file})
             store.write_problem_text(folder, mismatch.file, candidate.source)
             by_file[mismatch.file] = replacement
             existing_sha.add(replacement.sha256)

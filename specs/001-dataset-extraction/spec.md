@@ -827,8 +827,8 @@ também em 2026-09-19.
   candidato assim não serve como gabarito fixo para as métricas do experimento. Decisão: em vez de
   só reportar (como a spec previa até aqui), `audit` **substitui automaticamente** cada WA
   divergente pelo próximo candidato não tentado da mesma ordem determinística da seleção original
-  (FR-014), exigindo dele uma confirmação mais forte (duas checagens de estabilidade
-  independentes, 4 execuções concordantes, contra 2 na seleção original); esgotados os candidatos
+  (FR-014), exigindo dele uma confirmação mais forte (três checagens de estabilidade
+  independentes, 6 execuções concordantes, contra 2 na seleção original); esgotados os candidatos
   não tentados sem um substituto confirmado, falha explicitamente, sem reparo silencioso e sem
   contar como concluído. O número de WA continua exatamente 100, na mesma numeração, e nenhum
   outro arquivo do problema muda. Alternativas consideradas e descartadas: desligar o
@@ -838,3 +838,21 @@ também em 2026-09-19.
   variável, não de memória; aumentar só o número de execuções de estabilidade na seleção original —
   não resolve os já gerados e não dá a mesma garantia que confirmar com candidatos totalmente
   novos. Reflete-se em FR-011a, FR-015a e nos testes de `dataset.validation.repair`.
+  **Falha na primeira implementação, achada e corrigida (2026-09-22, segunda execução real)**:
+  a auditoria rodada de novo, sobre o dataset já reparado uma vez, achou que 8 das 13 WA
+  reparadas (62%) voltaram a divergir — proporção alta demais para ser só azar. A causa: a
+  primeira versão de `_confirmed` chamava `evaluate_candidate` em um laço de duas passadas
+  sobrescrevendo a mesma variável a cada volta (só a ÚLTIMA passada sobrevivia), fazia mais uma
+  chamada separada e comparava só essas duas últimas — a primeira passada nunca era conferida
+  contra nada, e o valor de fato gravado em disco vinha de uma QUARTA chamada, também nunca
+  comparada. Ou seja, a confirmação de "4 execuções concordantes" originalmente descrita aqui
+  não valia: bastava duas chamadas concordarem por acaso para aceitar, e o valor gravado nem
+  precisava concordar com as que foram checadas. Corrigido: `_confirm` agora coleta as
+  `CONFIRMATION_PASSES` passadas em uma lista e exige que TODAS concordem com a primeira antes
+  de aceitar, gravando um dos valores efetivamente conferidos (nunca uma chamada extra sem
+  checagem). Também subiu de 2 para 3 passadas (6 execuções, não 4), dado que a taxa de
+  recorrência mostrou que candidatos instáveis são comuns o bastante no restante do pool para
+  esses problemas específicos. Teste de regressão específico em
+  `tests/dataset/validation/test_repair.py` reproduz exatamente esse cenário (uma passada
+  discorda, as outras duas concordam por acaso) e prova que a versão antiga aceitava e a nova
+  rejeita.
