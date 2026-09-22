@@ -855,4 +855,11 @@ também em 2026-09-19.
   esses problemas específicos. Teste de regressão específico em
   `tests/dataset/validation/test_repair.py` reproduz exatamente esse cenário (uma passada
   discorda, as outras duas concordam por acaso) e prova que a versão antiga aceitava e a nova
-  rejeita.
+  rejeita. **Convergência aceita em 2026-09-22 (3 rodadas de `audit`)**: 16 WA/13 problemas na
+  rodada 1, 11 WA/9 problemas na rodada 2 (confirmação com o bug), 10 WA/10 problemas na
+  rodada 3 (confirmação corrigida, revisão `7784486`); 20 dos 200 problemas (10%) tocados ao
+  todo; nenhum reparo da rodada 2 recorreu na rodada 3. Decisão dos autores: aceitar o estado
+  atual, sem perseguir zero divergências (ruído estatístico esperado, já que a própria
+  auditoria confere cada WA com só 2 execuções, a força da seleção original, não as 6 do
+  reparo); mais uma auditoria de fechamento, de praxe, roda imediatamente antes do `package`
+  (T093). Detalhes na metodologia, seção 1.7.

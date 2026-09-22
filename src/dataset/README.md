@@ -423,4 +423,4 @@ ainda vai gerar, com apenas os problemas completos.
 | `report` | 2026-09-20 | 71747a1 | T035 |
 | `selfcheck` | 2026-09-21 | 5121759 | T050 |
 | `validate` | 2026-09-21 | ee3a422 | T072 |
-| `audit` | pendente | — | — |
+| `audit` | 2026-09-22 | 7784486 | T072 |

@@ -17,7 +17,9 @@ teste unitários em C++.
 > `sandbox`) está implementado e passa em todos os testes no contêiner, inclusive isolamento e o
 > `selfcheck`; a validação dos códigos no motor (`validate` e `audit`) está implementada; `validate`
 > foi executado por completo em 2026-09-21 (200 problemas validados em 5 h 06 min) e `audit` em
-> 2026-09-22 (13 WA reparadas automaticamente, decisão D18); o empacotamento ainda não existe. A feature `001-dataset-extraction` tem spec, plano e tarefas
+> 2026-09-22, em 3 rodadas até convergir (decisão D18: 20 dos 200 problemas precisaram de reparo
+> automático em alguma rodada; ver metodologia, seção 1.7); falta só uma auditoria de fechamento
+> antes do `package`, que ainda não existe. A feature `001-dataset-extraction` tem spec, plano e tarefas
 > prontos; o restante do experimento está descrito na metodologia, mas ainda não especificado. Por isso a seção "Executando os módulos" marca cada etapa
 > com o seu estado. **A reprodução completa só será possível quando todas as etapas estiverem
 > implementadas**; este documento será completado à medida que os módulos chegarem.
@@ -104,7 +106,7 @@ dataset", mais abaixo.
 |---|---|---|---|---|
 | 1 | `extract` (serviço `app`, com internet) | lê **todos** os 13.610 exemplos do `code_contests` em streaming, descarta na hora os que não servem e grava só os 1.234 elegíveis (medido na extração real de 2026-09-20), cada um com enunciado, testes, códigos corretos e **todas as submissões incorretas em C++ como candidatas** a WA. **Não executa nenhum código** | `data/work/staging/` | disponível (ainda sem execução real) |
 | 2 | `validate` (serviço `sandbox`) | executa, no motor isolado, o código correto e as candidatas a WA de cada problema, na ordem do pool, até reunir 200 problemas completos com exatamente 100 WAs cada | `data/work/problems/` | **executado em 2026-09-21**: 200 de 200 em 5 h 06 min (264 problemas processados); o relatório é regerado ao fim |
-| 3 | `audit` (serviço `sandbox`) | segunda conferência, **uma vez**, antes do `package`: reexecuta no motor o código correto e as 100 WA de cada problema completo, a partir dos arquivos gravados, e compara com o registrado; uma WA que diverge é **reparada automaticamente**, substituída pelo próximo candidato não tentado com confirmação reforçada (decisão D18) | — | **executado em 2026-09-22**: 13 de 26.400 WA divergiram e foram reparadas; detalhes no README do módulo |
+| 3 | `audit` (serviço `sandbox`) | conferência, repetida até convergir, antes do `package`: reexecuta no motor o código correto e as 100 WA de cada problema completo, a partir dos arquivos gravados, e compara com o registrado; uma WA que diverge é **reparada automaticamente**, substituída pelo próximo candidato não tentado com confirmação reforçada (decisão D18) | — | **executado em 3 rodadas em 2026-09-21/22** até os autores aceitarem o estado (20 de 200 problemas tocados); uma última rodada de fechamento roda antes do `package`; detalhes no README do módulo |
 | 4 | `package` (serviço `app`) | copia **só os problemas completos** para um zip determinístico e gera o manifesto e o relatório final | `data/dataset.zip`, `manifests/` | planejado |
 | 5 | `verify` (serviço `app`) | confere o zip contra o manifesto | — | planejado |
 | 6 | `git add data/dataset.zip manifests/` e commit/push | é o único jeito de o dataset chegar ao outro autor; nada mais de `data/` é versionado | — | planejado |
