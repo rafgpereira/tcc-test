@@ -30,7 +30,10 @@ códigos funcionam: isso vem nas próximas etapas da feature.
 `verify`); existem hoje `extract`, `report`, `selfcheck`, `validate` e `audit` (`package` e `verify`
 ainda não). A validação (`validate` e `audit`) está implementada e testada. O `validate`
 foi executado sobre o dataset real em 2026-09-21 (piloto de 10 problemas e execução completa de 200,
-que levou 5 h 06 min; resultados na metodologia, seção 1.7); a auditoria (`audit`) ainda não. O ciclo completo é feito **uma vez, por um dos
+que levou 5 h 06 min; resultados na metodologia, seção 1.7); o `audit` rodou em 3 rodadas em
+2026-09-21/22 até os autores aceitarem a convergência (20 dos 200 problemas tocados por reparo
+automático em alguma rodada; decisão D18). Uma última rodada de fechamento, de praxe, roda antes do
+`package` (T093). O ciclo completo é feito **uma vez, por um dos
 autores**, que publica no Git o `data/dataset.zip` e os manifestos; o outro autor só descompacta e
 confere, sem rodar nada disso. O que cada fase faz, o que sobra em `data/work/` e como cada autor e o
 Docker de cada um se encaixam estão em
@@ -396,8 +399,17 @@ ainda vai gerar, com apenas os problemas completos.
 - **A validação completa foi executada** (2026-09-21): 200 problemas completos de 264 processados
   (as posições 0 a 263 do pool), 21 descartados por WA insuficientes e 43 em `pending_triage`; só
   5 dos 28 problemas de `valid`/`test` foram processados (a amostra tem 198 do `train` e 2 do
-  `test`). **A auditoria (`audit`) ainda não rodou.** Se a meta de 200 problemas com exatamente
-  100 WA não tivesse fechado, nada seria relaxado automaticamente.
+  `test`). Se a meta de 200 problemas com exatamente 100 WA não tivesse fechado, nada seria
+  relaxado automaticamente.
+- **A auditoria (`audit`) foi executada em 3 rodadas** (2026-09-21/22): a primeira achou 16 WA
+  divergentes em 13 problemas, a segunda 11 WA em 9 (8 das 13 reparadas na primeira rodada
+  voltaram a divergir, o que revelou um bug real na confirmação do reparo, corrigido no mesmo
+  ciclo — ver "O que são `audit` e `report`" acima e metodologia, seção 1.4), a terceira 10 WA em
+  10; ao todo 20 dos 200 problemas foram tocados por reparo automático em alguma rodada, e nenhum
+  reparo da segunda rodada recorreu na terceira. Os autores aceitaram esse estado como ruído
+  estatístico esperado ao testar cerca de 26.400 WA com um crivo de 2 execuções (decisão D18) e
+  não perseguiram zero divergências; uma última rodada de fechamento, de praxe, roda antes do
+  `package` (T093).
 - **Cerca de 1 em cada 6 problemas processados foi para `pending_triage`** (43 de 264, 16,3%):
   verificador especial (várias respostas válidas), gabarito do dataset com formatação diferente e
   testes gerados fora das restrições do enunciado. Eles são interrompidos e registrados (decisão

@@ -111,6 +111,17 @@ Código gerado com apoio de IA MUST ser revisado por pelo menos um dos dois
 autores antes de integrar à branch principal. Nenhum dos dois aceita saída de
 IA sem entender o que ela faz.
 
+Nenhum agente de IA (Claude Code ou equivalente) MUST executar `git commit`,
+`git push` ou qualquer operação que altere o histórico do repositório (merge,
+rebase, reset de branch compartilhada) por conta própria, em nenhuma
+circunstância, mesmo quando as mudanças forem só de documentação ou o agente
+estiver isolado em worktree. O agente prepara as mudanças no working tree (ou
+staged, com `git add`) e devolve ao autor a revisão e as instruções exatas do
+que rodar; é sempre um dos dois autores quem decide o quê e quando commitar,
+seguindo essa orientação. Motivo: commitar é o ponto em que a revisão humana
+do parágrafo anterior se torna efetiva — se o próprio agente já commitou, a
+revisão vira formalidade sobre um histórico já escrito.
+
 ### XI. Documentação Viva, Sincronizada e Padronizada
 
 Toda informação nova descoberta durante a especificação, o planejamento ou a
@@ -123,7 +134,13 @@ artefatos que a informação afetar) E o `docs/metodologia-referencia.md`. Não
 `docs/metodologia-referencia.md` MUST permanecer, a todo momento, a fonte
 corrente e correta, nunca um retrato desatualizado do que a metodologia
 realmente diz. Uma tarefa (especificação, plano ou implementação) MUST NOT
-ser considerada concluída enquanto essa propagação estiver pendente.
+ser considerada concluída enquanto essa propagação estiver pendente. Marcar a
+data de execução de um comando na tabela "Comandos verificados" de um README
+NÃO substitui essa propagação: depois de carimbar, MUST-se reler, por busca
+textual e não só por memória, toda a prosa do README do módulo e do `README.md`
+da raiz em busca do mesmo comando e corrigir qualquer trecho que ainda o
+descreva como não executado ou planejado. A tabela e a prosa MUST NOT se
+contradizer.
 
 Todo módulo do projeto MUST ter documentação de uso própria, seguindo o
 template padronizado comum a todos os módulos, definido em
@@ -208,6 +225,21 @@ Este documento tem precedência sobre decisões pontuais de implementação.
   (Princípio XI). Qualquer violação intencional MUST ser justificada por
   escrito na feature correspondente.
 - **Histórico de emendas**:
+  - 1.3.0 (2026-09-22) — Princípio X: nenhum agente de IA executa `git
+    commit`, `git push` ou qualquer operação que altere o histórico do
+    repositório por conta própria, mesmo isolado em worktree ou só para
+    documentação; o agente prepara e devolve para um dos autores decidir e
+    commitar. Justificativa: um agente havia commitado mudanças de
+    documentação por iniciativa própria em worktree; os autores explicitaram
+    que a revisão humana do Princípio X só é efetiva se o commit em si for
+    sempre um ato humano, nunca automático. Princípio XI: carimbar um
+    comando na tabela "Comandos verificados" de um README não basta como
+    propagação — MUST-se também reler por busca textual, e corrigir, toda a
+    prosa do README do módulo e do `README.md` da raiz que mencione o mesmo
+    comando. Justificativa: a T072 da feature 001 carimbou `audit` na tabela
+    mas deixou duas frases em dois READMEs dizendo "a auditoria ainda não
+    rodou", contradição só notada e corrigida numa tarefa seguinte (T073); a
+    regra evita que a mesma lacuna se repita.
   - 1.2.1 (2026-09-19) — Convenções Técnicas, "Segredos": a convenção deixa de
     exigir literalmente `python-dotenv` e passa a admitir `.env` injetado por
     `env_file` do compose ou carregado com `python-dotenv`. Justificativa: como
@@ -241,4 +273,4 @@ Este documento tem precedência sobre decisões pontuais de implementação.
     ajustada para admitir essa exceção.
   - 1.0.0 (2026-09-18) — Ratificação inicial.
 
-**Version**: 1.2.1 | **Ratified**: 2026-09-18 | **Last Amended**: 2026-09-19
+**Version**: 1.3.0 | **Ratified**: 2026-09-18 | **Last Amended**: 2026-09-22

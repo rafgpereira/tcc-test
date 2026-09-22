@@ -66,6 +66,12 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
   `git pull && unzip data/dataset.zip -d data/`
 
 ## Regras rápidas (resumo — detalhe está na constitution)
+- **O agente de IA nunca commita, nunca dá push e nunca altera o histórico do
+  Git** (merge, rebase, reset de branch compartilhada) por conta própria — nem
+  mesmo mudanças só de documentação, nem mesmo isolado em worktree
+  (Constitution, Princípio X). Ele prepara as mudanças (working tree, ou
+  staged com `git add`) e devolve ao autor a revisão e o comando exato para
+  rodar; quem decide o quê e quando commitar é sempre um dos dois autores.
 - Toda chamada de IA é stateless — nunca reaproveitar contexto entre requisições.
 - Nenhum limite de tempo/memória de sandbox é hardcoded — sempre lido dos
   metadados do problema.
@@ -79,7 +85,14 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
   para `spec.md`, `plan.md` (e demais artefatos afetados) **e** para
   `docs/metodologia-referencia.md`, que precisa estar sempre corrente. Nunca
   registrar em um lugar só, nunca deixar "para refletir depois". Uma tarefa
-  não está concluída com essa propagação pendente.
+  não está concluída com essa propagação pendente. **Carimbar um comando na
+  tabela "Comandos verificados" de um README não é, sozinho, propagação
+  completa**: depois de carimbar, procure o nome do comando em todo o texto
+  do README do módulo e do `README.md` da raiz (grep, não só memória) e
+  corrija qualquer trecho que ainda o descreva como não executado/planejado —
+  a tabela e a prosa nunca podem se contradizer (achado real: a T072 carimbou
+  `audit` mas deixou duas frases dizendo "ainda não rodou" em dois READMEs
+  diferentes, só corrigidas na T073 seguinte).
 - Documentação de execução escrita para quem **não conhece Docker**: o `README.md` da raiz traz
   o guia do clone ao primeiro comando (conceitos, `.env`, `data/`, build, verificação, problemas
   comuns) e o "(b) Como executar" de cada módulo é um passo a passo (serviço explicado, resultado
