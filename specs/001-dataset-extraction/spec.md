@@ -753,7 +753,11 @@ também em 2026-09-19.
   problemas completos observados). Três ACs foram para triagem (21%): verificador especial
   (`616_D`), gabarito com linha em branco inicial (`1529_B`) e teste gerado fora das restrições
   do enunciado (`13_A`); os `generated_tests` do dataset podem ter entradas inválidas. Números e
-  análise na metodologia, seção 1.7.
+  análise na metodologia, seção 1.7. **Validação completa (2026-09-21, T072)**: 200 de 200 em
+  5 h 06 min com 4 processos; 264 problemas processados (200 completos, 21 descartados por
+  `insufficient_wa` e 43 em `pending_triage`, 16,3%); amostra de 98 `logica_direta`, 61
+  `estrutural_otimizacao` e 41 `matematica`, e de 198 `train` e 2 `test`; sem alerta de menos de 30
+  por macrocategoria; 84,6% das candidatas viraram WA. A auditoria (`audit`) ainda não rodou.
 - **D13 — Regras operacionais do motor (decidido em 2026-09-20, gate T037)**: os autores
   confirmaram, sem alteração, ordem da suíte e veredito pelo primeiro teste que falha
   (FR-012), comparação de saída sem espaços finais de linha e sem linhas em branco no fim do
@@ -815,3 +819,22 @@ também em 2026-09-19.
   que o pool dispense a triagem (no piloto, ~71% dos problemas processados fecharam; com 1.234 no
   pool, o esperado passa de 800 completos para 200 necessários; amostra pequena). Reflete-se em
   FR-011b, FR-018 e nas tarefas T068, T069 e T072.
+- **D18 — Reparo automático de WA que diverge na auditoria (decidido em 2026-09-22)**: a
+  auditoria da execução completa (T072) achou 13 WA (em 12 dos 200 problemas) cuja reexecução
+  divergiu do registrado. A inspeção do código-fonte confirmou comportamento indefinido (acesso
+  fora dos limites de um vetor, variável não inicializada) ou execução no limiar do limite de
+  tempo em cada caso, ou seja, candidatos cujo resultado exato não depende só da entrada. Um
+  candidato assim não serve como gabarito fixo para as métricas do experimento. Decisão: em vez de
+  só reportar (como a spec previa até aqui), `audit` **substitui automaticamente** cada WA
+  divergente pelo próximo candidato não tentado da mesma ordem determinística da seleção original
+  (FR-014), exigindo dele uma confirmação mais forte (duas checagens de estabilidade
+  independentes, 4 execuções concordantes, contra 2 na seleção original); esgotados os candidatos
+  não tentados sem um substituto confirmado, falha explicitamente, sem reparo silencioso e sem
+  contar como concluído. O número de WA continua exatamente 100, na mesma numeração, e nenhum
+  outro arquivo do problema muda. Alternativas consideradas e descartadas: desligar o
+  randomizador de endereços do kernel (ASLR) para eliminar a fonte de não determinismo — o perfil
+  padrão de segurança do Docker bloqueia a chamada de sistema necessária (`personality`), e mesmo
+  se liberada não resolveria os casos no limiar de tempo, que são de execução genuinamente
+  variável, não de memória; aumentar só o número de execuções de estabilidade na seleção original —
+  não resolve os já gerados e não dá a mesma garantia que confirmar com candidatos totalmente
+  novos. Reflete-se em FR-011a, FR-015a e nos testes de `dataset.validation.repair`.

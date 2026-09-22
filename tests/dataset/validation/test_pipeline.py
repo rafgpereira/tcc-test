@@ -394,12 +394,15 @@ def test_audit_can_be_limited_to_some_problems(root, prepare, factory, make_raw,
     assert len(fake.compiled) == 101  # AC_ref + 100 WA of one problem only
 
 
-def test_audit_reports_a_wa_mismatch_without_touching_the_problem(root, prepare, factory, make_raw):
-    prepare([make_raw("1_A", wa=wa_sources())])
+def test_audit_repairs_a_wa_mismatch_when_an_untried_candidate_is_available(
+    root, prepare, factory, make_raw
+):
+    """D18 superseded the old "report only" behavior: a fixable mismatch is fixed, not just noted."""
+    prepare([make_raw("1_A", wa=wa_sources())])  # 120 candidates: 20 untried after validate
     validate(root, factory, target=1)
     (root / config.PROBLEMS_DIR / "1_A" / "WA_9.cpp").write_text("// TLE@0\nx\n")
     code, lines = audit(root, factory)
-    assert code == 1 and any("WA_9.cpp" in line for line in lines)
+    assert code == 0 and any("WA_9.cpp" in line and "repaired" in line for line in lines)
     assert statuses(root) == {"1_A": "complete"}
 
 
@@ -411,3 +414,30 @@ def test_audit_refreshes_the_report_so_the_triage_list_is_current(root, prepare,
     report = json.loads((root / config.REPORTS_DIR / "extraction_report.json").read_text())
     assert [p["problem_id"] for p in report["pending_triage"]] == ["1_A"]
     assert report["pending_triage"][0]["stage"] == "audit"
+
+
+def test_audit_repairs_a_wa_mismatch_automatically(root, prepare, factory, make_raw):
+    """D18: a WA that fails audit's re-check is replaced, not just reported."""
+    raws = [make_raw("1_A", wa=wa_sources(100, tag="base") + wa_sources(30, tag="reserve"))]
+    prepare(raws)
+    validate(root, factory, target=1)
+    before = (root / config.PROBLEMS_DIR / "1_A" / "WA_3.cpp").read_text()
+    (root / config.PROBLEMS_DIR / "1_A" / "WA_3.cpp").write_text("// TLE@0\nint main(){}\n")
+    code, lines = audit(root, factory)
+    assert code == 0  # repaired: no longer a divergence the authors must act on
+    assert any("1_A" in line and "repaired" in line and "WA_3.cpp" in line for line in lines)
+    after = (root / config.PROBLEMS_DIR / "1_A" / "WA_3.cpp").read_text()
+    assert after != "// TLE@0\nint main(){}\n" and after != before
+    validacao = json.loads((root / config.PROBLEMS_DIR / "1_A" / "validacao.json").read_text())
+    assert len(validacao["wa"]) == 100
+    assert len({w["sha256"] for w in validacao["wa"]}) == 100
+
+
+def test_audit_reports_a_repair_that_could_not_find_a_replacement(root, prepare, factory, make_raw):
+    raws = [make_raw("1_A", wa=wa_sources(100, tag="base"))]  # no untried candidates left
+    prepare(raws)
+    validate(root, factory, target=1)
+    (root / config.PROBLEMS_DIR / "1_A" / "WA_3.cpp").write_text("// TLE@0\nint main(){}\n")
+    code, lines = audit(root, factory)
+    assert code == 1
+    assert any("1_A" in line and "could not be repaired" in line for line in lines)

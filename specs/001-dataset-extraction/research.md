@@ -359,8 +359,16 @@ extração grava checkpoints por shard (abaixo).
   108). O risco residual acima não se materializou no `train`. Três ACs em triagem por causas
   distintas (verificador especial, gabarito com linha em branco inicial, teste gerado fora das
   restrições); ver metodologia 1.7.
-- **Tempo medido (R11)**: mediana de 102 s por problema completo com 4 processos; ~7 h
-  extrapoladas para 200 completos.
+- **Tempo medido (R11)**: mediana de 102 s por problema completo com 4 processos no piloto, ~7 h
+  extrapoladas para 200 completos; **na validação completa (2026-09-21) foram 264 problemas
+  processados em 5 h 06 min, mediana de 83 s por problema completo, 75,8% de problemas completos e
+  84,6% das candidatas consumidas viraram WA**.
+
+## R21 — Reparo de WA divergente na auditoria (D18)
+
+- **Medido (2026-09-21/22)**: 13 dos ~26.400 WA gravados (0,05%) divergiram na auditoria; código-fonte confirma comportamento indefinido ou tempo no limiar em todos os casos inspecionados.
+- **Alternativa investigada e descartada**: desligar ASLR (`personality(ADDR_NO_RANDOMIZE)`) eliminaria a fonte de variação de memória, mas o perfil de seccomp padrão do Docker bloqueia essa chamada mesmo para root (`EPERM`, verificado); um perfil customizado é um risco de infraestrutura à parte, e não resolveria os casos de tempo no limiar.
+- **Decisão**: substituir o candidato pelo próximo não tentado da mesma ordem determinística, com confirmação reforçada (4 execuções concordantes em vez de 2); `dataset.validation.repair`.
 
 ## R20 — Documentação de módulo e sincronização (Princípio XI)
 

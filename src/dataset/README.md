@@ -28,9 +28,9 @@ códigos funcionam: isso vem nas próximas etapas da feature.
 
 `extract` é a **fase 1 de 5** do ciclo do módulo (`extract`, `validate`, `audit`, `package`,
 `verify`); existem hoje `extract`, `report`, `selfcheck`, `validate` e `audit` (`package` e `verify`
-ainda não). A validação (`validate` e `audit`) está implementada e testada. O **piloto** de 10
-problemas foi executado sobre o dataset real em 2026-09-21 (resultado na metodologia, seção 1.7); a
-execução completa (200 problemas) e a auditoria ainda não. O ciclo completo é feito **uma vez, por um dos
+ainda não). A validação (`validate` e `audit`) está implementada e testada. O `validate`
+foi executado sobre o dataset real em 2026-09-21 (piloto de 10 problemas e execução completa de 200,
+que levou 5 h 06 min; resultados na metodologia, seção 1.7); a auditoria (`audit`) ainda não. O ciclo completo é feito **uma vez, por um dos
 autores**, que publica no Git o `data/dataset.zip` e os manifestos; o outro autor só descompacta e
 confere, sem rodar nada disso. O que cada fase faz, o que sobra em `data/work/` e como cada autor e o
 Docker de cada um se encaixam estão em
@@ -123,9 +123,8 @@ no README da raiz.
    ```
 
    O piloto de 2026-09-21 levou cerca de 21 min de relógio para 14 problemas processados, com 4
-   processos (mediana de 102 s por problema completo). Depois, a execução completa (meta 200), que
-   por extrapolação dessa amostra pequena leva cerca de 7 h com 4 processos (o tempo real só será
-   conhecido nela):
+   processos. Depois, a execução completa (meta 200), que em 2026-09-21 levou **5 h 06 min** com 4
+   processos (264 problemas processados, mediana de 83 s por problema completo):
 
    ```bash
    docker compose run --rm sandbox python -m dataset validate
@@ -162,13 +161,73 @@ no README da raiz.
 
 7. **Auditar (`audit`).** Reexecuta o motor sobre os problemas `complete` e confere com o
    `validacao.json`: o `AC_ref` primeiro; se ele deixar de passar, aquele problema é interrompido e
-   vira `pending_triage` (etapa `audit`); uma WA cujo veredito mudou é apenas **reportada**:
+   vira `pending_triage` (etapa `audit`), sem que nenhuma WA seja avaliada:
 
    ```bash
    docker compose run --rm sandbox python -m dataset audit
    ```
 
-   Código `0` se nada divergiu, `1` se houve qualquer divergência.
+   **Uma WA cujo veredito ou teste decisivo mudou é reparada, não só relatada** (decisão D18,
+   2026-09-22): é substituída pelo próximo candidato não tentado da mesma ordem determinística que
+   gerou o problema, agora exigindo uma confirmação mais forte (4 execuções concordantes, em vez
+   das 2 da seleção original). O número de WA continua exatamente 100, na mesma numeração, e
+   nenhum outro arquivo do problema muda. Por quê: a auditoria da execução completa achou WA cujo
+   resultado dependia de comportamento indefinido do código (acesso fora dos limites de um vetor,
+   variável não inicializada) ou de tempo de execução bem no limiar do limite — não da entrada —,
+   o que os tornava um gabarito ruim para as métricas; os detalhes e a investigação (incluindo por
+   que desligar o ASLR do kernel não foi viável, bloqueado pelo seccomp padrão do Docker) estão na
+   metodologia, seção 1.7. A linha impressa por problema muda conforme o caso:
+
+   | Linha | O que significa |
+   |---|---|
+   | `<id>: ok (AC_ref and 100 WA as recorded)` | nada divergiu |
+   | `<id>: N WA candidate(s) repaired (decision D18): WA_5.cpp, ...` | reparado sozinho; não precisa de nada seu |
+   | `<id>: could not be repaired (...); needs the authors' attention` | os candidatos não tentados se esgotaram sem um substituto confirmado; **este caso exige decisão sua** |
+   | `<id>: audit FAILED, AC_ref is now ...; pending_triage` | o código correto deixou de passar; o problema sai da amostra |
+
+   Código `0` se nada ficou sem solução (um reparo bem-sucedido não conta como divergência), `1`
+   se algum problema não pôde ser reparado ou teve o `AC_ref` reprovado.
+
+### O que são `audit` e `report`, para que servem e quando rodar cada um
+
+| | `audit` | `report` |
+|---|---|---|
+| **O que faz** | reexecuta no motor o código correto e as 100 WA de cada problema completo e compara com o registrado | lê os arquivos já gravados e escreve o resumo legível (Markdown e JSON) |
+| **Executa código C++?** | sim (serviço `sandbox`) | não (serviço `app`) |
+| **Duração** | horas, como a validação (extrapolação: 4 a 5 h) | segundos |
+| **Quando** | **uma vez**, depois de o `validate` terminar com `deficit 0` e **antes** de `package` | **não precisa rodar à mão**: `validate` e `audit` já o regeram ao terminar |
+| **Obrigatório agora?** | sim, é a conferência antes de gerar o zip | não |
+
+**`audit`: a segunda conferência dos problemas já validados.** Para cada problema `complete` em
+`data/work/problems/`, ele lê os arquivos que estão na pasta (os mesmos que irão para o zip:
+`AC_ref.cpp`, `WA_1.cpp` a `WA_100.cpp` e `testes.json`) e os executa **de novo** no motor: o
+`AC_ref` sobre toda a suíte oficial e depois cada uma das 100 WA. Compara com o que o
+`validacao.json` registrou: o `AC_ref` tem de continuar dando `AC`, e cada WA tem de continuar dando
+`WA` no mesmo teste decisivo. Ele existe porque, no `validate`, cada código é executado uma vez para
+decidir (as WA, duas), com 4 processos disputando a CPU. O `audit` é uma **segunda passagem
+independente, sobre os arquivos gravados**: pega, por exemplo, um código cujo tempo estava perto do
+limite e passou por sorte, e qualquer diferença entre o que foi decidido e o que foi gravado. É o que
+sustenta a promessa de que todo código que entra no dataset passou pelo motor com o mesmo veredito
+mais de uma vez (spec, FR-015a).
+
+- *Se o `AC_ref` de um problema falhar na auditoria*: ele vira `pending_triage` (etapa `audit`) e sai
+  da amostra, que passa a ter 199. Rode `validate` de novo: ele retoma a ordem do pool e completa o
+  que falta; depois audite só os novos com `audit --problem <id>` (repetível).
+- *Se uma WA divergir*: é apenas **reportada** (o comando termina com código `1` e lista quais);
+  o problema continua completo e os autores decidem o que fazer.
+- Só quem **gera** o dataset roda o `audit`: ele lê `data/work/`, que só existe na máquina de quem
+  gerou. Quem recebe o zip usa `verify` (integridade), não `audit`. Não precisa ser repetido, a menos
+  que algum problema seja refeito ou o motor/imagem mude.
+
+**`report`: o resumo legível do estado.** Não executa código nem baixa nada: lê `pool.json`, todos os
+`validacao.json` e `selfcheck.json` e escreve `data/work/reports/extraction_report.md` e `.json`
+(funil de elegibilidade, distribuição por macrocategoria do pool e da amostra, descartes, falhas de
+AC por causa, triagem adiada, déficit, alertas e o resultado do `selfcheck`). É o documento com os
+números que vão para o texto do TCC; o `package` copia o `.json` para
+`manifests/extraction_report.json` (versionado). Como `validate` e `audit` o regeram sozinhos ao
+terminar, rodar `report` à mão só serve para **atualizar o resumo sem executar nada** (por exemplo,
+depois de apagar a pasta de um problema) ou para acompanhar o andamento de outra janela de terminal
+durante uma execução longa. **Depois do `validate` não é preciso rodá-lo.**
 
 ### Roteiro da execução completa (quem gera o dataset; tarefa T072)
 
@@ -177,11 +236,10 @@ não por uma ferramenta automática. Este roteiro reúne tudo o que é preciso: 
 começar.
 
 **O que vai acontecer.** O `validate` percorre o pool na ordem gravada e valida cada problema no
-motor até reunir 200 problemas completos. Pela extrapolação do piloto (uma amostra pequena; o tempo
-real só se conhece ao final), são cerca de 280 problemas processados, algo em torno de **7 horas com
-4 processos**. Depois vêm a auditoria (`audit`), que reexecuta os 200 problemas e leva um tempo da
-mesma ordem (o piloto sugere cerca de 5 horas), e o relatório (`report`, segundos). Pode fazer a
-validação hoje e a auditoria em outro momento.
+motor até reunir 200 problemas completos. Na execução de 2026-09-21 foram 264 problemas processados
+em **5 h 06 min com 4 processos**. Depois vem a auditoria (`audit`), que reexecuta os 200 problemas
+e leva um tempo da mesma ordem (extrapolação: 4 a 5 horas); o relatório (`report`) é gerado sozinho
+ao fim de cada um. Pode fazer a validação hoje e a auditoria em outro momento.
 
 **Antes de começar (uma vez):**
 
@@ -222,16 +280,16 @@ systemd-inhibit --what=sleep:idle --why="validacao do dataset" \
   atingida com os demais problemas do pool e os casos em `pending_triage` passam a exigir inspeção
   individual. Nada é relaxado automaticamente.
 
-**Depois da validação** (pode ser em outro momento):
+**Depois da validação** (pode ser em outro momento; veja "O que são `audit` e `report`" acima):
 
 ```bash
 systemd-inhibit --what=sleep:idle --why="auditoria do dataset" \
   docker compose run --rm sandbox python -m dataset audit
-docker compose run --rm app python -m dataset report
 ```
 
-O `audit` imprime `<id>: ok (...)` por problema e termina com código `0` se nada divergiu; o `report`
-regera `data/work/reports/extraction_report.md`.
+O `audit` imprime `<id>: ok (...)` por problema e termina com código `0` se nada divergiu. O
+`report` **não precisa ser rodado**: o `validate` e o `audit` já regeram
+`data/work/reports/extraction_report.md` ao terminar.
 
 **O que guardar e enviar para a documentação ser atualizada** (tarefa T072): as últimas linhas do
 terminal de cada comando (validação, auditoria, relatório), o conteúdo de
@@ -334,15 +392,16 @@ ainda vai gerar, com apenas os problemas completos.
   menos de 150 incorretas brutas (metodologia, seção 1.7).
 - O streaming lê todas as colunas de cada linha (não há projeção de colunas): a extração completa
   levou cerca de 23 minutos em 2026-09-20; o volume de rede não foi medido.
-- **Só o piloto da validação foi executado sobre o dataset real** (2026-09-21, 14 problemas do
-  `train`): 85,5% das candidatas viraram WA e não há déficit projetado, mas `valid` e `test` não
-  foram testados; a execução completa e a auditoria ainda não rodaram. Se a meta de 200 problemas
-  com exatamente 100 WA não fechar, nada é relaxado automaticamente.
-- **Cerca de 1 em cada 5 problemas vai para `pending_triage`** (3 dos 14 do piloto): verificador
-  especial (várias respostas válidas), gabarito do dataset com linha em branco inicial e testes
-  gerados fora das restrições do enunciado. Eles são interrompidos e registrados (decisão D8), mas a
-  inspeção manual é adiada e só ocorre se a meta de 200 falhar (decisão D17); os números e as causas
-  estão na metodologia, seção 1.7.
+- **A validação completa foi executada** (2026-09-21): 200 problemas completos de 264 processados
+  (as posições 0 a 263 do pool), 21 descartados por WA insuficientes e 43 em `pending_triage`; só
+  5 dos 28 problemas de `valid`/`test` foram processados (a amostra tem 198 do `train` e 2 do
+  `test`). **A auditoria (`audit`) ainda não rodou.** Se a meta de 200 problemas com exatamente
+  100 WA não tivesse fechado, nada seria relaxado automaticamente.
+- **Cerca de 1 em cada 6 problemas processados foi para `pending_triage`** (43 de 264, 16,3%):
+  verificador especial (várias respostas válidas), gabarito do dataset com formatação diferente e
+  testes gerados fora das restrições do enunciado. Eles são interrompidos e registrados (decisão
+  D8), mas a inspeção manual é adiada e só ocorre se a meta de 200 falhar (decisão D17), o que não
+  aconteceu; os números e as causas estão na metodologia, seção 1.7.
 - O `AC_ref` é executado no processo principal e as candidatas a WA em paralelo; o resultado não
   depende do número de processos, mas o tempo sim.
 - Um programa pode gravar arquivos no diretório temporário do seu slot; eles persistem entre os testes
@@ -362,5 +421,5 @@ ainda vai gerar, com apenas os problemas completos.
 | `extract` | 2026-09-20 | 7440706 | T035 |
 | `report` | 2026-09-20 | 71747a1 | T035 |
 | `selfcheck` | 2026-09-21 | 5121759 | T050 |
-| `validate` | pendente | — | — |
+| `validate` | 2026-09-21 | ee3a422 | T072 |
 | `audit` | pendente | — | — |

@@ -47,9 +47,10 @@ qualquer um com Docker Compose v2. Nenhum código C++ de terceiros roda no host.
 **Project Type**: pipeline em Python (CLI + bibliotecas por módulo), estrutura `src/<modulo>/`.
 
 **Performance Goals**: validar ~350 problemas processados (para chegar a 200 completos) em
-~5 h com 8 trabalhadores, com paralelismo por candidata (R11); **medido no piloto de 2026-09-21**:
-mediana de 102 s por problema completo com 4 processos e ~71% de problemas completos, o que
-extrapola para ~281 problemas e ~7 h com 4 processos (o número real vem da execução completa); extração em uma única passagem
+~5 h com 8 trabalhadores, com paralelismo por candidata (R11); **medido**: no piloto de 2026-09-21, mediana de
+102 s por problema completo com 4 processos e ~71% de problemas completos (extrapolação de ~281
+problemas e ~7 h); **na validação completa de 2026-09-21, 264 problemas processados (75,8%
+completos) em 5 h 06 min com 4 processos, mediana de 83 s por problema completo**; extração em uma única passagem
 pelo dataset de origem (≥ 30 min: a passagem só com colunas leves levou ~28 min, R1).
 
 **Constraints**: nenhum limite de tempo/memória de problema é constante no código; sem rede
@@ -318,7 +319,7 @@ Explicação para os autores no `README.md` da raiz ("Como o dataset circula ent
   `common.py` (base `Schema` com `extra="forbid"`, `Macrocategoria`, `Split`, `schema_version`).
 - `extraction/`: `stream.py` (streaming e `staging`).
 - `filtering/`: `eligibility.py` (critérios e motivos), `classification.py` (macrocategoria).
-- `validation/`: `suite.py` (a suíte oficial em ordem, com grupo e índice de cada teste),
+- `validation/`: `repair.py` (substitui, na auditoria, um WA divergente pelo próximo candidato não tentado, com confirmação reforçada; D18), `suite.py` (a suíte oficial em ordem, com grupo e índice de cada teste),
   `engine.py` (o motor visto pela validação: `compile`, `run_suite` e a versão do GCC, injetável nos
   testes), `ac.py` (escolha e execução do `AC_ref`, triagem, `format_only`), `wa.py` (seleção
   determinística das candidatas, estabilidade, consumo em ordem, parada antecipada),

@@ -20,6 +20,7 @@ from dataset.persistence import store
 from dataset.schemas.pool import Pool, RawProblem
 from dataset.validation import audit as auditing
 from dataset.validation import problem as validating
+from dataset.validation import repair as repairing
 from dataset.validation.runtime import Runtime
 from sandbox.types import InfraError
 
@@ -37,6 +38,28 @@ class UsageError(Exception):
 
 class NoPoolError(UsageError):
     """There is no `pool.json`: the extraction has not run (a data failure, exit code 1)."""
+
+
+def _consumed_for(root: Path, problem_id: str) -> int:
+    """How many candidates `validate` walked through for ``problem_id`` (from the run log).
+
+    Repair needs this to know which candidates were never tried and are safe to offer as
+    replacements (decision D18); it is the authoritative source, kept for every problem
+    `validate` closes.
+    """
+    path = Path(root) / config.REPORTS_DIR / "validation_log.jsonl"
+    consumed = None
+    if path.is_file():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            record = json.loads(line)
+            if record.get("problem_id") == problem_id:
+                consumed = record.get("consumed")
+    if consumed is None:
+        raise repairing.RepairExhausted(
+            f"{problem_id}: no entry in validation_log.jsonl; cannot tell which candidates were "
+            "already tried, so repair refuses to guess"
+        )
+    return consumed
 
 
 def _read_pool(root: Path) -> Pool:
@@ -221,9 +244,23 @@ def run_audit(
                 diverged = True
                 out(f"{pid}: audit FAILED, AC_ref is now {result.triage.verdict}; pending_triage")
             elif result.wa_mismatches:
-                diverged = True
-                names = ", ".join(f"{m.file} ({m.obtained})" for m in result.wa_mismatches)
-                out(f"{pid}: WA divergence (reported only): {names}")
+                try:
+                    fixed = repairing.repair_problem(
+                        root,
+                        pid,
+                        result.wa_mismatches,
+                        runtime,
+                        consumed=_consumed_for(root, pid),
+                    )
+                except repairing.RepairExhausted as exc:
+                    diverged = True
+                    out(f"{pid}: could not be repaired ({exc}); needs the authors' attention")
+                else:
+                    names = ", ".join(fixed.repaired)
+                    out(
+                        f"{pid}: {len(fixed.repaired)} WA candidate(s) repaired (decision D18): "
+                        f"{names}"
+                    )
             else:
                 out(f"{pid}: ok (AC_ref and {result.wa_checked} WA as recorded)")
     finally:

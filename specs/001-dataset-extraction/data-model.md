@@ -232,5 +232,7 @@ problems/<id> [pending_triage] ──resolução manual (apagar a pasta)──�
 A resolução manual de um `pending_triage` é adiada (D17): só se faz se a meta de 200 não for
 atingida com os demais problemas do pool.
 
+Um candidato de WA cujo veredito ou teste decisivo diverge na auditoria é substituído pelo próximo candidato não tentado da mesma ordem determinística, com confirmação reforçada (D18); não vira `pending_triage` nem some do problema `complete`.
+
 Regras de retomada (FR-024): `complete`, `pending_triage` e `discarded` não são reprocessados;
 `building/` é sempre descartado e refeito. Contam para a meta de 200 somente os `complete`.

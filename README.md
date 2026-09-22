@@ -8,15 +8,16 @@ teste unitários em C++.
 > arquitetura do experimento, como os módulos se conectam e como reproduzir o experimento do
 > zero. É atualizado sempre que um módulo é adicionado ou o fluxo entre módulos muda.
 >
-> **Estado atual (2026-09-21)**: o "Guia de execução, do clone ao primeiro comando" (abaixo) cobre a
+> **Estado atual (2026-09-22)**: o "Guia de execução, do clone ao primeiro comando" (abaixo) cobre a
 > preparação do ambiente para quem não conhece Docker. A fundação do projeto está pronta e verificada em contêiner
 > (imagem `gcc:13.2.0` com Python 3.11 via `uv`, tipos e limites do motor, armazenamento
 > determinístico, CLI base e o verificador de documentação). No módulo `dataset`, a extração
 > (`extract`) foi **executada de verdade em 2026-09-20** (13.610 exemplos lidos, pool de 1.234
 > problemas elegíveis) e o relatório (`report`) está implementado. O motor de execução (módulo
 > `sandbox`) está implementado e passa em todos os testes no contêiner, inclusive isolamento e o
-> `selfcheck`; a validação dos códigos no motor (`validate` e `audit`) está implementada e teve um
-> piloto de 10 problemas em 2026-09-21; a execução completa e o empacotamento ainda não existem. A feature `001-dataset-extraction` tem spec, plano e tarefas
+> `selfcheck`; a validação dos códigos no motor (`validate` e `audit`) está implementada; `validate`
+> foi executado por completo em 2026-09-21 (200 problemas validados em 5 h 06 min) e `audit` em
+> 2026-09-22 (13 WA reparadas automaticamente, decisão D18); o empacotamento ainda não existe. A feature `001-dataset-extraction` tem spec, plano e tarefas
 > prontos; o restante do experimento está descrito na metodologia, mas ainda não especificado. Por isso a seção "Executando os módulos" marca cada etapa
 > com o seu estado. **A reprodução completa só será possível quando todas as etapas estiverem
 > implementadas**; este documento será completado à medida que os módulos chegarem.
@@ -102,8 +103,8 @@ dataset", mais abaixo.
 | Fase | Comando (`docker compose run --rm <serviço> python -m dataset <comando>`) | O que acontece | O que fica em disco | Estado |
 |---|---|---|---|---|
 | 1 | `extract` (serviço `app`, com internet) | lê **todos** os 13.610 exemplos do `code_contests` em streaming, descarta na hora os que não servem e grava só os 1.234 elegíveis (medido na extração real de 2026-09-20), cada um com enunciado, testes, códigos corretos e **todas as submissões incorretas em C++ como candidatas** a WA. **Não executa nenhum código** | `data/work/staging/` | disponível (ainda sem execução real) |
-| 2 | `validate` (serviço `sandbox`) | executa, no motor isolado, o código correto e as candidatas a WA de cada problema, na ordem do pool, até reunir 200 problemas completos com exatamente 100 WAs cada | `data/work/problems/` | implementado e testado; **piloto de 10 problemas executado em 2026-09-21**, execução completa ainda não |
-| 3 | `audit` (serviço `sandbox`) | reexecuta os problemas completos como conferência | — | implementado e testado; ainda não executado sobre o dataset real (a rodar depois da execução completa) |
+| 2 | `validate` (serviço `sandbox`) | executa, no motor isolado, o código correto e as candidatas a WA de cada problema, na ordem do pool, até reunir 200 problemas completos com exatamente 100 WAs cada | `data/work/problems/` | **executado em 2026-09-21**: 200 de 200 em 5 h 06 min (264 problemas processados); o relatório é regerado ao fim |
+| 3 | `audit` (serviço `sandbox`) | segunda conferência, **uma vez**, antes do `package`: reexecuta no motor o código correto e as 100 WA de cada problema completo, a partir dos arquivos gravados, e compara com o registrado; uma WA que diverge é **reparada automaticamente**, substituída pelo próximo candidato não tentado com confirmação reforçada (decisão D18) | — | **executado em 2026-09-22**: 13 de 26.400 WA divergiram e foram reparadas; detalhes no README do módulo |
 | 4 | `package` (serviço `app`) | copia **só os problemas completos** para um zip determinístico e gera o manifesto e o relatório final | `data/dataset.zip`, `manifests/` | planejado |
 | 5 | `verify` (serviço `app`) | confere o zip contra o manifesto | — | planejado |
 | 6 | `git add data/dataset.zip manifests/` e commit/push | é o único jeito de o dataset chegar ao outro autor; nada mais de `data/` é versionado | — | planejado |
@@ -310,7 +311,7 @@ Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
 |---|---|---|
 | 0 e 1. Preparar o ambiente | Passos 1 a 5 deste guia | disponível |
 | 2. Obter o dataset (quem recebe) | **sem rodar a extração**: `unzip data/dataset.zip -d data/` e depois `docker compose run --rm app python scripts/verify_dataset.py --extracted data/dataset` (detalhes e o caso de atualização em "Como o dataset circula entre os autores") | planejado (o zip só existe depois da feature 001) |
-| 2b. Ou gerar o dataset do zero (quem gera, uma vez) | [passo a passo do módulo `dataset`](src/dataset/README.md): `docker compose run --rm app python -m dataset extract` e `docker compose run --rm app python -m dataset report` estão **disponíveis** (`extract` executado de verdade em 2026-09-20); `validate` e `audit` estão implementados e testados (`validate` teve um piloto de 10 problemas em 2026-09-21; a execução completa e o `audit` ainda não rodaram); `package` é planejado ([contrato dos comandos](specs/001-dataset-extraction/contracts/cli.md), [roteiro de aceite](specs/001-dataset-extraction/quickstart.md)) | em implementação (feature 001) |
+| 2b. Ou gerar o dataset do zero (quem gera, uma vez) | [passo a passo do módulo `dataset`](src/dataset/README.md): `docker compose run --rm app python -m dataset extract` e `docker compose run --rm app python -m dataset report` estão **disponíveis** (`extract` executado de verdade em 2026-09-20); `validate` e `audit` estão implementados e testados (`validate` foi executado por completo em 2026-09-21, 200 de 200; o `audit` ainda não rodou); `package` é planejado ([contrato dos comandos](specs/001-dataset-extraction/contracts/cli.md), [roteiro de aceite](specs/001-dataset-extraction/quickstart.md)) | em implementação (feature 001) |
 | Verificar o motor de execução | `docker compose run --rm sandbox python -m dataset selfcheck` (passo a passo em [`src/sandbox/README.md`](src/sandbox/README.md)) | disponível (verificado em 2026-09-21) |
 | 3. Gerar mutantes | — | não especificado |
 | 4. Gerar suítes com os modelos | — | não especificado (exige chaves de API em `.env`; ver `.env.example`) |
@@ -362,7 +363,7 @@ nesta seção).
 | `docker compose run --rm app python -m dataset extract` | `app` | lê o `code_contests` em streaming e grava o pool de problemas elegíveis em `data/work/staging/` (opções `--seed`, `--splits`, `--limit-rows`) | disponível (executado em 2026-09-20) |
 | `docker compose run --rm app python -m dataset report` | `app` | regenera o relatório em `data/work/reports/` a partir do pool e dos problemas validados | disponível |
 | `docker compose run --rm sandbox python -m dataset selfcheck` | `sandbox` | confere o motor de execução com 9 programas de veredito conhecido | disponível (README do `sandbox`) |
-| `docker compose run --rm sandbox python -m dataset validate` (roteiro completo em [`src/dataset/README.md`](src/dataset/README.md), seção "Roteiro da execução completa") | `sandbox` | roda o `selfcheck` e depois executa o código correto e as candidatas a WA de cada problema no motor, até reunir a meta de problemas completos; grava as pastas em `data/work/problems/` (opções `--target`, `--workers`, `--problem`; piloto: `--target 10`) | implementado e testado; piloto de 10 problemas executado em 2026-09-21, execução completa ainda não |
+| `docker compose run --rm sandbox python -m dataset validate` (roteiro completo em [`src/dataset/README.md`](src/dataset/README.md), seção "Roteiro da execução completa") | `sandbox` | roda o `selfcheck` e depois executa o código correto e as candidatas a WA de cada problema no motor, até reunir a meta de problemas completos; grava as pastas em `data/work/problems/` (opções `--target`, `--workers`, `--problem`; piloto: `--target 10`) | **executado em 2026-09-21** (200 de 200 em 5 h 06 min); comandos carimbados no README do módulo |
 | `docker compose run --rm sandbox python -m dataset audit` | `sandbox` | reexecuta o motor sobre os problemas completos e confere com `validacao.json` (opção `--problem`, repetível) | implementado e testado; ainda não executado sobre o dataset real |
 | `package` | `app` | gera `data/dataset.zip` e os manifestos | planejado (feature 001) |
 | `verify` e `scripts/verify_dataset.py` | `app` | confere o zip e a pasta descompactada contra o manifesto | planejado (feature 001) |

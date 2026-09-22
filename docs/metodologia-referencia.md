@@ -138,6 +138,10 @@ por arquivo (todos com `input.txt`/`output.txt`) são `120_A`, `120_B`, `120_C`,
 `234_C`, `253_A`, `253_B`, `253_C` e `36_A` (2 matemática, 3 estrutural/otimização, 4 lógica
 direta).
 
+**Amostra final (validação de 2026-09-21, T072; detalhes em 1.7)**: 200 problemas, `logica_direta`
+98, `estrutural_otimizacao` 61 e `matematica` 41; `train` 198 e `test` 2. Foram processados 264 dos
+1.234 problemas do pool (21 descartados por WA insuficientes e 43 em triagem adiada).
+
 O pool de elegíveis é cerca de seis vezes a meta de 200, então nenhum critério precisou ser
 relaxado. O filtro de dependência visual é o que mais remove (463 problemas, 26% dos que
 chegavam a ele); como único motivo: `image` 189, `as follows` 77, `http` 27, `figure` 10,
@@ -314,7 +318,8 @@ Esse campo é persistido por problema (ver 1.5 — `metadata.json`).
   exige atualizar este item, a spec (D13) e as tarefas T071 e T069. O relatório traz as
   contagens (`ac_tested`, `triage_by_cause`) para a execução completa também, sem reabertura
   automática. **Resultado do piloto de 2026-09-21 (1.7)**: regra 2, 1 de 14 ACs testados (7,1%);
-  regra 5, 0 de 14; nenhuma das duas reabre.
+  regra 5, 0 de 14; nenhuma das duas reabre. **Na validação completa (264 ACs testados)**: regra 2,
+  9 (3,4%); regra 5, 1 (0,4%).
 - **[MEDIDO, 2026-09-21 — T049] Refinamentos da implementação do motor** (não alteram as
   regras decididas; detalhes e números em 1.7): (i) o pico de memória de um programa é medido por
   um lançador nativo minúsculo (`sandbox-launch`, compilado na imagem com o GCC fixado), porque o
@@ -422,6 +427,12 @@ que está em `data/work/` e o resultado publicado é o zip. Cada autor constrói
 Docker, idêntica pela fixação de versões, e o dataset chega aos contêineres pelo volume `./data`,
 não pela imagem.
 
+**Reparo de WA que diverge na auditoria (2026-09-22, T072/D18, reparo automático)**. A auditoria da execução completa (2026-09-21) achou 13 WA divergentes, em 12 dos 200 problemas (6,5% dos problemas completos): 10 vereditos instáveis entre duas execuções da própria auditoria, 3 com o mesmo veredito WA mas em outro teste decisivo, 2 que passaram a dar `TLE` e 1 a dar `RE`. A inspeção do código-fonte confirmou a causa em cada caso: **comportamento indefinido** (acesso fora dos limites de um vetor — por exemplo `long long A[3]; ... A[3]` em `73_A/WA_15.cpp`, que lê a posição seguinte à última válida; variável não inicializada usada antes de ser atribuída — `WA_5.cpp` de `1230_B`, `WA_87.cpp` de `574_A`) ou **execução no limiar do limite de tempo** (um laço cuja duração real varia com a máquina, sem UB). Em ambos os casos, o resultado exato não depende só da entrada, e um candidato assim é um mau "gabarito" fixo para as métricas do experimento.
+
+**Investigação de causa (ASLR) e por que não foi adotada como correção**: a hipótese inicial era que o endereçamento aleatório do kernel (ASLR) fizesse a memória "lixo" lida pelo comportamento indefinido variar entre execuções, e que desligá-lo (`personality(ADDR_NO_RANDOMIZE)`) tornaria os programas deterministicamente reprodutíveis. Verificado por chamada direta ao `personality()`: o perfil de seccomp padrão do Docker recusa essa chamada mesmo como root (`EPERM`), mesmo sem alteração de capabilities; confirmado que liberá-la exigiria um perfil de seccomp customizado (risco de infraestrutura não avaliado). Além disso, ASLR não explica os casos no limiar do tempo, que são de variação real de execução, não de memória. Por isso a correção foi na seleção dos candidatos, não no ambiente de execução.
+
+**Decisão (D18), reparo automático**: `audit` (`dataset.validation.repair`) substitui cada WA divergente pelo próximo candidato não tentado da mesma ordem determinística da seleção original (a mesma regra de D13/R12), exigindo dele uma confirmação mais forte — duas checagens de estabilidade independentes (2 execuções cada, ou seja, 4 execuções concordantes) contra as 2 da seleção original — e falha explicitamente se os candidatos não tentados se esgotarem sem um substituto confirmado. O número de WA continua exatamente 100, na mesma numeração, e nenhum outro arquivo do problema é tocado.
+
 ### 1.7 Dados empíricos medidos durante o planejamento (2026-09-19)
 
 **[CORRIGIDO]** Números medidos durante o `/speckit-plan` da feature `001-dataset-extraction`,
@@ -508,6 +519,40 @@ embaralhada e o piloto não chegou a `valid`/`test`):
   podem conter entradas fora das restrições do problema**, o que reprova um AC correto.
 - Critério de reabertura de D13 (1.4): regra 2, 1 de 14 = 7,1% (limiar de 10%: **não reabre**);
   regra 5, 0 de 14; as outras 2 de 14 (14%) não fazem parte do critério.
+
+**Validação completa (2026-09-21, T072; `validate` com 4 processos, 5 h 06 min de relógio, código
+na revisão git `ee3a422`)**. A execução atingiu a meta (`included 200 of 200`, déficit 0), em uma
+única passada, sem interrupções registradas. Sobre os 264 problemas processados (posições 0 a 263
+da ordem embaralhada do pool de 1.234; inclui os 14 do piloto):
+
+- Estados: **200 `complete` (75,8%)**, 21 `discarded` (`insufficient_wa`; 19 do `train` e 2 do
+  `test`) e 43 `pending_triage` (16,3%). Os 970 problemas restantes do pool não foram tocados.
+- **Amostra final**: por macrocategoria, `logica_direta` 98, `estrutural_otimizacao` 61 e
+  `matematica` 41 (pool: 549/407/278); por origem, `train` 198, `test` 2 e `valid` 0 (dos 28
+  problemas de `valid`/`test`, só 5 foram processados: 2 completos, 2 descartados e 1 em triagem). O
+  alerta de menos de 30 problemas por macrocategoria **não disparou**.
+- Candidatas a WA consumidas (24.423): 20.666 viraram WA (84,6%), 2.661 passam em todos os testes
+  oficiais (10,9%), 648 não compilam (2,7%), 285 têm `RE` (1,2%), 126 `TLE` (0,5%), 27 têm veredito
+  instável (0,1%) e 10 `MLE`. Por problema completo, o motor consumiu de 100 a 204 candidatas
+  (mediana 108); a fração de WA por problema tem mediana de 93% e mínimo de 49%. Em 29 dos 200
+  problemas completos, 20 ou mais candidatas (até 96) passam em todos os testes oficiais: são
+  submissões marcadas como incorretas no dataset que a suíte oficial não reprova.
+- Tempo por problema completo: mediana de 83 s (mín. 68 s, máx. 338 s, média 90 s; 18.081 s no
+  total dos 200); os 264 somaram 19.646 s (5,5 h, dos quais 5 h 06 min foram medidos de relógio
+  na execução, sem os 14 do piloto). O piloto tinha extrapolado ~281 problemas e ~7 h; o real foi
+  264 problemas e 5 h 06 min.
+- **Triagens de AC: 43 dos 264 ACs testados (16,3%)**, todas mantidas em `pending_triage` e
+  **não inspecionadas** por decisão dos autores (D17), já que a meta foi atingida sem elas. Por causa,
+  segundo o relatório: divergência só de formatação 9 (3,4%), `TLE` 1 (0,4%), outras 33 (12,5%; 31
+  com saída diferente, 1 erro de compilação e 1 `RE`). A divergência apareceu em `public_tests`
+  em 31 casos, `private_tests` em 6 e `generated_tests` em 3. **Classificação heurística, não
+  inspeção** (compara as saídas): dos 42 com saída diferente, 9 só de formatação, 2 só de
+  maiúsculas e minúsculas (`Yes`/`YES`), 9 com os mesmos tokens em outra ordem (típico de problema
+  com várias respostas válidas), 4 numericamente próximos (típico de tolerância de ponto flutuante)
+  e 16 com valores diferentes (a inspecionar só se houver déficit).
+- Critério de reabertura de D13 (definido para o piloto, aqui só informativo): regra 2, 9 de 264
+  (3,4%); regra 5, 1 de 264 (0,4%); ambas abaixo do limiar de 10%.
+- Ainda **não** executados: `audit` (a auditoria) e `package`.
 
 **Volume de testes (`valid`+`test`, 29 problemas)**: mediana de 202 testes por problema (mín.
 43, máx. 241), dos quais mediana de 200 são `generated_tests` (mín. 41); carga de texto dos
@@ -811,6 +856,8 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 | 2026-09-19 | Números do dataset corrigidos por medição (13.610 exemplos; `train` 13.328; 8.101 Codeforces; 118 sem rating; 1.288 elegíveis, 1.279 com E/S por arquivo removida) e funil de elegibilidade | 1.1, 1.2, 7 |
 | 2026-09-19 | Localização do motor em pacote próprio (`src/sandbox/`), decisão confirmada na revisão do plano e que faltava aqui | 1.4 |
 | 2026-09-19 | Auditoria retroativa (Princípio XI): dados medidos de disponibilidade de submissões, volume de testes e verificações de ambiente (1.7); regras operacionais do motor como PROPOSTA; revisão fixada e licença; `schema_version`, `status` e relatório versionado; evidência e mecanismo do limite de pilha; rótulo de `AC_ref` corrigido; este histórico | 1.1, 1.4–1.7, 4, 6–8 |
+| 2026-09-22 | **Reparo de WA na auditoria (D18)**: 13 WA em 12 dos 200 problemas divergiram na auditoria (comportamento indefinido ou tempo no limiar); investigada e descartada a correção por ASLR (bloqueada pelo seccomp padrão do Docker); decisão: substituição automática pelo próximo candidato não tentado, com confirmação mais forte (4 execuções concordantes); `dataset.validation.repair` implementado e testado | 1.4, 1.7, 8 |
+| 2026-09-21 | **Validação completa (T072, parte `validate`)**: 200 de 200 em 5 h 06 min (4 processos), 264 problemas processados (75,8% completos), 21 descartados, 43 em triagem adiada (16,3%; causas em 1.7); amostra 98/61/41 por macrocategoria e 198 `train` + 2 `test`; alerta de menos de 30 não disparou; 84,6% das candidatas viraram WA; `audit` ainda pendente | 1.2, 1.4, 1.7 |
 | 2026-09-21 | **Triagem manual de AC adiada (D17)**: os problemas com o `AC_ref` reprovado seguem interrompidos e registrados, mas só serão inspecionados se a meta de 200 não for atingida com os demais; `validate` sai com 0 sempre que a meta é atingida; explicação de como os 200 problemas são escolhidos (pool embaralhado com a seed 42, os 200 primeiros que completam); item 16 resolvido | 1.4, 6 |
 | 2026-09-21 | **Piloto de validação (T071)**: 14 problemas do `train` (10 completos, 3 em triagem, 1 descartado); 85,5% das candidatas viraram WA (risco de poucas WA não se materializou), mediana de 102 s por problema completo, sem déficit projetado; critério de reabertura de D13 não atingido (regra 2: 7,1%; regra 5: 0%); descoberta de que `generated_tests` do dataset podem ter entradas fora das restrições; item 15 resolvido e item 16 (volume de triagens) aberto | 1.4, 1.7, 6 |
 | 2026-09-21 | **Motor implementado (T049)**: ambiente reconfirmado com o motor (linker, pilha, memória, isolamento); três diferenças encontradas e corrigidas (áreas graváveis por todos, zumbis, pico de memória inflado), com lançador nativo, `init: true` e `tmpfs` privados (D16); custos medidos (compilação de 2,5 s com `bits/stdc++.h`, sobrecarga de 2,5 ms por teste) | 1.4, 1.7 |
