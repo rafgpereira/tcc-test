@@ -155,6 +155,17 @@ no README da raiz.
    se houve déficit, `2` uso incorreto, `3` falha de infraestrutura (o problema em andamento fica em
    `data/work/building/`, é refeito na próxima execução e nunca vira veredito).
 
+   **Retomar depois de uma interrupção** (Ctrl+C, `SIGTERM` de `docker stop` ou o fim de uma
+   sessão, ou o código `3`): rode **o mesmo comando** de novo. `validate` descarta qualquer
+   `data/work/building/<id>/` parcial e refaz aquele problema do zero; os problemas já encerrados
+   (`complete`, `pending_triage`, `discarded`) NÃO são refeitos (são pulados, "already closed");
+   o código `130` (interrompido) sai limpo, sem tocar em nada já concluído. Verificado de
+   propósito em 2026-09-22 (T080): interromper no meio de um problema e retomar dá o mesmo
+   resultado de uma execução ininterrupta, arquivo a arquivo (exceto `extraction_timestamp` e o
+   campo medido `max_cpu_time_s`, ver seção (f)). Um problema em `pending_triage` **não** é
+   refeito automaticamente nunca (mesmo sem interrupção): para reprocessá-lo depois de resolvido,
+   apague `data/work/problems/<id>/` e rode `validate` de novo.
+
    **Conferir o piloto**: rode `docker compose run --rm app python -m dataset report` e leia, em
    `data/work/reports/extraction_report.md`, a seção "Falhas de AC por causa". Se mais de 10% dos ACs
    testados forem reprovados por divergência só de formatação ou por tempo excedido, a regra
@@ -417,6 +428,13 @@ ainda vai gerar, com apenas os problemas completos.
   aconteceu; os números e as causas estão na metodologia, seção 1.7.
 - O `AC_ref` é executado no processo principal e as candidatas a WA em paralelo; o resultado não
   depende do número de processos, mas o tempo sim.
+- **Retomada verificada de propósito** (T080, 2026-09-22): interromper `validate` com `SIGTERM`
+  no meio de um problema e rodar o mesmo comando de novo produz o mesmo resultado de uma execução
+  ininterrupta — mesmos 100 `WA_<n>.cpp`, mesmo `AC_ref.cpp`, mesmo veredito, mesmo teste
+  decisivo, mesma pasta, sem duplicação nem truncamento. A ÚNICA diferença entre duas execuções
+  (interrompida ou não) é `extraction_timestamp` **e** o campo medido `max_cpu_time_s` de
+  `validacao.json` (tempo de CPU real, varia por ruído de hardware entre execuções, nunca por
+  mudança de seleção; decisão D19, metodologia 1.4/1.5). `max_memory_bytes` se mostrou estável.
 - Um programa pode gravar arquivos no diretório temporário do seu slot; eles persistem entre os testes
   de uma mesma suíte (e são apagados a cada nova compilação).
 - O empacotamento e a verificação ainda não existem: sem `package`, não há `data/dataset.zip`.
@@ -436,3 +454,7 @@ ainda vai gerar, com apenas os problemas completos.
 | `selfcheck` | 2026-09-21 | 5121759 | T050 |
 | `validate` | 2026-09-21 | ee3a422 | T072 |
 | `audit` | 2026-09-22 | 7784486 | T072 |
+
+O comportamento de retomada do `validate` (US4) não é um subcomando novo, então não ganha linha
+própria: foi verificado de propósito em **2026-09-22, revisão `c4c394a`, tarefa T080** (ver
+seção (f) e metodologia, seção 1.4).

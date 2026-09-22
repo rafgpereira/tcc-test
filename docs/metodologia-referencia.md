@@ -335,6 +335,16 @@ Esse campo é persistido por problema (ver 1.5 — `metadata.json`).
 - **Invariante do dataset**: nenhum código C++ é persistido sem antes ter sido executado
   pelo motor com o veredito esperado (AC_ref aprovada em 100% da suíte oficial; cada WA com
   veredito de resposta errada).
+- **[VERIFICADO, 2026-09-22 — T080] Retomada e idempotência confirmadas com o motor real** (US4;
+  FR-023 a FR-025; SC-006, SC-007): interrompido `validate` com `SIGTERM` de propósito no meio de
+  um problema sintético (motor real, sem rede), a retomada descartou o `building/` parcial
+  (achado vazio: a interrupção ocorreu antes de qualquer arquivo do problema ser escrito) e
+  refez o problema do zero até `complete`, sem pasta duplicada nem arquivo truncado (SC-006). O
+  resultado da execução interrompida-e-retomada foi comparado, arquivo a arquivo, com o de uma
+  execução limpa sobre a mesma entrada: idêntico, exceto `extraction_timestamp` e o campo medido
+  `max_cpu_time_s` (achado registrado em D19, ver 1.5). Este é o primeiro teste DELIBERADO de
+  interrupção (o episódio do piloto de 2026-09-21, acima, foi acidental); confirma formalmente o
+  que aquele episódio já sugeria.
 
 ### 1.5 Estrutura de persistência local (por problema, pasta `<ContestID>_<Index>`)
 - `enunciado.md` — texto limpo do problema (`description`).
@@ -384,9 +394,22 @@ Esse campo é persistido por problema (ver 1.5 — `metadata.json`).
 
   **[DECIDIDO]** `extraction_timestamp` é gravado uma única vez, quando o problema é
   persistido, e preservado nas retomadas; fica fora da comparação de igualdade entre
-  execuções independentes (é o único campo inerentemente diferente entre elas). O manifesto
-  de integridade (1.6) identifica, portanto, uma versão específica do dataset, e não uma
-  reprodução bit a bit por reexecução do zero.
+  execuções independentes. O manifesto de integridade (1.6) identifica, portanto, uma versão
+  específica do dataset, e não uma reprodução bit a bit por reexecução do zero.
+
+  **[DECIDIDO — achado em 2026-09-22, D19, prova real de retomada]** `extraction_timestamp`
+  não é o único campo que varia entre duas execuções independentes de `validate`: o campo
+  medido `max_cpu_time_s` de `validacao.json` (tempo de CPU real, microssegundos, de `wait4`)
+  também varia, por ruído real de medição de hardware, nunca por mudança de seleção. A prova
+  real (interromper `validate` com `SIGTERM` no meio de um problema sintético, retomar,
+  comparar com uma execução ininterrupta sobre a mesma entrada, motor real) confirmou que TUDO
+  o mais é idêntico nas 101 entradas (`ac_ref` e as 100 `wa`): mesmo `sha256`, `source_index`,
+  `deciding_test`, `standard_used` e `max_memory_bytes` (que é de granularidade de página do
+  SO e por isso se mostrou estável). Não é um defeito — é esperado que uma medição real de
+  desempenho não seja determinística bit a bit em hardware real; só o motor falso dos testes
+  unitários (que devolve uma constante fixa) escondia essa variação. Não afeta o reempacotamento
+  do MESMO conjunto já validado (`package` não roda `validate` de novo, então o hash do zip
+  continua idêntico ao reempacotar os mesmos bytes já em disco, SC-008). Detalhes: spec, D19.
 
   **[CORRIGIDO — definido no plano]** Todo JSON do dataset (`metadata.json`, `testes.json`,
   `validacao.json`) traz `schema_version` (inteiro, começa em 1), por exigência de contratos
@@ -867,6 +890,7 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 | 2026-09-22 | **Reparo de WA na auditoria (D18)**: 13 WA em 12 dos 200 problemas divergiram na auditoria (comportamento indefinido ou tempo no limiar); investigada e descartada a correção por ASLR (bloqueada pelo seccomp padrão do Docker); decisão: substituição automática pelo próximo candidato não tentado, com confirmação mais forte; `dataset.validation.repair` implementado e testado | 1.4, 1.7, 8 |
 | 2026-09-22 | **Convergência aceita (D18)**: 3 rodadas de `audit` (16, 11 e 10 WA reparadas; 20 dos 200 problemas tocados ao todo); decisão dos autores de aceitar o estado atual e fazer só mais uma auditoria de fechamento antes do `package`, sem perseguir zero divergências (ruído estatístico esperado ao testar ~26.400 WA com um crivo de 2 execuções) | 1.4, 1.7, 8 |
 | 2026-09-22 | **Bug de confirmação corrigido (D18)**: a segunda execução real do `audit`, sobre o dataset já reparado, achou 8 das 13 WA reparadas (62%) divergindo de novo; a causa era um bug na confirmação (só duas de quatro chamadas eram de fato comparadas, e o valor gravado vinha de uma chamada nunca conferida); corrigido para exigir que todas as passadas concordem com a primeira, e o número de passadas subiu de 2 para 3 (6 execuções); teste de regressão específico | 1.4, 8 |
+| 2026-09-22 | **Retomada verificada de propósito e limite da garantia de determinismo (T080, D19)**: `validate` interrompido com `SIGTERM` no meio de um problema sintético (motor real) e retomado confirma SC-006 (0 pastas duplicadas, 0 arquivos truncados) e SC-007/FR-025 para tudo que decide a seleção; achado que `max_cpu_time_s` de `validacao.json`, além de `extraction_timestamp`, também varia entre execuções (ruído real de medição, não de seleção); `max_memory_bytes` permanece estável; não afeta o hash do zip ao reempacotar o mesmo conjunto (SC-008) | 1.4, 1.5, 8 |
 | 2026-09-21 | **Validação completa (T072, parte `validate`)**: 200 de 200 em 5 h 06 min (4 processos), 264 problemas processados (75,8% completos), 21 descartados, 43 em triagem adiada (16,3%; causas em 1.7); amostra 98/61/41 por macrocategoria e 198 `train` + 2 `test`; alerta de menos de 30 não disparou; 84,6% das candidatas viraram WA; `audit` ainda pendente | 1.2, 1.4, 1.7 |
 | 2026-09-21 | **Triagem manual de AC adiada (D17)**: os problemas com o `AC_ref` reprovado seguem interrompidos e registrados, mas só serão inspecionados se a meta de 200 não for atingida com os demais; `validate` sai com 0 sempre que a meta é atingida; explicação de como os 200 problemas são escolhidos (pool embaralhado com a seed 42, os 200 primeiros que completam); item 16 resolvido | 1.4, 6 |
 | 2026-09-21 | **Piloto de validação (T071)**: 14 problemas do `train` (10 completos, 3 em triagem, 1 descartado); 85,5% das candidatas viraram WA (risco de poucas WA não se materializou), mediana de 102 s por problema completo, sem déficit projetado; critério de reabertura de D13 não atingido (regra 2: 7,1%; regra 5: 0%); descoberta de que `generated_tests` do dataset podem ter entradas fora das restrições; item 15 resolvido e item 16 (volume de triagens) aberto | 1.4, 1.7, 6 |

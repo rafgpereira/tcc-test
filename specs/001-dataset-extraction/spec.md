@@ -448,7 +448,9 @@ apontando o arquivo divergente.
   refeitos automaticamente: permanecem pendentes até resolução manual (FR-011b).
 - **FR-025**: Dado o mesmo dataset de origem, as mesmas seeds e o mesmo ambiente de
   execução, duas execuções completas MUST produzir a mesma seleção de problemas e o mesmo
-  conteúdo de arquivos, exceto pelo campo `extraction_timestamp` (ver Divergências, D3).
+  conteúdo de arquivos, exceto pelo campo `extraction_timestamp` (ver Divergências, D3) e pelo
+  campo medido `max_cpu_time_s` de `validacao.json` (ruído real de medição de hardware, não de
+  seleção; ver D19).
 
 **Empacotamento e integridade**
 
@@ -570,7 +572,10 @@ apontando o arquivo divergente.
   mesmo conjunto de problemas de uma execução ininterrupta, com 0 pastas duplicadas e 0
   arquivos truncados.
 - **SC-007**: Duas execuções completas sobre a mesma entrada, seeds e ambiente produzem
-  conteúdo idêntico em todos os arquivos, exceto o carimbo de data/hora de extração.
+  conteúdo idêntico em todos os arquivos, exceto o carimbo de data/hora de extração e o campo
+  medido `max_cpu_time_s` de `validacao.json` (D19; confirmado em 2026-09-22, T080, com o motor
+  real: os 100 `WA_<n>.cpp`, `AC_ref.cpp`, `sha256`, `deciding_test`, `standard_used` e
+  `max_memory_bytes` são idênticos).
 - **SC-008**: O empacotamento repetido do mesmo dataset produz arquivos compactados com
   hashes idênticos.
 - **SC-009**: A verificação de integridade passa em 100% das vezes sobre um dataset íntegro
@@ -863,3 +868,29 @@ também em 2026-09-19.
   auditoria confere cada WA com só 2 execuções, a força da seleção original, não as 6 do
   reparo); mais uma auditoria de fechamento, de praxe, roda imediatamente antes do `package`
   (T093). Detalhes na metodologia, seção 1.7.
+- **D19 — `max_cpu_time_s` não entra na garantia de "arquivos idênticos" entre execuções
+  (achado em 2026-09-22, T080)**: a prova real de retomada (interromper `validate` com
+  `SIGTERM` no meio de um problema, retomar, comparar com uma execução ininterrupta sobre a
+  mesma entrada sintética, motor real, sem rede) confirmou SC-006 integralmente (mesmo problema
+  `complete`, 0 pastas duplicadas, 0 arquivos truncados) e confirmou SC-007/FR-025 para tudo que
+  decide a seleção: os mesmos 100 `WA_<n>.cpp` (mesmo texto, mesmo `sha256`, mesmo
+  `source_index`), o mesmo `AC_ref.cpp`, o mesmo `deciding_test`, o mesmo `standard_used` e o
+  mesmo `max_memory_bytes` para cada um dos 101 códigos (`ac_ref` e as 100 `wa`). Mas achou uma
+  exceção adicional, além de `extraction_timestamp`, à afirmação "conteúdo idêntico em todos os
+  arquivos": o campo medido `max_cpu_time_s` de `validacao.json` (tempo de CPU real, resolução de
+  microssegundos, lido de `wait4`) variou nas 101 entradas entre a execução
+  interrompida-e-retomada e a execução limpa, por ruído real de medição de hardware (contenção de
+  CPU, cache, escalonador), nunca por mudança de seleção. Não é um defeito: é uma medição real de
+  desempenho, não uma decisão do algoritmo, e não deveria mesmo ser determinística bit a bit entre
+  execuções em hardware real (só o `FakeEngine` dos testes unitários, que devolve uma constante
+  fixa para `max_cpu_time_s`, escondia essa variação — por isso só a prova real, com o motor de
+  verdade, revelou o caso). Decisão: FR-025 e SC-007 passam a excluir explicitamente
+  `max_cpu_time_s` de `validacao.json` (junto do já documentado `validation_log.jsonl`) da
+  garantia de "conteúdo idêntico entre execuções de `validate`" — ela continua valendo para tudo
+  que decide a seleção (`verdict`, `sha256`, `source_index`, `deciding_test`, `standard_used`,
+  `max_memory_bytes`) e para a árvore que o `package` empacota. Isto NÃO afeta SC-008 (hash do
+  zip idêntico ao reempacotar): `package` lê os arquivos já gravados em `data/work/problems/` sem
+  rodar `validate` de novo, então reempacotar o MESMO conjunto validado (os mesmos bytes já em
+  disco, `max_cpu_time_s` incluso) continua determinístico; o que varia é só `max_cpu_time_s`
+  **entre duas execuções distintas de `validate`** sobre a mesma entrada. Reflete-se em FR-025,
+  SC-007 e em data-model.md §2.3.

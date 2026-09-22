@@ -90,7 +90,12 @@ Pelo menos um teste no total; grupos podem ser vazios individualmente.
 
 `CodeValidation`: `file` (str, nome do arquivo), `sha256` (str), `verdict` (enum `Verdict`),
 `standard_used` (str \| null), `max_cpu_time_s` (float), `max_memory_bytes` (int),
-`tests_run` (int).
+`tests_run` (int). `max_cpu_time_s` é uma medição real de hardware (`wait4`, microssegundos):
+duas execuções de `validate` sobre a mesma entrada podem gravar valores levemente diferentes
+para o mesmo código, por ruído real (contenção de CPU, cache, escalonador), nunca por mudança
+de seleção; **não** entra na garantia de conteúdo idêntico entre execuções (FR-025, SC-007;
+D19). `max_memory_bytes` é de granularidade de página do SO e se mostrou estável entre
+execuções na prova real de retomada (T080).
 
 `WaValidation` estende `CodeValidation` com: `source_index` (int, posição na lista
 `incorrect_solutions` do dataset), `deciding_test` (`{group, index}`, o primeiro teste que não

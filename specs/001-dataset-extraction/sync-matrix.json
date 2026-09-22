@@ -157,6 +157,15 @@
     "dataset.validation.repair"
    ],
    "source": "spec.md#D18"
+  },
+  {
+   "id": "D19",
+   "methodology_section": "1.4, 1.5, 8",
+   "needles": [
+    "max_cpu_time_s",
+    "T080"
+   ],
+   "source": "spec.md#D19"
   }
  ],
  "schema_version": 1
