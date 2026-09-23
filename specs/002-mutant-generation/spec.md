@@ -18,6 +18,22 @@ dataset: a instabilidade de margem já medida no motor de execução (D18/D19 do
 dataset). Este módulo NÃO inclui chamadas a modelos de IA, avaliação das suítes geradas nem
 cálculo de métricas — isso é escopo de módulos futuros."
 
+## Clarifications
+
+### Session 2026-09-23
+
+- Q: Quando um problema tem mais de 100 mutantes de primeira ordem válidos, como o sistema
+  escolhe exatamente quais 100 entram? → A: truncamento determinístico pelos primeiros 100 na
+  ordem de descoberta da travessia da AST (mesma ordem já usada para ordem superior); o módulo
+  não usa nenhuma operação aleatória, e por isso não precisa de seed própria.
+- Q: A validação de estabilidade de cada mutante candidato deve exigir 2 execuções concordantes
+  ou 3 (6 execuções no total)? → A: 3 (6 execuções no total) — a mesma força já usada no reparo
+  de WA (D18), depois que a regra original de 2 execuções se mostrou insuficiente na prática.
+- Q: Se um problema não fechar 100 mutantes válidos, isso afeta só a métrica de Escore de
+  Mutação (podendo ficar com menos de 200 problemas nela) ou aciona a escolha de um substituto
+  no dataset? → A: só a métrica de Escore de Mutação é afetada (TDF/TFP continuam sobre os 200);
+  a exclusão sempre gera um alerta explícito e documentado no relatório, nunca silenciosa.
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
@@ -137,7 +153,8 @@ de uma execução de teste contém os campos exigidos e que os totais somam corr
 
 1. **Given** uma execução completa da geração de mutantes, **When** ela termina, **Then** o
    sistema grava um relatório com o funil de descarte por motivo, a distribuição de mutantes
-   por operador e por ordem (1ª vs. superior), a seed usada e a revisão de código do módulo.
+   por operador e por ordem (1ª vs. superior), qualquer alerta de exclusão de problema e a
+   revisão de código do módulo.
 
 ---
 
@@ -178,6 +195,11 @@ de uma execução de teste contém os campos exigidos e que os totais somam corr
   (insere um operador unário à frente de uma expressão existente) — ver Divergências, D2.
 - **FR-003**: Cada mutante de primeira ordem MUST diferir do `AC_ref.cpp` por exatamente um
   sítio de mutação alterado por um único operador.
+- **FR-003a**: Quando o número de mutantes de primeira ordem válidos e distintos de um problema
+  for maior que 100, o sistema MUST reter exatamente os primeiros 100, na mesma ordem
+  determinística de descoberta de sítios na travessia da AST usada em FR-004, descartando o
+  restante sem nenhuma seleção aleatória (ver Divergências, D6, revisado nesta sessão de
+  esclarecimento).
 
 **Ordem superior**
 
@@ -202,10 +224,11 @@ de uma execução de teste contém os campos exigidos e que os totais somam corr
   no módulo `sandbox` (metodologia, seções 1.4 e 4) para compilar, executar e julgar cada
   mutante candidato — as mesmas flags, os mesmos limites e a mesma regra de comparação de saída
   usados para validar o dataset.
-- **FR-007**: O sistema MUST exigir duas execuções independentes concordantes (mesmo veredito e
-  mesmo teste decisivo) antes de aceitar definitivamente um mutante candidato como válido,
-  descartando-o como instável quando as execuções não concordarem — dada a instabilidade de
-  margem já documentada no motor de execução (ver Divergências, D5).
+- **FR-007**: O sistema MUST exigir **6 execuções concordantes** (mesmo veredito e mesmo teste
+  decisivo) antes de aceitar definitivamente um mutante candidato como válido, descartando-o
+  como instável quando alguma delas divergir — a mesma força (3 checagens de estabilidade
+  independentes, 2 execuções cada) já usada para o reparo de WA depois que a regra original de
+  2 execuções se mostrou insuficiente na prática (ver Divergências, D5).
 
 **Base de mutação**
 
@@ -215,7 +238,14 @@ de uma execução de teste contém os campos exigidos e que os totais somam corr
 - **FR-009**: Quando um problema não atingir 100 mutantes válidos mesmo após esgotada a
   combinação de ordem superior (FR-004), o sistema MUST excluir esse problema do conjunto final
   de mutantes e registrar o motivo no relatório (FR-013), em vez de aceitar um número menor que
-  100 ou de usar uma base de mutação adicional.
+  100 ou de usar uma base de mutação adicional. O denominador de 200 problemas usado pelas
+  demais métricas (TDF, TFP) MUST NOT ser afetado — só o cálculo do Escore de Mutação (MS), que
+  passa a ser calculado sobre os problemas efetivamente completos (< 200 quando houver exclusão),
+  fica sujeito a essa exclusão (ver Divergências, D4, revisado).
+- **FR-009a**: Toda exclusão de problema por FR-009 MUST disparar um alerta explícito no
+  relatório (FR-013) — identificador do problema, quantos mutantes válidos foram alcançados e em
+  que ordem (1ª, 2ª ou 3ª) — de modo que a situação nunca passe silenciosa, mesmo sendo a
+  estimativa de pesquisa que ela seja rara ou inexistente.
 
 **Dependência do dataset**
 
@@ -226,11 +256,11 @@ de uma execução de teste contém os campos exigidos e que os totais somam corr
 
 **Reprodutibilidade e empacotamento**
 
-- **FR-011**: Toda escolha determinística do módulo que dependa de ordem (a ordem de tentativa
-  de combinações de ordem superior, quando houver mais de uma opção possível) MUST usar uma
-  seed fixa e documentada, derivada da seed global do projeto (`SEED = 42`) por um namespace
-  próprio deste módulo, nunca reaproveitando sem distinção o gerador de outro módulo (ver
-  Divergências, D6).
+- **FR-011**: O módulo MUST NOT usar nenhuma operação aleatória: toda ordem de descoberta de
+  sítios, toda combinação de ordem superior (FR-004) e todo truncamento de excedentes (FR-003a)
+  MUST seguir exclusivamente a ordem determinística de travessia da AST — nunca amostragem ou
+  escolha aleatória entre candidatos equivalentes. Não há, portanto, seed própria deste módulo
+  a documentar (ver Divergências, D6, revisado).
 - **FR-012**: Os mutantes gerados durante o desenvolvimento iterativo do módulo MUST NOT ser
   versionados no controle de versão. Ao final da execução completa que sustenta os números
   publicados do experimento, o sistema MUST poder compactar os mutantes de todos os problemas
@@ -240,8 +270,9 @@ de uma execução de teste contém os campos exigidos e que os totais somam corr
 - **FR-013**: O sistema MUST produzir um relatório versionável (`manifests/mutation_report.json`)
   contendo, no mínimo: o funil de descarte por motivo (duplicata, não compila, TLE/MLE/RE,
   equivalente, instável), quantos mutantes de cada problema vieram de primeira ordem e quantos
-  de ordem superior, a distribuição de mutantes por operador, a seed usada e a revisão de
-  código (git) do módulo de mutação que produziu aquele resultado.
+  de ordem superior, a distribuição de mutantes por operador, a lista de alertas de exclusão de
+  problema (FR-009a, vazia no caso esperado) e a revisão de código (git) do módulo de mutação
+  que produziu aquele resultado.
 - **FR-014**: O sistema MUST fornecer um comando de verificação, análogo ao já existente para o
   dataset, que recalcula os hashes de `data/mutants.zip` e os compara com
   `manifests/mutants.manifest.json`, apontando qualquer arquivo alterado, removido ou
@@ -262,6 +293,9 @@ de uma execução de teste contém os campos exigidos e que os totais somam corr
   usado apenas quando a primeira ordem não basta para completar a cota de 100.
 - **Registro de descarte**: motivo pelo qual um mutante candidato foi rejeitado (duplicata, não
   compila, TLE/MLE/RE, equivalente, instável), usado para compor o funil do relatório.
+- **Alerta de exclusão de problema**: registro de que um problema não alcançou 100 mutantes
+  válidos mesmo após ordem superior; afeta só o denominador da métrica de Escore de Mutação
+  (nunca o de TDF/TFP) e nunca é silencioso.
 - **Pacote de mutantes**: `data/mutants.zip`, gerado apenas na execução final do experimento,
   com manifesto de integridade próprio (`manifests/mutants.manifest.json`).
 - **Relatório de geração de mutantes**: `manifests/mutation_report.json`, dado quantitativo
@@ -273,7 +307,9 @@ de uma execução de teste contém os campos exigidos e que os totais somam corr
 
 - **SC-001**: Todo problema completo do dataset termina a geração de mutantes com exatamente
   100 mutantes válidos e distintos, ou é excluído do conjunto de mutantes com o motivo
-  registrado no relatório — nunca com um número intermediário sem explicação.
+  registrado no relatório e um alerta explícito — nunca com um número intermediário sem
+  explicação, e nunca reduzindo silenciosamente o denominador de 200 problemas usado por TDF e
+  TFP (só o do Escore de Mutação, quando isso ocorrer).
 - **SC-002**: Em uma amostra de mutantes gerados, 0% deles altera exclusivamente o conteúdo de
   um literal de texto ou de um comentário; toda alteração recai sobre uma posição de código
   executável.
@@ -305,11 +341,14 @@ de uma execução de teste contém os campos exigidos e que os totais somam corr
   está.
 - **Motor de execução**: reutilizado sem alteração do módulo `sandbox` — mesmas flags de
   compilação, mesmos limites de tempo/memória/pilha, mesma regra de comparação de saída.
-- **Seed**: `SEED = 42`, com namespace próprio para este módulo (ver Divergências, D6).
+- **Sem seed própria**: o módulo não usa nenhuma operação aleatória — seleção de sítios, ordem
+  superior e truncamento de excedentes seguem só a ordem determinística da travessia da AST (ver
+  Divergências, D6, revisado).
 - **Instabilidade de margem do motor**: aceita como fato já documentado (auditoria do módulo de
-  dataset, D18/D19); mitigada por uma checagem de estabilidade (execuções concordantes), mas
-  não eliminada — por isso a arquitetura de reprodutibilidade deste módulo não depende só da
-  seed (ver Divergências, D5).
+  dataset, D18/D19); mitigada por uma checagem de estabilidade de 6 execuções concordantes (a
+  mesma força já usada no reparo de WA), mas não eliminada — por isso a arquitetura de
+  reprodutibilidade deste módulo depende do pacote da execução final versionado, não de uma
+  garantia de determinismo por construção (ver Divergências, D5).
 - **Ferramenta de parsing**: `tree-sitter` / `tree-sitter-cpp`. Risco residual aceito: um
   operador ABS ou UOI aplicado a um sítio de tipo incompatível gera um candidato que
   simplesmente não compila — custo de eficiência (tempo de validação desperdiçado), não de
@@ -380,8 +419,17 @@ deste `/speckit.specify`.
   schema do pacote do módulo `001-dataset-extraction` (novo `schema_version`, reempacotamento),
   já concluído (`Status: implementado`, T103) — decisão evitada por não ser necessária. Um
   problema que, na prática, não fechar 100 mutantes válidos mesmo após ordem superior é excluído
-  da amostra de mutantes e registrado no relatório, no mesmo espírito de D4 da spec
-  `001-dataset-extraction` (WA insuficiente). Reflete-se em FR-008 e FR-009.
+  do conjunto final de mutantes e registrado no relatório, no mesmo espírito de D4 da spec
+  `001-dataset-extraction` (WA insuficiente) — **com uma diferença importante, esclarecida em
+  `/speckit.clarify` (2026-09-23)**: lá, a exclusão acontece durante a seleção dos 200 (o pool
+  ainda tem candidatos para substituir); aqui, os 200 problemas já estão fixados e empacotados,
+  então não há "próximo candidato" sem reabrir o módulo `001-dataset-extraction`. **Decisão**:
+  a exclusão afeta só o cálculo do Escore de Mutação (MS), que passa a ser calculado sobre os
+  problemas efetivamente completos (podendo ser menos de 200 problemas nessa métrica específica),
+  sem afetar o denominador de 200 usado por TDF e TFP nem acionar a escolha de um substituto no
+  dataset; toda ocorrência gera um alerta explícito no relatório (FR-009a), nunca silencioso,
+  ainda que a estimativa de pesquisa (D2) sugira que seja rara ou inexistente na prática.
+  Reflete-se em FR-008, FR-009 e FR-009a.
 - **D5 — Reprodutibilidade do pacote final não depende só da seed; pacote de mutantes
   versionado ao final do experimento (decidido; requer emenda à Constitution)**: a validação de
   cada mutante candidato (compila, executa, compara com a suíte oficial) usa o mesmo motor de
@@ -392,8 +440,11 @@ deste `/speckit.specify`.
   localmente com a mesma seed" reduz, mas não garante, obter exatamente o mesmo conjunto final —
   o mesmo argumento que já levou a versionar o dataset (Constitution, Princípio II, emenda
   1.1.0) se aplica, sem diferença de fundo, a mutantes. **Decisão**: (a) manter uma checagem de
-  estabilidade (duas execuções concordantes) na validação de cada mutante, para reduzir a
-  frequência de instabilidade, mas sem tratá-la como garantia de determinismo bit a bit; (b)
+  estabilidade na validação de cada mutante, com a mesma força já usada para o reparo de WA (6
+  execuções concordantes — 3 checagens independentes de 2 execuções cada; ver Clarifications,
+  sessão 2026-09-23), já que a força original de 2 execuções se mostrou insuficiente na prática
+  do próprio módulo de dataset, para reduzir a frequência de instabilidade, mas sem tratá-la
+  como garantia de determinismo bit a bit; (b)
   compactar e versionar o conjunto de mutantes da execução final que sustenta os números
   publicados (`data/mutants.zip` + `manifests/mutants.manifest.json`), no mesmo formato já usado
   para o dataset, em vez de depender só de regeneração por seed; mutantes gerados durante o
@@ -403,8 +454,14 @@ deste `/speckit.specify`.
   mesma lógica se estende, em módulos futuros, a artefatos que dependam de execução real do
   motor ou de chamadas a APIs de IA (suítes geradas, resultados finais de avaliação). Reflete-se
   em FR-007 e FR-012.
-- **D6 — Seed nomeada para geração de mutantes (decidido)**: a Constitution já exige seed fixa e
-  documentada para geração de mutantes (Princípio II), mas a metodologia original (seção 2) não
-  a nomeava. **Decisão**: reaproveitar a `SEED = 42` já fixada para o projeto, com um namespace
-  próprio deste módulo (análogo ao padrão já usado em 1.4 para a ordem de seleção de WAs,
-  `Random("42:pool")`), a ser nomeado exatamente na implementação. Reflete-se em FR-011.
+- **D6 — Sem seed própria: o módulo não usa nenhuma operação aleatória (decidido, revisado em
+  `/speckit.clarify`, 2026-09-23)**: a pesquisa original assumiu que a Constitution exigir seed
+  fixa e documentada para "geração de mutantes" (Princípio II) implicava que este módulo
+  precisaria nomear uma. Ao esclarecer a regra de seleção quando há **mais** de 100 mutantes de
+  primeira ordem válidos (caso não coberto até então — FR-004 só cobria o caso de faltarem
+  mutantes), ficou claro que a resposta certa é a mesma regra já determinística usada para ordem
+  superior (truncar pelos primeiros 100 na ordem de descoberta da AST), não uma amostragem
+  aleatória. **Decisão**: o módulo não usa nenhuma operação aleatória em nenhuma etapa (seleção
+  de sítios, ordem superior, truncamento de excedentes); a exigência de seed do Princípio II é
+  satisfeita por vacuidade — não há "operação com aleatoriedade" neste módulo para exigir seed.
+  Reflete-se em FR-003a e FR-011 (revisado).

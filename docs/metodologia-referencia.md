@@ -741,12 +741,23 @@ confiar que o objetivo original — só `AC_ref` — é alcançável para a gran
 3. **Não é mutante equivalente**: executa contra a suíte de testes oficial do problema (a mesma
    suíte usada para validar AC/WA, seção 1.1); se passar em 100% (comporta-se como AC), é
    equivalente → descartado.
-4. **Estabilidade** **[DECIDIDO, 2026-09-23 — D5]**: um mutante candidato só é aceito
-   definitivamente depois de duas execuções independentes concordantes (mesmo veredito, mesmo
-   teste decisivo) — a mesma regra de estabilidade já usada para WA na seção 1.4, necessária
-   porque a validação de um mutante roda no mesmo motor cuja instabilidade de margem já foi
-   medida na auditoria do módulo de dataset (D18/D19, seção 1.4). Um candidato cujas execuções
-   não concordam é descartado como instável, não aceito nem rejeitado por acaso.
+4. **Estabilidade** **[DECIDIDO, 2026-09-23 — D5, revisado em `/speckit.clarify`]**: um mutante
+   candidato só é aceito definitivamente depois de **6 execuções concordantes** (3 checagens
+   independentes de 2 execuções cada, mesmo veredito e mesmo teste decisivo em todas) — a mesma
+   força já usada no **reparo** de WA (seção 1.4), depois que a regra original de 2 execuções se
+   mostrou insuficiente na prática (8 das 13 WA reparadas com 2 execuções voltaram a divergir).
+   Necessário porque a validação de um mutante roda no mesmo motor cuja instabilidade de margem
+   já foi medida na auditoria do módulo de dataset (D18/D19, seção 1.4). Um candidato cujas
+   execuções não concordam é descartado como instável, não aceito nem rejeitado por acaso.
+
+Quando os mutantes de primeira ordem válidos e distintos de um problema forem **mais** de 100
+(esperado com o conjunto ampliado de 2.2), retêm-se exatamente os primeiros 100 na mesma ordem
+determinística de descoberta de sítios na travessia da AST — nunca por amostragem aleatória.
+Como consequência, **este módulo não usa nenhuma operação aleatória em nenhuma etapa** (seleção
+de sítios, truncamento de excedentes, ordem superior) e por isso não precisa de uma seed própria
+(**[DECIDIDO, 2026-09-23, revisado em `/speckit.clarify`]** — corrige a decisão inicial desta
+seção, que assumia incorretamente que a exigência de seed do Princípio II implicava uma operação
+aleatória neste módulo).
 
 ### 2.4 Mutação de ordem superior: regra determinística, sem busca **[DECIDIDO, 2026-09-23 — D3]**
 
@@ -771,9 +782,16 @@ cota de 100 defeitos distintos e válidos para medir sensibilidade da suíte, n�
 mutante mais difícil possível.
 
 Um problema que esgota primeira e segunda (e, se necessário, terceira) ordem sem alcançar 100
-mutantes válidos é **excluído do conjunto de mutantes e registrado no relatório** (seção 2.6) —
-o mesmo tratamento já dado a WA insuficiente na seção 1.4. Não se aceita um número menor que
-100, e não se recorre a uma base de mutação adicional (seção 2.5).
+mutantes válidos é **excluído do conjunto de mutantes e registrado no relatório, com um alerta
+explícito** (seção 2.6) — nunca silenciosamente. Não se aceita um número menor que 100, e não se
+recorre a uma base de mutação adicional (seção 2.5). **[DECIDIDO, 2026-09-23, revisado em
+`/speckit.clarify`]** Diferente do tratamento de WA insuficiente na seção 1.4 (onde a exclusão
+acontece durante a seleção dos 200, e o pool ainda tem candidato para substituir), aqui os 200
+problemas já estão fixados e empacotados — não há substituto sem reabrir o módulo de dataset. Por
+isso, a exclusão afeta só o cálculo do Escore de Mutação (MS), calculado sobre os problemas
+efetivamente completos (podendo ser menos de 200 problemas nessa métrica específica); o
+denominador de 200 usado por TDF e TFP nunca é afetado, e não se aciona a escolha de um
+substituto no dataset.
 
 ### 2.5 Base de mutação: só `AC_ref`, sem ACs adicionais **[DECIDIDO, 2026-09-23 — D4]**
 
@@ -795,9 +813,9 @@ indefinido ou tempo no limiar do limite — nunca por lógica de seleção). Iss
 mesmo conjunto final** — o mesmo argumento que já levou a versionar o dataset (Constitution,
 Princípio II, emenda 1.1.0) se aplica, sem diferença de fundo, a mutantes.
 
-- **Seed**: reaproveita-se a `SEED = 42` já fixada para o projeto, com um namespace próprio
-  deste módulo (análogo ao padrão já usado em 1.4 para a ordem de seleção de WAs,
-  `Random("42:pool")`), a ser nomeado exatamente na implementação.
+- **Sem seed própria**: o módulo não usa nenhuma operação aleatória (ver 2.3, item 4) —
+  seleção de sítios, truncamento de excedentes e ordem superior seguem só a ordem determinística
+  de travessia da AST.
 - **Gate de consistência com o dataset**: antes de gerar qualquer mutante, o módulo verifica o
   `data/dataset` local contra `manifests/dataset.manifest.json` (reaproveitando a mesma
   checagem de `scripts/verify_dataset.py`) e se recusa a rodar se não corresponder — garante
@@ -814,9 +832,9 @@ Princípio II, emenda 1.1.0) se aplica, sem diferença de fundo, a mutantes.
   compara com o manifesto.
 - **Relatório** (`manifests/mutation_report.json`, versionado): funil de descarte por motivo
   (duplicata, não compila, TLE/MLE/RE, equivalente, instável), quantos mutantes de cada problema
-  vieram de primeira vs. de ordem superior, distribuição por operador, a seed usada e a revisão
-  de código (git) do módulo que produziu aquele resultado — dado para o texto do TCC, nunca os
-  arquivos-fonte dos mutantes.
+  vieram de primeira vs. de ordem superior, distribuição por operador, a lista de alertas de
+  exclusão de problema (vazia no caso esperado) e a revisão de código (git) do módulo que
+  produziu aquele resultado — dado para o texto do TCC, nunca os arquivos-fonte dos mutantes.
 
 Resultado esperado: para a grande maioria dos problemas (estimativa: ao menos 3 em cada 4),
 exatamente 100 mutantes comportamentalmente distintos e válidos, obtidos inteiramente de
@@ -914,6 +932,13 @@ $$MS(P,T) = \frac{DM}{M - EM}$$
 `DM` = mutantes mortos (reprovados) pela suíte `T`; `M` = total de mutantes gerados
 (100); `EM` = mutantes equivalentes — sempre 0 no pipeline, pois já são descartados
 na geração (seção 2).
+
+**[DECIDIDO, 2026-09-23]** O MS final de um cenário é a média aritmética entre os problemas que
+têm mutantes completos — normalmente os 200, mas potencialmente menos, se algum problema não
+fechar 100 mutantes válidos mesmo após ordem superior (seção 2.4; caso raro ou inexistente pela
+estimativa de pesquisa, mas registrado com alerta explícito quando ocorrer). TDF (5.1) e TFP
+(5.3) continuam sempre sobre os 200 problemas do dataset, sem essa exceção — só o denominador do
+MS pode variar.
 
 ### 5.3 Taxa de Falsos Positivos (TFP) — Alucinações
 Mede confiabilidade: ocorre falso positivo quando a suíte gerada pela IA reprova o
