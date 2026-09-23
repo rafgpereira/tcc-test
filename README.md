@@ -10,12 +10,13 @@ teste unitários em C++.
 > "Módulos e estado", abaixo); este documento é o ponto de partida e o índice, não o detalhe de
 > cada módulo.
 >
-> **Estado atual (2026-09-22)**: os módulos `dataset` (extração, validação e empacotamento do
+> **Estado atual (2026-09-23)**: os módulos `dataset` (extração, validação e empacotamento do
 > dataset) e `sandbox` (motor de execução isolada de C++, usado pelo `dataset` internamente) estão
 > **implementados**. O dataset experimental já foi gerado, validado e empacotado de verdade — o
 > zip (`data/dataset.zip`) e os manifestos de integridade já estão neste repositório; quem clona o
-> projeto agora só precisa descompactar e conferir, não precisa gerar nada. Os módulos seguintes
-> (geração de mutantes, chamadas aos modelos de IA, avaliação, métricas, orquestrador) ainda não
+> projeto agora só precisa descompactar e conferir, não precisa gerar nada. O módulo de **geração
+> de mutantes** já tem especificação (`specs/002-mutant-generation/`), mas ainda não tem código. Os
+> demais módulos seguintes (chamadas aos modelos de IA, avaliação, métricas, orquestrador) ainda não
 > têm especificação nem código; a seção "Módulos e estado" marca isso.
 
 ## O que o experimento responde
@@ -77,7 +78,7 @@ na avaliação, para que nenhum código do dataset falhe no motor só durante o 
 |---|---|---|---|---|
 | `src/dataset/` | extrai, valida e empacota o dataset experimental | seção 1 | **implementado**: dataset real gerado, validado e empacotado (200 problemas, ~12 MiB) | [README](src/dataset/README.md) |
 | `src/sandbox/` | motor de execução isolada de C++, usado pelo `dataset` | seções 1.4 e 4 | **implementado**: motor, isolamento e auto-checagem testados | [README](src/sandbox/README.md) |
-| `src/mutation/` | gera 100 mutantes por problema | seção 2 | **sem spec** | a criar |
+| `src/mutation/` | gera 100 mutantes por problema | seção 2 | **especificado** ([spec](specs/002-mutant-generation/spec.md)), sem código | a criar |
 | `src/ai_clients/` | chamadas stateless aos 3 modelos | seção 3 | **sem spec** (pontos pendentes na metodologia, em especial o oráculo do SLM) | a criar |
 | avaliação | injeta as suítes geradas e registra vereditos em CSV | seção 4 | **sem spec** | a criar |
 | `src/metrics/` | TDF, MS, TFP, IIC | seção 5 | **sem spec** (IIC ainda não operacionalizado) | a criar |
@@ -233,7 +234,8 @@ Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
 |---|---|---|
 | `dataset` | para obter o dataset experimental (o caso mais comum: só descompactar e conferir) ou para gerá-lo/regenerá-lo do zero | [README do módulo](src/dataset/README.md), seção "Qual é o seu cenário?" |
 | `sandbox` | não tem uso direto — é a biblioteca de execução isolada usada pelo `dataset` por baixo dos panos; só é operado diretamente para conferir a saúde do motor | [README do módulo](src/sandbox/README.md) |
-| `mutation`, `ai_clients`, avaliação, `metrics`, `cli` | ainda não implementados | sem README ainda |
+| `mutation` | especificado ([spec](specs/002-mutant-generation/spec.md)), ainda não implementado | sem README ainda |
+| `ai_clients`, avaliação, `metrics`, `cli` | ainda não implementados | sem README ainda |
 
 ## Reprodutibilidade
 
@@ -241,7 +243,11 @@ Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
   dataset de origem fixada; seed fixa (`42`).
 - O dataset é distribuído como `data/dataset.zip` versionado, com o manifesto
   `manifests/dataset.manifest.json` (SHA-256 por arquivo) para verificar a identidade exata dos
-  dados. Arquivos soltos do dataset e mutantes nunca são versionados.
+  dados. Arquivos soltos do dataset e mutantes gerados durante o desenvolvimento nunca são
+  versionados; o pacote de mutantes da **execução final** que sustenta os números publicados do
+  experimento é uma exceção (Constitution, Princípio II, emenda 1.6.0), pelo mesmo motivo do
+  dataset: o motor de execução tem instabilidade de margem já medida, então regenerar com a
+  mesma seed não garante reproduzir exatamente o mesmo conjunto.
 - Chamadas a modelos comerciais custam dinheiro: o pipeline nunca as dispara em lote sem
   confirmação explícita de quem executa.
 
@@ -288,9 +294,10 @@ existe de fato: `docker compose run --rm app python -m dataset --help`.
 O motor não tem comando próprio: é uma biblioteca usada pelo `dataset` e, no futuro, pela
 avaliação.
 
-### Módulos ainda não especificados
+### Módulos ainda não implementados
 
-`mutation`, `ai_clients`, avaliação, `metrics` e `cli` não têm comandos; quando forem
+`mutation` já tem especificação ([spec](specs/002-mutant-generation/spec.md)), mas nenhum deles
+— `mutation`, `ai_clients`, avaliação, `metrics` e `cli` — tem código nem comandos; quando forem
 implementados, cada um traz o seu README e as suas linhas nesta seção.
 
 ## Glossário

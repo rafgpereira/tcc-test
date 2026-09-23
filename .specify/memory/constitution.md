@@ -44,11 +44,28 @@ ela não garante a distribuição dos dados do experimento, que segue as regras
 abaixo.
 
 Dados brutos do experimento em forma de arquivos soltos (arquivos individuais
-do dataset extraído, mutantes gerados) NUNCA são versionados no Git. A única
-exceção é o dataset: após a extração e validação únicas, ele MAY ser
-compactado em `data/dataset.zip` e commitado no repositório, desde que
-acompanhado do manifesto de integridade. Os mutantes gerados não têm essa
-exceção e continuam nunca sendo versionados.
+do dataset extraído, mutantes gerados durante o desenvolvimento iterativo de
+um módulo) NUNCA são versionados no Git. O dataset tem uma exceção: após a
+extração e validação únicas, ele MAY ser compactado em `data/dataset.zip` e
+commitado no repositório, desde que acompanhado do manifesto de integridade.
+
+A mesma exceção MAY se estender a qualquer outro artefato do experimento cuja
+identidade dependa de execução real de código de terceiros no motor de
+execução (mutantes; módulos futuros que validem suítes geradas contra AC, WA
+ou mutantes) ou de chamadas a APIs de IA não estritamente reprodutíveis bit a
+bit (suítes geradas, resultados finais de avaliação): uma vez concluída a
+execução final que sustenta os números publicados no trabalho escrito, esse
+artefato MAY ser compactado (ex.: `data/mutants.zip`) e commitado, acompanhado
+do seu próprio manifesto de integridade. O motivo é o mesmo que já justifica a
+exceção do dataset (emenda 1.1.0): regenerar localmente com a mesma seed
+reduz, mas não garante, reproduzir exatamente o mesmo resultado, porque o
+motor de execução tem instabilidade de margem já medida e documentada
+(auditoria do módulo de dataset, 2026-09-22 — comportamento indefinido ou
+tempo de execução no limiar do limite fazem o veredito de um mesmo binário
+variar entre execuções independentes, sem relação com a lógica de seleção).
+Essa exceção vale só para o resultado da execução final que sustenta o
+trabalho publicado — as iterações de desenvolvimento de um módulo continuam
+nunca sendo versionadas, mesmo depois desta emenda.
 
 Todo dado persistido pelo experimento MUST ser coberto por um manifesto de
 integridade commitado, contendo o hash (SHA-256) de cada arquivo persistido
@@ -270,6 +287,24 @@ Este documento tem precedência sobre decisões pontuais de implementação.
   (Princípio XI). Qualquer violação intencional MUST ser justificada por
   escrito na feature correspondente.
 - **Histórico de emendas**:
+  - 1.6.0 (2026-09-23) — Princípio II: a exceção de versionamento antes exclusiva do dataset
+    (emenda 1.1.0) passa a poder se estender a qualquer artefato do experimento cuja
+    identidade dependa de execução real de código de terceiros no motor (mutantes; módulos
+    futuros que validem suítes geradas contra AC/WA/mutantes) ou de chamadas a APIs de IA não
+    estritamente reprodutíveis bit a bit — uma vez concluída a execução final que sustenta os
+    números publicados, esse artefato MAY ser compactado e commitado com seu próprio
+    manifesto; iterações de desenvolvimento continuam nunca sendo versionadas. Justificativa:
+    ao especificar o módulo `002-mutant-generation`, Rafael observou que "gerar mutantes é
+    sempre determinístico" não se sustenta, porque a validação de cada mutante reutiliza o
+    mesmo motor de execução cuja instabilidade de margem já foi medida na auditoria do módulo
+    de dataset (D18/D19 da spec `001-dataset-extraction`: 20 dos 200 problemas precisaram de
+    reparo por veredito instável entre execuções independentes do mesmo binário, por
+    comportamento indefinido ou tempo no limiar do limite, nunca por lógica de seleção). Regenerar
+    localmente com a mesma seed reduz, mas não garante, reproduzir exatamente o mesmo conjunto —
+    o mesmo argumento que já levou a versionar o dataset em vez de confiar apenas em "seed 42
+    sempre reproduz". Estender a mesma exceção, pelo mesmo motivo, evita que os números do TCC
+    dependam de uma garantia de determinismo que o próprio projeto já provou não se sustentar
+    sempre.
   - 1.5.0 (2026-09-22) — Princípio XI: o README da raiz é sumário e índice,
     não um substituto do README de cada módulo (MUST NOT duplicar o passo a
     passo operacional de um módulo). Novo parágrafo: a documentação de uso
@@ -353,4 +388,4 @@ Este documento tem precedência sobre decisões pontuais de implementação.
     ajustada para admitir essa exceção.
   - 1.0.0 (2026-09-18) — Ratificação inicial.
 
-**Version**: 1.5.0 | **Ratified**: 2026-09-18 | **Last Amended**: 2026-09-22
+**Version**: 1.6.0 | **Ratified**: 2026-09-18 | **Last Amended**: 2026-09-23

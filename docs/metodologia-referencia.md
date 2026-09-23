@@ -667,35 +667,162 @@ real de 2026-09-20, com todas as colunas e gravando os problemas do pool, levou 
 
 ## 2. Módulo: Geração de Mutantes
 
+> **Revisão de 2026-09-23**: esta seção foi reescrita após uma rodada dedicada de pesquisa e
+> discussão técnica (o texto anterior, com um conjunto pequeno de operadores por pares e
+> mutação de ordem superior sem regra definida, era, por admissão dos próprios autores, a parte
+> menos madura da metodologia). As decisões abaixo (D1–D6) estão detalhadas, com a proveniência
+> completa, em `specs/002-mutant-generation/spec.md`, seção "Divergências e Decisões sobre a
+> Metodologia".
+
 **Objetivo**: gerar 100 versões defeituosas (mutantes) por problema, a partir do
 `AC_ref.cpp`, para medir sensibilidade das suítes a defeitos sintéticos sutis.
 
-**Operadores de mutação** (substituição direta, mutação de primeira ordem):
+### 2.1 Estratégia técnica: AST via `tree-sitter`, não regex **[DECIDIDO, 2026-09-23 — D1]**
 
-| Categoria | Permutações |
+Os sítios de mutação são identificados por análise sintática real (AST) do código-fonte,
+usando `tree-sitter` + `tree-sitter-cpp` — um parser tolerante a erro, que não exige resolver a
+árvore de includes (`bits/stdc++.h`) nem informação de tipos completa. Motivo: código C++ de
+competição real tem armadilhas concretas para um mutador puramente textual — fechamento de
+template aninhado (`vector<vector<int>>`, onde `>>` não é *right shift*), operadores dentro de
+literais de string/char (`"a<b"`), e comentários com trechos de código morto. Um parser AST
+estruturalmente não muta o conteúdo de um literal nem de um comentário, porque só enxerga
+operadores em posição de expressão de código.
+
+Alternativas avaliadas e descartadas: `libclang` (parsing semântico real, mas exige resolver
+headers de verdade sob o front-end do Clang, com risco de divergência das extensões do GCC 13.2
+já fixado para o motor de execução); substituição textual cuidadosa ao estilo `UniversalMutator`
+(regras por linguagem que evitam as armadilhas mais óbvias, mas ainda arriscam mutar uma *string*
+em vez de lógica); a ferramenta `Mull` (mutação baseada em LLVM/Clang — descartada por exigir uma
+segunda cadeia de compiladores ao lado do GCC 13.2 já fixado, e por ter motor de injeção e
+execução de mutantes próprio, o que conflita com a decisão de motor de execução único da seção
+1.4). **Decisão**: um mutador leve próprio sobre `tree-sitter`, que só gera texto mutado e
+entrega ao motor do módulo `sandbox` já existente para compilar, executar e julgar.
+
+### 2.2 Conjunto de operadores: o conjunto de Offutt et al. **[DECIDIDO, 2026-09-23 — D2]**
+
+O conjunto original (substituição em pares fixos) foi medido, sobre os 200 `AC_ref.cpp` reais já
+extraídos, como insuficiente: mediana de **23 ocorrências** desses operadores por arquivo, com
+**199 dos 200 problemas (99,5%) abaixo de 100** — não dá para gerar 100 mutantes de primeira
+ordem para a quase totalidade da amostra só com esse conjunto.
+
+**Decisão**: adotar por completo o conjunto que Offutt, Lee, Rothermel, Untch e Zapf (1996,
+*"An Experimental Determination of Sufficient Mutant Operators"*, ACM TOSEM 5(2)) mediram
+experimentalmente como suficiente — 99,5% do escore de mutação do conjunto completo de
+operadores da literatura, com 4x menos mutantes:
+
+| Operador | O que faz |
 |---|---|
-| Relacionais | `==`↔`!=`, `<`↔`<=`, `>`↔`>=` |
-| Aritméticos | `+`↔`-`, `*`↔`/`, `++`↔`--` |
-| Lógicos | `&&`↔`\|\|` |
+| **ROR** | substitui cada operador relacional por **todos** os demais legais (`<` gera `<=`, `>`, `>=`, `==`, `!=` — 5 mutantes, não 1) |
+| **AOR** | o mesmo para operadores aritméticos, substituição completa |
+| **LCR** | o mesmo para conectores lógicos (`&&`, `\|\|`) |
+| **ABS** | força uma subexpressão aritmética a assumir zero, um valor positivo e um valor negativo |
+| **UOI** | insere um operador unário (`-`, `!`, `++`, `--`) à frente de uma expressão existente |
 
-- **Primeira ordem**: um mutante = uma alteração. Se o código-fonte não tiver
-  ocorrências suficientes de operadores para atingir 100 mutantes de primeira
-  ordem, aciona-se **mutação de ordem superior** (combinar duas mutações
-  simultâneas em locais distintos do mesmo arquivo) até completar a cota.
+Uma nova estimativa sobre os mesmos 200 arquivos, simulando esse conjunto (multiplicando por ~4
+os sítios de operador já existentes para ROR/AOR/LCR, e usando a contagem de ocorrências de
+identificador como proxy conservador dos sítios de ABS/UOI, já que esses dois atuam sobre
+qualquer subexpressão numérica, não só sobre operadores existentes), deu **mediana ≈146** sítios
+por arquivo, com apenas **44 dos 200 problemas (22%) ainda abaixo de 100**, antes de qualquer
+combinação de ordem superior. É uma estimativa grosseira (a fração real que sobrevive às 3
+validações da seção 2.3 é menor que a contagem bruta de sítios), mas com margem suficiente para
+confiar que o objetivo original — só `AC_ref` — é alcançável para a grande maioria dos problemas.
 
-**Validação antes de aceitar um mutante**:
+### 2.3 Validação antes de aceitar um mutante
+
 1. **Unicidade léxica**: texto do mutante não pode ser idêntico a nenhum já
-   armazenado (hash set).
+   armazenado para o mesmo problema (hash set).
 2. **Compila e executa** dentro dos mesmos limites de tempo/memória do problema
-   original. Mutantes que geram TLE/MLE/RE são descartados (defeito estrutural, não
-   de lógica de negócio).
-3. **Não é mutante equivalente**: executa contra a suíte de testes oficial do
-   Codeforces; se passar em 100% (comporta-se como AC), é equivalente → descartado.
+   original, na mesma cascata de padrão (`gnu++20`→`gnu++17`→`gnu++14`→`gnu++11`) do motor de
+   execução único (seção 1.4). Mutantes que geram TLE/MLE/RE são descartados (defeito
+   estrutural, não de lógica de negócio). Um operador ABS ou UOI aplicado a um sítio de tipo
+   incompatível simplesmente não compila e é descartado por este mesmo critério — não é um caso
+   especial, é o custo de eficiência aceito por usar um parser puramente sintático (sem
+   informação de tipos), que se paga sozinho dada a margem medida em 2.2.
+3. **Não é mutante equivalente**: executa contra a suíte de testes oficial do problema (a mesma
+   suíte usada para validar AC/WA, seção 1.1); se passar em 100% (comporta-se como AC), é
+   equivalente → descartado.
+4. **Estabilidade** **[DECIDIDO, 2026-09-23 — D5]**: um mutante candidato só é aceito
+   definitivamente depois de duas execuções independentes concordantes (mesmo veredito, mesmo
+   teste decisivo) — a mesma regra de estabilidade já usada para WA na seção 1.4, necessária
+   porque a validação de um mutante roda no mesmo motor cuja instabilidade de margem já foi
+   medida na auditoria do módulo de dataset (D18/D19, seção 1.4). Um candidato cujas execuções
+   não concordam é descartado como instável, não aceito nem rejeitado por acaso.
 
-Resultado: exatamente 100 mutantes comportamentalmente distintos e válidos por
-problema. Como mutantes equivalentes já são descartados nesta etapa, o termo `EM`
-(mutantes equivalentes) na fórmula do Escore de Mutação (seção 5) é sempre 0 no
-cálculo final do pipeline.
+### 2.4 Mutação de ordem superior: regra determinística, sem busca **[DECIDIDO, 2026-09-23 — D3]**
+
+Quando os mutantes de primeira ordem válidos e distintos de um problema são menos de 100
+(estimativa: cerca de 1 em cada 4 problemas, mesmo com o conjunto completo de operadores),
+combinam-se mutações de primeira ordem já validadas em **pares**, em sítios distintos, na
+**ordem em que esses sítios foram descobertos na travessia da AST**, até completar 100 ou
+esgotar as combinações de pares possíveis; se ainda insuficiente, repete-se combinando em
+**trios**, na mesma ordem determinística. Cada combinação passa pelas mesmas 4 validações da
+seção 2.3 — uma combinação cujas duas mudanças se cancelam (fica equivalente ao original) é
+descartada pelo mesmo critério, sem lógica adicional.
+
+Motivo de não usar busca (programação genética, otimização multi-objetivo): é o que a
+literatura de mutação de ordem superior (Jia & Harman, *"Higher Order Mutation Testing"*,
+Information and Software Technology, 2009; Harman, Jia, Langdon e outros) usa para encontrar
+combinações "*strongly subsuming*" (mais difíceis de matar), precisamente porque combinar
+mutações ao acaso tende a produzir mutantes equivalentes ou triviais — mas essa maquinaria de
+busca é incompatível com a simplicidade e o determinismo exigidos (Constitution, Princípios II e
+IX) para este experimento. Assume-se conscientemente que uma fração dos mutantes de ordem
+superior seja mais fácil de matar do que o ideal da literatura: o objetivo aqui é fechar uma
+cota de 100 defeitos distintos e válidos para medir sensibilidade da suíte, não encontrar o
+mutante mais difícil possível.
+
+Um problema que esgota primeira e segunda (e, se necessário, terceira) ordem sem alcançar 100
+mutantes válidos é **excluído do conjunto de mutantes e registrado no relatório** (seção 2.6) —
+o mesmo tratamento já dado a WA insuficiente na seção 1.4. Não se aceita um número menor que
+100, e não se recorre a uma base de mutação adicional (seção 2.5).
+
+### 2.5 Base de mutação: só `AC_ref`, sem ACs adicionais **[DECIDIDO, 2026-09-23 — D4]**
+
+Avaliou-se usar outras soluções corretas do dataset de origem (`correct_solutions`, presentes
+apenas em `data/work/staging/raw/*.json.gz` — nunca persistidas além da primeira escolhida como
+`AC_ref`, ver seção 1.4) como bases de mutação adicionais para problemas com poucos sítios.
+**Decisão**: não usar. A ampliação do conjunto de operadores (2.2) já fecha a cota para a grande
+maioria dos problemas, e a margem da ordem superior (2.4) cobre o resto esperado. Usar ACs
+adicionais exigiria reabrir o schema do pacote do módulo de dataset (novo `schema_version`,
+reempacotamento), já concluído (`Status: implementado`) — evitado por não ser necessário.
+
+### 2.6 Reprodutibilidade e empacotamento **[DECIDIDO, 2026-09-23 — D5, D6; requer Constitution 1.6.0]**
+
+A validação de cada mutante usa o mesmo motor de execução cuja instabilidade de margem já foi
+medida e documentada (D18/D19, seção 1.4: 20 dos 200 problemas do dataset precisaram de reparo
+por veredito instável entre execuções independentes do mesmo binário, por comportamento
+indefinido ou tempo no limiar do limite — nunca por lógica de seleção). Isso significa que
+**"regenerar os mutantes localmente com a mesma seed" reduz, mas não garante, obter exatamente o
+mesmo conjunto final** — o mesmo argumento que já levou a versionar o dataset (Constitution,
+Princípio II, emenda 1.1.0) se aplica, sem diferença de fundo, a mutantes.
+
+- **Seed**: reaproveita-se a `SEED = 42` já fixada para o projeto, com um namespace próprio
+  deste módulo (análogo ao padrão já usado em 1.4 para a ordem de seleção de WAs,
+  `Random("42:pool")`), a ser nomeado exatamente na implementação.
+- **Gate de consistência com o dataset**: antes de gerar qualquer mutante, o módulo verifica o
+  `data/dataset` local contra `manifests/dataset.manifest.json` (reaproveitando a mesma
+  checagem de `scripts/verify_dataset.py`) e se recusa a rodar se não corresponder — garante
+  mecanicamente que a entrada é sempre a mesma, tanto para quem descompactou o zip quanto para
+  quem rodou a extração do zero.
+- **Mutantes de desenvolvimento**: gerados durante a iteração do módulo, vivem localmente
+  (`data/mutants/`, análogo a `data/work/`) e **nunca são versionados**.
+- **Pacote da execução final (Constitution, Princípio II, emenda 1.6.0)**: ao concluir a
+  execução completa que sustenta os números publicados no trabalho escrito, os mutantes de
+  todos os problemas são compactados em `data/mutants.zip`, acompanhado de
+  `manifests/mutants.manifest.json` (hash SHA-256 por arquivo), no mesmo formato já usado para o
+  dataset — porque a garantia de reprodutibilidade aqui não pode depender só da seed, pelo motivo
+  medido acima. Um comando de verificação, análogo ao do dataset, recalcula os hashes e os
+  compara com o manifesto.
+- **Relatório** (`manifests/mutation_report.json`, versionado): funil de descarte por motivo
+  (duplicata, não compila, TLE/MLE/RE, equivalente, instável), quantos mutantes de cada problema
+  vieram de primeira vs. de ordem superior, distribuição por operador, a seed usada e a revisão
+  de código (git) do módulo que produziu aquele resultado — dado para o texto do TCC, nunca os
+  arquivos-fonte dos mutantes.
+
+Resultado esperado: para a grande maioria dos problemas (estimativa: ao menos 3 em cada 4),
+exatamente 100 mutantes comportamentalmente distintos e válidos, obtidos inteiramente de
+primeira ordem, a partir só do `AC_ref`. Como mutantes equivalentes já são descartados na
+validação (2.3), o termo `EM` (mutantes equivalentes) na fórmula do Escore de Mutação (seção 5)
+continua sempre 0 no cálculo final do pipeline.
 
 ---
 
@@ -877,7 +1004,8 @@ diretamente ao objetivo específico de mapear desempenho por categoria algorítm
 
 Registro exigido pela Constitution (princípio 1), para atualizar o texto final do TCC e
 evitar inconsistência entre o que a banca aprovou e o que foi construído. Origem:
-`specs/001-dataset-extraction/spec.md`, decisões de 2026-09-18 a 2026-09-22.
+`specs/001-dataset-extraction/spec.md`, decisões de 2026-09-18 a 2026-09-22 (itens 1–16); e
+`specs/002-mutant-generation/spec.md`, decisões de 2026-09-23 (itens 17–21).
 
 | # | Divergência | Onde |
 |---|---|---|
@@ -897,16 +1025,23 @@ evitar inconsistência entre o que a banca aprovou e o que foi construído. Orig
 | 14 | Diretório de trabalho de dados `data/work/` com permissão `0700`, para o código de terceiros não acessar os dados de trabalho (verificado que o `./data` montado herda `0755`) | 1.4, 1.7 |
 | 15 | Uma WA que diverge na auditoria não é só reportada: é **reparada automaticamente**, substituída pelo próximo candidato não tentado da mesma ordem determinística, com confirmação de 6 execuções concordantes (D18, 2026-09-22); causa raiz é comportamento indefinido do código incorreto ou tempo de execução no limiar do limite, nunca a entrada | 1.4, 1.6 |
 | 16 | `extraction_timestamp` não é o único campo que varia entre duas execuções independentes de `validate`: `max_cpu_time_s` de `validacao.json` também varia, por ruído real de medição de hardware (D19, 2026-09-22); `max_memory_bytes` permanece estável | 1.5 |
+| 17 | Geração de mutantes por AST (`tree-sitter`), não por substituição textual; ferramenta `Mull` avaliada e descartada (segunda cadeia de compiladores, motor de execução próprio) | 2.1 |
+| 18 | Conjunto de operadores de mutação ampliado do texto original (pares fixos) para o conjunto completo de Offutt et al. 1996 (ROR/AOR/LCR completos + ABS + UOI), medido como necessário: 199 dos 200 `AC_ref.cpp` reais tinham menos de 100 ocorrências dos operadores originais | 2.2 |
+| 19 | Mutação de ordem superior por regra determinística fixa (pares/trios na ordem de descoberta na AST), não por busca (programação genética/multi-objetivo) | 2.4 |
+| 20 | Base de mutação exclusivamente o `AC_ref`; decisão de não usar outras soluções corretas do dataset de origem como bases adicionais, para não reabrir o schema do pacote do módulo de dataset | 2.5 |
+| 21 | Reprodutibilidade de mutantes não depende só da seed: dado que a validação de cada mutante reutiliza o motor cuja instabilidade de margem já foi medida (D18/D19), o pacote da execução final é compactado e versionado (`data/mutants.zip`), exigindo emenda ao Princípio II da Constitution (v1.6.0, 2026-09-23) | 2.6 |
 
 ---
 
 ## 8. Histórico de atualizações deste documento
 
 Registro datado de cada atualização, para conduzir a revisão do texto escrito do TCC
-(Constitution, princípio XI). Origem: `specs/001-dataset-extraction/` (spec, plano, pesquisa).
+(Constitution, princípio XI). Origem: `specs/001-dataset-extraction/` (spec, plano, pesquisa) e,
+a partir de 2026-09-23, `specs/002-mutant-generation/`.
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-09-23 | **Seção 2 reescrita (`/speckit.specify` do módulo `002-mutant-generation`)**: geração de mutantes por AST (`tree-sitter`), conjunto completo de operadores de Offutt et al. (ROR/AOR/LCR + ABS/UOI, motivado por medição de 199/200 `AC_ref.cpp` reais abaixo de 100 ocorrências dos operadores originais), mutação de ordem superior por regra determinística sem busca, base de mutação exclusivamente `AC_ref` (sem ACs adicionais do dataset de origem, D4), e arquitetura de reprodutibilidade em que o pacote de mutantes da execução final é compactado e versionado (`data/mutants.zip` + manifesto), por causa da instabilidade de margem do motor já medida em D18/D19 — isso exigiu emenda ao Princípio II da Constitution (v1.6.0). Decisões D1–D6, com proveniência completa, em `specs/002-mutant-generation/spec.md` | 2, 6, 7 |
 | 2026-09-18 | Decisões D1–D5 da spec: splits combinados, tradução como critério, `generated_tests`, flag `-Wl,--stack` removida (pilha em tempo de execução), problemas com menos de 100 WAs excluídos, sem cota por macrocategoria com alerta < 30 | 1.1, 1.2, 1.4, 6, 7 |
 | 2026-09-18 | Motor de execução único, AC também validado no motor (`validacao.json`), política de falha de AC com triagem manual (D7, D8) | 1.4, 1.5, 4, 7 |
 | 2026-09-19 | Decisões da revisão do plano: critério "sem E/S por arquivo", seed 42, manifesto em `manifests/`, motor em pacote próprio | 1.2, 1.4, 1.6, 6, 7 |
