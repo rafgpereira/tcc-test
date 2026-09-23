@@ -169,17 +169,48 @@ docstrings e pela ajuda (`--help`) da CLI, que MUST NOT contradizê-lo.
 Além da documentação por módulo, o projeto MUST manter um documento de visão
 geral na raiz do repositório (`README.md`) que permita a qualquer pessoa sem
 conhecimento prévio entender a arquitetura do experimento como um todo, como
-os módulos se conectam entre si, e reproduzir o experimento completo do zero
-(da extração do dataset até a análise final dos dados) seguindo apenas esse
-documento. Esse documento MUST ser atualizado sempre que um módulo novo for
-adicionado ou o fluxo entre módulos mudar.
+os módulos se conectam entre si, e preparar o ambiente uma única vez, comum a
+qualquer módulo. Esse README da raiz é um **sumário e índice**, não um
+substituto do README de cada módulo: ele MUST NOT duplicar o passo a passo
+operacional de um módulo específico — isso pertence ao README daquele módulo,
+para onde o da raiz aponta. Reproduzir o experimento completo do zero
+significa seguir o guia geral da raiz e, a partir dele, o README de cada
+módulo, na ordem em que aparecem no pipeline; não existe nem é esperado um
+único arquivo com todo o detalhe operacional. Esse documento MUST ser
+atualizado sempre que um módulo novo for adicionado ou o fluxo entre módulos
+mudar.
+
+A documentação de uso — o README da raiz e o de cada módulo — é escrita para
+quem vai **operar** o pipeline, nunca um registro de como ele foi construído:
+MUST NOT citar identificadores de tarefa do spec-kit (`T035`, `T093`, ...)
+nem narrar o processo de implementação em si ("a auditoria achou X e foi
+corrigido"). Uma decisão de desenho é explicada em linguagem comum, com um
+link para a seção correspondente de `docs/metodologia-referencia.md` quando
+for preciso mais profundidade — nunca só pelo rótulo interno da decisão
+(`D13`, `FR-011b`). O README de um módulo com mais de um ponto de entrada
+organiza o "como executar" pelo cenário de uso de quem lê (por exemplo, "já
+tenho o artefato pronto" vs. "quero gerá-lo do zero"), não pela ordem
+cronológica em que o módulo foi implementado. O detalhe exato dessas regras,
+e a verificação automática que as garante, ficam em
+`docs/template-modulo.md`, que MUST ser mantido alinhado a este princípio.
+**Esta regra não vale para `docs/metodologia-referencia.md`**: ali, rótulos
+de decisão, medições datadas e o histórico de descobertas MUST permanecer —
+é exatamente esse aparato de citação que sustenta a atualização do texto do
+TCC. A distinção: o README explica o quê e o como para quem opera o
+pipeline; a metodologia registra o porquê e a evidência para quem escreve ou
+avalia o trabalho, e por isso mantém as duas coisas que o README não tem —
+rótulo de decisão e proveniência (tarefa, data, revisão) de cada achado.
 
 A ausência de qualquer uma dessas três documentações (metodologia
 sincronizada, documentação de módulo padronizada, visão geral do projeto)
 impede considerar o módulo ou a feature concluídos, no mesmo espírito do
 Princípio VI (testes). Motivo: o documento de metodologia é a base da
 atualização do texto escrito do TCC; sem sincronização, o que o código faz e o
-que a metodologia documentada diz divergem sem que ninguém perceba.
+que a metodologia documentada diz divergem sem que ninguém perceba. A
+documentação de uso, por sua vez, existe para que qualquer pessoa — inclusive
+alguém que nunca participou do desenvolvimento — saiba exatamente o que fazer
+a partir do cenário em que se encontra, sem precisar entender o processo pelo
+qual o projeto chegou até ali.
 
 ## Convenções Técnicas
 
@@ -239,6 +270,28 @@ Este documento tem precedência sobre decisões pontuais de implementação.
   (Princípio XI). Qualquer violação intencional MUST ser justificada por
   escrito na feature correspondente.
 - **Histórico de emendas**:
+  - 1.5.0 (2026-09-22) — Princípio XI: o README da raiz é sumário e índice,
+    não um substituto do README de cada módulo (MUST NOT duplicar o passo a
+    passo operacional de um módulo). Novo parágrafo: a documentação de uso
+    (README da raiz e de cada módulo) é escrita para quem opera o pipeline,
+    nunca um registro do processo de implementação — MUST NOT citar
+    identificadores de tarefa do spec-kit nem narrar como algo foi
+    construído; decisões de desenho em linguagem comum, com link para a
+    metodologia, nunca só pelo rótulo interno (`D13`, `FR-011b`); um módulo
+    com mais de um ponto de entrada organiza o "como executar" por cenário
+    de uso, não por ordem cronológica de implementação. Essa regra
+    explicitamente NÃO vale para `docs/metodologia-referencia.md`, que
+    mantém rótulos de decisão e proveniência datada porque sustenta a
+    atualização do texto do TCC. Justificativa: ao concluir a primeira
+    feature (extração do dataset e motor de execução), os autores pediram
+    uma reorganização geral dos READMEs — sem referências ao trabalho da IA
+    nem a tarefas do spec-kit, organizados por cenário de uso — e que essa
+    regra ficasse escrita de forma que não dependesse do contexto de uma
+    conversa para valer nos módulos seguintes; o detalhe operacional da
+    regra já vivia em `docs/template-modulo.md` (regra 10, acrescentada no
+    mesmo ciclo), mas o texto do README da raiz ("reproduzir... seguindo
+    apenas esse documento") contradizia o novo formato de índice, e por isso
+    precisava de emenda aqui, não só no template.
   - 1.4.0 (2026-09-22) — Princípio X: o agente de IA trabalha sempre no
     checkout normal do autor, nunca isolado em worktree ou branch própria, e
     nunca roda `git add` (nem só `git commit`); toda alteração fica
@@ -300,4 +353,4 @@ Este documento tem precedência sobre decisões pontuais de implementação.
     ajustada para admitir essa exceção.
   - 1.0.0 (2026-09-18) — Ratificação inicial.
 
-**Version**: 1.4.0 | **Ratified**: 2026-09-18 | **Last Amended**: 2026-09-22
+**Version**: 1.5.0 | **Ratified**: 2026-09-18 | **Last Amended**: 2026-09-22

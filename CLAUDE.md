@@ -118,8 +118,10 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
   foi construído; explique a decisão e o motivo em linguagem comum, com um link para a seção da
   metodologia se for preciso mais profundidade. A tabela "Comandos verificados" de cada README
   tem só `Comando | Verificado em | Revisão` (sem coluna de tarefa). Esse histórico de processo
-  continua existindo — em `specs/NNN-nome/tasks.md` e na seção 8 da metodologia — só não pertence
-  ao README (`docs/template-modulo.md`, regra 10).
+  continua existindo — em `specs/NNN-nome/tasks.md` e na seção 8 da metodologia, que é a
+  exceção: lá, rótulo de decisão e proveniência datada continuam obrigatórios — só não pertence
+  ao README (Constitution, Princípio XI; `docs/template-modulo.md`, regra 10). Checado
+  automaticamente por `check_docs_sync.py` (C7, tanto no README raiz quanto no de cada módulo).
 - Todo módulo tem `src/<modulo>/README.md` (template em
   `docs/template-modulo.md`, seis campos) e o `README.md` da raiz é atualizado
   quando um módulo é adicionado ou o fluxo entre módulos muda; sem isso o

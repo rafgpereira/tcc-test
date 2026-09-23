@@ -21,12 +21,17 @@ C5  sync matrix: every decision D# of the spec has a row, and the terms of each 
     ``docs/metodologia-referencia.md``.
 C6  (--closing) no ACTIVE ``[PROPOSTA`` tag in the methodology. Blockquote lines (the legend) and
     struck-through text (already resolved items) are ignored.
+C7  operational READMEs (root, outside module mode, and every module README) cite no spec-kit
+    task id (``T035``, ``T093``, ...): they document how to use the pipeline, not how or when it
+    was built (Constitution, Principle XI). Never applies to
+    ``docs/metodologia-referencia.md``, which keeps decision labels and dated provenance on
+    purpose.
 CV  "Comandos verificados" table of each module README: stamps are well formed, ``pendente`` rows
     are not allowed once the module is implemented (or with --closing), every documented
     subcommand is listed, and with --closing a ``+dirty`` revision is rejected.
 
 Selection: ``--only`` wins; otherwise ``--closing`` runs everything; otherwise ``--module`` runs
-C1, C2, C3 and CV for those modules; otherwise everything except C6.
+C1, C2, C3, C7 and CV for those modules; otherwise everything except C6.
 
 Exit codes: 0 all selected checks pass, 1 at least one finding, 2 usage error.
 """
@@ -43,9 +48,9 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-ALL_IDS = ("C1", "C2", "C3", "C4", "C5", "C6", "CV")
-MODULE_IDS = ("C1", "C2", "C3", "CV")
-REPO_IDS = ("C1", "C2", "C3", "C4", "C5", "CV")
+ALL_IDS = ("C1", "C2", "C3", "C4", "C5", "C6", "C7", "CV")
+MODULE_IDS = ("C1", "C2", "C3", "C7", "CV")
+REPO_IDS = ("C1", "C2", "C3", "C4", "C5", "C7", "CV")
 
 SECTIONS = (
     "(a) Propósito",
@@ -68,6 +73,7 @@ STATUS_RE = re.compile(
 CLI_SUB_RE = re.compile(r"python -m dataset\s+([A-Za-z][\w-]*)")
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 NO_MODULE_PHRASE = "nenhum módulo está implementado"
+TASK_ID_RE = re.compile(r"(?<![\w/`])T\d{3}(?![\w])")
 
 
 @dataclass(frozen=True)
@@ -516,6 +522,33 @@ def check_c6(ctx: Context) -> list[Finding]:
     ]
 
 
+def check_c7(ctx: Context) -> list[Finding]:
+    """Operational READMEs (root + module) MUST NOT cite spec-kit task ids (Constitution,
+    Principio XI): they are documentation for whoever operates the pipeline, not a log of how
+    it was built. This never applies to ``docs/metodologia-referencia.md``, which keeps decision
+    labels and dated provenance on purpose.
+    """
+    findings = []
+    targets = [ctx.module_readme(m) for m in ctx.modules]
+    if not ctx.module_mode:
+        targets.append("README.md")
+    for rel in dict.fromkeys(targets):  # de-duplicated, order preserved
+        text = ctx.read(rel)
+        if text is None:
+            continue
+        for m in TASK_ID_RE.finditer(text):
+            line_no = text[: m.start()].count("\n") + 1
+            findings.append(
+                Finding(
+                    "C7",
+                    f"{rel}:{line_no}",
+                    f"cites spec-kit task id `{m.group(0)}`; operational READMEs explain what "
+                    "the module does and how to use it, never how or when it was implemented",
+                )
+            )
+    return findings
+
+
 def check_cv(ctx: Context) -> list[Finding]:
     findings = []
     for module in ctx.modules:
@@ -573,6 +606,7 @@ CHECKS = {
     "C4": check_c4,
     "C5": check_c5,
     "C6": check_c6,
+    "C7": check_c7,
     "CV": check_cv,
 }
 

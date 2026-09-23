@@ -587,6 +587,52 @@ def test_c6_reports_the_line_of_the_active_tag(sync, tmp_path, capsys):
     assert re.search(r"metodologia-referencia\.md:\d+", capsys.readouterr().out)
 
 
+# --------------------------------------------------------------------------- C7
+
+
+def test_c7_clean_readmes_pass(sync, tmp_path):
+    make_repo(tmp_path)
+    assert run(sync, tmp_path, "--only", "C7") == 0
+
+
+def test_c7_a_task_id_in_a_module_readme_fails(sync, tmp_path):
+    dataset = module_readme(commands=("alpha",), extra="Veja a tarefa T093 para mais detalhes.\n")
+    make_repo(tmp_path, dataset_readme=dataset)
+    assert run(sync, tmp_path, "--only", "C7") == 1
+
+
+def test_c7_a_task_id_in_the_root_readme_fails(sync, tmp_path):
+    make_repo(tmp_path, root_readme=root_readme(extra="Carimbado na tarefa T035.\n"))
+    assert run(sync, tmp_path, "--only", "C7") == 1
+
+
+def test_c7_is_skipped_for_the_root_readme_in_module_mode(sync, tmp_path):
+    """--module checks only that module's README, never the root one."""
+    make_repo(tmp_path, root_readme=root_readme(extra="Carimbado na tarefa T035.\n"))
+    assert run(sync, tmp_path, "--module", "src/sandbox", "--only", "C7") == 0
+
+
+def test_c7_runs_by_default_in_module_mode(sync, tmp_path):
+    dataset = module_readme(commands=("alpha",), extra="Achado na tarefa T093.\n")
+    make_repo(tmp_path, dataset_readme=dataset)
+    assert run(sync, tmp_path, "--module", "src/dataset") == 1
+
+
+def test_c7_the_methodology_is_exempt(sync, tmp_path):
+    """D-numbers, dates and task ids are expected citation apparatus in the methodology."""
+    make_repo(tmp_path, methodology=methodology(extra="Medido na tarefa T035.\n"))
+    assert run(sync, tmp_path, "--only", "C7") == 0
+
+
+def test_c7_reports_the_readme_and_line(sync, tmp_path, capsys):
+    dataset = module_readme(commands=("alpha",), extra="Veja a tarefa T093.\n")
+    make_repo(tmp_path, dataset_readme=dataset)
+    run(sync, tmp_path, "--only", "C7")
+    out = capsys.readouterr().out
+    assert "T093" in out
+    assert re.search(r"src/dataset/README\.md:\d+", out)
+
+
 # --------------------------------------------------------------------------- selection and exit codes
 
 

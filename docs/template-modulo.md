@@ -49,20 +49,22 @@
 9. **Verificação automática**: `docker compose run --rm app python scripts/check_docs_sync.py
    --module src/<modulo>` confere as seções (a) a (f) na ordem, o propósito em uma frase, os
    comandos contra a CLI (todo subcomando citado deve existir; no README do módulo dono da CLI,
-   `src/dataset`, todo subcomando também deve estar documentado), os links e a seção "Referência de
+   `src/dataset`, todo subcomando também deve estar documentado), os links, a ausência de
+   identificador de tarefa do spec-kit (checagem C7; ver regra 10) e a seção "Referência de
    comandos" do `README.md` da raiz (todo subcomando da CLI deve constar nela). A lista de
    conformidade abaixo cobre só o que o script não decide.
-10. **Sem rastro do processo de especificação, nem do trabalho da IA**: este README é
-    documentação de uso, para quem vai *operar* o módulo — não um registro de como ele foi
-    construído. MUST NOT citar identificadores de tarefa do spec-kit (`T035`, `T093`, ...), nem
-    narrar o processo de implementação em si ("a auditoria achou X e foi corrigido", "isso foi
-    verificado na tarefa Y"). Quando uma decisão de desenho precisa ser explicada, explique a
-    decisão e o motivo em linguagem comum, sem o rótulo interno (`D13`, `FR-011b`); um link para
-    `docs/metodologia-referencia.md`, pela seção, é a referência correta para quem quer mais
-    profundidade. Números medidos (tamanho, tempo, contagens) entram como fatos datados ("medido
-    em 2026-09-20: ..."), não como narrativa de tarefa concluída. Esse histórico de processo
-    continua existindo — em `specs/NNN-nome/tasks.md` e no histórico datado da seção 8 da
-    metodologia — só não pertence ao README do módulo.
+10. **Sem rastro do processo de especificação, nem do trabalho da IA** (Constitution, Princípio
+    XI; checagem automática C7): este README é documentação de uso, para quem vai *operar* o
+    módulo — não um registro de como ele foi construído. MUST NOT citar identificadores de
+    tarefa do spec-kit (`T035`, `T093`, ...), nem narrar o processo de implementação em si ("a
+    auditoria achou X e foi corrigido", "isso foi verificado na tarefa Y"). Quando uma decisão de
+    desenho precisa ser explicada, explique a decisão e o motivo em linguagem comum, sem o rótulo
+    interno (`D13`, `FR-011b`); um link para `docs/metodologia-referencia.md`, pela seção, é a
+    referência correta para quem quer mais profundidade. Números medidos (tamanho, tempo,
+    contagens) entram como fatos datados ("medido em 2026-09-20: ..."), não como narrativa de
+    tarefa concluída. Esse histórico de processo continua existindo — em `specs/NNN-nome/tasks.md`
+    e no histórico datado da seção 8 da metodologia, que **é a exceção**: lá, rótulos de decisão
+    e proveniência datada continuam obrigatórios, porque sustentam a atualização do texto do TCC.
 
 ## Esqueleto
 
