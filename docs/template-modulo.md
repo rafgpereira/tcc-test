@@ -14,21 +14,27 @@
    Seção sem conteúdo real MUST dizer "Nenhuma" (com uma frase), nunca ser omitida.
 3. **Sem ler o código e sem saber Docker**: uma pessoa que nunca viu o código e não conhece
    Docker MUST conseguir executar o módulo e entender o que entra e o que sai só com o README e
-   com o guia de execução do `README.md` da raiz. Portanto: o (b) é um **passo a passo**, não uma
-   lista de comandos; explica o serviço usado (`app` tem internet, `sandbox` não), o que aparece
-   na tela, como confirmar que deu certo (código de saída, arquivos gerados e onde abri-los no
-   seu computador) e o que fazer nas falhas comuns; nenhum termo ou valor de configuração é
-   tratado como conhecido; e a preparação única do ambiente é feita apontando para o guia da
-   raiz, sem repeti-la. Não afirme comportamento não observado (tempo de execução, tamanho em
-   disco): diga que será medido.
+   com o guia de execução do `README.md` da raiz. Portanto: o (b) explica o serviço usado (`app`
+   tem internet, `sandbox` não), o que aparece na tela, como confirmar que deu certo (código de
+   saída, arquivos gerados e onde abri-los no seu computador) e o que fazer nas falhas comuns;
+   nenhum termo ou valor de configuração é tratado como conhecido; e a preparação única do
+   ambiente é feita apontando para o guia da raiz, sem repeti-la. Não afirme comportamento não
+   observado (tempo de execução, tamanho em disco): diga o que foi medido, com data, ou que será
+   medido. **Organize por cenário de uso, não por ordem cronológica de desenvolvimento**: se o
+   módulo tem mais de um ponto de entrada (por exemplo, "já tenho o artefato pronto e só quero
+   usá-lo" vs. "quero gerá-lo do zero"), a estrutura do (b) segue essa intenção do leitor — "se
+   você está neste cenário, faça isto" — não a ordem em que os comandos foram implementados ou
+   executados pela primeira vez. Um passo a passo numerado sequencial só faz sentido quando há um
+   único fluxo possível.
 4. **Comandos exatos**: todo comando MUST ser copiável e funcionar como escrito, no ambiente
    containerizado do projeto (`docker compose run --rm <serviço> ...`). Cada comando MUST
-   constar na tabela "Comandos verificados" (última seção do README) com a data, a revisão git e
-   a tarefa que o executou de verdade; a linha nasce `pendente` e só é carimbada quando o
-   comando é executado. A revisão é a saída de `git rev-parse --short=7 HEAD` no host, obtida
-   depois de commitar o código e antes de rodar o comando, com o sufixo `+dirty` se `src/`,
-   `scripts/`, `pyproject.toml`, `uv.lock`, `Dockerfile` ou os arquivos do compose tiverem
-   alterações não commitadas; o fechamento da feature rejeita `+dirty`.
+   constar na tabela "Comandos verificados" (última seção do README) com a data e a revisão git
+   em que foi executado de verdade; a linha nasce `pendente` e só é carimbada quando o comando é
+   executado. A revisão é a saída de `git rev-parse --short=7 HEAD` no host, obtida depois de
+   commitar o código e antes de rodar o comando, com o sufixo `+dirty` se `src/`, `scripts/`,
+   `pyproject.toml`, `uv.lock`, `Dockerfile` ou os arquivos do compose tiverem alterações não
+   commitadas; o fechamento da feature rejeita `+dirty`. Essa tabela não tem coluna de tarefa: o
+   README é documentação de uso, não um log da implementação (ver regra 10).
 5. **Idioma**: português, espelhando o TCC (Constitution, Convenções Técnicas). Nomes de
    comandos, arquivos, campos e código ficam como no código, em inglês.
 6. **Sincronização**: o README é atualizado no mesmo ciclo de trabalho em que o módulo muda
@@ -46,6 +52,17 @@
    `src/dataset`, todo subcomando também deve estar documentado), os links e a seção "Referência de
    comandos" do `README.md` da raiz (todo subcomando da CLI deve constar nela). A lista de
    conformidade abaixo cobre só o que o script não decide.
+10. **Sem rastro do processo de especificação, nem do trabalho da IA**: este README é
+    documentação de uso, para quem vai *operar* o módulo — não um registro de como ele foi
+    construído. MUST NOT citar identificadores de tarefa do spec-kit (`T035`, `T093`, ...), nem
+    narrar o processo de implementação em si ("a auditoria achou X e foi corrigido", "isso foi
+    verificado na tarefa Y"). Quando uma decisão de desenho precisa ser explicada, explique a
+    decisão e o motivo em linguagem comum, sem o rótulo interno (`D13`, `FR-011b`); um link para
+    `docs/metodologia-referencia.md`, pela seção, é a referência correta para quem quer mais
+    profundidade. Números medidos (tamanho, tempo, contagens) entram como fatos datados ("medido
+    em 2026-09-20: ..."), não como narrativa de tarefa concluída. Esse histórico de processo
+    continua existindo — em `specs/NNN-nome/tasks.md` e no histórico datado da seção 8 da
+    metodologia — só não pertence ao README do módulo.
 
 ## Esqueleto
 
@@ -122,9 +139,9 @@ docker compose run --rm <serviço> <comando exato>
 
 ## Comandos verificados
 
-| Comando | Verificado em | Revisão | Tarefa |
-|---|---|---|---|
-| `<subcomando>` | pendente | — | — |
+| Comando | Verificado em | Revisão |
+|---|---|---|
+| `<subcomando>` | pendente | — |
 ````
 
 ## Lista de conformidade (usada na revisão, Princípio X)
@@ -137,7 +154,8 @@ Um README de módulo só está em conformidade se **todas** as respostas forem "
 - [ ] O (b) é um passo a passo que uma pessoa sem conhecimento de Docker consegue seguir (serviço explicado, resultado esperado, como conferir, falhas comuns), e a preparação do ambiente aponta para o guia da raiz?
 - [ ] O guia do `README.md` da raiz foi atualizado se este módulo mudou o que é preciso para começar (variáveis do `.env`, pastas, serviços)?
 - [ ] Todos os comandos do módulo (inclusive os de teste e de verificação, e os planejados como `planejado`) constam na seção "Referência de comandos" do `README.md` da raiz?
-- [ ] Cada comando de (b) consta na tabela "Comandos verificados", com data, revisão e tarefa (sem `pendente` se o módulo está implementado)?
+- [ ] Cada comando de (b) consta na tabela "Comandos verificados", com data e revisão (sem `pendente` se o módulo está implementado)?
+- [ ] O README não cita identificadores de tarefa do spec-kit (`T035`, ...) nem narra o processo de implementação, só o que o módulo faz e como usá-lo (regra 10)?
 - [ ] `check_docs_sync.py --module src/<modulo>` sai com `0`?
 - [ ] (c) e (d) dizem formato **e** origem/destino de cada item?
 - [ ] (e) lista versões e o serviço do Compose?

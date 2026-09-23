@@ -84,7 +84,7 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
   explicitamente quais comandos o autor pode rodar para conferir por si (por
   exemplo, os testes novos ou afetados, `check_docs_sync.py`, `ruff`/`black`)
   — nunca só "feito" ou um resumo genérico.
-- Toda chamada de IA é stateless — nunca reaproveitar contexto entre requisições.
+- Toda chamada de IA na parte específica do experimento em que os códigos/enunciados são enviados para as IAs, é stateless — nunca reaproveitar contexto entre requisições à essas APIs de IA.
 - Nenhum limite de tempo/memória de sandbox é hardcoded — sempre lido dos
   metadados do problema.
 - Compilação/execução de código C++ de terceiros só dentro do container.
@@ -105,11 +105,21 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
   a tabela e a prosa nunca podem se contradizer (achado real: a T072 carimbou
   `audit` mas deixou duas frases dizendo "ainda não rodou" em dois READMEs
   diferentes, só corrigidas na T073 seguinte).
-- Documentação de execução escrita para quem **não conhece Docker**: o `README.md` da raiz traz
-  o guia do clone ao primeiro comando (conceitos, `.env`, `data/`, build, verificação, problemas
-  comuns) e o "(b) Como executar" de cada módulo é um passo a passo (serviço explicado, resultado
-  esperado, como conferir, falhas comuns). Nunca supor que um termo ou valor de configuração é
-  conhecido, e não afirmar tempo ou tamanho não medidos.
+- Documentação de execução escrita para quem **não conhece Docker**: o `README.md` da raiz é um
+  guia geral (arquitetura, preparação única do ambiente) que aponta, como um índice, para o
+  README de cada módulo; o "(b) Como executar" de cada módulo é que detalha o funcionamento
+  daquele módulo (serviço explicado, resultado esperado, como conferir, falhas comuns),
+  organizado por **cenário de uso** quando o módulo tem mais de um ponto de entrada (ex.: "já
+  tenho o artefato pronto" vs. "quero gerá-lo do zero"), não como um log cronológico de
+  desenvolvimento. Nunca supor que um termo ou valor de configuração é conhecido, e não afirmar
+  tempo ou tamanho não medidos.
+- **README de módulo é documentação de uso, não um log de implementação**: MUST NOT citar
+  identificadores de tarefa do spec-kit (`T035`, `T093`, ...) nem narrar o processo pelo qual algo
+  foi construído; explique a decisão e o motivo em linguagem comum, com um link para a seção da
+  metodologia se for preciso mais profundidade. A tabela "Comandos verificados" de cada README
+  tem só `Comando | Verificado em | Revisão` (sem coluna de tarefa). Esse histórico de processo
+  continua existindo — em `specs/NNN-nome/tasks.md` e na seção 8 da metodologia — só não pertence
+  ao README (`docs/template-modulo.md`, regra 10).
 - Todo módulo tem `src/<modulo>/README.md` (template em
   `docs/template-modulo.md`, seis campos) e o `README.md` da raiz é atualizado
   quando um módulo é adicionado ou o fluxo entre módulos muda; sem isso o

@@ -5,630 +5,356 @@
 
 ## (a) Propósito
 
-Extrai do dataset `code_contests`, em streaming, os problemas elegíveis do experimento e os classifica em macrocategorias, para depois validar seu código C++ e empacotar o dataset verificável.
+Extrai do `code_contests` os problemas elegíveis do experimento, valida o código de cada um no
+motor de execução e empacota o resultado num arquivo único, verificável, pronto para ser
+distribuído e consumido pelos módulos seguintes.
 
 ## (b) Como executar
 
 **Antes de começar** (uma vez por máquina): faça os passos 1 a 5 do
-[guia de execução do README da raiz](../../README.md#guia-de-execução-do-clone-ao-primeiro-comando):
-baixar o projeto, criar o `.env`, criar a pasta `data/`, construir a imagem e conferir com o
-`pytest`. Sem isso os comandos abaixo não funcionam. Todos rodam **dentro do Docker**: `extract` e
-`report` no serviço `app`, que tem acesso à internet (o serviço `sandbox` não tem, por isso não
-serve para baixar o dataset), e `selfcheck`, `validate` e `audit` no serviço `sandbox`, que é o que
-compila e executa C++ de terceiros. Rode-os na pasta do repositório.
+[guia de execução do README da raiz](../../README.md#guia-de-execução-do-clone-ao-primeiro-comando)
+— baixar o projeto, criar o `.env`, criar a pasta `data/`, construir a imagem e conferir com o
+`pytest`. Sem isso os comandos abaixo não funcionam.
 
-### O que este módulo faz, na prática
+### O que este módulo faz
 
-Lê o dataset público `code_contests` no Hugging Face **em streaming** (lê aos poucos, sem baixar o
-dataset inteiro para o disco), separa os problemas que servem ao experimento (critérios de
-elegibilidade da metodologia, seção 1.2), classifica cada um em uma macrocategoria e guarda na sua
-máquina, dentro de `data/work/`, o enunciado, os testes e os códigos C++ de cada problema
-elegível. A extração real de 2026-09-20 resultou em **1.234 problemas** elegíveis. **Ainda não valida** se os
-códigos funcionam: isso vem nas próximas etapas da feature.
+Lê o dataset público `code_contests` (Hugging Face) **em streaming**, sem baixá-lo inteiro para o
+disco. De cada problema, aplica critérios de elegibilidade — só problemas do Codeforces, nota
+(`rating`) entre 1000 e 1600, pelo menos uma tag entre `implementation`, `math`, `greedy`,
+`strings`, `binary search`, `dp`, `sortings`, nenhuma tag proibida (geometria, interativo, jogos,
+probabilidade, construtivo), nenhum enunciado que dependa de figura, sem tradução automática, com
+solução correta e submissões incorretas em C++, sem entrada/saída por arquivo — e classifica os
+que sobram em uma de três macrocategorias algorítmicas (`matematica`, `estrutural_otimizacao`,
+`logica_direta`), por prioridade de tag. Detalhes de cada critério e da regra de classificação:
+metodologia, seções 1.2 e 1.3.
 
-`extract` é a **fase 1 de 5** do ciclo do módulo (`extract`, `validate`, `audit`, `package`,
-`verify`); todas as cinco existem hoje (`extract`, `report`, `selfcheck`, `validate`, `audit`,
-`package`, `verify`), implementadas, testadas e **já executadas de verdade, do início ao fim**. O
-`validate` foi executado sobre o dataset real em 2026-09-21 (piloto de 10 problemas e execução
-completa de 200, que levou 5 h 06 min; resultados na metodologia, seção 1.7); o `audit` rodou 4
-rodadas em 2026-09-21/22 (3 registradas na decisão D18, mais uma de fechamento sem reparo novo)
-até convergir; `package` gerou o `data/dataset.zip` real (200 problemas, 12.891.474 bytes ≈
-12,3 MiB, revisão `9b87d7e`) e `verify` confirmou `OK`, inclusive no cenário de pós-clonagem
-(descompactar e verificar a árvore, T094). O ciclo completo é feito **uma vez, por
-um dos autores**, que publica no Git o `data/dataset.zip` e os manifestos; o outro autor só
-descompacta e confere (`verify`), sem rodar `extract`/`validate`/`audit`/`package`. O que cada
-fase faz, o que sobra em `data/work/` e como cada autor e o Docker de cada um se encaixam estão em
-[Como o dataset circula entre os autores](../../README.md#como-o-dataset-circula-entre-os-autores),
-no README da raiz.
+Dos problemas elegíveis, os **200 primeiros** (numa ordem embaralhada uma única vez, com seed
+fixa, para o experimento ser reprodutível) que conseguem ter o código correto **e** exatamente 100
+submissões incorretas confirmadas como falhas reais (não erro de compilação, não estouro de tempo
+ou memória) pelo motor de execução isolado (módulo [`sandbox`](../sandbox/README.md)) formam a
+amostra final. Cada código passa pelo motor mais de uma vez, em momentos diferentes, antes de
+entrar no dataset — é o que garante que uma submissão marcada como falha real continua falhando de
+forma estável, não por acaso de hardware. O resultado final é compactado num único arquivo
+(`data/dataset.zip`) com um manifesto de hashes, para poder ser distribuído e conferido.
 
-### Passo a passo
+### Qual é o seu cenário?
 
-1. **Teste rápido (opcional, poucos minutos).** Confirma que a rede e as permissões funcionam antes
-   da extração longa; lê só as primeiras 400 linhas de cada parte do dataset:
+#### Cenário 1 — Só preciso do dataset já pronto (o caso mais comum)
 
-   ```bash
-   docker compose run --rm app python -m dataset extract --limit-rows 400
-   ```
+Se alguém já gerou e publicou o dataset no repositório (é o caso deste projeto: o zip e os
+manifestos já estão commitados), você só precisa descompactar e conferir a integridade — **nunca**
+precisa rodar extração nem validação, que levam horas:
 
-   Se você fez o teste rápido, apague o resultado antes do passo 2, para começar limpo:
-   `rm -rf data/work`. **Atenção**: isso só é inofensivo enquanto a validação dos códigos não
-   existe; depois dela, `data/work/` também guarda os problemas já validados (horas de execução),
-   e apagá-la os perde.
+```bash
+unzip data/dataset.zip -d data/
+docker compose run --rm app python scripts/verify_dataset.py --extracted data/dataset
+```
 
-2. **Extração completa.** Lê os três splits (`train`, `valid`, `test`) e grava o pool:
+Esperado: a última linha é `OK`. O `unzip` cria `data/dataset/problems/<problem_id>/`, uma pasta
+por problema, cada uma com `enunciado.md`, `AC_ref.cpp` (a solução correta), `WA_1.cpp` a
+`WA_100.cpp` (as 100 falhas reais), `testes.json` (a suíte oficial), `metadata.json` (rating, tags,
+macrocategoria, limites) e `validacao.json` (o veredito de cada código e como ele foi decidido). É
+esta pasta — `data/dataset/`, com exatamente esses 200 problemas — que os módulos seguintes do
+pipeline devem ler; ver "Qual pasta eu uso?" em (d).
+
+Se o zip mudar (um `git pull` trouxe uma versão nova), refaça os dois comandos; se já havia uma
+`data/dataset/` antiga, apague-a antes (`rm -rf data/dataset`) para não deixar arquivos de uma
+versão anterior misturados com os da nova — sem o `rm`, a verificação aponta os arquivos que
+sobraram como `extra`.
+
+Quem não tem `unzip` instalado pode usar `docker compose run --rm app python -m zipfile -e
+data/dataset.zip data/` — produz a mesma árvore.
+
+#### Cenário 2 — Quero gerar o dataset do zero (ou gerar uma versão nova)
+
+Só é preciso se você está criando o dataset pela primeira vez, ou refazendo-o depois de uma
+mudança nos critérios ou no motor. É um processo de **cinco comandos manuais e separados**,
+nesta ordem, cada um descrito com detalhe logo abaixo: `extract` → `validate` → `audit` →
+`package` → `verify`. Nenhum comando chama o próximo sozinho. Leva de um a alguns dias de relógio
+(a validação sozinha leva horas), então é feito **uma única vez**, por uma pessoa, e o resultado é
+publicado pelo Git para as demais.
+
+1. **`extract`** — lê o dataset de origem e grava, na sua máquina, só os problemas elegíveis:
 
    ```bash
    docker compose run --rm app python -m dataset extract
    ```
 
-   Na primeira execução real (2026-09-20) levou cerca de **23 minutos**; a duração depende da sua
-   rede. Pode apertar Ctrl+C e repetir o mesmo comando depois: só o trecho (shard) em andamento é
-   refeito. Aparecem primeiro barras de progresso do Hugging Face (`README.md`,
-   `dataset_infos.json`, `Resolving data files`), que são normais. Depois vem uma linha por trecho,
-   no formato `train shard 3/39: 342 rows, 32 eligible` (linhas lidas e problemas elegíveis
-   naquele trecho; `already done` quando ele já estava pronto de uma execução anterior): 39 trechos
-   de `train`, 1 de `valid` e 1 de `test`. No fim aparecem `pool: 1234 eligible problems`,
-   `read 13610 rows; 1234 eligible problems`, uma linha com o total por macrocategoria e `report:`
-   com o caminho do relatório.
+   Roda no serviço `app` (tem internet). Demora a depender da sua rede (na única execução real
+   deste projeto, ~23 minutos). Pode ser interrompido com Ctrl+C e retomado com o mesmo comando:
+   só o trecho em andamento é refeito. Ao final imprime o total lido, quantos problemas ficaram
+   elegíveis e a distribuição por macrocategoria; o relatório completo fica em
+   `data/work/reports/extraction_report.md`. Para um teste rápido antes da extração completa
+   (poucos minutos, lê só as primeiras linhas de cada parte do dataset), use
+   `--limit-rows 400`; para recomeçar do zero depois de um teste rápido, `rm -rf data/work`.
 
-3. **Conferir o resultado.** Veja o código de saída (`echo $?`, esperado `0`) e abra os arquivos,
-   que estão na sua pasta `data/work/` (não dentro de um contêiner):
-
-   ```bash
-   ls data/work/staging                       # pool.json, raw/ e shards/
-   less data/work/reports/extraction_report.md   # funil de elegibilidade e distribuição
-   ```
-
-   No relatório, confira o funil (quantos problemas restam após cada critério) e a distribuição do
-   pool por macrocategoria. Como a revisão do dataset e a seed são fixas, o resultado é
-   **determinístico** e o seu deve ser exatamente o da extração real de 2026-09-20: 13.610 linhas
-   lidas e **1.234 problemas** no pool (`estrutural_otimizacao` 407, `matematica` 278,
-   `logica_direta` 549; `train` 1.206, `valid` 9, `test` 19). O funil, em ordem, termina assim:
-   1.288 (sem termo visual) → 1.279 (sem E/S por arquivo) → 1.250 (com soluções em C++) →
-   1.234 (com ao menos 100 incorretas em C++). A tabela de "motivos de rejeição" conta cada critério
-   sobre todas as linhas lidas (uma linha pode ter vários motivos), por isso ela não soma como o
-   funil. Se os seus números diferirem, avise os autores, porque a documentação precisa ser
-   corrigida. Depois da extração, `data/work/` ocupa cerca de 104 MB.
-
-4. **Regenerar o relatório (opcional).** Refaz o relatório a partir dos arquivos já gravados, sem
-   baixar nada:
-
-   ```bash
-   docker compose run --rm app python -m dataset report
-   ```
-
-   Enquanto a validação não existir, a amostra aparece vazia; é o esperado.
-
-5. **Conferir o motor de execução (`selfcheck`).** Não baixa nem valida nada do dataset: roda 9
-   programas de veredito conhecido pelo motor (módulo [`sandbox`](../sandbox/README.md)) e confere
-   os vereditos. É o portão de entrada do `validate`, quando ele existir. Note o serviço
-   `sandbox`, não `app`:
-
-   ```bash
-   docker compose run --rm sandbox python -m dataset selfcheck
-   ```
-
-   Leva cerca de 7 segundos; esperado `selfcheck OK: 9/9 cases` e código `0`. Se rodar no
-   serviço `app`, termina com `infrastructure failure` (código `3`), porque o `app` não tem o motor.
-
-6. **Validar os problemas no motor (`validate`).** **Como os 200 problemas são escolhidos**: o pool
-   elegível (1.234 problemas dos três splits juntos) foi embaralhado uma única vez com a seed 42 e
-   gravado nessa ordem em `pool.json`; o `validate` percorre essa ordem e a amostra são os **200
-   primeiros problemas que completam a validação**. Os que não completam são pulados e a próxima
-   posição da ordem é usada; não há cota por macrocategoria nem prioridade por split ou
-   dificuldade. Para cada problema, o motor executa o código correto (`AC_ref`, o primeiro do dataset) sobre **toda** a suíte oficial e
-   depois as submissões incorretas candidatas, até reunir exatamente 100 falhas de resposta errada
-   (WA), cada uma confirmada por duas execuções. O comando roda o `selfcheck` antes de tudo e **aborta**
-   se ele falhar. Faça primeiro um **piloto** com 10 problemas, para medir quantas candidatas viram WA
-   e quanto tempo leva, antes da execução completa (`--target` é a meta de problemas completos):
-
-   ```bash
-   docker compose run --rm sandbox python -m dataset validate --target 10
-   ```
-
-   O piloto de 2026-09-21 levou cerca de 21 min de relógio para 14 problemas processados, com 4
-   processos. Depois, a execução completa (meta 200), que em 2026-09-21 levou **5 h 06 min** com 4
-   processos (264 problemas processados, mediana de 83 s por problema completo):
+2. **`validate`** — executa, no motor isolado, o código de cada problema elegível, na ordem
+   gravada por `extract`, até reunir 200 problemas completos:
 
    ```bash
    docker compose run --rm sandbox python -m dataset validate
    ```
 
-   Pode apertar Ctrl+C e repetir o mesmo comando: os problemas já encerrados são pulados e o que
-   estava em andamento é refeito do zero. Durante a execução aparece uma linha por problema, como
-   `1101_A: complete (AC AC; 213 candidates: ce=3 wa=100 tle=2...; 41.2 s)`, e no fim
-   `included N of 200 (deficit D)`. Cada problema termina em um destes três estados, gravados em
-   `data/work/problems/<problem_id>/`:
+   Roda no serviço `sandbox` (sem rede, o único autorizado a compilar e executar código de
+   terceiros) e é a etapa mais longa: na única execução real deste projeto, **5 horas e 6
+   minutos**, com 4 processos em paralelo (o número de processos só muda o tempo, nunca o
+   resultado — ajuste com `--workers N`). Antes de rodar a execução completa, vale medir num
+   piloto pequeno quantas submissões incorretas realmente viram falha confirmada (varia por
+   problema) e quanto tempo por problema esperar: `docker compose run --rm sandbox python -m
+   dataset validate --target 10`. O comando roda uma auto-checagem do motor antes de tudo e
+   recusa continuar se ela falhar. Pode ser interrompido a qualquer momento (Ctrl+C, `docker
+   stop`, queda de energia) e retomado com o mesmo comando: problemas já concluídos não são
+   refeitos, só o que estava em andamento. Cada problema termina em um de três estados:
 
-   | Estado | O que significa | O que fica na pasta |
-   |---|---|---|
-   | `complete` | o `AC_ref` passou em toda a suíte e há exatamente 100 WA validados | `enunciado.md`, `AC_ref.cpp`, `WA_1.cpp` a `WA_100.cpp`, `testes.json`, `metadata.json`, `validacao.json` |
-   | `pending_triage` | o `AC_ref` **falhou no motor**; o problema é interrompido na hora, sem tentar outra solução e sem tolerância, **não conta para a meta** e a inspeção é adiada | só `validacao.json` (com o motivo e a saída divergente) e `AC_candidate.cpp` |
-   | `discarded` | menos de 100 WA validáveis (por exemplo, poucas submissões incorretas distintas) | só `validacao.json` |
+   | Estado | O que significa |
+   |---|---|
+   | `complete` | o código correto passou em toda a suíte oficial e há exatamente 100 falhas reais confirmadas; conta para a amostra |
+   | `pending_triage` | o código correto, que deveria estar certo, falhou no motor; o problema é excluído da amostra e fica registrado para inspeção manual futura (não é feita automaticamente) |
+   | `discarded` | não há 100 submissões incorretas que se confirmem como falha real (poucas distintas, ou muitas só dão erro de compilação/tempo/memória) |
 
-   **Problemas em `pending_triage` não são inspecionados agora** (decisão D17): ficam registrados,
-   fora da amostra, e só passam a exigir **inspeção individual** de quem gera o dataset se a meta de
-   200 **não** for atingida com os demais problemas do pool (a causa costuma ser um verificador
-   especial que escapou do filtro, um gabarito do dataset com formatação diferente ou testes fora das
-   restrições do enunciado; ver a metodologia, seção 1.7). Para tentar de novo um problema depois de
-   resolvê-lo, apague a pasta dele em `data/work/problems/` e rode `validate` de novo.
-   Códigos de saída: `0` se a meta foi atingida (problemas em triagem **não** mudam o código), `1`
-   se houve déficit, `2` uso incorreto, `3` falha de infraestrutura (o problema em andamento fica em
-   `data/work/building/`, é refeito na próxima execução e nunca vira veredito).
+   Ao final, imprime `included N of 200 (deficit D)`: `D` é `0` em caso de sucesso. Se terminar
+   com déficit, nada é relaxado automaticamente (nem os critérios de elegibilidade, nem a meta de
+   100 falhas por problema) — é preciso decidir manualmente o que fazer com os problemas em
+   `pending_triage`.
 
-   **Retomar depois de uma interrupção** (Ctrl+C, `SIGTERM` de `docker stop` ou o fim de uma
-   sessão, ou o código `3`): rode **o mesmo comando** de novo. `validate` descarta qualquer
-   `data/work/building/<id>/` parcial e refaz aquele problema do zero; os problemas já encerrados
-   (`complete`, `pending_triage`, `discarded`) NÃO são refeitos (são pulados, "already closed");
-   o código `130` (interrompido) sai limpo, sem tocar em nada já concluído. Verificado de
-   propósito em 2026-09-22 (T080): interromper no meio de um problema e retomar dá o mesmo
-   resultado de uma execução ininterrupta, arquivo a arquivo (exceto `extraction_timestamp` e o
-   campo medido `max_cpu_time_s`, ver seção (f)). Um problema em `pending_triage` **não** é
-   refeito automaticamente nunca (mesmo sem interrupção): para reprocessá-lo depois de resolvido,
-   apague `data/work/problems/<id>/` e rode `validate` de novo.
-
-   **Conferir o piloto**: rode `docker compose run --rm app python -m dataset report` e leia, em
-   `data/work/reports/extraction_report.md`, a seção "Falhas de AC por causa". Se mais de 10% dos ACs
-   testados forem reprovados por divergência só de formatação ou por tempo excedido, a regra
-   correspondente volta a ser proposta e a execução completa **não segue** (decisão D13, metodologia
-   1.4). O arquivo `data/work/reports/validation_log.jsonl` traz uma linha por problema, com as
-   contagens de candidatas por resultado (`wa`, `ce`, `tle`, `mle`, `re`, `ac`, `unstable`) e o tempo.
-
-7. **Auditar (`audit`).** Reexecuta o motor sobre os problemas `complete` e confere com o
-   `validacao.json`: o `AC_ref` primeiro; se ele deixar de passar, aquele problema é interrompido e
-   vira `pending_triage` (etapa `audit`), sem que nenhuma WA seja avaliada:
+3. **`audit`** — reexecuta, de forma independente, o código de cada problema já `complete` e
+   confere se o resultado continua o mesmo:
 
    ```bash
    docker compose run --rm sandbox python -m dataset audit
    ```
 
-   **Uma WA cujo veredito ou teste decisivo mudou é reparada, não só relatada** (decisão D18,
-   2026-09-22): é substituída pelo próximo candidato não tentado da mesma ordem determinística que
-   gerou o problema, agora exigindo uma confirmação mais forte (6 execuções concordantes, em vez
-   das 2 da seleção original; corrigido em 2026-09-22 depois que a versão inicial se mostrou mais
-   fraca do que o pretendido — detalhes na metodologia, seção 1.4). O número de WA continua exatamente 100, na mesma numeração, e
-   nenhum outro arquivo do problema muda. Por quê: a auditoria da execução completa achou WA cujo
-   resultado dependia de comportamento indefinido do código (acesso fora dos limites de um vetor,
-   variável não inicializada) ou de tempo de execução bem no limiar do limite — não da entrada —,
-   o que os tornava um gabarito ruim para as métricas; os detalhes e a investigação (incluindo por
-   que desligar o ASLR do kernel não foi viável, bloqueado pelo seccomp padrão do Docker) estão na
-   metodologia, seção 1.7. A linha impressa por problema muda conforme o caso:
+   Existe porque `validate` decide cada código sob concorrência (vários processos disputando CPU
+   ao mesmo tempo), e um código cujo resultado dependa de tempo no limiar do limite, ou de
+   comportamento indefinido (memória não inicializada, acesso fora dos limites de um vetor), pode
+   passar por sorte numa execução e falhar na outra — um gabarito instável assim não serve para
+   as métricas do experimento. Uma falha desse tipo encontrada no `audit` é **reparada
+   automaticamente**: o candidato instável é substituído pelo próximo candidato, ainda não
+   tentado, da mesma ordem determinística que gerou o problema, agora exigindo uma confirmação
+   mais forte (seis execuções concordantes, em vez das duas da seleção original). O número de
+   falhas continua exatamente 100, com a mesma numeração dos arquivos; nenhum outro arquivo do
+   problema muda. Se os candidatos disponíveis se esgotarem sem achar um substituto estável, o
+   comando avisa explicitamente (`could not be repaired`) — não há reparo silencioso. Se o
+   **código correto** de um problema falhar na auditoria (mais raro), o problema inteiro sai da
+   amostra e vira `pending_triage`; rode `validate` de novo para completar a meta com o próximo
+   problema da ordem. Rode `audit` uma última vez, sem nada para reparar, como conferência final
+   antes de empacotar.
 
-   | Linha | O que significa |
-   |---|---|
-   | `<id>: ok (AC_ref and 100 WA as recorded)` | nada divergiu |
-   | `<id>: N WA candidate(s) repaired (decision D18): WA_5.cpp, ...` | reparado sozinho; não precisa de nada seu |
-   | `<id>: could not be repaired (...); needs the authors' attention` | os candidatos não tentados se esgotaram sem um substituto confirmado; **este caso exige decisão sua** |
-   | `<id>: audit FAILED, AC_ref is now ...; pending_triage` | o código correto deixou de passar; o problema sai da amostra |
-
-   Código `0` se nada ficou sem solução (um reparo bem-sucedido não conta como divergência), `1`
-   se algum problema não pôde ser reparado ou teve o `AC_ref` reprovado.
-
-8. **Empacotar (`package`).** É a última fase de quem **gera** o dataset: só depois dela existe
-   algo para mandar para o outro autor. Reúne todos os problemas `complete` de
-   `data/work/problems/` num único arquivo, `data/dataset.zip`, e grava o manifesto de hashes
-   (`manifests/dataset.manifest.json`). **Quando rodar**: uma vez, depois que `validate` chegou a
-   `deficit 0` e `audit` convergiu (sem nada para reparar, ou os reparos já aceitos — ver a
-   auditoria de fechamento no roteiro abaixo); rodar `package` mais cedo não é proibido, mas
-   embarca no zip só os problemas que já estavam `complete` naquele momento (`pending_triage` e
-   `discarded` nunca entram). **Não é automático**: `validate` e `audit` não chamam `package`
-   sozinhos, e `package` não roda `validate`/`audit` de novo — cada fase é um comando manual e
-   separado (ver "Como o dataset circula entre os autores" no README da raiz).
+4. **`package`** — reúne todos os problemas `complete` num zip determinístico e grava o
+   manifesto de integridade:
 
    ```bash
    docker compose run --rm app python -m dataset package
    ```
 
-   Roda no serviço `app` (não precisa do motor nem de rede: só lê arquivos já validados e
-   compacta). Recusa empacotar se menos de 200 problemas estiverem `complete` (a menos que você
-   passe `--allow-partial`, para os casos de teste ou de déficit aceito) e avisa, sem impedir, se
-   o zip passar de 95 MB (limite de push comum do GitHub: 100 MB). Grava também
-   `manifests/extraction_report.json` (cópia do relatório final, versionada). Determinístico: rodar
-   de novo sobre o mesmo `data/work/problems/` gera o mesmo zip, byte a byte, no mesmo ambiente
-   (SC-008) — reempacotar não tem custo nem risco.
+   Roda no serviço `app` (não precisa do motor nem de rede: só lê o que `validate`/`audit` já
+   gravaram e compacta). Recusa empacotar se menos de 200 problemas estiverem `complete` (a menos
+   que se passe `--allow-partial`, só para testes). Avisa, sem impedir, se o zip passar de 95 MB
+   (o GitHub recusa arquivos acima de 100 MB num push comum). Reempacotar o mesmo conjunto de
+   problemas sempre produz o mesmo zip, byte a byte, no mesmo ambiente — não há custo nem risco em
+   rodar de novo.
 
-   ```text
-   packaged 200 of 200 problems: data/dataset.zip (12345678 bytes)
-   manifest: manifests/dataset.manifest.json
-   extraction report: manifests/extraction_report.json
-   ```
-
-   Depois de `package`, confira com `verify` (passo 9) e então **é isso que você commita e
-   publica**: `git add data/dataset.zip manifests/ && git commit -m "..." && git push` (você
-   mesmo decide a mensagem e roda o commit; nada aqui commita por você). Nenhum outro arquivo de
-   `data/` deve aparecer no `git status` além desses — se aparecer, algo além do zip e dos
-   manifestos está tentando ser versionado, o que a regra do `.gitignore` (FR-029) já impede por
-   padrão, então isso indicaria um problema a investigar, não algo a ignorar.
-
-9. **Verificar a integridade (`verify` e `scripts/verify_dataset.py`).** Recalcula os hashes de
-   tudo e compara com o manifesto. Há duas formas do MESMO comando: **`verify`**, o subcomando da
-   CLI (`data/dataset.zip` e `manifests/dataset.manifest.json` nos caminhos padrão),
+5. **`verify`** — recalcula os hashes de tudo e compara com o manifesto:
 
    ```bash
    docker compose run --rm app python -m dataset verify
    ```
 
-   e **`scripts/verify_dataset.py`**, pensado para rodar **antes mesmo de haver
-   um `pool.json`**, por qualquer pessoa que só recebeu o zip pelo Git — é o comando da seção
-   "Quem recebe o dataset" do README da raiz.
+   Confirme `OK` antes de publicar. Depois, o zip e os manifestos (`data/dataset.zip`,
+   `manifests/dataset.manifest.json`, `manifests/extraction_report.json`) são o que se manda para
+   as demais pessoas pelo Git — nada disso é commitado automaticamente por nenhum dos comandos
+   acima; é sempre uma decisão manual (`git add`, `git commit`, `git push`).
 
-   ```bash
-   docker compose run --rm app python scripts/verify_dataset.py
-   ```
+O computador precisa ficar ligado durante a validação (a etapa mais longa); em notebook, mantenha
+na tomada e evite suspensão (`systemd-inhibit --what=sleep:idle -- <comando>` no Linux impede a
+suspensão enquanto o comando roda).
 
-   Sem opções, verifica só o zip contra o manifesto (não precisa descompactar nada, funciona logo
-   após um `git clone` + `git pull`). Com `--extracted DIR`, confere também a árvore já
-   descompactada, arquivo a arquivo:
-
-   ```bash
-   unzip data/dataset.zip -d data/
-   docker compose run --rm app python scripts/verify_dataset.py --extracted data/dataset
-   ```
-
-   Esperado, nos dois casos: última linha `OK` e código de saída `0`. Se qualquer arquivo mudou
-   (mesmo um único byte), sumiu ou apareceu a mais, a saída lista cada um em `changed:`,
-   `missing:` ou `extra:`, termina com `FAIL` e o código de saída é `1` (nunca falha silenciosa).
-   Quem gera o dataset roda `verify` logo depois de `package`, como conferência antes de
-   commitar; quem recebe roda `scripts/verify_dataset.py` (mesma lógica, script fora da CLI, para
-   não exigir um `pool.json` que quem recebe não tem) depois de um `git pull` que trouxe um zip ou
-   manifesto novo.
-
-### O que são `audit` e `report`, para que servem e quando rodar cada um
-
-| | `audit` | `report` |
-|---|---|---|
-| **O que faz** | reexecuta no motor o código correto e as 100 WA de cada problema completo e compara com o registrado | lê os arquivos já gravados e escreve o resumo legível (Markdown e JSON) |
-| **Executa código C++?** | sim (serviço `sandbox`) | não (serviço `app`) |
-| **Duração** | horas, como a validação (extrapolação: 4 a 5 h) | segundos |
-| **Quando** | **uma vez**, depois de o `validate` terminar com `deficit 0` e **antes** de `package` | **não precisa rodar à mão**: `validate` e `audit` já o regeram ao terminar |
-| **Obrigatório agora?** | sim, é a conferência antes de gerar o zip | não |
-
-**`audit`: a segunda conferência dos problemas já validados.** Para cada problema `complete` em
-`data/work/problems/`, ele lê os arquivos que estão na pasta (os mesmos que irão para o zip:
-`AC_ref.cpp`, `WA_1.cpp` a `WA_100.cpp` e `testes.json`) e os executa **de novo** no motor: o
-`AC_ref` sobre toda a suíte oficial e depois cada uma das 100 WA. Compara com o que o
-`validacao.json` registrou: o `AC_ref` tem de continuar dando `AC`, e cada WA tem de continuar dando
-`WA` no mesmo teste decisivo. Ele existe porque, no `validate`, cada código é executado uma vez para
-decidir (as WA, duas), com 4 processos disputando a CPU. O `audit` é uma **segunda passagem
-independente, sobre os arquivos gravados**: pega, por exemplo, um código cujo tempo estava perto do
-limite e passou por sorte, e qualquer diferença entre o que foi decidido e o que foi gravado. É o que
-sustenta a promessa de que todo código que entra no dataset passou pelo motor com o mesmo veredito
-mais de uma vez (spec, FR-015a).
-
-- *Se o `AC_ref` de um problema falhar na auditoria*: ele vira `pending_triage` (etapa `audit`) e sai
-  da amostra, que passa a ter 199. Rode `validate` de novo: ele retoma a ordem do pool e completa o
-  que falta; depois audite só os novos com `audit --problem <id>` (repetível).
-- *Se uma WA divergir*: é apenas **reportada** (o comando termina com código `1` e lista quais);
-  o problema continua completo e os autores decidem o que fazer.
-- Só quem **gera** o dataset roda o `audit`: ele lê `data/work/`, que só existe na máquina de quem
-  gerou. Quem recebe o zip usa `verify` (integridade), não `audit`. Não precisa ser repetido, a menos
-  que algum problema seja refeito ou o motor/imagem mude.
-
-**`report`: o resumo legível do estado.** Não executa código nem baixa nada: lê `pool.json`, todos os
-`validacao.json` e `selfcheck.json` e escreve `data/work/reports/extraction_report.md` e `.json`
-(funil de elegibilidade, distribuição por macrocategoria do pool e da amostra, descartes, falhas de
-AC por causa, triagem adiada, déficit, alertas e o resultado do `selfcheck`). É o documento com os
-números que vão para o texto do TCC; o `package` copia o `.json` para
-`manifests/extraction_report.json` (versionado). Como `validate` e `audit` o regeram sozinhos ao
-terminar, rodar `report` à mão só serve para **atualizar o resumo sem executar nada** (por exemplo,
-depois de apagar a pasta de um problema) ou para acompanhar o andamento de outra janela de terminal
-durante uma execução longa. **Depois do `validate` não é preciso rodá-lo.**
-
-### Roteiro da execução completa (quem gera o dataset; tarefa T072)
-
-Esta é a única etapa longa do módulo (várias horas) e **é executada por você, no seu computador**,
-não por uma ferramenta automática. Este roteiro reúne tudo o que é preciso: leia-o inteiro antes de
-começar.
-
-**O que vai acontecer.** O `validate` percorre o pool na ordem gravada e valida cada problema no
-motor até reunir 200 problemas completos. Na execução de 2026-09-21 foram 264 problemas processados
-em **5 h 06 min com 4 processos**. Depois vem a auditoria (`audit`), que reexecuta os 200 problemas
-e leva um tempo da mesma ordem (extrapolação: 4 a 5 horas); o relatório (`report`) é gerado sozinho
-ao fim de cada um. Pode fazer a validação hoje e a auditoria em outro momento.
-
-**Antes de começar (uma vez):**
-
-1. Esteja na pasta do repositório, na versão já **commitada**. Confira que não há alteração pendente
-   no código: `git status` não deve listar nada em `src/`, `scripts/`, `Dockerfile`,
-   `docker-compose.yml`, `pyproject.toml` nem `uv.lock`. Anote o hash: `git rev-parse --short=7 HEAD`
-   (os comandos são carimbados na tabela "Comandos verificados" com esse hash).
-2. Deixe a imagem pronta: `docker compose build` (rápido se nada mudou).
-3. Confirme que o motor está bem: `docker compose run --rm sandbox python -m dataset selfcheck`
-   deve terminar com `selfcheck OK: 9/9 cases`. (O `validate` repete essa conferência sozinho.)
-4. Espaço em disco: cada problema completo ocupa cerca de 0,5 MB em `data/work/problems/`
-   (medido nos 14 do piloto), ou seja, em torno de 100 MB para 200; há folga de sobra.
-5. O computador precisa **ficar ligado e sem suspender** durante horas. O `systemd-inhibit` do
-   comando abaixo impede a suspensão enquanto ele roda. Em notebook, mantenha na tomada e não feche
-   a tampa.
-6. O computador ficará bem ocupado (4 processos compilando C++). Se quiser continuar usando a
-   máquina, acrescente `--workers 2` ao comando: só o tempo aumenta, o **resultado é o mesmo** com
-   qualquer número de processos.
-
-**A validação (deixe o terminal aberto):**
+#### Cenário 3 — Só quero conferir se o motor está saudável, ou rodar os testes
 
 ```bash
-systemd-inhibit --what=sleep:idle --why="validacao do dataset" \
-  docker compose run --rm sandbox python -m dataset validate
+docker compose run --rm sandbox python -m dataset selfcheck   # 9 programas de veredito conhecido
+docker compose run --rm sandbox pytest tests/dataset          # testes automatizados do módulo
 ```
 
-- Aparece uma linha por problema (`1101_A: complete (...)`, `pending_triage`, `discarded`) e, no fim,
-  `included N of 200 (deficit D)`.
-- **Se o terminal fechar, o computador reiniciar ou você apertar Ctrl+C**, rode o **mesmo comando** de
-  novo: os problemas já encerrados são pulados e só o que estava em andamento é refeito. Não apague
-  `data/work/`.
-- Problemas em `pending_triage` são esperados (cerca de 1 em cada 5 no piloto). **Não faça nada com
-  eles**: por decisão dos autores (D17), a triagem manual é adiada e só se faz se a meta não for
-  atingida.
-- **Sucesso**: a última linha é `included 200 of 200 (deficit 0)` e o código de saída é `0`
-  (confira com `echo $?` logo depois).
-- **Se terminar com `deficit` maior que zero** (código `1`), **pare aí** e avise: a meta não foi
-  atingida com os demais problemas do pool e os casos em `pending_triage` passam a exigir inspeção
-  individual. Nada é relaxado automaticamente.
+`selfcheck` não lê nada do dataset: só confirma que o motor de execução (compilação, isolamento,
+limites, veredito) está se comportando como esperado. É a mesma checagem que `validate` roda
+sozinho antes de começar.
 
-**Depois da validação** (pode ser em outro momento; veja "O que são `audit` e `report`" acima):
+### Opções de linha de comando
 
-```bash
-systemd-inhibit --what=sleep:idle --why="auditoria do dataset" \
-  docker compose run --rm sandbox python -m dataset audit
-```
+| Comando | Opção | Padrão | Efeito |
+|---|---|---|---|
+| `extract` | `--seed INT` | `42` | seed da ordem de processamento; fica gravada no pool (mudar sem combinar muda quais problemas entram na amostra) |
+| `extract` | `--splits LIST` | `train,valid,test` | splits lidos, nesta ordem (a primeira ocorrência de um problema vence) |
+| `extract` | `--limit-rows N` | sem limite | limita as linhas lidas por split (só para testes rápidos) |
+| `validate` | `--target N` | `200` | meta de problemas `complete`; a execução para ao atingi-la |
+| `validate` | `--workers N` | metade das CPUs (mínimo 1) | processos em paralelo por problema; **não altera o resultado**, só o tempo |
+| `validate` | `--problem ID` | — | valida só este problema (identificador `<ContestID>_<Índice>`) e ignora a meta |
+| `audit` | `--problem ID` (repetível) | todos os `complete` | escopo da auditoria |
+| `audit` | `--workers N` | metade das CPUs | processos em paralelo |
+| `package` | `--target N` | `200` | problemas `complete` exigidos antes de empacotar |
+| `package` | `--allow-partial` | desligado | empacota mesmo com menos de `--target` problemas `complete` (só para testes) |
+| `verify` / `verify_dataset.py` | `--zip PATH` | `data/dataset.zip` | pacote a verificar |
+| `verify` / `verify_dataset.py` | `--manifest PATH` | `manifests/dataset.manifest.json` | manifesto |
+| `verify` / `verify_dataset.py` | `--extracted DIR` | — | confere também a árvore descompactada (`DIR` é a pasta `dataset/` em si, ex. `data/dataset`) |
 
-O `audit` imprime `<id>: ok (...)` por problema e termina com código `0` se nada divergiu. O
-`report` **não precisa ser rodado**: o `validate` e o `audit` já regeram
-`data/work/reports/extraction_report.md` ao terminar.
+`docker compose run --rm app python -m dataset --help` (ou `<comando> --help`) sempre lista as
+opções de fato disponíveis.
 
-**O que guardar e enviar para a documentação ser atualizada** (tarefa T072): as últimas linhas do
-terminal de cada comando (validação, auditoria, relatório), o conteúdo de
-`data/work/reports/extraction_report.md` e o hash de `git rev-parse --short=7 HEAD`. Com isso, os
-números reais (distribuição da amostra por macrocategoria e por split, funil, descartes,
-triagens, tempo total, se o alerta de menos de 30 por categoria disparou) entram na metodologia, na
-spec e no plano, e os comandos são carimbados.
+Códigos de saída, comuns a todos os comandos: `0` sucesso, `1` falha de dados (déficit,
+divergência de integridade, comando fora de ordem), `2` uso incorreto, `3` falha de
+infraestrutura (rede, disco, ambiente — repita o comando, é seguro), `130` interrompido (Ctrl+C
+ou `docker stop`; também seguro).
 
-### Roteiro do empacotamento (quem gera o dataset; tarefa T093)
+### `report`: o resumo legível, gerado sozinho
 
-Última etapa: depois que a validação (acima) terminou com `deficit 0` e você já tem os 200
-problemas `complete`. É rápida (segundos a poucos minutos; não precisa de `systemd-inhibit`).
-**Já foi seguido de verdade em 2026-09-22** (revisão `9b87d7e`): auditoria de fechamento sem
-reparo novo, `package` (200 problemas, 12,3 MiB) e `verify` (`OK`); os números reais estão nas
-seções (d) e (f) e na metodologia, seção 1.6. O roteiro abaixo continua valendo tal como está,
-para a próxima vez que o dataset precisar ser gerado do zero.
-
-1. **Auditoria de fechamento.** Antes de empacotar, rode `audit` mais uma vez, mesmo que já o
-   tenha rodado antes: é a conferência final sobre o estado atual da pasta (decisão registrada na
-   T072). Qualquer reparo que ela fizer entra no ciclo normal, sem exigir mais uma rodada:
-
-   ```bash
-   docker compose run --rm sandbox python -m dataset audit
-   ```
-
-   Esperado: código `0` (nada para reparar, ou tudo reparado com sucesso). Se aparecer
-   `could not be repaired`, **pare e decida com o outro autor antes de empacotar** — não
-   empacote um problema com uma WA sem solução.
-
-2. **Empacotar.**
-
-   ```bash
-   docker compose run --rm app python -m dataset package
-   ```
-
-   Esperado: `packaged 200 of 200 problems: data/dataset.zip (N bytes)`, seguido dos caminhos do
-   manifesto e do relatório. Se aparecer `error: only N of 200 complete problems`, a validação não
-   está em `deficit 0` — não use `--allow-partial` para o dataset real; volte ao passo 6
-   (`validate`).
-
-3. **Verificar antes de publicar.**
-
-   ```bash
-   docker compose run --rm app python scripts/verify_dataset.py
-   ```
-
-   Esperado: `OK`. Se aparecer `FAIL`, **não publique**: algo no empacotamento divergiu do que foi
-   lido do disco (não deveria acontecer; se acontecer, é um bug a reportar, não a ignorar).
-
-4. **Conferir o que vai para o Git.**
-
-   ```bash
-   git status
-   ```
-
-   Esperado: só `data/dataset.zip`, `manifests/dataset.manifest.json` e
-   `manifests/extraction_report.json` como arquivos novos/alterados (fora do que você já tinha
-   mexido no código). Nada mais de `data/` deve aparecer — o `.gitignore` já impede isso por
-   padrão (FR-029), mas confira mesmo assim.
-
-5. **Guardar para a propagação e me avisar.** Tamanho real do zip (bytes), quantidade de
-   arquivos, o hash SHA-256 do zip (está em `manifests/dataset.manifest.json`, campo
-   `dataset_zip.sha256`) e o hash de `git rev-parse --short=7 HEAD`. Com isso a tarefa T093
-   atualiza a metodologia (seções 1.6/1.7, que hoje só têm uma estimativa de ~10 MB) e carimba
-   `package`/`verify` no README.
-
-6. **Commitar e publicar** (quando eu disser "pode commitar"): `git add data/dataset.zip
-   manifests/ && git commit -m "..." && git push`. É o único jeito de o outro autor receber o
-   dataset — nada disso é automático.
-
-**Do outro lado, quem recebe** (`git pull` trouxe um `data/dataset.zip` ou manifesto novo): os
-passos exatos, para quem não gerou nada, estão no README da raiz, seção "Quem recebe o dataset" —
-em resumo, `unzip data/dataset.zip -d data/` e depois
-`docker compose run --rm app python scripts/verify_dataset.py --extracted data/dataset`, esperando
-`OK`. Quem recebe **nunca** roda `extract`, `validate`, `audit` ou `package`.
+`docker compose run --rm app python -m dataset report` regenera
+`data/work/reports/extraction_report.{md,json}` a partir do que já está gravado, sem executar
+nada. **Normalmente não é preciso rodá-lo à mão**: `extract`, `validate` e `audit` já o regeram ao
+terminar. Só é útil para atualizar o resumo depois de mexer manualmente numa pasta de problema, ou
+para acompanhar o andamento de uma validação longa por outra janela de terminal.
 
 ### Se algo der errado
 
 | O que aparece | O que significa | O que fazer |
 |---|---|---|
-| `infrastructure failure: ...` (código `3`) | falha de rede ou de disco ao ler o dataset | rode o mesmo comando de novo; a extração retoma do último trecho concluído |
-| `interrupted; it is safe to run the command again` (código `130`) | você apertou Ctrl+C | rode o mesmo comando de novo |
-| `error: no pool found; run ...` (código `1`) | você rodou `report` antes de `extract` | rode `extract` primeiro |
-| `error: --splits must list ...` (código `2`) | valor inválido em `--splits` | use `train`, `valid` e/ou `test`, separados por vírgula |
-| `selfcheck` com `FAIL` (código `1`) ou `infrastructure failure` (código `3`) | motor com veredito errado, ou rodado fora do serviço `sandbox` | veja a tabela de erros do [`sandbox`](../sandbox/README.md) |
-| `selfcheck FAILED: the engine is not trustworthy, nothing was validated` (código `1`) | o `validate` recusou começar porque o motor falhou na conferência | rode `selfcheck` e siga a tabela do `sandbox`; nada foi validado |
-| `error: <id> is not in the pool` (código `2`) | `--problem` com um problema que não está no pool | confira o identificador (`<ContestID>_<Index>`) em `data/work/staging/pool.json` |
-| `<id>: already closed (...) , skipped` | o problema já foi encerrado e não é refeito | apague `data/work/problems/<id>/` se quiser reprocessá-lo |
-| `N problem(s) set aside in pending_triage and not inspected` | o `AC_ref` de N problemas falhou no motor, mas a meta foi atingida sem eles (D17) | nada: a triagem é adiada e não é necessária |
-| `N problem(s) in pending_triage need individual inspection now` (código `1`) | a meta não foi atingida com o resto do pool | inspecione cada um em `data/work/problems/<id>/validacao.json` (campo `triage`) e decida com os autores; nada é relaxado sozinho |
-| `PermissionError` ao gravar em `data/` | `data/` pertence a `root` (o passo 3 do guia foi pulado) | `sudo chown -R "$(id -u):$(id -g)" data` e rode de novo |
-| quer recomeçar do zero | — | `rm -rf data/work` e rode o passo 2 (só enquanto a validação não existe: depois dela essa pasta guarda os problemas validados) |
-| `error: only N of 200 complete problems; pass --allow-partial to package anyway` (código `1`) | `package` rodado antes da meta ser atingida | rode `validate` até `deficit 0`, ou use `--allow-partial` de propósito (só para teste; o dataset real precisa dos 200) |
-| `warning: ... is N bytes, above the 95 MB warning threshold` | o zip passou de 95 MB (aviso, não impede) | seção (f), "Limitações conhecidas": seja avisado antes de tentar dar `git push` (o GitHub recusa acima de 100 MB) |
-| `error: manifest not found: ...` (código `2`) | `verify` sem `data/dataset.zip`/manifesto nos caminhos esperados | rode `package` primeiro (quem gera) ou confira se o `git pull`/`unzip` trouxe os arquivos certos (quem recebe) |
-| `changed:` / `missing:` / `extra:` seguido de `FAIL` (código `1`) | integridade divergente: um arquivo mudou, sumiu ou apareceu a mais | não use esse dataset; refaça o `git pull`/`unzip`, ou avise o autor que gerou o zip |
-
-### Opções de `validate` e `audit`
-
-| Comando | Opção | Padrão | Efeito |
-|---|---|---|---|
-| `validate` | `--target N` | `200` | meta de problemas `complete`; a execução para ao atingi-la |
-| `validate` | `--workers N` | metade das CPUs (mínimo 1) | processos em paralelo por problema; **não altera o resultado** (os resultados são consumidos na ordem das candidatas) |
-| `validate` | `--problem ID` | — | valida só este problema e ignora a meta; útil para triagem |
-| `audit` | `--problem ID` (repetível) | todos os `complete` | escopo da auditoria |
-| `audit` | `--workers N` | metade das CPUs | processos em paralelo |
-
-### Opções de `package`, `verify` e `scripts/verify_dataset.py`
-
-| Comando | Opção | Padrão | Efeito |
-|---|---|---|---|
-| `package` | `--target N` | `200` | problemas `complete` exigidos antes de empacotar |
-| `package` | `--allow-partial` | desligado | empacota mesmo com menos de `--target` problemas `complete` |
-| `verify` / `verify_dataset.py` | `--zip PATH` | `data/dataset.zip` | pacote a verificar |
-| `verify` / `verify_dataset.py` | `--manifest PATH` | `manifests/dataset.manifest.json` | manifesto |
-| `verify` / `verify_dataset.py` | `--extracted DIR` | — | confere também a árvore descompactada (`DIR` é a pasta `dataset/` em si, por exemplo `data/dataset`, não `data/`) |
-
-### Opções de `extract`
-
-| Opção | Padrão | Efeito |
-|---|---|---|
-| `--seed INT` | `42` | seed da ordem de processamento; fica gravada no pool (não mude sem combinar: muda a seleção) |
-| `--splits LIST` | `train,valid,test` | splits lidos, nesta ordem (a primeira ocorrência de um problema vence) |
-| `--limit-rows N` | sem limite | limita as linhas lidas por split (só para testes rápidos) |
-
-Códigos de saída: `0` sucesso, `1` falha de dados (por exemplo, `report` sem pool), `2` uso
-incorreto, `3` falha de infraestrutura (rede; repita o comando para retomar), `130` interrompido.
-Os subcomandos de empacotamento e verificação serão documentados aqui, no mesmo formato de passo a
-passo, quando existirem.
+| `infrastructure failure: ...` (código `3`) | falha de rede ou de disco | rode o mesmo comando de novo; retoma de onde parou |
+| `interrupted; it is safe to run the command again` (código `130`) | Ctrl+C ou `docker stop` | rode o mesmo comando de novo |
+| `error: no pool found; run ...` (código `1`) | rodou `validate`/`report` antes de `extract` | rode `extract` primeiro |
+| `selfcheck` com `FAIL`, ou `infrastructure failure` | motor com veredito errado, ou rodado no serviço `app` em vez de `sandbox` | veja a tabela de erros do [`sandbox`](../sandbox/README.md) |
+| `error: <id> is not in the pool` (código `2`) | `--problem` com um identificador que não existe no pool | confira o identificador em `data/work/staging/pool.json` |
+| `<id>: already closed (...), skipped` | o problema já foi encerrado numa execução anterior | normal na retomada; apague `data/work/problems/<id>/` se quiser reprocessá-lo |
+| `N problem(s) in pending_triage need individual inspection now` (código `1`) | a meta não foi atingida com o resto do pool | inspecione cada um em `data/work/problems/<id>/validacao.json` (campo `triage`) e decida manualmente; nada é relaxado sozinho |
+| `error: only N of 200 complete problems; pass --allow-partial ...` (código `1`) | `package` rodado antes da meta ser atingida | rode `validate` até `deficit 0`, ou use `--allow-partial` só para teste |
+| `warning: ... above the 95 MB warning threshold` | o zip passou de 95 MB (aviso, não impede) | veja (f), "Tamanho do dataset", antes de publicar |
+| `error: manifest not found: ...` (código `2`) | `verify` sem `data/dataset.zip`/manifesto nos caminhos esperados | rode `package` (quem gera) ou confira o `git pull`/`unzip` (quem recebe) |
+| `changed:` / `missing:` / `extra:` seguido de `FAIL` (código `1`) | integridade divergente | não use esse dataset; refaça o `unzip`, ou gere o zip de novo |
+| `PermissionError` ao gravar em `data/` | `data/` pertence a `root` (passo 3 do guia da raiz foi pulado) | `sudo chown -R "$(id -u):$(id -g)" data` e rode de novo |
 
 ## (c) Entradas esperadas
 
 | Entrada | Formato | Origem |
 |---|---|---|
-| Dataset `deepmind/code_contests` | streaming Parquet pela biblioteca `datasets`, na revisão `802411c3010cb00d1b05bad57ca77365a3c699d6` | Hugging Face (público; licença CC-BY-4.0) |
+| Dataset `deepmind/code_contests` | streaming Parquet pela biblioteca `datasets`, numa revisão fixa | Hugging Face (público; licença CC-BY-4.0) |
 | `HF_TOKEN` (opcional) | variável de ambiente, lida do `.env` | só aumenta o limite de requisições |
-| Opções de linha de comando | `--seed`, `--splits`, `--limit-rows` (`extract`); `--target`, `--workers`, `--problem` (`validate`, `audit`) | quem executa |
-| Pool e problemas brutos | `data/work/staging/pool.json` e `raw/*.json.gz` | a fase `extract` (para `validate`); `audit` lê os problemas já validados de `data/work/problems/` |
+| Opções de linha de comando | ver tabela acima | quem executa |
+| Pool e problemas brutos (para `validate`) | `data/work/staging/pool.json` e `raw/*.json.gz` | gerados por `extract` |
+| Problemas já validados (para `audit`) | `data/work/problems/<id>/` | gerados por `validate` |
 
 ## (d) Saídas produzidas
 
-A maior parte fica em `data/work/`, um diretório privado (permissão `0700`) e ignorado pelo Git.
-Como `./data` é um volume do Compose, os arquivos aparecem no host, em `data/work/` na raiz do
-repositório, com o seu usuário como dono; o contêiner não guarda nada que não esteja lá. Esses
-arquivos são o **espaço de trabalho de quem gera o dataset**: ficam só na sua máquina, não vão
-para o Git, e nenhum comando os apaga (nenhuma fase tem etapa de limpeza). A ÚNICA saída que é
-**distribuída** (vai para o Git) é a de `package`: `data/dataset.zip` e `manifests/`.
+### Qual pasta eu uso?
 
-| Saída | Formato | Destino |
+Existem duas pastas parecidas em `data/`, e é fácil confundi-las:
+
+- **`data/work/`** — o **espaço de trabalho de quem gera** o dataset. Existe só se você rodou
+  `extract`/`validate`/`audit` nesta máquina (cenário 2). Contém **todos** os problemas
+  processados, não só os 200 da amostra final: os `complete`, mas também os `discarded` e os
+  `pending_triage`, além dos elegíveis que a validação nem chegou a tentar. Serve para auditoria,
+  retomada e depuração — nunca é lido por nenhum outro módulo do pipeline, e nunca é commitado no
+  Git (é ignorado por padrão). Pode ser apagado com segurança **depois** que `package` e `verify`
+  tiverem sido concluídos com sucesso; apagar antes disso significa perder o trabalho de horas e
+  ter que rodar tudo de novo.
+- **`data/dataset/`** — a cópia de **distribuição**, obtida descompactando `data/dataset.zip`
+  (cenário 1). Contém **só** os 200 problemas `complete` da amostra final, no mesmo layout de
+  arquivos. **É esta pasta que os módulos seguintes do pipeline (geração de mutantes, chamadas aos
+  modelos, avaliação) devem ler** — nunca `data/work/problems/`, que pode ter problemas fora da
+  amostra e não é garantida como íntegra por nenhum manifesto.
+
+Se você gerou o dataset nesta máquina (cenário 2) e também descompactou o zip depois, as duas
+pastas coexistem sem conflito — cada uma tem sua finalidade, e não há duplicação problemática: uma
+é o rascunho de trabalho, a outra é o produto final conferido. Se só o espaço em disco importa,
+`data/work/` pode ser apagada com segurança depois que o zip estiver publicado; `data/dataset/`
+pode sempre ser recriada a partir do zip com `unzip`.
+
+### Onde cada arquivo fica
+
+`data/work/` é um diretório privado (permissão `0700`, só o seu usuário lê) e nunca vai para o
+Git. A única saída **distribuída** é a de `package`: `data/dataset.zip` e `manifests/`.
+
+| Saída | Formato | Onde entender melhor |
 |---|---|---|
-| `data/work/staging/pool.json` | JSON, modelo `Pool` ([data-model.md](../../specs/001-dataset-extraction/data-model.md), §2.1) | lido pela validação e por `report` |
-| `data/work/staging/raw/<problem_id>.json.gz` | JSON comprimido, modelo `RawProblem` | lido pela validação dos códigos |
-| `data/work/staging/shards/<split>-<NNNNN>.json` | JSON, modelo `ShardCheckpoint` | marca o shard como concluído (retomada) |
-| `data/work/reports/extraction_report.json` e `.md` | JSON e Markdown, modelo `ExtractionReport` (com `ac_tested` e `triage_by_cause`) | leitura humana e citação no trabalho escrito |
-| `data/work/problems/<problem_id>/` | pasta por problema encerrado: `complete`, `pending_triage` ou `discarded` (conteúdo na tabela do passo 6); modelos `Metadata`, `Testes` e `Validacao` | empacotada por `package` (só os `complete`) |
-| `data/work/building/<problem_id>/` | problema em construção; é apagado e refeito se a execução for interrompida | só o `validate` |
-| `data/work/reports/selfcheck.json` | resultado do `selfcheck` que o `validate` rodou | campo `engine_selfcheck` do relatório |
-| `data/work/reports/validation_log.jsonl` | uma linha JSON por problema: estado, contagens de candidatas por resultado e tempo | leitura humana (piloto) |
-| **`data/dataset.zip`** | zip determinístico, raiz `dataset/`, só problemas `complete` (`package`) | **versionado** (única exceção em `data/`) — é isto que se manda para o outro autor pelo Git |
-| **`manifests/dataset.manifest.json`** | JSON, modelo `Manifest` ([data-model.md](../../specs/001-dataset-extraction/data-model.md), §1.5): hash SHA-256 do zip e de cada arquivo dentro dele | **versionado**, fora de `data/`; conferido por `verify` |
-| **`manifests/extraction_report.json`** | cópia do relatório final (`package`, FR-018b) | **versionado**, fora de `data/` |
+| `data/work/staging/pool.json` | pool de problemas elegíveis, na ordem de processamento | lido por `validate` e `report` |
+| `data/work/staging/raw/<problem_id>.json.gz` | enunciado, testes e códigos de um problema elegível | lido pela validação |
+| `data/work/problems/<problem_id>/` | pasta de um problema encerrado (`complete`, `pending_triage` ou `discarded`) | conteúdo na tabela do cenário 2, passo 2 |
+| `data/work/building/<problem_id>/` | problema em construção; descartado e refeito se a execução for interrompida | só existe durante uma validação em andamento |
+| `data/dataset.zip` | zip determinístico, raiz `dataset/`, só os 200 problemas `complete` | **versionado**; ver "Qual pasta eu uso?" acima |
+| `manifests/dataset.manifest.json` | hash SHA-256 do zip e de cada arquivo dentro dele | **versionado**; conferido por `verify` |
+| `manifests/extraction_report.json` | cópia do relatório final | **versionado** |
+
+### Arquivos de relatório e auditoria (o que conferir em cada um)
+
+| Arquivo | Gerado por | O que tem | Para que serve |
+|---|---|---|---|
+| `data/work/reports/extraction_report.md` | `extract`, `validate`, `audit`, `report` | resumo legível: funil de elegibilidade (quantos problemas restam depois de cada critério), distribuição da amostra por macrocategoria e por split, descartes por motivo, casos de triagem, se o alerta de "menos de 30 problemas numa macrocategoria" disparou | primeira leitura para entender o resultado; é a base dos números citados no trabalho escrito |
+| `data/work/reports/extraction_report.json` | idem | os mesmos dados do `.md`, estruturados | leitura automatizada; copiado para `manifests/extraction_report.json` no empacotamento |
+| `manifests/extraction_report.json` | `package` | cópia congelada do relatório no momento do empacotamento | acompanha a versão exata do dataset publicado — use este, não o de `data/work/`, para citar números de uma versão já distribuída |
+| `manifests/dataset.manifest.json` | `package` | hash SHA-256 do zip inteiro e de cada arquivo dentro dele, mais proveniência (revisão do dataset de origem, seed, versão do compilador) | é contra este arquivo que `verify` confere a integridade; confira aqui se um arquivo específico do dataset foi alterado |
+| `data/work/reports/validation_log.jsonl` | `validate` | uma linha JSON por problema processado: estado final, quantas candidatas viraram cada resultado (falha real, erro de compilação, tempo excedido, ...), tempo gasto | diagnóstico fino de uma execução de `validate` (por exemplo, para entender por que um problema específico não fechou) |
+| `data/work/reports/selfcheck.json` | `validate` (e `selfcheck`) | resultado da auto-checagem do motor, um veredito esperado vs. obtido por programa de teste | confirma que o motor estava confiável no momento da validação; alimenta o campo `engine_selfcheck` do relatório |
+| `data/work/problems/<id>/validacao.json` | `validate`, `audit` | por problema: o veredito de cada código, o padrão de C++ usado na compilação, tempo e memória máximos observados, e (se aplicável) o registro completo de uma triagem | conferência problema a problema; é o arquivo que comprova que aquele código específico passou pelo motor |
 
 ## (e) Dependências e pré-requisitos
 
 - Python 3.11.16, `datasets` 5.0.1 e `pydantic` 2.x, fixados no `uv.lock`.
-- Serviço `app` do Docker Compose (com rede) para `extract` e `report`; serviço `sandbox` (sem rede,
-  com as capabilities do motor) para `selfcheck`, `validate` e `audit`. O ambiente é construído com
-  `docker compose build`.
-- `.env` com `HOST_UID` e `HOST_GID` do seu usuário (saídas de `id -u` e `id -g`); `HF_TOKEN` é opcional. Passo 2 do guia da raiz.
-- Diretório `data/` criado por você (`mkdir -p data`) antes do primeiro `docker compose run`: o
-  Git não o versiona, e, se ele não existir, o Docker o cria como root e o serviço `app` (que roda
-  com o seu usuário) não consegue gravar nele. Passo 3 do guia da raiz; se já aconteceu, o
-  `chown` da tabela "Se algo der errado", na seção (b), resolve.
+- Serviço `app` do Docker Compose (com rede) para `extract`, `report`, `package` e `verify`;
+  serviço `sandbox` (sem rede, com as capabilities do motor) para `selfcheck`, `validate` e
+  `audit`. O ambiente é construído com `docker compose build`.
+- `.env` com `HOST_UID` e `HOST_GID` do seu usuário; `HF_TOKEN` é opcional. Passo 2 do guia da
+  raiz.
+- Diretório `data/` criado por você (`mkdir -p data`) antes do primeiro comando. Passo 3 do guia
+  da raiz; se pulado, o `chown` da tabela "Se algo der errado" resolve.
 - Nenhum módulo anterior precisa ter rodado.
 
 ## (f) Limitações conhecidas
 
-- Problemas que leem e escrevem por arquivo (`input.txt` e `output.txt`) são excluídos, porque o
-  motor injeta a entrada por `stdin`: 9 problemas medidos em 2026-09-19 (metodologia, seção 1.2).
-- O pool é de 1.234 problemas (extração real de 2026-09-20). O número de 1.279 que aparecia na
-  medição de 2026-09-19 não incluía a checagem de soluções em C++ nem a de 100 incorretas
-  (metodologia, seção 1.2). Só 28 deles vêm de `valid`/`test`.
-- Em `valid` e `test` a mediana é de 101 submissões incorretas em C++ por problema (medido em
-  2026-09-20), então poucos vão alcançar 100 falhas validadas; no pool inteiro, 167 problemas têm
-  menos de 150 incorretas brutas (metodologia, seção 1.7).
-- O streaming lê todas as colunas de cada linha (não há projeção de colunas): a extração completa
-  levou cerca de 23 minutos em 2026-09-20; o volume de rede não foi medido.
-- **A validação completa foi executada** (2026-09-21): 200 problemas completos de 264 processados
-  (as posições 0 a 263 do pool), 21 descartados por WA insuficientes e 43 em `pending_triage`; só
-  5 dos 28 problemas de `valid`/`test` foram processados (a amostra tem 198 do `train` e 2 do
-  `test`). Se a meta de 200 problemas com exatamente 100 WA não tivesse fechado, nada seria
-  relaxado automaticamente.
-- **A auditoria (`audit`) foi executada em 3 rodadas** (2026-09-21/22): a primeira achou 16 WA
-  divergentes em 13 problemas, a segunda 11 WA em 9 (8 das 13 reparadas na primeira rodada
-  voltaram a divergir, o que revelou um bug real na confirmação do reparo, corrigido no mesmo
-  ciclo — ver "O que são `audit` e `report`" acima e metodologia, seção 1.4), a terceira 10 WA em
-  10; ao todo 20 dos 200 problemas foram tocados por reparo automático em alguma rodada, e nenhum
-  reparo da segunda rodada recorreu na terceira. Os autores aceitaram esse estado como ruído
-  estatístico esperado ao testar cerca de 26.400 WA com um crivo de 2 execuções (decisão D18) e
-  não perseguiram zero divergências; uma última rodada de fechamento, de praxe, roda antes do
-  `package` (T093).
-- **Cerca de 1 em cada 6 problemas processados foi para `pending_triage`** (43 de 264, 16,3%):
-  verificador especial (várias respostas válidas), gabarito do dataset com formatação diferente e
-  testes gerados fora das restrições do enunciado. Eles são interrompidos e registrados (decisão
-  D8), mas a inspeção manual é adiada e só ocorre se a meta de 200 falhar (decisão D17), o que não
-  aconteceu; os números e as causas estão na metodologia, seção 1.7.
-- O `AC_ref` é executado no processo principal e as candidatas a WA em paralelo; o resultado não
-  depende do número de processos, mas o tempo sim.
-- **Retomada verificada de propósito** (T080, 2026-09-22): interromper `validate` com `SIGTERM`
-  no meio de um problema e rodar o mesmo comando de novo produz o mesmo resultado de uma execução
-  ininterrupta — mesmos 100 `WA_<n>.cpp`, mesmo `AC_ref.cpp`, mesmo veredito, mesmo teste
-  decisivo, mesma pasta, sem duplicação nem truncamento. A ÚNICA diferença entre duas execuções
-  (interrompida ou não) é `extraction_timestamp` **e** o campo medido `max_cpu_time_s` de
-  `validacao.json` (tempo de CPU real, varia por ruído de hardware entre execuções, nunca por
-  mudança de seleção; decisão D19, metodologia 1.4/1.5). `max_memory_bytes` se mostrou estável.
-- Um programa pode gravar arquivos no diretório temporário do seu slot; eles persistem entre os testes
-  de uma mesma suíte (e são apagados a cada nova compilação).
-- **O empacotamento real foi executado** (2026-09-22, T093/T094, revisão `9b87d7e`): a auditoria
-  de fechamento não achou nada para reparar, `package` gerou `data/dataset.zip` com os 200
-  problemas completos (12.891.474 bytes ≈ 12,3 MiB, 21.000 arquivos, hash em
-  `manifests/dataset.manifest.json`) e `verify` confirmou `OK`; o cenário de pós-clonagem
-  (`unzip`, a alternativa `python -m zipfile -e`, e os três casos de adulteração de propósito —
-  byte alterado, arquivo removido, arquivo extra) também foi confirmado. O tamanho real ficou
-  29% acima da estimativa de ~10 MB (research R15), mas bem abaixo do aviso de 95 MB.
-- O hash do zip depende da versão do `zlib` da imagem (research R14): reempacotar o MESMO
-  conjunto de problemas na MESMA imagem dá sempre o mesmo hash (SC-008), mas comparar hashes de
-  builds de imagem diferentes não é uma garantia do projeto — é por isso que o manifesto guarda o
-  hash de cada arquivo individual, não só o do zip: a integridade do conteúdo não depende de
-  todo mundo ter exatamente a mesma versão do `zlib`.
-- `package` nunca roda `validate` nem `audit` de novo: ele só lê o que já está em
-  `data/work/problems/` naquele momento. Rodar `package` antes de terminar a validação empacota
-  um subconjunto (com `--allow-partial`) ou é recusado (sem ela).
+- **Sem entrada/saída por arquivo**: problemas que leem de `input.txt`/escrevem em `output.txt`
+  são excluídos, porque o motor injeta a entrada por `stdin` e lê a saída por `stdout`.
+- **Disponibilidade desigual de falhas reais**: quantas submissões incorretas realmente se
+  confirmam como falha (em vez de erro de compilação, tempo ou memória excedidos) varia por
+  problema; nos splits `valid`/`test` há tipicamente menos submissões incorretas disponíveis do
+  que no `train`, então a amostra final tende a vir majoritariamente do `train`. Um piloto pequeno
+  (`validate --target 10`) antes da execução completa ajuda a estimar isso no seu ambiente.
+- **Triagem manual é adiada por padrão**: problemas cujo código correto falha no motor
+  (`pending_triage`) ficam registrados, fora da amostra, mas não são inspecionados manualmente a
+  menos que a meta de 200 não seja atingida com o resto do pool.
+- **A auditoria repara automaticamente**, não apenas relata, uma falha cujo resultado se mostrar
+  instável entre duas reexecuções — o motivo típico é comportamento indefinido no código incorreto
+  (memória não inicializada, acesso fora dos limites) ou tempo de execução bem no limiar do
+  limite, não a entrada em si. Isso afetou cerca de 1 em cada 10 problemas da amostra na única
+  execução completa deste projeto, sempre resolvido automaticamente com um substituto de
+  qualidade equivalente (mesmos critérios de estabilidade, confirmação mais forte que a original).
+- **Retomada é segura e não muda o resultado**: interromper qualquer comando e rodá-lo de novo
+  produz exatamente o mesmo resultado de uma execução ininterrupta — mesmo conteúdo de arquivo,
+  mesmos vereditos — com duas exceções conhecidas e esperadas, que nunca mudam a seleção: o
+  carimbo de data/hora de extração de cada problema, e o tempo de CPU medido (`max_cpu_time_s`
+  em `validacao.json`), que naturalmente varia entre execuções em hardware real.
+- **Tamanho do dataset**: na única execução completa deste projeto, o zip final ficou em torno de
+  12 MiB para 200 problemas — bem abaixo do limite de 100 MB do GitHub para um push comum
+  (`package` avisa, sem impedir, a partir de 95 MB).
+- **O hash do zip depende da versão da biblioteca de compressão da imagem Docker**: reempacotar o
+  mesmo conjunto de problemas na mesma imagem sempre dá o mesmo hash; comparar hashes de zips
+  gerados em imagens diferentes não é garantido. Por isso o manifesto também guarda o hash de cada
+  arquivo individual dentro do zip — a integridade do conteúdo não depende de todos usarem
+  exatamente a mesma versão dessa biblioteca.
+- Um programa em avaliação pode gravar arquivos temporários no diretório do seu processo isolado;
+  eles persistem entre os testes de uma mesma suíte e são apagados só a cada nova compilação.
 
 ## Referências
 
-- Contratos: [cli.md](../../specs/001-dataset-extraction/contracts/cli.md) e
+- Metodologia completa: [`docs/metodologia-referencia.md`](../../docs/metodologia-referencia.md), seção 1
+- Contratos técnicos: [cli.md](../../specs/001-dataset-extraction/contracts/cli.md) e
   [data-model.md](../../specs/001-dataset-extraction/data-model.md)
 - Testes: `tests/dataset/` (`docker compose run --rm sandbox pytest tests/dataset`)
 
 ## Comandos verificados
 
-| Comando | Verificado em | Revisão | Tarefa |
-|---|---|---|---|
-| `extract` | 2026-09-20 | 7440706 | T035 |
-| `report` | 2026-09-20 | 71747a1 | T035 |
-| `selfcheck` | 2026-09-21 | 5121759 | T050 |
-| `validate` | 2026-09-21 | ee3a422 | T072 |
-| `audit` | 2026-09-22 | 7784486 | T072 |
-| `package` | 2026-09-22 | 9b87d7e | T093 |
-| `verify` | 2026-09-22 | 9b87d7e | T094 |
-| `scripts/verify_dataset.py` | 2026-09-22 | 9b87d7e | T094 |
-
-O comportamento de retomada do `validate` (US4) não é um subcomando novo, então não ganha linha
-própria: foi verificado de propósito em **2026-09-22, revisão `c4c394a`, tarefa T080** (ver
-seção (f) e metodologia, seção 1.4). `audit` também rodou uma quarta rodada de fechamento em
-2026-09-22 (revisão `9b87d7e`), sem nenhum reparo novo, imediatamente antes do `package` acima —
-a linha `audit` não foi reescrita porque a convergência que ela documenta (D18) não mudou.
+| Comando | Verificado em | Revisão |
+|---|---|---|
+| `extract` | 2026-09-20 | 7440706 |
+| `report` | 2026-09-20 | 71747a1 |
+| `selfcheck` | 2026-09-21 | 5121759 |
+| `validate` (inclusive retomada após interrupção) | 2026-09-22 | c4c394a |
+| `audit` | 2026-09-22 | 9b87d7e |
+| `package` | 2026-09-22 | 9b87d7e |
+| `verify` / `scripts/verify_dataset.py` (inclusive pós-clonagem) | 2026-09-22 | 9b87d7e |

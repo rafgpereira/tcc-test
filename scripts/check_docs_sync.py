@@ -62,7 +62,6 @@ METHODOLOGY = "docs/metodologia-referencia.md"
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 REVISION_RE = re.compile(r"^[0-9a-f]{7}(\+dirty)?$")
-TASK_RE = re.compile(r"^T\d{3}$")
 STATUS_RE = re.compile(
     r"^>\s*\*\*Status\*\*:\s*(planejado|em implementação|implementado)\b", re.MULTILINE
 )
@@ -530,7 +529,7 @@ def check_cv(ctx: Context) -> list[Finding]:
             findings.append(Finding("CV", rel, f"missing the `{VERIFIED_HEADING}` table"))
             continue
         status = status_of(text)
-        stamped_or_pending = [r for r in rows[1:] if not is_separator(r) and len(r) >= 4]
+        stamped_or_pending = [r for r in rows[1:] if not is_separator(r) and len(r) >= 3]
         for cells in stamped_or_pending:
             findings += _verified_row_findings(ctx, rel, status, cells)
         commands = " ".join(r[0] for r in stamped_or_pending)
@@ -545,7 +544,7 @@ def check_cv(ctx: Context) -> list[Finding]:
 def _verified_row_findings(
     ctx: Context, rel: str, status: str | None, cells: list[str]
 ) -> list[Finding]:
-    command, date, revision, task = cells[0], cells[1], cells[2], cells[3]
+    command, date, revision = cells[0], cells[1], cells[2]
     if date.lower() == "pendente":
         if status == "implementado" or ctx.closing:
             reason = "the module is implemented" if status == "implementado" else "closing"
@@ -564,8 +563,6 @@ def _verified_row_findings(
                 "CV", rel, f"{command}: revision `{revision}` is dirty; rerun on committed code"
             )
         )
-    if not TASK_RE.match(task):
-        out.append(Finding("CV", rel, f"{command}: task `{task}` must look like T035"))
     return out
 
 

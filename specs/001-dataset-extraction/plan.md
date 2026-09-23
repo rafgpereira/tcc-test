@@ -487,7 +487,7 @@ para cada item (Constitution, Fluxo de Desenvolvimento).
 
 | Entrega | Onde | Regra |
 |---|---|---|
-| README do módulo `dataset` | `src/dataset/README.md` | template `docs/template-modulo.md` (seis campos), com (b) em passo a passo para quem não conhece Docker; comandos de [contracts/cli.md](./contracts/cli.md) registrados na tabela "Comandos verificados" (`pendente` até a tarefa que os executa carimbar data, revisão e tarefa) |
+| README do módulo `dataset` | `src/dataset/README.md` | template `docs/template-modulo.md` (seis campos), com (b) em passo a passo para quem não conhece Docker; comandos de [contracts/cli.md](./contracts/cli.md) registrados na tabela "Comandos verificados" (`pendente` até a execução real carimbar data e revisão) |
 | README do módulo `sandbox` | `src/sandbox/README.md` | idem; API de [contracts/engine-api.md](./contracts/engine-api.md); dependências e serviço do Compose (sem rede) |
 | Script de conformidade | `scripts/check_docs_sync.py` (+ `tests/docs/`) | checagens C1 a C6: seções do README, comandos contra a CLI (no README do módulo dono da CLI, `src/dataset`, todo subcomando também precisa estar documentado), links, estado do README raiz, matriz de sincronização, ausência de `[PROPOSTA]` ativa (riscadas e legenda não contam); é o gate do FR-031/FR-032/SC-016; a checagem C2 confere também que a seção "Referência de comandos" do `README.md` da raiz lista todo subcomando da CLI |
 | Matriz de sincronização | `specs/001-dataset-extraction/sync-matrix.json` | toda decisão D# da spec tem linha e termos que precisam aparecer na metodologia |

@@ -476,8 +476,9 @@ apontando o arquivo divergente.
   executar" (b) MUST ser um passo a passo que explica o serviço usado, o que aparece na tela,
   como confirmar que funcionou e o que fazer em cada falha comum, e MUST apontar para o guia de
   execução do `README.md` da raiz para a preparação única do ambiente. Cada comando documentado MUST ter sido executado
-  como escrito e constar, com data, revisão e tarefa, na tabela "Comandos verificados" do
-  README, e a ajuda (`--help`) da CLI e as docstrings MUST NOT contradizer o README.
+  como escrito e constar, com data e revisão, na tabela "Comandos verificados" do
+  README (essa tabela não cita tarefas do spec-kit: o README é documentação de uso, não um log
+  de implementação), e a ajuda (`--help`) da CLI e as docstrings MUST NOT contradizer o README.
 - **FR-032**: A feature MUST NOT ser considerada concluída enquanto: (a)
   `scripts/check_docs_sync.py --closing` não terminar com código 0 (a metodologia deve refletir
   toda decisão desta spec, conforme `sync-matrix.json`, com o histórico de atualizações

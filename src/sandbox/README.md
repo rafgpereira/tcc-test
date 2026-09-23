@@ -115,12 +115,12 @@ no repositório.
 
 - **Memória por espaço de endereçamento** (`RLIMIT_AS`), que não é idêntico à métrica do juiz
   original; pode haver `MLE` espúrio em programas que reservam muito espaço virtual, e ele
-  apareceria como triagem de AC, não em silêncio (decisão D13, regra 6).
+  apareceria como falha visível (nunca em silêncio) para quem usa o motor.
 - **`MLE` e `RE` por `abort()`** não se distinguem só pelo sinal: o motor procura `bad_alloc` no
   `stderr`. Um programa que trata a falha de alocação e sai com erro é `RE`.
 - **Comparação de saída** ignora só espaços no fim das linhas e linhas em branco no fim do
-  arquivo (decisão D13, regra 2); e o **tempo** é de CPU do processo, não de parede (regra 5). As
-  duas são as candidatas a reabertura pelo critério do piloto (metodologia, seção 1.4).
+  arquivo; e o **tempo** é de CPU do processo, não de parede. Essas duas regras foram confirmadas
+  com uma amostra piloto antes da execução completa do dataset (metodologia, seção 1.4).
 - **Precisa das cinco capabilities** listadas em (e); Docker rootless não funciona. O `selfcheck`
   falha de forma explícita nesse caso.
 - Um programa cria no máximo **30 processos filhos** (o limite de 32 conta o lançador e o próprio
@@ -133,14 +133,13 @@ no repositório.
 
 ## Referências
 
-- Contratos: [engine-api.md](../../specs/001-dataset-extraction/contracts/engine-api.md)
-- Decisões: D7, D13 e D16 em [spec.md](../../specs/001-dataset-extraction/spec.md); pesquisa R4 a R11
-  em [research.md](../../specs/001-dataset-extraction/research.md)
+- Metodologia completa: [`docs/metodologia-referencia.md`](../../docs/metodologia-referencia.md), seções 1.4 e 4
+- Contratos técnicos: [engine-api.md](../../specs/001-dataset-extraction/contracts/engine-api.md)
 - Testes: `tests/sandbox/` (`docker compose run --rm sandbox pytest tests/sandbox`)
 
 ## Comandos verificados
 
-| Comando | Verificado em | Revisão | Tarefa |
-|---|---|---|---|
-| `selfcheck` | 2026-09-21 | 5121759 | T050 |
-| `pytest tests/sandbox` | 2026-09-21 | 5121759 | T050 |
+| Comando | Verificado em | Revisão |
+|---|---|---|
+| `selfcheck` | 2026-09-21 | 5121759 |
+| `pytest tests/sandbox` | 2026-09-21 | 5121759 |

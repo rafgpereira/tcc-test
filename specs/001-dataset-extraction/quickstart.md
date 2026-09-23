@@ -152,7 +152,7 @@ docker compose run --rm app python scripts/check_docs_sync.py --closing \
 
 O script confere (C1 a C6): os READMEs de `src/dataset/` e `src/sandbox/` têm as seis seções na
 ordem de [`docs/template-modulo.md`](../../docs/template-modulo.md) e o propósito em uma frase;
-todo comando documentado existe na CLI e consta verificado (data, revisão, tarefa), sem linha
+todo comando documentado existe na CLI e consta verificado (data e revisão), sem linha
 `pendente`; os links resolvem; o `README.md` da raiz descreve os dois módulos e a frase "Estado
 atual" concorda com os READMEs existentes; toda decisão D# da spec tem linha em
 `specs/001-dataset-extraction/sync-matrix.json` (criado no T021) e seus termos aparecem em

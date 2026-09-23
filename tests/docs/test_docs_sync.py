@@ -21,7 +21,7 @@ SECTIONS = [
     "(e) Dependências e pré-requisitos",
     "(f) Limitações conhecidas",
 ]
-ROW_PENDING = ("pendente", "—", "—")
+ROW_PENDING = ("pendente", "—")
 
 
 @pytest.fixture(scope="module")
@@ -67,8 +67,8 @@ def module_readme(
         parts += [f"## {name}", "", bodies[name], ""]
     if with_table:
         rows = rows if rows is not None else [(f"`{c}`",) + ROW_PENDING for c in commands]
-        parts += ["## Comandos verificados", "", "| Comando | Verificado em | Revisão | Tarefa |"]
-        parts += ["|---|---|---|---|"]
+        parts += ["## Comandos verificados", "", "| Comando | Verificado em | Revisão |"]
+        parts += ["|---|---|---|"]
         parts += ["| " + " | ".join(r) + " |" for r in rows]
         parts += [""]
     return "\n".join(parts)
@@ -186,9 +186,9 @@ def make_closed_repo(root: Path, **kw):
     dataset = module_readme(
         status="implementado",
         commands=("alpha", "beta"),
-        rows=[("`alpha`", *STAMP, "T035"), ("`beta`", *STAMP, "T036")],
+        rows=[("`alpha`", *STAMP), ("`beta`", *STAMP)],
     )
-    sandbox = module_readme(status="implementado", rows=[("`alpha`", *STAMP, "T035")])
+    sandbox = module_readme(status="implementado", rows=[("`alpha`", *STAMP)])
     return make_repo(root, dataset_readme=dataset, sandbox_readme=sandbox, **kw)
 
 
@@ -450,11 +450,10 @@ def test_cv_pending_row_fails_with_closing(sync, tmp_path):
 @pytest.mark.parametrize(
     "row",
     [
-        ("`alpha`", "20/09/2026", "a1b2c3d", "T035"),  # wrong date format
-        ("`alpha`", "2026-09-20", "XYZ", "T035"),  # wrong revision
-        ("`alpha`", "2026-09-20", "a1b2c3", "T035"),  # revision too short
-        ("`alpha`", "2026-09-20", "A1B2C3D", "T035"),  # uppercase revision
-        ("`alpha`", "2026-09-20", "a1b2c3d", "35"),  # wrong task id
+        ("`alpha`", "20/09/2026", "a1b2c3d"),  # wrong date format
+        ("`alpha`", "2026-09-20", "XYZ"),  # wrong revision
+        ("`alpha`", "2026-09-20", "a1b2c3"),  # revision too short
+        ("`alpha`", "2026-09-20", "A1B2C3D"),  # uppercase revision
     ],
 )
 def test_cv_malformed_stamps_fail(sync, tmp_path, row):
@@ -463,13 +462,13 @@ def test_cv_malformed_stamps_fail(sync, tmp_path, row):
 
 
 def test_cv_well_formed_stamps_pass(sync, tmp_path):
-    rows = [("`alpha`", "2026-09-20", "a1b2c3d", "T035")]
+    rows = [("`alpha`", "2026-09-20", "a1b2c3d")]
     make_repo(tmp_path, sandbox_readme=module_readme(status="implementado", rows=rows))
     assert run(sync, tmp_path, "--module", "src/sandbox", "--only", "CV") == 0
 
 
 def test_cv_dirty_revision_is_accepted_normally_and_rejected_when_closing(sync, tmp_path):
-    rows = [("`alpha`", "2026-09-20", "a1b2c3d+dirty", "T035")]
+    rows = [("`alpha`", "2026-09-20", "a1b2c3d+dirty")]
     make_repo(tmp_path, sandbox_readme=module_readme(rows=rows))
     assert run(sync, tmp_path, "--module", "src/sandbox", "--only", "CV") == 0
     assert run(sync, tmp_path, "--module", "src/sandbox", "--only", "CV", "--closing") == 1
