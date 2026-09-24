@@ -45,9 +45,10 @@ def module_readme(
     sections=SECTIONS,
     with_table=True,
     extra="",
+    cli="dataset",
 ):
     fence = "```"
-    cmd_block = "\n".join(f"docker compose run --rm app python -m dataset {c}" for c in commands)
+    cmd_block = "\n".join(f"docker compose run --rm app python -m {cli} {c}" for c in commands)
     bodies = {
         "(a) Propósito": purpose,
         "(b) Como executar": f"{fence}bash\n{cmd_block}\n{fence}\n{extra}",
@@ -675,3 +676,77 @@ def test_output_names_check_file_and_message(sync, tmp_path, capsys):
     run(sync, tmp_path, "--only", "C1")
     line = next(l for l in capsys.readouterr().out.splitlines() if "C1" in l)
     assert "src/sandbox/README.md" in line
+
+
+# --------------------------------------------------------------------------- second CLI (mutation)
+
+MUTATION_MAIN = "print('usage: mutation [-h] {generate,verify} ...')\n"
+
+
+def make_mutation_repo(root: Path, commands=("generate",), **kw):
+    """A valid repository whose `src/mutation` package is a second CLI (`python -m mutation`)."""
+    make_repo(root, **kw)
+    package = root / "src" / "mutation"
+    package.mkdir(parents=True, exist_ok=True)
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (package / "__main__.py").write_text(MUTATION_MAIN, encoding="utf-8")
+    (package / "README.md").write_text(
+        module_readme(commands=commands, cli="mutation"), encoding="utf-8"
+    )
+    return root
+
+
+def run_mutation(sync, root, *extra):
+    argv = ["--root", str(root), "--cli", f"{sys.executable} -m mutation"]
+    argv += ["--module", "src/mutation", "--cli-owner", "src/mutation", *extra]
+    return sync.main(argv)
+
+
+def test_cli_subcommand_pattern_follows_the_module_named_after_dash_m(sync):
+    pattern = sync.cli_subcommand_pattern(["python", "-m", "mutation"])
+    assert pattern.findall("run python -m mutation generate and python -m dataset x") == [
+        "generate"
+    ]
+
+
+def test_cli_subcommand_pattern_defaults_to_dataset_without_dash_m(sync):
+    pattern = sync.cli_subcommand_pattern(["python", "fake_cli.py"])
+    assert pattern.findall("python -m dataset extract") == ["extract"]
+
+
+def test_c2_second_cli_passes_when_every_subcommand_exists(sync, tmp_path):
+    make_mutation_repo(tmp_path, commands=("generate", "verify"))
+    assert run_mutation(sync, tmp_path, "--only", "C2") == 0
+
+
+def test_c2_second_cli_documented_subcommand_that_does_not_exist_fails(sync, tmp_path, capsys):
+    make_mutation_repo(tmp_path, commands=("generate", "verify", "ghost"))
+    assert run_mutation(sync, tmp_path, "--only", "C2") == 1
+    out = capsys.readouterr().out
+    assert "python -m mutation ghost" in out  # the message names the real command, not dataset
+
+
+def test_c2_second_cli_owner_must_document_every_subcommand(sync, tmp_path, capsys):
+    make_mutation_repo(tmp_path, commands=("generate",))
+    assert run_mutation(sync, tmp_path, "--only", "C2") == 1
+    assert "verify" in capsys.readouterr().out
+
+
+def test_c2_dataset_commands_in_a_mutation_readme_are_not_checked_against_the_mutation_cli(
+    sync, tmp_path
+):
+    """The pattern follows `--cli`: a `python -m dataset x` line is another CLI's business."""
+    make_mutation_repo(tmp_path, commands=("generate", "verify"))
+    readme = tmp_path / "src" / "mutation" / "README.md"
+    readme.write_text(
+        readme.read_text(encoding="utf-8") + "\npython -m dataset ghost\n", encoding="utf-8"
+    )
+    assert run_mutation(sync, tmp_path, "--only", "C2") == 0
+
+
+def test_c2_root_reference_is_checked_against_the_cli_of_the_run(sync, tmp_path, capsys):
+    reference = "## Referência de comandos\n\n| `python -m mutation generate` | g |\n"
+    make_mutation_repo(tmp_path, root_readme=root_readme(reference=reference))
+    argv = ["--root", str(tmp_path), "--cli", f"{sys.executable} -m mutation", "--only", "C2"]
+    assert sync.main(argv) == 1  # `verify` is missing from the reference
+    assert "verify" in capsys.readouterr().out

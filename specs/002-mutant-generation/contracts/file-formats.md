@@ -15,6 +15,14 @@ metadado por problema (diferente de `validacao.json`, que documenta cada `WA_<n>
 individualmente, porque falhas reais têm proveniência externa a auditar; mutantes são gerados
 por este mesmo código, e a proveniência agregada já é suficiente).
 
+## `data/mutants/problems/<problem_id>/generation.json` (só em desenvolvimento, fora do zip)
+
+Registro de como os mutantes de um problema foram obtidos (operador e variante de cada um, contagem
+de descartes por ordem e motivo, e a exclusão quando o problema não fechou 100): campos em
+[data-model.md](../data-model.md), "Registro de geração por problema". Não fica dentro do
+`Mutant_<n>.cpp` (ver acima) nem entra no zip: existe para que `report` recalcule os agregados de
+`mutation_report.json` sem regerar. Mesmas regras de serialização dos demais JSON do projeto.
+
 ## `manifests/mutants.manifest.json`
 
 ```json

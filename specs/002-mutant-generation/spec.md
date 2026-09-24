@@ -353,6 +353,13 @@ de uma execução de teste contém os campos exigidos e que os totais somam corr
   operador ABS ou UOI aplicado a um sítio de tipo incompatível gera um candidato que
   simplesmente não compila — custo de eficiência (tempo de validação desperdiçado), não de
   correção, pois o próprio motor descarta esse candidato pelo critério já existente (FR-005b).
+- **Custo medido da validação (2026-09-24, primeira implementação)**: compilar um `AC_ref.cpp` que
+  usa `bits/stdc++.h` leva ~1,8 s, e no problema `189_C` só 24% dos candidatos avaliados foram
+  aceitos (28 equivalentes, 22 que não compilam, 7 RE e 6 TLE entre 83 avaliados até aceitar 20),
+  o que extrapola para dezenas de minutos por problema em série. O risco aqui não é de cota (os
+  200 `AC_ref.cpp` têm, no mínimo, 35 candidatos de primeira ordem brutos e mediana de 274) e sim
+  de tempo de execução; a paralelização da geração é decisão dos autores, ainda não tomada
+  (metodologia, 2.7; `research.md`, R13).
 - **Dependência de módulos futuros**: a orquestração de IA e a avaliação experimental
   consomem os mutantes produzidos aqui, mas nada deles é entregue nesta feature.
 

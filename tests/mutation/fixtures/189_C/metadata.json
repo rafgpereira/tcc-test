@@ -1,0 +1,21 @@
+{
+  "cf_contest_id": 189,
+  "cf_index": "C",
+  "cf_points": 500.0,
+  "cf_rating": 1500,
+  "cf_tags": [
+    "greedy"
+  ],
+  "dataset_split_origem": "train",
+  "extraction_timestamp": "2026-09-21T19:21:55Z",
+  "is_description_translated": false,
+  "macrocategoria": "logica_direta",
+  "memory_limit_bytes": 256000000,
+  "name": "189_C. Permutations",
+  "num_wa_brutos_disponiveis": 364,
+  "num_wa_validados": 100,
+  "problem_id": "189_C",
+  "schema_version": 1,
+  "source": "CODEFORCES",
+  "time_limit_seconds": 2.0
+}

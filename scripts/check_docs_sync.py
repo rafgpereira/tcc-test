@@ -8,7 +8,8 @@ Checks (stdlib only, so it runs anywhere):
 
 C1  module README structure: Status line, sections (a) to (f) in the template order, and a
     purpose of one sentence.
-C2  commands: every ``python -m dataset <sub>`` in a module README must exist in the CLI; in the
+C2  commands: every ``python -m <module> <sub>`` in a module README must exist in the CLI (the
+    module is the one named after ``-m`` in ``--cli``, ``dataset`` by default); in the
     README of the module that owns the CLI (``--cli-owner``) every CLI subcommand must also be
     documented. Outside module mode the root README must also have a "Referência de comandos"
     section that lists every CLI subcommand (and cites none that does not exist), so that no
@@ -70,7 +71,7 @@ REVISION_RE = re.compile(r"^[0-9a-f]{7}(\+dirty)?$")
 STATUS_RE = re.compile(
     r"^>\s*\*\*Status\*\*:\s*(planejado|em implementação|implementado)\b", re.MULTILINE
 )
-CLI_SUB_RE = re.compile(r"python -m dataset\s+([A-Za-z][\w-]*)")
+DEFAULT_CLI_MODULE = "dataset"
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 NO_MODULE_PHRASE = "nenhum módulo está implementado"
 TASK_ID_RE = re.compile(r"(?<![\w/`])T\d{3}(?![\w])")
@@ -157,9 +158,25 @@ def status_of(text: str) -> str | None:
     return match.group(1) if match else None
 
 
-def documented_subcommands(text: str) -> list[str]:
+def cli_module(cli: list[str]) -> str:
+    """The module named after ``-m`` in ``cli``.
+
+    Without ``-m`` (a fake CLI script, for instance) it falls back to the dataset module, which is
+    the default CLI of the project.
+    """
+    if "-m" in cli[:-1]:
+        return cli[cli.index("-m") + 1]
+    return DEFAULT_CLI_MODULE
+
+
+def cli_subcommand_pattern(cli: list[str]) -> re.Pattern[str]:
+    """Regex that finds ``python -m <module> <sub>`` for the module of ``cli``."""
+    return re.compile(rf"python -m {re.escape(cli_module(cli))}\s+([A-Za-z][\w-]*)")
+
+
+def documented_subcommands(text: str, cli: list[str]) -> list[str]:
     seen: list[str] = []
-    for sub in CLI_SUB_RE.findall(text):
+    for sub in cli_subcommand_pattern(cli).findall(text):
         if sub not in seen:
             seen.append(sub)
     return seen
@@ -245,7 +262,7 @@ def check_c2(ctx: Context) -> list[Finding]:
         rel = ctx.module_readme(module)
         text = ctx.read(rel)
         if text is not None:
-            docs[module.rstrip("/")] = (rel, documented_subcommands(text))
+            docs[module.rstrip("/")] = (rel, documented_subcommands(text, ctx.cli))
     owner = ctx.cli_owner.rstrip("/")
     if ctx.module_mode and not any(subs for _, subs in docs.values()) and owner not in docs:
         return findings
@@ -260,7 +277,7 @@ def check_c2(ctx: Context) -> list[Finding]:
                     Finding(
                         "C2",
                         rel,
-                        f"documents `python -m dataset {sub}`, but the CLI has no such subcommand "
+                        f"documents `python -m {cli_module(ctx.cli)} {sub}`, but the CLI has no such subcommand "
                         f"(CLI: {', '.join(cli_subs) or 'none'})",
                     )
                 )
@@ -283,7 +300,7 @@ def _root_reference_findings(ctx: Context, cli_subs: list[str]) -> list[Finding]
     section = section_body(text, COMMAND_REFERENCE)
     if section is None:
         return [Finding("C2", "README.md", f"missing the section `## {COMMAND_REFERENCE}`")]
-    listed = documented_subcommands(section)
+    listed = documented_subcommands(section, ctx.cli)
     findings = [
         Finding(
             "C2",
@@ -297,7 +314,7 @@ def _root_reference_findings(ctx: Context, cli_subs: list[str]) -> list[Finding]
         Finding(
             "C2",
             "README.md",
-            f"the section `{COMMAND_REFERENCE}` cites `python -m dataset {sub}`, "
+            f"the section `{COMMAND_REFERENCE}` cites `python -m {cli_module(ctx.cli)} {sub}`, "
             f"but the CLI has no such subcommand",
         )
         for sub in listed
@@ -566,7 +583,7 @@ def check_cv(ctx: Context) -> list[Finding]:
         for cells in stamped_or_pending:
             findings += _verified_row_findings(ctx, rel, status, cells)
         commands = " ".join(r[0] for r in stamped_or_pending)
-        for sub in documented_subcommands(text):
+        for sub in documented_subcommands(text, ctx.cli):
             if not re.search(rf"(?<![\w-]){re.escape(sub)}(?![\w-])", commands):
                 findings.append(
                     Finding("CV", rel, f"documented command `{sub}` is not in the table")

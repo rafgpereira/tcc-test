@@ -1,0 +1,54 @@
+{
+ "rows": [
+  {
+   "id": "D1",
+   "methodology_section": "2.1",
+   "needles": [
+    "tree-sitter",
+    "Mull"
+   ],
+   "source": "spec.md#D1"
+  },
+  {
+   "id": "D2",
+   "methodology_section": "2.2",
+   "needles": [
+    "Offutt"
+   ],
+   "source": "spec.md#D2"
+  },
+  {
+   "id": "D3",
+   "methodology_section": "2.4",
+   "needles": [
+    "sem busca"
+   ],
+   "source": "spec.md#D3"
+  },
+  {
+   "id": "D4",
+   "methodology_section": "2.5",
+   "needles": [
+    "sem ACs adicionais"
+   ],
+   "source": "spec.md#D4"
+  },
+  {
+   "id": "D5",
+   "methodology_section": "2.3, 2.6",
+   "needles": [
+    "data/mutants.zip"
+   ],
+   "source": "spec.md#D5"
+  },
+  {
+   "id": "D6",
+   "methodology_section": "2.6",
+   "needles": [
+    "Sem seed própria"
+   ],
+   "source": "spec.md#D6"
+  }
+ ],
+ "schema_version": 1
+}

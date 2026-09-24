@@ -60,21 +60,21 @@ dependências novas, sem tocar no `Dockerfile` nem no compose (plan.md, "Fundaç
 
 **Purpose**: dependência nova e esqueleto do pacote — nada de lógica de mutação ainda.
 
-- [ ] T001 Add `tree-sitter>=0.26,<0.27` and `tree-sitter-cpp>=0.23,<0.24` to `[project].dependencies`
+- [X] T001 Add `tree-sitter>=0.26,<0.27` and `tree-sitter-cpp>=0.23,<0.24` to `[project].dependencies`
   in `pyproject.toml`; run `uv lock` and `uv lock --check`; rebuild the image
   (`docker compose build`) and confirm `docker compose run --rm app python -c "import
   tree_sitter, tree_sitter_cpp; print('ok')"` prints `ok` (research.md, R7)
-- [ ] T002 [P] Create the package skeleton: empty `src/mutation/__init__.py`,
+- [X] T002 [P] Create the package skeleton: empty `src/mutation/__init__.py`,
   `tests/mutation/__init__.py` (or a `conftest.py` re-exporting fixtures from
   `tests/conftest.py` if the existing one needs a `mutation`-specific fixture); confirm
   `pytest --collect-only tests/mutation` runs without error (empty collection is fine at this
   point)
-- [ ] T003 [P] Update `.gitignore`: add `!data/mutants.zip` right after the existing
+- [X] T003 [P] Update `.gitignore`: add `!data/mutants.zip` right after the existing
   `!data/dataset.zip` line (Constitution, Princípio II, emenda 1.6.0 — o pacote da execução
   final de mutantes é a única outra exceção a "arquivos soltos nunca versionados"; `data/mutants/`
   de desenvolvimento continua coberto pela regra geral `data/*`). Verify with `git check-ignore -v
   data/mutants/1000_B/Mutant_1.cpp data/mutants.zip`: the first is ignored, the second is not
-- [ ] T004 [P] Create `src/mutation/README.md` from `docs/template-modulo.md` (six fields, in
+- [X] T004 [P] Create `src/mutation/README.md` from `docs/template-modulo.md` (six fields, in
   order); header states `> **Status**: não implementado`; (a) uma frase (gera até 100 mutantes
   por problema a partir do `AC_ref`, para medir o Escore de Mutação); (b) a (f) MAY dizer "a
   preencher pela história correspondente" por enquanto — cada história completa sua parte
@@ -94,7 +94,7 @@ as histórias.
 
 **⚠️ CRITICAL**: nenhuma história começa antes desta fase.
 
-- [ ] T005 [P] Write tests in `tests/docs/test_docs_sync.py` (novos casos, sem remover os já
+- [X] T005 [P] Write tests in `tests/docs/test_docs_sync.py` (novos casos, sem remover os já
   existentes do módulo `dataset`): com um README de módulo fixture documentando `python -m
   mutation generate`, chamar `main(["--module", "<tmp>/src/mutation", "--cli", "python -m
   mutation", "--cli-owner", "<tmp>/src/mutation"])` e confirmar C2 passa quando o subcomando
@@ -102,7 +102,7 @@ as histórias.
   `python -m dataset`); confirmar que rodar com `--cli "python -m dataset"` (o padrão) continua
   funcionando exatamente como antes (teste de regressão — a generalização não pode quebrar C2
   para o módulo de dataset)
-- [ ] T006 Implement the generalization in `scripts/check_docs_sync.py` (makes T005 pass): hoje
+- [X] T006 Implement the generalization in `scripts/check_docs_sync.py` (makes T005 pass): hoje
   `CLI_SUB_RE = re.compile(r"python -m dataset\s+([A-Za-z][\w-]*)")` é fixo; troque por uma
   função `cli_subcommand_pattern(cli: list[str]) -> re.Pattern` que deriva o nome do módulo do
   argumento `--cli` (o token depois de `-m`) e monta o regex dinamicamente; use essa função em
@@ -110,36 +110,36 @@ as histórias.
   `python -m dataset` (linhas citando `f"documents \`python -m dataset {sub}\`..."` e `f"...cita
   \`python -m dataset {sub}\`..."`) para usar o comando de `ctx.cli` real. Sem mudança de
   comportamento quando `--cli` não é passado (mantém o padrão `python -m dataset`)
-- [ ] T007 [P] Write tests in `tests/mutation/test_types.py`: `MutationOperator` tem exatamente
+- [X] T007 [P] Write tests in `tests/mutation/test_types.py`: `MutationOperator` tem exatamente
   `ROR, AOR, LCR, ABS, UOI`; `DiscardReason` tem exatamente `DUPLICATE, COMPILE_ERROR, TLE, MLE,
   RE, EQUIVALENT, UNSTABLE` (data-model.md, "Registro de descarte"); `Site` é congelado/imutável
   e comparável por `(node_type, start_byte, end_byte, kind)`; `Site.kind` tem exatamente
   `OPERATOR, OPERAND_LEFT, OPERAND_RIGHT` (data-model.md, "Sítio de mutação")
-- [ ] T008 Implement `src/mutation/config.py` (makes part of later tests pass): `MUTANTS_PER_PROBLEM
+- [X] T008 Implement `src/mutation/config.py` (makes part of later tests pass): `MUTANTS_PER_PROBLEM
   = 100`; `MUTANT_FILE_PREFIX = "Mutant_"` (R6 — nunca `WA_`, para não confundir com falhas
   reais); `STABILITY_RUNS = 6` (FR-007, Clarifications); `HOM_MAX_ORDER = 3`; work-dir paths sob
   `data/mutants/` (`building/`, `problems/`); `MANIFEST_PATH = manifests/mutants.manifest.json`;
   `REPORT_PATH = manifests/mutation_report.json`; nenhuma constante de seed (D6)
-- [ ] T009 Implement `src/mutation/types.py` per [contracts/mutation-api.md](./contracts/mutation-api.md)
+- [X] T009 Implement `src/mutation/types.py` per [contracts/mutation-api.md](./contracts/mutation-api.md)
   ("Tipos") and [data-model.md](./data-model.md): `Site` (`kind`, `node_type`, `start_byte`,
   `end_byte`, `discovery_index`, `eligible_operators`), `MutationOperator` enum, `DiscardReason`
   enum, `MutantCandidate` (`problem_id`, `sites`, `operators`, `source`), `ValidationOutcome`
   (makes T007 pass)
-- [ ] T010 [P] Write tests in `tests/mutation/test_dataset_gate.py`: `verify_dataset(root:
+- [X] T010 [P] Write tests in `tests/mutation/test_dataset_gate.py`: `verify_dataset(root:
   Path) -> None` levanta `DatasetMismatchError` (com a lista de arquivos divergentes) quando
   `data/dataset` não corresponde a `manifests/dataset.manifest.json` (byte alterado, arquivo
   removido, arquivo extra — os mesmos 3 casos já usados para o dataset); não levanta nada sobre
   uma árvore íntegra
-- [ ] T011 Implement `src/mutation/dataset_gate.py` (makes T010 pass; FR-010): reaproveita
+- [X] T011 Implement `src/mutation/dataset_gate.py` (makes T010 pass; FR-010): reaproveita
   `dataset.integrity.verify` sem reimplementar a lógica de hash — só adapta o resultado para
   `DatasetMismatchError` quando há qualquer `changed`/`missing`/`extra`
-- [ ] T012 Create `src/mutation/__main__.py` skeleton (`python -m mutation`) with `argparse`, a
+- [X] T012 Create `src/mutation/__main__.py` skeleton (`python -m mutation`) with `argparse`, a
   subcommand registry and the same common exit codes já usados pelo `dataset` (`0` sucesso, `1`
   falha de verificação, `2` uso incorreto, `3` falha de infraestrutura, `130` interrompido — ver
   [contracts/cli.md](./contracts/cli.md)); registers no subcommand yet (cada história adiciona o
   seu: US1 `generate`; US3 `package`, `verify`; US4 `report`), so every story stays independently
   testable
-- [ ] T013 Create `specs/002-mutant-generation/sync-matrix.json` (`schema_version: 1`, mesmo
+- [X] T013 Create `specs/002-mutant-generation/sync-matrix.json` (`schema_version: 1`, mesmo
   formato de `specs/001-dataset-extraction/sync-matrix.json`) with rows for D1–D6 and the needles
   abaixo; run `docker compose run --rm app python scripts/check_docs_sync.py --feature
   specs/002-mutant-generation --only C5` and fix any mismatch
@@ -172,7 +172,7 @@ confirmar 100 arquivos `Mutant_<n>.cpp`, todos com hash distinto entre si e do o
 
 ### Tests for User Story 1 ⚠️ (escrever primeiro; devem FALHAR)
 
-- [ ] T014 [P] [US1] Write tests in `tests/mutation/test_sites.py` usando fixtures de código C++
+- [X] T014 [P] [US1] Write tests in `tests/mutation/test_sites.py` usando fixtures de código C++
   reais e sintéticos (research.md, R1): `find_sites` sobre um trecho com
   `vector<pair<int, string>> mb;` (caso real de `175_B/AC_ref.cpp`) não retorna nenhum sítio para
   esse `>>`; sobre `x >> 1;` retorna um sítio `OPERATOR` de categoria ROR/AOR (é aritmético neste
@@ -181,19 +181,19 @@ confirmar 100 arquivos `Mutant_<n>.cpp`, todos com hash distinto entre si e do o
   (`update_expression` distinto de `unary_expression`, ambos cobertos); a ordem retornada é a
   ordem de descoberta pré-ordem (R3) — duas chamadas com o mesmo texto devolvem a mesma lista, na
   mesma ordem
-- [ ] T015 [P] [US1] Write tests in `tests/mutation/test_operators.py`: ROR sobre um sítio `<`
+- [X] T015 [P] [US1] Write tests in `tests/mutation/test_operators.py`: ROR sobre um sítio `<`
   gera as 5 variantes legais (`<=, >, >=, ==, !=`), nunca gera `<` de volta; AOR sobre `+` gera as
   demais aritméticas legais; LCR sobre `&&` gera só `||` (1 variante); ABS sobre um operando gera
   exatamente 3 variantes (zero, `+abs(...)`, `-abs(...)` — data-model.md, "Operador de mutação");
   UOI sobre um operando de sítio ROR/LCR pode inserir `!`, mas UOI sobre um operando de sítio AOR
   não gera a variante `!` (ilegalidade sintática, `apply` retorna `None` — não é erro); toda
   função de operador preserva o arquivo byte a byte fora do intervalo do sítio
-- [ ] T016 [P] [US1] Write tests in `tests/mutation/test_candidates.py`: `first_order_candidates`
+- [X] T016 [P] [US1] Write tests in `tests/mutation/test_candidates.py`: `first_order_candidates`
   itera sítio a sítio, variante a variante, na mesma ordem de `find_sites`; sobre um `AC_ref`
   sintético com mais de 100 sítios elegíveis, o truncamento determinístico (FR-003a) retém
   exatamente os primeiros 100 na ordem de descoberta, e duas chamadas dão o mesmo resultado byte
   a byte (nenhuma amostragem)
-- [ ] T017 [P] [US1] Write tests in `tests/mutation/test_validation.py` com um motor falso
+- [X] T017 [P] [US1] Write tests in `tests/mutation/test_validation.py` com um motor falso
   (mesmo padrão de motor falso já usado nos testes do módulo `dataset`, injetado por parâmetro de
   palavra-chave em `sandbox.judge_source`): cada um dos motivos de FR-005 produz o
   `DiscardReason` certo (`DUPLICATE` antes de qualquer execução, por hash já visto;
@@ -202,20 +202,20 @@ confirmar 100 arquivos `Mutant_<n>.cpp`, todos com hash distinto entre si e do o
   uma das 6 divergente, retorna `False` e o `DiscardReason` é `UNSTABLE`; `confirm_stability`
   nunca é chamado para um candidato já descartado pelo primeiro filtro (asserção de contagem de
   chamadas ao motor falso)
-- [ ] T018 [US1] Write an **integration** test (marker `integration`, roda no serviço `sandbox`)
+- [X] T018 [US1] Write an **integration** test (marker `integration`, roda no serviço `sandbox`)
   in `tests/mutation/test_validation_integration.py`: sobre um `AC_ref.cpp` sintético minúsculo e
   seu `testes.json` (um teste só, entrada/saída conhecidas), gerar os candidatos ROR/AOR de
   primeira ordem, validar de verdade (compila e executa via `sandbox.judge_source` real) e
   confirmar que ao menos um candidato correto e conhecido (ex.: trocar `<` por `>=` num laço que
   isso quebra) é aceito com veredito `WA`
-- [ ] T019 [P] [US1] Write tests in `tests/mutation/test_persistence.py`: `select_mutants`/a
+- [X] T019 [P] [US1] Write tests in `tests/mutation/test_persistence.py`: `select_mutants`/a
   gravação escreve primeiro em `data/mutants/building/<problem_id>/` e só move atomicamente para
   `data/mutants/problems/<problem_id>/` ao concluir (research.md, R5); interromper (simular
   levantando uma exceção) no meio da gravação de um problema não deixa nada em
   `data/mutants/problems/<problem_id>/`, e uma nova chamada refaz do zero; um problema já
   completo em `data/mutants/problems/` é pulado (mesmo comportamento de retomada do módulo de
   dataset)
-- [ ] T020 [US1] 🎯 Write a test in `tests/mutation/test_uniqueness.py` que prova diretamente o
+- [X] T020 [US1] 🎯 Write a test in `tests/mutation/test_uniqueness.py` que prova diretamente o
   pedido desta rodada ("garantir que os mutantes são diferentes entre si"): usando um `AC_ref.cpp`
   real do dataset com sítios suficientes (fixture de `tests/mutation/fixtures/`, marker
   `integration`), gerar o conjunto final de mutantes e afirmar que (a) todos os `source_sha256`
@@ -225,28 +225,28 @@ confirmar 100 arquivos `Mutant_<n>.cpp`, todos com hash distinto entre si e do o
 
 ### Implementation for User Story 1
 
-- [ ] T021 [P] [US1] Implement `src/mutation/sites.py` (`find_sites`) per
+- [X] T021 [P] [US1] Implement `src/mutation/sites.py` (`find_sites`) per
   [contracts/mutation-api.md](./contracts/mutation-api.md) usando `tree_sitter_cpp` (makes T014
   pass)
-- [ ] T022 [P] [US1] Implement `src/mutation/operators.py` (uma função pura por operador,
+- [X] T022 [P] [US1] Implement `src/mutation/operators.py` (uma função pura por operador,
   `apply(source, site, variant) -> str | None`) (makes T015 pass; depends on T009)
-- [ ] T023 [US1] Implement `src/mutation/candidates.py` (`first_order_candidates`, truncamento de
+- [X] T023 [US1] Implement `src/mutation/candidates.py` (`first_order_candidates`, truncamento de
   FR-003a) (makes T016 pass; depends on T021, T022)
-- [ ] T024 [US1] Implement `src/mutation/validation.py` (`validate`, `confirm_stability`,
+- [X] T024 [US1] Implement `src/mutation/validation.py` (`validate`, `confirm_stability`,
   reaproveitando `sandbox.judge_source` sem alteração) (makes T017, T018 pass; depends on T009)
-- [ ] T025 [US1] Implement `src/mutation/persistence.py` (gravação em `building/` + movimento
+- [X] T025 [US1] Implement `src/mutation/persistence.py` (gravação em `building/` + movimento
   atômico, retomada por pular problema já completo) (makes T019 pass)
-- [ ] T026 [US1] Implement `src/mutation/orchestrator.py` (`select_mutants`, caminho de primeira
+- [X] T026 [US1] Implement `src/mutation/orchestrator.py` (`select_mutants`, caminho de primeira
   ordem completo; combinação de ordem superior ainda como `NotImplementedError` explícito, a ser
   substituído em US2): mantém um `set[str]` de hashes já aceitos para o problema e nunca aceita
   um candidato cujo hash já esteja nele — é o mecanismo concreto que faz T020 passar (depends on
   T021–T025)
-- [ ] T027 [US1] Add the `generate` subcommand to `src/mutation/__main__.py`: chama
+- [X] T027 [US1] Add the `generate` subcommand to `src/mutation/__main__.py`: chama
   `dataset_gate.verify_dataset` antes de processar qualquer problema (FR-010); aceita `--problem
   ID` (repetível); usa `orchestrator.select_mutants` por problema; problemas cujo primeiro-ordem
   já não bastar terminam em erro explícito por enquanto (US2 substitui) (depends on T011, T012,
   T026)
-- [ ] T028 [US1] Update `src/mutation/README.md` (b), (c), (d): descreve `generate` no escopo
+- [X] T028 [US1] Update `src/mutation/README.md` (b), (c), (d): descreve `generate` no escopo
   desta história (só primeira ordem), a entrada (`data/dataset` verificado) e a saída
   (`data/mutants/problems/<id>/Mutant_<n>.cpp`); comando nasce `pendente` na tabela
 

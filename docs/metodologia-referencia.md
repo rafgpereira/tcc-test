@@ -736,6 +736,27 @@ combinação de ordem superior. É uma estimativa grosseira (a fração real que
 validações da seção 2.3 é menor que a contagem bruta de sítios), mas com margem suficiente para
 confiar que o objetivo original — só `AC_ref` — é alcançável para a grande maioria dos problemas.
 
+**[IMPLEMENTADO, 2026-09-24 — primeira história de `002-mutant-generation`]** A implementação
+fixou os pontos que o texto acima deixava abertos (detalhes e motivos em
+`specs/002-mutant-generation/research.md`, R8 e R9):
+
+- Os deslocamentos `<<` e `>>` contam como operadores aritméticos (AOR) e só são trocados entre si,
+  nunca por `+ - * / %` (não tipa para `cin >>`/`cout <<`).
+- ABS e UOI atuam sobre os **operandos** de expressões relacionais e aritméticas (ABS e UOI) e
+  lógicas (só UOI); o unário inserido depende do operador pai (relacional: `- ! ++ --`; aritmético:
+  `- ++ --`, nunca `!`; lógico: só `!`). Um `-x`/`!x`/`++x`/`x--` que já existe no código é um sítio
+  UOI de troca (`-`↔`!`, `++`↔`--`). Operando composto ganha parênteses (`!(a * b) < c`).
+- Operadores bit a bit, vírgula, `~` e `+` unário não são sítios; condições de `#if`/`#elif` também
+  não.
+
+**Medição sobre os 200 `AC_ref.cpp` reais (2026-09-24, dataset `manifests/dataset.manifest.json`,
+gerador de candidatos de primeira ordem, antes de qualquer validação)**: mediana de **274**
+candidatos por problema (mínimo 35, em `630_J`; máximo 2.104); **8 dos 200** têm menos de 100
+candidatos brutos e 64 têm menos de 200. É maior que a estimativa grosseira de 2.2 (mediana ≈146,
+44 abaixo de 100), porque a estimativa usava a contagem de identificadores como proxy dos
+operandos. A contagem que importa para a cota, porém, é a de candidatos **aceitos** pela validação
+(2.3): ver 2.7.
+
 ### 2.3 Validação antes de aceitar um mutante
 
 1. **Unicidade léxica**: texto do mutante não pode ser idêntico a nenhum já
@@ -758,6 +779,14 @@ confiar que o objetivo original — só `AC_ref` — é alcançável para a gran
    Necessário porque a validação de um mutante roda no mesmo motor cuja instabilidade de margem
    já foi medida na auditoria do módulo de dataset (D18/D19, seção 1.4). Um candidato cujas
    execuções não concordam é descartado como instável, não aceito nem rejeitado por acaso.
+
+   **[DECIDIDO NA IMPLEMENTAÇÃO, 2026-09-24 — research.md, R10]** As 6 execuções são a primeira
+   execução mais 5 reexecuções do **mesmo binário**, compilado uma vez (não 3 checagens
+   independentes que recompilam, como no reparo de WA): recompilar triplicaria o custo dominante
+   (a compilação, ~1,8 s, ver 2.7) e a instabilidade que se quer pegar é de tempo de execução, não
+   de compilação. Se a auditoria futura mostrar mutantes instáveis que recompilar teria pegado,
+   a decisão é reaberta. Um texto já avaliado no problema (aceito ou descartado antes) conta como
+   duplicata e não é recompilado (R11).
 
 Quando os mutantes de primeira ordem válidos e distintos de um problema forem **mais** de 100
 (esperado com o conjunto ampliado de 2.2), retêm-se exatamente os primeiros 100 na mesma ordem
@@ -850,6 +879,37 @@ exatamente 100 mutantes comportamentalmente distintos e válidos, obtidos inteir
 primeira ordem, a partir só do `AC_ref`. Como mutantes equivalentes já são descartados na
 validação (2.3), o termo `EM` (mutantes equivalentes) na fórmula do Escore de Mutação (seção 5)
 continua sempre 0 no cálculo final do pipeline.
+
+### 2.7 Medições da primeira implementação (`generate`, primeira ordem) **[MEDIDO, 2026-09-24]**
+
+Primeira medição do custo real da validação, com o motor de execução real (`gcc` 13.2.0, serviço
+`sandbox`), sobre o problema `189_C` (`AC_ref.cpp` que usa `bits/stdc++.h`, 259 candidatos de
+primeira ordem brutos, 8 testes oficiais). Ferramenta: `select_mutants` com cota reduzida a 20
+(revisão de código `cba4d97` mais as alterações da história, não commitadas); não é a execução
+final.
+
+| Medida | Valor |
+|---|---|
+| Compilação do `AC_ref.cpp` de `189_C` (3 medições) | 1,75 s; 1,79 s; 1,82 s |
+| Candidatos avaliados até aceitar 20 | 83 (20 aceitos, **24%**) |
+| Descartados | 28 equivalentes, 22 não compilam, 7 erro de execução (RE), 6 tempo excedido (TLE) |
+| Operadores dos 20 aceitos | UOI 8, ABS 6, ROR 6 |
+| Tempo até aceitar 20 | 359 s e 346 s em duas execuções, em série; as duas rodaram ao mesmo tempo na mesma máquina (uma inflaciona a outra) |
+| Repetibilidade | as duas execuções deram exatamente o mesmo funil (28/22/7/6) e a mesma distribuição de operadores: mesma sequência de candidatos, sem seed |
+| Teste de integração de 8 mutantes aceitos do mesmo problema | 159 s (`tests/mutation/test_uniqueness.py`) |
+
+**Leitura (extrapolação, não medida)**: com ~24% de aceitação e ~4 s por candidato avaliado, os 100
+mutantes de um problema como este exigiriam ~415 candidatos, da ordem de 30 minutos em série; para
+os 200 problemas, da ordem de 100 horas em série. O custo é dominado pela compilação (o motor
+recompila cada candidato) e pelos TLE (cada um espera o limite de tempo do problema). Isso torna a
+paralelização da geração (vários `slot`s do motor, com os resultados consumidos na ordem dos
+candidatos, como já é feito em `validate` do módulo de dataset) a decisão de desempenho a tomar
+antes da execução completa; ela **não** está implementada nem decidida — é pergunta aberta para os
+autores, junto do piloto de ordem superior.
+
+**Primeiro ponto de parada da implementação**: `generate` com primeira ordem só. Um problema em
+que ela não alcança 100 mutantes aceitos termina em falha explícita e nada é gravado (a combinação
+de ordem superior de 2.4 ainda não existe no código).
 
 ---
 
@@ -1039,7 +1099,8 @@ diretamente ao objetivo específico de mapear desempenho por categoria algorítm
 Registro exigido pela Constitution (princípio 1), para atualizar o texto final do TCC e
 evitar inconsistência entre o que a banca aprovou e o que foi construído. Origem:
 `specs/001-dataset-extraction/spec.md`, decisões de 2026-09-18 a 2026-09-22 (itens 1–16); e
-`specs/002-mutant-generation/spec.md`, decisões de 2026-09-23 (itens 17–21).
+`specs/002-mutant-generation/spec.md`, decisões de 2026-09-23 (itens 17–21); e decisões de
+implementação de 2026-09-24 (item 22).
 
 | # | Divergência | Onde |
 |---|---|---|
@@ -1064,6 +1125,7 @@ evitar inconsistência entre o que a banca aprovou e o que foi construído. Orig
 | 19 | Mutação de ordem superior por regra determinística fixa (pares/trios na ordem de descoberta na AST), não por busca (programação genética/multi-objetivo) | 2.4 |
 | 20 | Base de mutação exclusivamente o `AC_ref`; decisão de não usar outras soluções corretas do dataset de origem como bases adicionais, para não reabrir o schema do pacote do módulo de dataset | 2.5 |
 | 21 | Reprodutibilidade de mutantes não depende só da seed: dado que a validação de cada mutante reutiliza o motor cuja instabilidade de margem já foi medida (D18/D19), o pacote da execução final é compactado e versionado (`data/mutants.zip`), exigindo emenda ao Princípio II da Constitution (v1.6.0, 2026-09-23) | 2.6 |
+| 22 | Na implementação, `<<`/`>>` contam como aritméticos (AOR, trocados só entre si); ABS e UOI agem sobre operandos de expressões relacionais e aritméticas, UOI também sobre os lógicos, com o unário legal dependente do operador pai; as 6 execuções de estabilidade são sobre um binário compilado uma vez, não 3 checagens que recompilam | 2.2, 2.3 |
 
 ---
 
@@ -1075,6 +1137,7 @@ a partir de 2026-09-23, `specs/002-mutant-generation/`.
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-09-24 | **Primeira história de `002-mutant-generation` implementada (`generate`, primeira ordem)**: deslocamentos como AOR, operandos de ABS/UOI e unário legal por operador pai, execuções de estabilidade sobre um binário compilado uma vez, duplicata = todo texto já avaliado (`research.md` R8 a R12); medição sobre os 200 `AC_ref.cpp` reais: mediana de 274 candidatos de primeira ordem brutos, 8 de 200 com menos de 100; medição de custo em `189_C` (aceitação de 24% dos candidatos, compilação de ~1,8 s, ~100 h extrapoladas para os 200 problemas em série) e a pergunta aberta sobre paralelizar a geração. Decisão D1–D6 sem alteração | 2.2, 2.3, 2.7, 7 |
 | 2026-09-23 | **`/speckit.plan` do módulo `002-mutant-generation`**: confirmação empírica de que `tree-sitter-cpp` disambigua corretamente o `>>` de template do `>>` de operador, testada sobre um `AC_ref.cpp` real do dataset (`175_B`); escopo de ABS/UOI definido como os operandos de sítios ROR/AOR, sem precisar de inferência de tipo; MS (5.2) passa a ser calculado sobre os problemas com mutantes completos (pode ser < 200), nunca TDF/TFP. Detalhes em `specs/002-mutant-generation/{plan,research,data-model}.md` | 2.1, 5.2 |
 | 2026-09-23 | **Seção 2 reescrita (`/speckit.specify` do módulo `002-mutant-generation`)**: geração de mutantes por AST (`tree-sitter`), conjunto completo de operadores de Offutt et al. (ROR/AOR/LCR + ABS/UOI, motivado por medição de 199/200 `AC_ref.cpp` reais abaixo de 100 ocorrências dos operadores originais), mutação de ordem superior por regra determinística sem busca, base de mutação exclusivamente `AC_ref` (sem ACs adicionais do dataset de origem, D4), e arquitetura de reprodutibilidade em que o pacote de mutantes da execução final é compactado e versionado (`data/mutants.zip` + manifesto), por causa da instabilidade de margem do motor já medida em D18/D19 — isso exigiu emenda ao Princípio II da Constitution (v1.6.0). Decisões D1–D6, com proveniência completa, em `specs/002-mutant-generation/spec.md` | 2, 6, 7 |
 | 2026-09-18 | Decisões D1–D5 da spec: splits combinados, tradução como critério, `generated_tests`, flag `-Wl,--stack` removida (pilha em tempo de execução), problemas com menos de 100 WAs excluídos, sem cota por macrocategoria com alerta < 30 | 1.1, 1.2, 1.4, 6, 7 |

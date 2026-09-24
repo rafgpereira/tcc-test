@@ -33,10 +33,14 @@ resultado.
 
 | Opção | Padrão | Efeito |
 |---|---|---|
-| `--problem ID` | todos | processa um único problema (uso: desenvolvimento/depuração) |
+| `--problem ID` | todos | processa só esse problema; pode ser repetida (uso: desenvolvimento/depuração); um ID que não está em `data/dataset` é erro de uso (código `2`) |
 | `--resume` (implícito) | — | pula problemas já completos em `data/mutants/`; não há flag para desativar (mesmo comportamento sempre seguro do módulo de dataset) |
 
-Saída: progresso por problema (mutantes por ordem, alertas de exclusão) na saída padrão;
+Um problema que não fecha a cota fica registrado como falha (`FAILED`) e o comando termina com código
+`1` no fim, sem gravar nada para ele e sem impedir os demais; um problema que esgota as combinações
+possíveis (FR-009) fecha com `ALERT` e o comando termina com `0`.
+
+Saída: progresso por problema (mutantes por ordem, descartes por motivo, tempo, alertas de exclusão) na saída padrão;
 `manifests/mutation_report.json` **não** é escrito por este comando — só por `report`
 (sempre reflete o estado atual de `data/mutants/`, gerado sob demanda, nunca implicitamente).
 

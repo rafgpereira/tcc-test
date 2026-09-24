@@ -27,10 +27,14 @@ Abordagem técnica (detalhes em [research.md](./research.md)):
 - **Aplicação de operadores** em `src/mutation/operators.py`: cada operador é uma função pura
   `(source: str, site: Site) -> str` que substitui o intervalo de bytes do sítio pelo texto
   mutado, preservando o resto do arquivo byte a byte.
-- **Validação** em `src/mutation/validation.py`: reutiliza `sandbox.judge_source` (compila +
-  roda a suíte oficial do problema, a partir de `testes.json`) sem alteração; aplica os critérios
-  de FR-005 (unicidade, compilação, limites, equivalência) e a confirmação de 6 execuções
-  concordantes de FR-007 só para candidatos que sobrevivem ao primeiro filtro (barato).
+- **Validação** em `src/mutation/validation.py`: reutiliza o motor do módulo `sandbox` sem
+  alteração, pelo mesmo par `compile`/`run_suite` (`dataset.validation.engine.Engine`) que o
+  módulo de dataset já usa e testa com motor falso — em vez de `sandbox.judge_source`, que
+  compila e roda uma vez só e não permitiria reexecutar o mesmo binário; roda a suíte oficial do
+  problema (`testes.json`); aplica os critérios de FR-005 (unicidade, compilação, limites,
+  equivalência) e a confirmação de 6 execuções concordantes de FR-007 (o mesmo binário,
+  compilado uma vez) só para candidatos que sobrevivem ao primeiro filtro (barato). Ver
+  research.md, R10.
 - **Ordem superior** em `src/mutation/higher_order.py`: combina pares (depois trios) de sítios
   de primeira ordem já válidos, em ordem determinística fixa, até fechar 100 ou esgotar o
   orçamento de tentativas (a ser medido por um piloto durante a implementação, no mesmo espírito
@@ -48,8 +52,9 @@ de compilação C++ (reutiliza o motor do módulo `sandbox` sem alteração).
 **Primary Dependencies**: `tree-sitter` 0.26.x e `tree-sitter-cpp` 0.23.x (parsing sintático,
 sem exigir resolução de headers — verificado empiricamente nesta fase, ver research.md);
 `pydantic` 2.x (schemas, já uma dependência do projeto); biblioteca padrão (`hashlib`,
-`zipfile`, `itertools` para combinações de ordem superior). Reaproveita `sandbox.judge_source`,
-`sandbox.types.ExecutionLimits` e `dataset.schemas.common` sem alteração.
+`zipfile`, `itertools` para combinações de ordem superior). Reaproveita `sandbox.compiler`/`sandbox.judge` (via
+`dataset.validation.engine.Engine`), `sandbox.types.ExecutionLimits`, `dataset.schemas.common` e
+`dataset.integrity` sem alteração.
 
 **Storage**: arquivos. Mutantes de desenvolvimento em `data/mutants/` (nunca versionado, análogo
 a `data/work/`); pacote da execução final em `data/mutants.zip` (versionado sob condição, ver
@@ -95,7 +100,7 @@ Constitution v1.6.0.
 | II. Reprodutibilidade | Sem seed (vacuamente satisfeito, D6); dependências novas serão pinadas no `uv.lock`; gate de manifesto contra o dataset antes de rodar (FR-010); pacote da execução final versionado com manifesto próprio, pela emenda 1.6.0 | PASS |
 | III. Sem estado nas chamadas de IA | Este módulo não chama IA | N/A |
 | IV. Contratos explícitos e versionados | `schema_version` em `mutants.manifest.json` e `mutation_report.json` (Pydantic, [data-model.md](./data-model.md)) | PASS |
-| V. Execução isolada e segura | Nenhuma sandbox nova: reutiliza `sandbox.judge_source` sem alteração; limites sempre lidos de `metadata.json` do problema | PASS |
+| V. Execução isolada e segura | Nenhuma sandbox nova: reutiliza o motor do `sandbox` (compilação e execução da suíte) sem alteração; limites sempre lidos de `metadata.json` do problema | PASS |
 | VI. O pipeline testa a si próprio | Suíte própria para sítios, operadores, ordem superior, empacotamento/manifesto (ver Testing acima) | PASS (a construir na implementação) |
 | VII. Idempotência e retomada | Cada problema processado em `building/` e movido atomicamente para `data/mutants/`, mesmo padrão do módulo de dataset (ver research.md); interrupção não duplica nem corrompe | PASS (desenho; a verificar como SC na implementação) |
 | VIII. Observabilidade de custo de IA | Sem chamadas pagas | N/A |
@@ -141,29 +146,36 @@ src/
 ├── sandbox/               # já existente, sem alteração (reutilizado sem modificação)
 └── mutation/              # ESTE módulo
     ├── __init__.py
-    ├── __main__.py        # CLI: python -m mutation <comando>
-    ├── config.py          # constantes (quota 100, ordem de operadores)
-    ├── sites.py            # travessia da AST, descoberta de sítios (tree-sitter-cpp)
-    ├── operators.py        # ROR, AOR, LCR, ABS, UOI — funções puras de substituição
-    ├── candidates.py       # geração de candidatos de 1ª ordem e enumeração de combinações
-    ├── validation.py       # reutiliza sandbox.judge_source; critérios de FR-005/FR-007
-    ├── higher_order.py     # combinação em pares/trios, ordem determinística, regra de parada
-    ├── persistence.py      # gravação em data/mutants/ (building/ + move atômico)
-    ├── packaging.py        # data/mutants.zip + manifests/mutants.manifest.json
-    ├── report.py           # manifests/mutation_report.json
+    ├── __main__.py        # CLI: python -m mutation <comando> (generate; package, verify; report)
+    ├── config.py          # constantes (cota 100, 6 execuções, ordem máxima 3, caminhos); sem seed
+    ├── types.py           # Site, MutationOperator, DiscardReason, MutantCandidate, Mutant, Selection...
+    ├── dataset_gate.py    # portão de consistência: data/dataset contra o manifesto do dataset (FR-010)
+    ├── sites.py           # travessia da AST, descoberta de sítios (tree-sitter-cpp)
+    ├── operators.py       # ROR, AOR, LCR, ABS, UOI — funções puras de substituição
+    ├── candidates.py      # geração (preguiçosa) de candidatos de 1ª ordem
+    ├── validation.py      # reutiliza o motor do sandbox; critérios de FR-005/FR-007
+    ├── higher_order.py    # (US2) combinação em pares/trios, ordem determinística, regra de parada
+    ├── orchestrator.py    # select_mutants: primeira ordem, depois ordem superior (US2), alerta
+    ├── persistence.py     # gravação em data/mutants/ (building/ + move atômico) e generation.json
+    ├── packaging.py       # (US3) data/mutants.zip + manifests/mutants.manifest.json
+    ├── integrity.py       # (US3) verify
+    ├── report.py          # (US4) manifests/mutation_report.json
     └── schemas/
-        ├── manifest.py
-        └── report.py
+        ├── generation.py  # generation.json por problema (não empacotado)
+        ├── manifest.py    # (US3)
+        └── report.py      # (US4)
 
 tests/
 ├── dataset/               # já existente
 ├── sandbox/                # já existente
 └── mutation/               # espelha src/mutation/
-    ├── test_sites.py
-    ├── test_operators.py
-    ├── test_higher_order.py
-    ├── test_validation.py
-    └── test_packaging.py
+    ├── conftest.py         # motor falso, suíte mínima, construtor de dataset de teste
+    ├── fixtures/189_C/     # problema real denso (AC_ref.cpp, testes.json, metadata.json)
+    ├── test_types.py, test_dataset_gate.py, test_sites.py, test_operators.py
+    ├── test_candidates.py, test_validation.py, test_validation_integration.py
+    ├── test_persistence.py, test_orchestrator.py, test_uniqueness.py, test_cli_generate.py
+    └── (US2 a US4) test_higher_order.py, test_exclusion_alert.py, test_packaging.py,
+        test_manifest.py, test_verify.py, test_report.py
 ```
 
 **Structure Decision**: módulo único `src/mutation/`, no mesmo padrão de `src/dataset/` —

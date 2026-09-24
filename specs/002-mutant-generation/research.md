@@ -119,3 +119,77 @@ de descoberta de R3) — mesmo padrão de numeração sequencial 1–100 já usa
 
 **Decisão**: `tree-sitter>=0.26,<0.27` e `tree-sitter-cpp>=0.23,<0.24` (as versões verificadas
 nesta fase), pinadas no `uv.lock` na implementação — nenhuma outra dependência nova.
+
+## Decisões de implementação da primeira história (2026-09-24)
+
+Registradas ao implementar `generate` (primeira ordem). Nenhuma contradiz uma decisão D1–D6 da
+spec; cada uma fecha um ponto que a pesquisa deixou em aberto ou torna concreto um contrato.
+
+### R8 — Deslocamentos (`<<`, `>>`) são sítios AOR, trocados só entre si
+
+**Decisão**: `x >> 1` e `cin >> n` são `binary_expression` cujo operador conta como aritmético
+(AOR); a variante de `<<` é `>>` e vice-versa, e **nunca** `+ - * / %`. **Motivo**: o teste de
+sítios da própria pesquisa (R1) exige que `x >> 1` seja um sítio; trocar o deslocamento por `+`
+não tipa para os fluxos `cin >> x` / `cout << x`, que dominam o código de competição, e só geraria
+candidatos que não compilam. Os operandos de um deslocamento seguem a regra geral de R9 (custo
+aceito: `cout << x` produz candidatos de operando que não compilam e são descartados).
+
+### R9 — Quais operandos são sítios de ABS e UOI, e qual unário é legal
+
+**Decisão** (refina R2): os operandos de um `binary_expression` cujo operador é relacional **ou**
+aritmético são sítios de ABS **e** de UOI; os de um conector lógico só de UOI. O unário inserido em
+frente de um operando depende do operador pai: relacional `- ! ++ --`; aritmético `- ++ --` (nunca
+`!`); lógico só `!`. O `-x` e o `!x` que já existem no código (`unary_expression`) e o
+`++`/`--` já existentes (`update_expression`) são sítios UOI de troca (`-`↔`!`, `++`↔`--`); `~` e
+`+` unário não. Um operando composto entra entre parênteses depois do unário (`!(a * b) < c`) para o
+unário valer para a subexpressão inteira. Uma variante que deixa o texto igual (`0` sobre o
+literal `0`) não é mutação. `data-model.md` (tabela de operadores) tinha ABS só sobre operandos de
+AOR e não citava `unary_expression`; foi alinhado a esta decisão.
+
+### R10 — Motor: compila uma vez, roda 6 vezes o mesmo binário
+
+**Decisão**: a validação usa o par `compile`/`run_suite` do motor do `sandbox`
+(`dataset.validation.engine.Engine`, o mesmo que o módulo de dataset injeta e testa com motor
+falso) em vez de `sandbox.judge_source`, que compila e roda uma vez só e não permitiria reexecutar
+o binário. As 6 execuções de FR-007 são a primeira execução mais 5 reexecuções **do mesmo binário
+compilado uma vez**. **Diferença assumida** em relação à redação "3 checagens independentes de 2
+execuções" do reparo de WA (onde cada checagem recompilava): recompilar 3 vezes cada mutante
+aceito triplicaria o custo dominante (a compilação, ~1,8 s, ver R13) e não exercita melhor a fonte
+real de instabilidade, que é de tempo de execução (leitura de memória não inicializada, margem do
+limite de tempo). A força de "6 execuções concordantes, mesmo veredito e mesmo teste decisivo" está
+preservada. Se a auditoria futura mostrar mutantes instáveis que recompilar teria pegado, esta
+decisão é reaberta.
+
+### R11 — "Duplicata" cobre todo texto já avaliado
+
+**Decisão**: o conjunto de hashes consultado por FR-005(a) contém o `AC_ref.cpp` original e **todo**
+texto já avaliado no problema (aceito ou descartado antes), não só os aceitos: um texto já
+rejeitado seria rejeitado de novo pelo mesmo motivo, então é contado como `duplicate` e não é
+recompilado. Consequência: nenhum mutante aceito é igual ao original nem a outro aceito
+(`tests/mutation/test_uniqueness.py`).
+
+### R12 — `generation.json` por problema (fora do zip)
+
+**Decisão**: cada problema fechado em `data/mutants/problems/<id>/` tem um `generation.json` (campos
+em `data-model.md`) com o operador/variante de cada mutante e as contagens de descarte por
+(ordem, motivo). Sem ele, `report` (US4) não teria de onde recalcular funil e distribuições sem
+regerar tudo. Não entra no zip (só os `Mutant_<n>.cpp`) e é o que marca o problema como fechado
+para a retomada; um problema excluído (FR-009) fecha só com ele. Não contradiz
+`contracts/file-formats.md` ("a proveniência fica só em `mutation_report.json`, agregado"): o
+`Mutant_<n>.cpp` continua sem metadado embutido e o pacote versionado continua só com os arquivos
+de mutante.
+
+### R13 — Medições (2026-09-24, dataset de `manifests/dataset.manifest.json`)
+
+- **Candidatos de primeira ordem brutos nos 200 `AC_ref.cpp` reais** (gerador desta feature, antes
+  de qualquer validação): mediana 274; mínimo 35 (`630_J`); máximo 2.104; 8 problemas abaixo de 100
+  e 64 abaixo de 200. Mais folgado que a estimativa de pesquisa de 2.2 da metodologia (mediana ≈146,
+  44 abaixo de 100), cujo proxy de operandos era a contagem de identificadores.
+- **Compilação** (`189_C`, `bits/stdc++.h`, motor real): 1,75 s, 1,79 s, 1,82 s.
+- **Aceitação** (`189_C`, cota 20, primeira ordem): 83 candidatos avaliados, 20 aceitos (24%);
+  descartes: 28 equivalentes, 22 erro de compilação, 7 RE, 6 TLE; 359 s e 346 s em duas execuções em
+  série que rodaram ao mesmo tempo (uma inflaciona a outra), com **exatamente o mesmo funil e a
+  mesma distribuição de operadores** nas duas (mesma sequência de candidatos, sem seed). Extrapolação (não medida): ~30 min por problema de perfil parecido, ~100 h
+  para 200 problemas em série. **Pergunta aberta para os autores**: paralelizar `generate` (vários
+  `slot`s, resultados consumidos na ordem dos candidatos, como em `validate` do dataset) antes da
+  execução completa; a mesma pergunta de desempenho do piloto de ordem superior (R4).
