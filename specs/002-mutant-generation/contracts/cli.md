@@ -37,9 +37,12 @@ resultado.
 | `--workers N` | metade das CPUs (mínimo 1) | problemas processados em paralelo, cada um num `slot` próprio do motor; **não altera o resultado**, só o tempo; inteiro positivo, senão erro de uso (código `2`); `1` roda no próprio processo |
 | `--resume` (implícito) | — | pula problemas já completos em `data/mutants/`; não há flag para desativar (mesmo comportamento sempre seguro do módulo de dataset) |
 
-Um problema que não fecha a cota fica registrado como falha (`FAILED`) e o comando termina com código
-`1` no fim, sem gravar nada para ele e sem impedir os demais; um problema que esgota as combinações
-possíveis (FR-009) fecha com `ALERT` e o comando termina com `0`.
+Um problema cuja primeira ordem não fecha a cota segue para pares e, se preciso, trios de mutantes de
+primeira ordem (FR-004). Se ainda assim não chega a 100, o problema é **excluído** (FR-009): a saída
+traz uma linha `ALERT: <id> reached only N of 100 mutants (highest order tried: K)`, nenhum
+`Mutant_<n>.cpp` é gravado (só o `generation.json`, com `status: excluded`, que fecha o problema
+para a retomada), e o comando **termina com `0`** — exclusão é um resultado, não uma falha; os
+demais problemas seguem. O resumo final é `done: N generated, N skipped, N excluded`.
 
 Saída: progresso por problema (mutantes por ordem, descartes por motivo, tempo, alertas de exclusão) na saída padrão;
 `manifests/mutation_report.json` **não** é escrito por este comando — só por `report`

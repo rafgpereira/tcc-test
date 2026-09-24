@@ -76,6 +76,9 @@ não-determinismo), o que satisfaz FR-003a, FR-004 e FR-011 sem precisar de nenh
 
 ## R4 — Risco de desempenho da busca combinatória de ordem superior
 
+> **Resolvido em R18 (2026-09-24)**: piloto medido nos três problemas mais esparsos; sem orçamento de
+> tentativas. O texto abaixo é o da fase de pesquisa.
+
 **Situação**: FR-004 diz "combinar... até completar 100 ou esgotar as combinações de pares
 possíveis". Para um problema com `n` sítios de primeira ordem válidos e faltando `k < 100 - n`,
 o espaço de pares é `C(n, 2)`, que cresce rápido (`n=70` → 2.415 pares). Cada tentativa exige, na
@@ -339,3 +342,71 @@ Nas 8 gerações completas de R14: **63 erros de compilação em 1.415 candidato
 `189_C` antes do filtro). Por problema, de 0 (`265_D`) a 26 (`967_C`) erros. Descartes totais nos 8:
 63 não compilam, 466 equivalentes, 77 RE, 70 TLE, 6 MLE (o que restou de falhas são os mutantes
 equivalentes, que só a suíte oficial revela).
+
+### R17 — Ordem superior: decisões de implementação (2026-09-24, História 2)
+
+Implementa FR-004, FR-004a e FR-009 sem contradizer D3/D4/D6; cada ponto abaixo fecha algo que o
+texto deixava em aberto.
+
+- **Base das combinações**: só os mutantes de **primeira ordem aceitos**, na ordem de aceitação
+  (que é a ordem de descoberta dos sítios, R3). Um trio combina três mutantes de primeira ordem,
+  nunca um par com outro mutante; pares e trios usam a mesma base, fixada antes de começar a
+  ordem 2. A ordem de tentativa é `itertools.combinations` sobre essa lista (o primeiro mutante
+  varia mais devagar): `(1,2), (1,3), ... (2,3), ...`.
+- **Sítios distintos e disjuntos**: a combinação é descartada (nem chega à validação) se dois
+  sítios coincidem (duas variantes do mesmo sítio) **ou se seus intervalos de bytes se
+  sobrepõem** — o operando esquerdo `(a + b)` de `(a + b) * c` contém o sítio do `+`, e mudar os
+  dois ao mesmo tempo não tem significado. O texto resulta de aplicar as mudanças **da direita para
+  a esquerda**, para os deslocamentos de bytes dos sítios ainda por aplicar continuarem válidos.
+- **Nada novo na validação**: um par cujas duas mudanças se cancelam cai como `equivalent` pelo
+  mesmo caminho da primeira ordem; texto repetido cai como `duplicate` (R11); o funil registra
+  cada descarte com a ordem (2 ou 3) do candidato.
+- **Esgotamento e alerta**: se os pares e depois os trios se esgotam sem chegar a 100, o problema é
+  excluído: `select_mutants` devolve `Selection.alert` (`ExclusionAlert` com o que se alcançou e a
+  maior ordem tentada, 3 quando ambas se esgotaram), **nada** de `Mutant_<n>.cpp` é gravado e o
+  `generation.json` (`status: excluded`) fecha o problema. `generate` termina com código `0`
+  nesse caso (uma exclusão é um resultado, FR-009a, não uma falha); o conceito de problema
+  "falho" e a exceção provisória `HigherOrderNotAvailable` da primeira história deixaram de existir.
+- **Orçamento de tentativas**: `select_mutants(max_attempts=...)` limita quantos candidatos de
+  ordem superior são tentados (`None` = sem limite); esgotá-lo é tratado como esgotar as
+  combinações (alerta com a maior ordem tentada). O limite existe no código desde já, testado;
+  se a constante correspondente entra em `config.py` é a decisão do piloto de R4 (registrado em
+  R18).
+- **Custo teórico**: para `n` mutantes de primeira ordem há até `C(n,2)` pares e `C(n,3)` trios
+  (com `n = 99`, 4.851 e 156.849); cada candidato custa uma compilação (~1,8 s, mais 4 se não
+  compilar). É o risco que R4 descreve; o piloto mede.
+
+### R18 — Piloto de desempenho da ordem superior (T033; resolve R4) — 2026-09-24
+
+**Execução** (feita por mim, a pedido dos autores): `generate --workers 3` sobre os três problemas
+com **menos candidatos de primeira ordem** dos 200 (após o filtro de R16): `569_A` (26 candidatos
+brutos), `630_J` (31) e `270_B` (39); motor real, revisão `5a0f7cc` mais as alterações da História 2
+(não commitadas); os três em paralelo (um por `slot`).
+
+| Problema | Candidatos brutos | 1ª ordem aceitos | Pares aceitos | Pares tentados | Trios | Descartes | Tempo |
+|---|---|---|---|---|---|---|---|
+| `569_A` | 26 | 17 | 83 | 83 | 0 | 3 equivalentes + 6 TLE (1ª ordem) | 371 s |
+| `630_J` | 31 | 23 | 77 | 96 | 0 | 7 equiv. + 1 RE (1ª); 19 equiv. (pares) | 408 s |
+| `270_B` | 39 | 24 | 76 | 84 | 0 | 8 equiv. + 7 TLE (1ª); 8 TLE (pares) | 425 s |
+
+**Leitura**: (1) os três problemas mais esparsos do dataset fecham **só com pares** (nenhum
+precisou de trio e nenhum foi excluído, 0 alertas); (2) 76% a 83% dos mutantes deles são de
+**segunda ordem** — o custo em qualidade de FR-004 que a metodologia (2.4) já assumia, agora
+medido; (3) a taxa de aceitação dos pares é alta (77 de 96, 83 de 83, 76 de 84: 90% no conjunto),
+porque os pares partem de mutantes que já sabidamente são WA; (4) o custo por candidato tentado é
+~4 s (compilar + 6 execuções), e o problema inteiro levou de 6 a 7 minutos, no mesmo patamar dos
+problemas de primeira ordem (R14: média de 440 s).
+
+**Decisão sobre o orçamento de tentativas (R4)**: **não é necessário** para o dataset atual. O
+espaço só seria proibitivo se `n` fosse grande e a taxa de sucesso dos pares muito baixa, e o
+piloto mostra o contrário: com `n` pequeno o espaço é pequeno (`C(26,2) = 325` pares,
+`C(26,3) = 2.600` trios, no máximo ~3.000 candidatos, ~3 h no pior caso e só se todos os pares
+falhassem), e com `n` grande faltam poucos mutantes e os pares aceitos chegam rápido.
+`max_attempts` fica no código (testado, `None`), sem constante em `config.py`: introduzi-lo só por
+precaução seria uma regra a justificar sem medida que a sustente. **Reabrir se** a execução
+completa mostrar algum problema com mais de 1.000 candidatos de ordem superior tentados sem fechar
+(o `generation.json` traz o funil por ordem).
+
+**Limite da amostra**: 3 problemas, os mais esparsos por contagem bruta de candidatos, não por
+contagem de aceitos; um problema com muitos candidatos que são quase todos equivalentes (aceitos
+poucos) não foi exercitado. O relatório da execução completa mostra isso.

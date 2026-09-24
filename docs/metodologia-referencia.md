@@ -951,9 +951,27 @@ foi de 440 s por problema em série. Extrapolação (não medida) para os 200 pr
 e ≈12 h com 4 trabalhadores, sem contar os que precisarem de ordem superior. Substitui a
 extrapolação de ≈44 h, feita sobre `189_C` antes do filtro.
 
-**Primeiro ponto de parada da implementação**: `generate` com primeira ordem só. Um problema em
-que ela não alcança 100 mutantes aceitos termina em falha explícita e nada é gravado (a combinação
-de ordem superior de 2.4 ainda não existe no código).
+**Ordem superior implementada (2026-09-24, `research.md` R17)**: quando a primeira ordem não
+chega a 100, `generate` combina pares e depois trios dos mutantes de primeira ordem já aceitos,
+na ordem de aceitação (`itertools.combinations`), sem busca e sem aleatoriedade; descarta a
+combinação cujos sítios coincidem ou se sobrepõem em bytes; e, se ainda faltar, **exclui o problema**
+com alerta (nenhum `Mutant_<n>.cpp`, `generation.json` com `status: excluded`, código de saída `0`).
+Testado com motor falso e com o motor real (pares de um programa pequeno viram WA reais). O
+piloto de desempenho desse caminho é o registro seguinte (2.9).
+
+### 2.9 Piloto da ordem superior **[MEDIDO E DECIDIDO, 2026-09-24 — `research.md`, R18, resolve R4]**
+
+`generate --workers 3` sobre os três problemas com menos candidatos de primeira ordem dos 200
+(`569_A`: 26, `630_J`: 31, `270_B`: 39): **os três fecham 100 mutantes só com pares** (17, 23 e 24
+mutantes de primeira ordem mais 83, 77 e 76 pares), nenhum precisou de trio, nenhum foi excluído,
+em 371, 408 e 425 s. **76% a 83% dos mutantes desses problemas são, portanto, de segunda ordem**
+(o custo em qualidade de 2.4, agora medido). Aceitação dos pares: 90% (as duas mudanças partem de
+mutantes já válidos); ~4 s por candidato tentado. **Decisão: não há orçamento de tentativas** —
+o espaço de pares/trios é pequeno quando há poucos mutantes de primeira ordem e, quando há muitos,
+faltam poucos e os pares aceitos chegam rápido; o parâmetro `max_attempts` existe e está testado,
+mas sem constante em `config.py`. Reabrir se a execução completa mostrar algum problema com mais
+de 1.000 candidatos de ordem superior tentados sem fechar. Limite: amostra de 3 problemas, os mais
+esparsos por contagem bruta.
 
 ---
 
@@ -1144,7 +1162,7 @@ Registro exigido pela Constitution (princípio 1), para atualizar o texto final 
 evitar inconsistência entre o que a banca aprovou e o que foi construído. Origem:
 `specs/001-dataset-extraction/spec.md`, decisões de 2026-09-18 a 2026-09-22 (itens 1–16); e
 `specs/002-mutant-generation/spec.md`, decisões de 2026-09-23 (itens 17–21); e decisões de
-implementação de 2026-09-24 (item 22).
+implementação de 2026-09-24 (itens 22 e 23).
 
 | # | Divergência | Onde |
 |---|---|---|
@@ -1170,6 +1188,7 @@ implementação de 2026-09-24 (item 22).
 | 20 | Base de mutação exclusivamente o `AC_ref`; decisão de não usar outras soluções corretas do dataset de origem como bases adicionais, para não reabrir o schema do pacote do módulo de dataset | 2.5 |
 | 21 | Reprodutibilidade de mutantes não depende só da seed: dado que a validação de cada mutante reutiliza o motor cuja instabilidade de margem já foi medida (D18/D19), o pacote da execução final é compactado e versionado (`data/mutants.zip`), exigindo emenda ao Princípio II da Constitution (v1.6.0, 2026-09-23) | 2.6 |
 | 22 | Na implementação, `<<`/`>>` contam como aritméticos (AOR, trocados só entre si); ABS e UOI agem sobre operandos de expressões relacionais e aritméticas, UOI também sobre os lógicos, com o unário legal dependente do operador pai; as 6 execuções de estabilidade são sobre um binário compilado uma vez, não 3 checagens que recompilam | 2.2, 2.3 |
+| 23 | Ordem superior implementada como pares e trios de mutantes de primeira ordem aceitos em ordem lexicográfica, com sítios distintos e disjuntos em bytes; exclusão com alerta e código de saída `0`; piloto nos 3 problemas mais esparsos: fecham só com pares (76% a 83% de segunda ordem); sem orçamento de tentativas | 2.4, 2.9 |
 
 ---
 
@@ -1181,6 +1200,7 @@ a partir de 2026-09-23, `specs/002-mutant-generation/`.
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-09-24 | **História 2 de `002-mutant-generation` implementada (ordem superior determinística e exclusão com alerta) e piloto R4 medido**: pares/trios de mutantes de primeira ordem aceitos em `itertools.combinations`, sítios distintos e disjuntos, exclusão com alerta e código de saída `0`; os 3 problemas mais esparsos fecham só com pares (76% a 83% dos mutantes de segunda ordem, 371 a 425 s), sem alertas; decisão: sem orçamento de tentativas (`research.md` R17, R18) | 2.4, 2.9 |
 | 2026-09-24 | **Redução dos erros de compilação e paralelização de `generate` (`002-mutant-generation`)**: filtro sintático de sítios de E/S de fluxo, de operandos de texto/manipuladores, de ABS sobre tamanhos e de `++`/`--` sobre não atribuíveis (24% de candidatos que não compilavam em 5 problemas; depois: 0%, 1% e 17% nos três re-medidos; candidatos brutos: mediana 274 → 198, 8 → 34 problemas abaixo de 100); `--workers` com paralelismo entre problemas (R14 aprovada) | 2.2, 2.7, 2.8 |
 | 2026-09-24 | **Primeira história de `002-mutant-generation` implementada (`generate`, primeira ordem)**: deslocamentos como AOR, operandos de ABS/UOI e unário legal por operador pai, execuções de estabilidade sobre um binário compilado uma vez, duplicata = todo texto já avaliado (`research.md` R8 a R12); medição sobre os 200 `AC_ref.cpp` reais: mediana de 274 candidatos de primeira ordem brutos, 8 de 200 com menos de 100; medição de custo em `189_C` (aceitação de 24% nos primeiros 83 candidatos, compilação de ~1,8 s) e duas gerações independentes de `189_C` com resultado idêntico (0 de 100 mutantes divergentes, R15) e geração completa medida (795 s, 100 mutantes, 41,5% de aceitação, antes do filtro de fluxo); paralelização (R14) aprovada, implementada e validada em 8 problemas (0 de 800 mutantes divergentes, aceleração de 2,07× com 4 trabalhadores, erros de compilação em 4,5% dos candidatos); fluxo de circulação dos mutantes (quem gera / quem só recebe; caminho único `data/mutants/problems/`) fixado em 2.6. Decisão D1–D6 sem alteração | 2.2, 2.3, 2.8, 7 |
 | 2026-09-23 | **`/speckit.plan` do módulo `002-mutant-generation`**: confirmação empírica de que `tree-sitter-cpp` disambigua corretamente o `>>` de template do `>>` de operador, testada sobre um `AC_ref.cpp` real do dataset (`175_B`); escopo de ABS/UOI definido como os operandos de sítios ROR/AOR, sem precisar de inferência de tipo; MS (5.2) passa a ser calculado sobre os problemas com mutantes completos (pode ser < 200), nunca TDF/TFP. Detalhes em `specs/002-mutant-generation/{plan,research,data-model}.md` | 2.1, 5.2 |

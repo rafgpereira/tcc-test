@@ -103,3 +103,21 @@ def test_the_real_pool_gives_the_same_selection_as_running_in_this_process(engin
     for one, other in zip(got, expected, strict=True):
         assert [m.source_sha256 for m in one.mutants] == [m.source_sha256 for m in other.mutants]
         assert len(one.mutants) == 4
+
+
+def test_pairs_of_first_order_mutants_are_compiled_and_really_wrong(engine):
+    """Beyond the first order, with the real engine: every accepted pair fails the real suite."""
+    from mutation.candidates import first_order_candidates
+    from mutation.orchestrator import select_mutants
+    from mutation.sites import find_sites
+
+    first_order = len(list(first_order_candidates("1_A", ORIGINAL, find_sites(ORIGINAL))))
+    selection = select_mutants(
+        "1_A", ORIGINAL, SUITE, LIMITS, engine=engine, slot=SLOT, quota=first_order + 1
+    )
+    pairs = [m for m in selection.mutants if m.order == 2]
+    assert pairs and len({m.source_sha256 for m in selection.mutants}) == len(selection.mutants)
+    for mutant in pairs[:2]:
+        compiled = engine.compile(mutant.source, SLOT)
+        assert compiled.ok
+        assert engine.run_suite(compiled.binary, SUITE.tests, LIMITS, SLOT).verdict is Verdict.WA

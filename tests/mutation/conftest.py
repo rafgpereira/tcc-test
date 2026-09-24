@@ -148,9 +148,9 @@ def dense_problem() -> dict[str, str]:
 
 @pytest.fixture()
 def sparse_problem(dense_problem) -> dict[str, str]:
-    """Problem ``189_D``: its ``AC_ref.cpp`` has far fewer than 100 first-order candidates."""
+    """Problem ``189_D``: its ``AC_ref.cpp`` has ONE mutation site (``x++``, one first-order candidate), so nothing can be combined."""
     renamed = {
         name: text.replace('"problem_id": "189_C"', '"problem_id": "189_D"')
         for name, text in dense_problem.items()
     }
-    return {**renamed, "AC_ref.cpp": "int a, b;\nint main() { return a < b; }\n"}
+    return {**renamed, "AC_ref.cpp": "int main() {\n  int x = 1;\n  x++;\n  return 0;\n}\n"}

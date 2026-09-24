@@ -19,7 +19,7 @@ from pathlib import Path
 from dataset.schemas.metadata import Metadata
 from dataset.schemas.testes import Testes
 from dataset.validation.suite import suite_from_testes
-from mutation import config, dataset_gate, orchestrator, persistence
+from mutation import config, dataset_gate, persistence
 from mutation import runtime as runtime_module
 from mutation.types import Selection
 from sandbox.types import ExecutionLimits, InfraError
@@ -62,7 +62,6 @@ class GenerateResult:
     generated: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)  # already closed by an earlier run
     excluded: list[str] = field(default_factory=list)  # closed with an exclusion alert
-    failed: list[str] = field(default_factory=list)  # could not be completed (nothing written)
 
 
 def _problem_ids(root: Path) -> list[str]:
@@ -117,12 +116,7 @@ def _finish(
     result: GenerateResult,
     echo: Callable[[str], None],
 ) -> None:
-    try:
-        selection = future.result()  # an InfraError of the engine propagates from here
-    except orchestrator.HigherOrderNotAvailable as exc:
-        result.failed.append(problem_id)
-        echo(f"{label} {problem_id}: FAILED: {exc}")
-        return
+    selection = future.result()  # an InfraError of the engine propagates from here
     persistence.write_selection(root, problem_id, selection)
     by_order = Counter(m.order for m in selection.mutants)
     reasons = Counter(d.reason.value for d in selection.discards)
@@ -225,9 +219,9 @@ def _run_generate(args: argparse.Namespace) -> int:
         runtime.close()
     print(
         f"done: {len(result.generated)} generated, {len(result.skipped)} skipped, "
-        f"{len(result.excluded)} excluded, {len(result.failed)} failed"
+        f"{len(result.excluded)} excluded"
     )
-    return EXIT_DATA_FAILURE if result.failed else EXIT_OK
+    return EXIT_OK
 
 
 register(

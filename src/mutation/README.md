@@ -21,7 +21,8 @@ compilar e executar código C++ de terceiros: cada mutante é compilado e execut
 
 Um **mutante** é uma cópia do `AC_ref.cpp` (a solução correta de referência do problema) com uma
 única alteração sintática que introduz um defeito artificial — por exemplo, trocar `i < n` por
-`i <= n`. O módulo lê o código com um analisador sintático real (`tree-sitter`), não com busca de
+`i <= n` (só quando isso não basta para chegar a 100, o módulo passa a combinar duas e, depois,
+três alterações no mesmo mutante, como descrito em (f)). O módulo lê o código com um analisador sintático real (`tree-sitter`), não com busca de
 texto, e por isso nunca altera o conteúdo de uma *string*, de um caractere entre aspas ou de um
 comentário, nem confunde o `>>` que fecha `vector<vector<int>>` com o operador `>>`. Também não
 mexe na leitura e na escrita (`cin >> a`, `cout << x`): trocar o operador ou pôr `abs`/`++` na frente
@@ -70,11 +71,12 @@ inteira, um único `--problem` não fica mais rápido com mais trabalhadores. O 
    mutação, quantos candidatos foram descartados e por quê, e o tempo gasto no problema);
 3. grava o resultado em `data/mutants/problems/<problema>/`: `Mutant_1.cpp` a `Mutant_100.cpp`,
    na ordem em que foram aceitos, e `generation.json` (como cada um foi obtido; uso interno);
-4. no fim, resume: `done: N generated, N skipped, N excluded, N failed`.
+4. no fim, resume: `done: N generated, N skipped, N excluded`.
 
 **Como conferir:** `echo $?` deve mostrar `0`; `ls data/mutants/problems/189_C | wc -l` deve dar
 `101` (100 mutantes mais o `generation.json`); `diff data/dataset/problems/189_C/AC_ref.cpp
-data/mutants/problems/189_C/Mutant_1.cpp` mostra a alteração de uma única posição.
+data/mutants/problems/189_C/Mutant_1.cpp` mostra a alteração de uma única posição
+(duas ou três, se o `generation.json` do problema indicar mutantes de ordem superior).
 
 **Interromper e retomar:** apertar Ctrl+C (ou `docker stop`) é seguro — o comando termina com
 código `130`. Cada problema é montado numa pasta provisória (`data/mutants/building/`) e só passa
@@ -87,7 +89,7 @@ recomeça do zero e os problemas já concluídos são pulados (`already generate
 |---|---|---|
 | `error: data/dataset does not match manifests/dataset.manifest.json:` seguido de `changed:`/`missing:`/`extra:` (código `1`) | `data/dataset` não é o dataset versionado | `unzip data/dataset.zip -d data/` (sobrescreve com a versão correta) e rode de novo |
 | `error: not in data/dataset: <id>` (código `2`) | o `--problem` não existe no dataset | confira o nome da pasta em `data/dataset/problems/` |
-| `FAILED: <id>: first order reached N of 100 mutants ...` (código `1` no fim) | a primeira ordem (uma alteração por vez) não alcançou 100 mutantes válidos nesse problema, e a combinação de alterações ainda não está disponível | nada é gravado para esse problema; os demais seguem normalmente |
+| `ALERT: <id> reached only N of 100 mutants (highest order tried: K); the problem is left out of the mutation score` (o comando ainda termina com código `0`) | nem uma alteração por vez, nem pares, nem trios de alterações chegaram a 100 mutantes válidos nesse problema, então ele é **excluído** do conjunto de mutantes | nenhum `Mutant_<n>.cpp` é gravado para ele (só o `generation.json`, com `status` `excluded`); os demais seguem normalmente e o problema entra no relatório como alerta. Não é um erro a corrigir: é o resultado esperado para um código com pouquíssimos pontos de alteração |
 | `infrastructure failure: ...` (código `3`) | o próprio ambiente falhou (por exemplo, o compilador ou a pasta temporária do `sandbox`) | veja a mensagem, corrija (em geral `docker compose build`) e rode de novo; o comando retoma |
 
 ### Opções
@@ -110,7 +112,7 @@ recomeça do zero e os problemas já concluídos são pulados (`already generate
 
 | Saída | Formato | Destino |
 |---|---|---|
-| `Mutant_<n>.cpp` (n de 1 a 100) | C++: o `AC_ref.cpp` com 1 posição alterada, idêntico byte a byte fora dela | `data/mutants/problems/<id>/` (pasta ignorada pelo Git, nunca versionada); é o caminho de onde os módulos seguintes vão ler os mutantes |
+| `Mutant_<n>.cpp` (n de 1 a 100) | C++: o `AC_ref.cpp` com 1 posição alterada (ou 2 ou 3, na ordem superior), idêntico byte a byte fora delas | `data/mutants/problems/<id>/` (pasta ignorada pelo Git, nunca versionada); é o caminho de onde os módulos seguintes vão ler os mutantes |
 | `generation.json` | JSON (`schema_version` 1): por mutante, o operador e a variante usados; por problema, quantos candidatos foram descartados e por quê | mesma pasta; alimenta os relatórios do módulo |
 
 ## (e) Dependências e pré-requisitos
@@ -128,9 +130,14 @@ recomeça do zero e os problemas já concluídos são pulados (`already generate
   em `data/` e cairá no mesmo caminho acima, de modo que quem gerou e quem só recebeu leem os
   mutantes do mesmo lugar; até lá, `data/mutants/` é resultado de desenvolvimento, local e sem valor
   como resultado do experimento. O `generate` nunca sobrescreve uma pasta de problema que já exista.
-- **Só primeira ordem por enquanto**: um problema em que uma alteração por vez não alcança 100
-  mutantes válidos termina em `FAILED` e não grava nada. A combinação de duas ou três alterações
-  (que fecha a cota nesses casos) ainda não está disponível neste módulo.
+- **Mutantes de ordem superior são menos naturais**: quando uma alteração por vez não alcança 100
+  mutantes válidos, o módulo combina pares e depois trios de alterações já válidas, sempre na ordem
+  de aparição no código (sem busca). Um mutante de duas ou três alterações tende a ser mais fácil
+  de detectar do que o de uma. Medido em 2026-09-24 nos três problemas com menos pontos de alteração
+  do dataset, todos fecharam 100 só com pares (76% a 83% dos mutantes de duas alterações), em 6 a 7
+  minutos cada, e nenhum foi excluído; um problema que
+  não chega a 100 nem assim é excluído (ver a tabela acima). Se o comando ficar muito tempo num
+  problema desse tipo, é a busca de combinações; ele pode ser interrompido e retomado.
 - **Custo de tempo**: cada candidato é compilado e executado de verdade, e só uma fração é
   aceita. Medido em 2026-09-24 no problema `189_C` (usa `bits/stdc++.h`): compilar leva cerca de
   1,8 s e gerar os 100 mutantes levou 795 s (13 min 16 s), avaliando 241 candidatos (141 descartados:
@@ -158,4 +165,4 @@ recomeça do zero e os problemas já concluídos são pulados (`already generate
 
 | Comando | Verificado em | Revisão |
 |---|---|---|
-| `generate` | 2026-09-24 | d2c3a3e+dirty |
+| `generate` | 2026-09-24 | 5a0f7cc+dirty |

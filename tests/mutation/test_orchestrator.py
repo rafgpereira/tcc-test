@@ -1,10 +1,8 @@
 """Tests for the selection of the mutants of one problem, first order only (FR-003a, FR-005)."""
 
-import pytest
-
 from mutation import config
 from mutation.candidates import first_order_candidates
-from mutation.orchestrator import HigherOrderNotAvailable, select_mutants
+from mutation.orchestrator import select_mutants
 from mutation.sites import find_sites
 from mutation.validation import sha256_of
 from sandbox.types import Verdict
@@ -82,9 +80,8 @@ def test_progress_is_reported_after_each_accepted_mutant(make_engine, suite, lim
     assert lines == ["  1_A: 1/3 mutants", "  1_A: 2/3 mutants", "  1_A: 3/3 mutants"]
 
 
-def test_when_first_order_falls_short_the_missing_higher_order_is_explicit(
-    make_engine, suite, limits
-):
+def test_when_no_combination_can_close_the_quota_the_result_is_an_alert(make_engine, suite, limits):
     source = "int a, b;\nint main() { return a < b; }\n"
-    with pytest.raises(HigherOrderNotAvailable, match="1_A"):
-        run(make_engine, suite, limits, source=source, quota=500)
+    _, selection = run(make_engine, suite, limits, source=source, quota=500)
+    assert selection.alert is not None and selection.alert.problem_id == "1_A"
+    assert selection.alert.mutants_reached == len(selection.mutants) < 500

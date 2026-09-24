@@ -298,14 +298,14 @@ aceitos).
 
 ### Tests for User Story 2 ⚠️ (escrever primeiro; devem FALHAR)
 
-- [ ] T029 [P] [US2] Write tests in `tests/mutation/test_higher_order.py`:
+- [X] T029 [P] [US2] Write tests in `tests/mutation/test_higher_order.py`:
   `higher_order_candidates(source, accepted, order=2)` combina pares de sítios distintos dos
   candidatos já aceitos, em ordem lexicográfica sobre `discovery_index` (research.md, R3); uma
   combinação cujas duas mudanças se cancelam (equivalente ao original, motor falso devolvendo
   100% `AC`) é descartada com `DiscardReason.EQUIVALENT`, pelo mesmo caminho de FR-005 (sem
   lógica nova); `order=3` só é tentado depois de `order=2` esgotar; duas chamadas com a mesma
   entrada produzem exatamente a mesma sequência de combinações (nenhum `random`)
-- [ ] T030 [US2] Write tests in `tests/mutation/test_exclusion_alert.py`: sobre um `AC_ref.cpp`
+- [X] T030 [US2] Write tests in `tests/mutation/test_exclusion_alert.py`: sobre um `AC_ref.cpp`
   sintético com sítios insuficientes mesmo depois de esgotar pares e trios,
   `orchestrator.select_mutants` devolve um `ExclusionAlert` com `mutants_reached < 100` e
   `highest_order_attempted == 3`, e **nenhum** arquivo de mutante é persistido para esse problema
@@ -313,25 +313,25 @@ aceitos).
 
 ### Implementation for User Story 2
 
-- [ ] T031 [US2] Implement `src/mutation/higher_order.py` (`higher_order_candidates`) (makes T029
+- [X] T031 [US2] Implement `src/mutation/higher_order.py` (`higher_order_candidates`) (makes T029
   pass; depends on T009, T021-T023)
-- [ ] T032 [US2] Wire `higher_order.py` into `orchestrator.select_mutants` (substitui o
+- [X] T032 [US2] Wire `higher_order.py` into `orchestrator.select_mutants` (substitui o
   `NotImplementedError` de T026): depois de esgotar a primeira ordem, tenta pares e depois trios,
   na ordem determinística; devolve `ExclusionAlert` se ainda faltar (makes T030 pass; depends on
   T026, T031)
-- [ ] T033 [US2] 📌 PROPAGAR — Piloto de desempenho da busca combinatória (research.md, R4): rodar
+- [X] T033 [US2] 📌 PROPAGAR — Piloto de desempenho da busca combinatória (research.md, R4): rodar
   `docker compose run --rm sandbox python -m mutation generate --problem <2 ou 3 ids conhecidos
   por terem poucos sítios, pela contagem já medida na pesquisa>`; medir tempo total, quantos
   pares/trios foram tentados até fechar a cota (ou até um alerta), e decidir **nesta tarefa** se
   um orçamento de tentativas é necessário para o restante dos 200 problemas. Escrever o número e
   a decisão em `docs/metodologia-referencia.md` (seção 2.4) e em `research.md` (R4), com data e
   revisão git
-- [ ] T034 [US2] Se o piloto (T033) decidir por um orçamento: adicionar a constante
+- [X] T034 [US2] Se o piloto (T033) decidir por um orçamento: adicionar a constante
   correspondente a `src/mutation/config.py` e um teste que prova que esgotar o orçamento (sem
   fechar 100) produz o mesmo `ExclusionAlert` de T030, nunca uma exceção não tratada. Se o piloto
   decidir que não é necessário, esta tarefa só registra essa decisão (já feito em T033) e não
   altera código
-- [ ] T035 [US2] Update `src/mutation/README.md` (b): completa a descrição de `generate` agora
+- [X] T035 [US2] Update `src/mutation/README.md` (b): completa a descrição de `generate` agora
   que a ordem superior está implementada, incluindo o que o autor vê quando um problema recebe um
   `ExclusionAlert`
 

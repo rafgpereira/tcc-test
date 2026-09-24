@@ -5,7 +5,7 @@ import json
 import pytest
 
 import mutation.__main__ as cli
-from mutation import config, persistence, runtime
+from mutation import config, orchestrator, persistence, runtime
 
 
 @pytest.fixture()
@@ -47,13 +47,13 @@ def test_the_limits_and_the_suite_come_from_the_problem_folder(
     repo, fake_engine, dense_problem, monkeypatch
 ):
     seen = {}
-    real_select = cli.orchestrator.select_mutants
+    real_select = orchestrator.select_mutants
 
     def spy(problem_id, source, suite, limits, **kw):
         seen["limits"], seen["tests"] = limits, len(suite.tests)
         return real_select(problem_id, source, suite, limits, **kw)
 
-    monkeypatch.setattr(cli.orchestrator, "select_mutants", spy)
+    monkeypatch.setattr(orchestrator, "select_mutants", spy)
     cli.main(["generate"])
     metadata = json.loads(dense_problem["metadata.json"])
     assert seen["limits"].time_limit_seconds == metadata["time_limit_seconds"]
@@ -102,16 +102,17 @@ def test_problem_restricts_the_run(
     assert persistence.closed_problems(tmp_path) == ["189_C"]
 
 
-def test_a_problem_that_first_order_cannot_close_fails_loudly_and_writes_nothing(
+def test_a_problem_that_cannot_reach_100_is_excluded_with_an_alert_and_the_run_goes_on(
     tmp_path, dataset_builder, dense_problem, sparse_problem, monkeypatch, fake_engine, capsys
 ):
     dataset_builder(tmp_path, {"189_C": dense_problem, "189_D": sparse_problem})
     monkeypatch.chdir(tmp_path)
-    assert cli.main(["generate"]) == cli.EXIT_DATA_FAILURE
+    assert cli.main(["generate"]) == cli.EXIT_OK  # an exclusion is a result, not a failure
     out = capsys.readouterr().out
-    assert "189_D" in out and "FAILED" in out and "1 failed" in out
-    assert persistence.closed_problems(tmp_path) == ["189_C"]  # the healthy one still went through
-    assert not (tmp_path / config.PROBLEMS_DIR / "189_D").exists()
+    assert "ALERT: 189_D reached only" in out and "1 generated" in out and "1 excluded" in out
+    assert persistence.closed_problems(tmp_path) == ["189_C", "189_D"]
+    assert persistence.read_generation(tmp_path, "189_D").status == "excluded"
+    assert list((tmp_path / config.PROBLEMS_DIR / "189_D").glob("Mutant_*.cpp")) == []
 
 
 def test_leftovers_of_an_interrupted_run_are_discarded_at_the_start(repo, fake_engine):
@@ -127,7 +128,7 @@ def test_ctrl_c_exits_130_and_leaves_no_closed_problem(repo, fake_engine, monkey
     def interrupt(*args, **kwargs):
         raise KeyboardInterrupt
 
-    monkeypatch.setattr(cli.orchestrator, "select_mutants", interrupt)
+    monkeypatch.setattr(orchestrator, "select_mutants", interrupt)
     assert cli.main(["generate"]) == cli.EXIT_INTERRUPTED
     assert "safe to run the command again" in capsys.readouterr().err
     assert persistence.closed_problems(repo) == []
@@ -181,7 +182,7 @@ def test_the_runtime_is_closed_even_when_the_run_is_interrupted(repo, monkeypatc
     monkeypatch.setattr(cli, "_make_runtime", lambda workers: Spy(make_engine().as_engine()))
     monkeypatch.setattr("sandbox.isolation.kill_slot_processes", lambda slot: 0)
     monkeypatch.setattr(
-        cli.orchestrator, "select_mutants", lambda *a, **k: (_ for _ in ()).throw(KeyboardInterrupt)
+        orchestrator, "select_mutants", lambda *a, **k: (_ for _ in ()).throw(KeyboardInterrupt)
     )
     assert cli.main(["generate", "--workers", "1"]) == cli.EXIT_INTERRUPTED
     assert closed == [True]

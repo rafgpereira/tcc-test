@@ -90,9 +90,7 @@ def test_an_infrastructure_failure_in_a_worker_propagates_and_writes_nothing_for
     assert not (root / config.PROBLEMS_DIR / ids[0]).exists()
 
 
-def test_a_problem_that_first_order_cannot_close_does_not_stop_the_others(
-    four_problems, make_engine, sparse_problem
-):
+def test_an_excluded_problem_does_not_stop_the_others(four_problems, make_engine, sparse_problem):
     root, ids = four_problems
     (root / "data" / "dataset" / "problems" / "189_D" / "AC_ref.cpp").write_text(
         sparse_problem["AC_ref.cpp"]
@@ -100,7 +98,7 @@ def test_a_problem_that_first_order_cannot_close_does_not_stop_the_others(
     from mutation import dataset_gate  # noqa: F401  (the gate is not part of this unit)
 
     result = run_generate(root, ids, runtime.ThreadRuntime(make_engine().as_engine(), workers=3))
-    assert result.failed == ["189_D"]
+    assert result.excluded == ["189_D"]
     assert sorted(result.generated) == ["189_C", "189_E", "189_F"]
 
 

@@ -15,9 +15,9 @@ teste unitários em C++.
 > **implementados**. O dataset experimental já foi gerado, validado e empacotado de verdade — o
 > zip (`data/dataset.zip`) e os manifestos de integridade já estão neste repositório; quem clona o
 > projeto agora só precisa descompactar e conferir, não precisa gerar nada. O módulo de **geração
-> de mutantes** (`mutation`) está **em implementação**: o comando `generate` já gera mutantes por
-> uma alteração de cada vez (primeira ordem), mas ainda não há a combinação de alterações para os
-> problemas em que isso não basta, nem o empacotamento nem o relatório (ver o
+> de mutantes** (`mutation`) está **em implementação**: o comando `generate` já gera os 100 mutantes
+> de cada problema (uma alteração por vez e, quando não basta, combinações de duas e três, ou a
+> exclusão do problema com alerta), mas ainda não há o empacotamento nem o relatório (ver o
 > [README do módulo](src/mutation/README.md)). Os demais módulos seguintes (chamadas aos modelos de
 > IA, avaliação, métricas, orquestrador) ainda não têm especificação nem código; a seção "Módulos
 > e estado" marca isso.
@@ -81,7 +81,7 @@ na avaliação, para que nenhum código do dataset falhe no motor só durante o 
 |---|---|---|---|---|
 | `src/dataset/` | extrai, valida e empacota o dataset experimental | seção 1 | **implementado**: dataset real gerado, validado e empacotado (200 problemas, ~12 MiB) | [README](src/dataset/README.md) |
 | `src/sandbox/` | motor de execução isolada de C++, usado pelo `dataset` | seções 1.4 e 4 | **implementado**: motor, isolamento e auto-checagem testados | [README](src/sandbox/README.md) |
-| `src/mutation/` | gera 100 mutantes por problema | seção 2 | **em implementação** ([spec](specs/002-mutant-generation/spec.md)): `generate` funciona só com uma alteração por mutante; ordem superior, pacote e relatório ainda não | [README](src/mutation/README.md) |
+| `src/mutation/` | gera 100 mutantes por problema | seção 2 | **em implementação** ([spec](specs/002-mutant-generation/spec.md)): `generate` completo (inclusive ordem superior e exclusão com alerta); pacote (`package`, `verify`) e relatório (`report`) ainda não | [README](src/mutation/README.md) |
 | `src/ai_clients/` | chamadas stateless aos 3 modelos | seção 3 | **sem spec** (pontos pendentes na metodologia, em especial o oráculo do SLM) | a criar |
 | avaliação | injeta as suítes geradas e registra vereditos em CSV | seção 4 | **sem spec** | a criar |
 | `src/metrics/` | TDF, MS, TFP, IIC | seção 5 | **sem spec** (IIC ainda não operacionalizado) | a criar |
@@ -237,7 +237,7 @@ Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
 |---|---|---|
 | `dataset` | para obter o dataset experimental (o caso mais comum: só descompactar e conferir) ou para gerá-lo/regenerá-lo do zero | [README do módulo](src/dataset/README.md), seção "Qual é o seu cenário?" |
 | `sandbox` | não tem uso direto — é a biblioteca de execução isolada usada pelo `dataset` por baixo dos panos; só é operado diretamente para conferir a saúde do motor | [README do módulo](src/sandbox/README.md) |
-| `mutation` | para gerar os mutantes de cada problema (em implementação: só o comando `generate`, sem combinação de alterações, pacote nem relatório) | [README do módulo](src/mutation/README.md) |
+| `mutation` | para gerar os mutantes de cada problema (em implementação: só o comando `generate`; pacote e relatório ainda não) | [README do módulo](src/mutation/README.md) |
 | `ai_clients`, avaliação, `metrics`, `cli` | ainda não implementados | sem README ainda |
 
 ## Reprodutibilidade
@@ -301,7 +301,7 @@ avaliação.
 
 | Comando | Serviço | O que faz |
 |---|---|---|
-| `docker compose run --rm sandbox python -m mutation generate` | `sandbox` | gera até 100 mutantes por problema a partir do `AC_ref.cpp` (por enquanto só com uma alteração por mutante); `--problem ID` restringe a um problema; `--workers N` processa N problemas ao mesmo tempo (padrão: metade das CPUs) |
+| `docker compose run --rm sandbox python -m mutation generate` | `sandbox` | gera até 100 mutantes por problema a partir do `AC_ref.cpp` (uma alteração por mutante e, quando não basta, duas ou três; exclui com alerta o problema que nem assim chega a 100); `--problem ID` restringe a um problema; `--workers N` processa N problemas ao mesmo tempo (padrão: metade das CPUs) |
 | `docker compose run --rm sandbox pytest tests/mutation` | `sandbox` | testes do módulo, inclusive os que compilam e executam C++ |
 
 Os comandos `package`, `verify` e `report` do módulo ainda não existem; quando existirem, entram
