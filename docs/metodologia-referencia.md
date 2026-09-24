@@ -688,6 +688,15 @@ literais de string/char (`"a<b"`), e comentários com trechos de código morto. 
 estruturalmente não muta o conteúdo de um literal nem de um comentário, porque só enxerga
 operadores em posição de expressão de código.
 
+**[VERIFICADO, 2026-09-23 — `/speckit.plan`, R1]** Confirmado empiricamente com `tree-sitter`
+0.26.0 + `tree-sitter-cpp` 0.23.4: sobre `175_B/AC_ref.cpp` (um `AC_ref.cpp` real do dataset, que
+contém `vector<pair<int, string>> mb;`), a travessia da AST encontra 20 sítios de operador
+(`binary_expression`), incluindo `cin >> n`, mas **nenhum** para o `>>` de fechamento do
+template — exatamente a disambiguação esperada. Um trecho sintético com os dois usos de `>>` no
+mesmo arquivo (um de tipo, um de operador) confirma a mesma distinção lado a lado, e literais de
+string/comentário com `<`/`>>` dentro nunca aparecem como filhos de um nó de operador. Detalhes
+em `specs/002-mutant-generation/research.md`, R1–R3.
+
 Alternativas avaliadas e descartadas: `libclang` (parsing semântico real, mas exige resolver
 headers de verdade sob o front-end do Clang, com risco de divergência das extensões do GCC 13.2
 já fixado para o motor de execução); substituição textual cuidadosa ao estilo `UniversalMutator`
@@ -1066,6 +1075,7 @@ a partir de 2026-09-23, `specs/002-mutant-generation/`.
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-09-23 | **`/speckit.plan` do módulo `002-mutant-generation`**: confirmação empírica de que `tree-sitter-cpp` disambigua corretamente o `>>` de template do `>>` de operador, testada sobre um `AC_ref.cpp` real do dataset (`175_B`); escopo de ABS/UOI definido como os operandos de sítios ROR/AOR, sem precisar de inferência de tipo; MS (5.2) passa a ser calculado sobre os problemas com mutantes completos (pode ser < 200), nunca TDF/TFP. Detalhes em `specs/002-mutant-generation/{plan,research,data-model}.md` | 2.1, 5.2 |
 | 2026-09-23 | **Seção 2 reescrita (`/speckit.specify` do módulo `002-mutant-generation`)**: geração de mutantes por AST (`tree-sitter`), conjunto completo de operadores de Offutt et al. (ROR/AOR/LCR + ABS/UOI, motivado por medição de 199/200 `AC_ref.cpp` reais abaixo de 100 ocorrências dos operadores originais), mutação de ordem superior por regra determinística sem busca, base de mutação exclusivamente `AC_ref` (sem ACs adicionais do dataset de origem, D4), e arquitetura de reprodutibilidade em que o pacote de mutantes da execução final é compactado e versionado (`data/mutants.zip` + manifesto), por causa da instabilidade de margem do motor já medida em D18/D19 — isso exigiu emenda ao Princípio II da Constitution (v1.6.0). Decisões D1–D6, com proveniência completa, em `specs/002-mutant-generation/spec.md` | 2, 6, 7 |
 | 2026-09-18 | Decisões D1–D5 da spec: splits combinados, tradução como critério, `generated_tests`, flag `-Wl,--stack` removida (pilha em tempo de execução), problemas com menos de 100 WAs excluídos, sem cota por macrocategoria com alerta < 30 | 1.1, 1.2, 1.4, 6, 7 |
 | 2026-09-18 | Motor de execução único, AC também validado no motor (`validacao.json`), política de falha de AC com triagem manual (D7, D8) | 1.4, 1.5, 4, 7 |
