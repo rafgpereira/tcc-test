@@ -357,9 +357,11 @@ de uma execução de teste contém os campos exigidos e que os totais somam corr
   usa `bits/stdc++.h` leva ~1,8 s, e no problema `189_C` só 24% dos candidatos avaliados foram
   aceitos (28 equivalentes, 22 que não compilam, 7 RE e 6 TLE entre 83 avaliados até aceitar 20),
   o que extrapola para dezenas de minutos por problema em série. O risco aqui não é de cota (os
-  200 `AC_ref.cpp` têm, no mínimo, 35 candidatos de primeira ordem brutos e mediana de 274) e sim
-  de tempo de execução; a paralelização da geração é decisão dos autores, ainda não tomada
-  (metodologia, 2.7; `research.md`, R13).
+  200 `AC_ref.cpp` tinham, no mínimo, 35 candidatos de primeira ordem brutos e mediana de 274; com
+  o filtro de R16 são 26 e 198, e 34 problemas ficam abaixo de 100) e sim
+  de tempo de execução; a paralelização da geração (`--workers`, paralelismo entre problemas) foi
+  aprovada, implementada e validada (0 de 800 mutantes divergentes entre `--workers 1` e `--workers 4`; 2,07×) e os erros de compilação foram reduzidos por filtro sintático de
+  sítios (24% → ~0–17% medidos; metodologia, 2.7 e 2.8; `research.md`, R13, R14, R16).
 - **Dependência de módulos futuros**: a orquestração de IA e a avaliação experimental
   consomem os mutantes produzidos aqui, mas nada deles é entregue nesta feature.
 

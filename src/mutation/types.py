@@ -72,6 +72,9 @@ class Site:
     # Operator token of the binary expression an operand belongs to (None for operator sites);
     # decides which unary operators are legal in front of the operand.
     parent_operator: str | None = field(default=None, compare=False)
+    # Node type of the operand (None for operator sites): ``++``/``--`` only go in front of
+    # something that can be an lvalue.
+    operand_type: str | None = field(default=None, compare=False)
 
 
 @dataclass(frozen=True)

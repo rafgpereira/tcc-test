@@ -11,7 +11,7 @@ from dataset.validation.engine import real_engine
 from dataset.validation.suite import Suite
 from mutation.candidates import first_order_candidates
 from mutation.sites import find_sites
-from mutation.types import DiscardReason
+from mutation.types import DiscardReason, MutantCandidate
 from mutation.validation import sha256_of, validate
 from sandbox import isolation
 from sandbox.types import ExecutionLimits, Test, Verdict
@@ -79,5 +79,27 @@ def test_a_mutant_that_behaves_like_the_original_is_equivalent(engine):
 
 
 def test_a_mutant_that_does_not_compile_is_a_compile_error(engine):
-    outcome = judge(engine, candidate_with("std::cin >> n", "std::cin << n"))
-    assert outcome.discard_reason is DiscardReason.COMPILE_ERROR
+    # The generator no longer offers stream mutations (they never compile), so the candidate that
+    # is broken on purpose is built by hand.
+    source = ORIGINAL.replace("std::cin >> n", "std::cin << n")
+    candidate = MutantCandidate("1_A", (), (), source)
+    assert judge(engine, candidate).discard_reason is DiscardReason.COMPILE_ERROR
+
+
+def test_the_real_pool_gives_the_same_selection_as_running_in_this_process(engine):
+    """Two forked workers, each in its own slot, against the in-process runtime (real engine)."""
+    from mutation import runtime
+
+    tasks = [
+        runtime.ProblemTask(f"1_{letter}", ORIGINAL, SUITE, LIMITS, quota=4) for letter in "AB"
+    ]
+    inline = runtime.InlineRuntime(engine, slot=SLOT)
+    expected = [inline.submit(t).result() for t in tasks]
+    pool = runtime.PoolRuntime(2)
+    try:
+        got = [f.result() for f in [pool.submit(t) for t in tasks]]
+    finally:
+        pool.close()
+    for one, other in zip(got, expected, strict=True):
+        assert [m.source_sha256 for m in one.mutants] == [m.source_sha256 for m in other.mutants]
+        assert len(one.mutants) == 4

@@ -35,7 +35,7 @@ de descartes por ordem e motivo, e a exclusão quando o problema não fechou 100
   },
   "files": [
     {
-      "path": "mutants/1000_B/Mutant_1.cpp",
+      "path": "mutants/problems/1000_B/Mutant_1.cpp",
       "sha256": "…",
       "size": 0
     }

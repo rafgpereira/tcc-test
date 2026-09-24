@@ -23,7 +23,10 @@ Um **mutante** é uma cópia do `AC_ref.cpp` (a solução correta de referência
 única alteração sintática que introduz um defeito artificial — por exemplo, trocar `i < n` por
 `i <= n`. O módulo lê o código com um analisador sintático real (`tree-sitter`), não com busca de
 texto, e por isso nunca altera o conteúdo de uma *string*, de um caractere entre aspas ou de um
-comentário, nem confunde o `>>` que fecha `vector<vector<int>>` com o operador `>>`.
+comentário, nem confunde o `>>` que fecha `vector<vector<int>>` com o operador `>>`. Também não
+mexe na leitura e na escrita (`cin >> a`, `cout << x`): trocar o operador ou pôr `abs`/`++` na frente
+de `cin` ou da variável lida só produz código que não compila, e um mutante que apenas deixa de ler
+a entrada é pouco informativo.
 
 As alterações são as cinco de Offutt et al. (1996): **ROR** (troca um operador relacional pelos
 outros cinco), **AOR** (o mesmo para `+ - * / %`, e `<<` com `>>`), **LCR** (`&&` com `||`),
@@ -46,8 +49,18 @@ mesma ordem (o único fator externo é o veredito do motor, por isso a confirma�
 docker compose run --rm sandbox python -m mutation generate --problem 189_C
 ```
 
+Para todos os problemas, em paralelo (ajuste `--workers` ao seu computador; cada trabalhador ocupa
+um núcleo o tempo todo compilando):
+
+```bash
+docker compose run --rm sandbox python -m mutation generate --workers 4
+```
+
 `--problem` pode ser repetido para vários problemas; sem ele, todos os problemas do dataset são
-processados, na ordem das pastas. O comando:
+processados, na ordem das pastas, **vários ao mesmo tempo** (`--workers N`, padrão: metade das CPUs
+do computador; cada problema roda num compartimento próprio do motor de execução, e o número de
+trabalhadores só muda o tempo, nunca os mutantes gerados). Como cada problema é uma tarefa
+inteira, um único `--problem` não fica mais rápido com mais trabalhadores. O comando:
 
 1. confere `data/dataset` contra `manifests/dataset.manifest.json` e **para com código `1`** se
    algum arquivo divergir (assim os mutantes nunca são gerados sobre um dataset diferente do
@@ -82,6 +95,7 @@ recomeça do zero e os problemas já concluídos são pulados (`already generate
 | Opção | Padrão | Efeito |
 |---|---|---|
 | `--problem ID` | todos os problemas | processa só esse problema (pode ser repetida) |
+| `--workers N` | metade das CPUs | quantos problemas são processados ao mesmo tempo; `1` roda tudo em série, no próprio processo; o resultado não muda |
 
 ## (c) Entradas esperadas
 
@@ -96,7 +110,7 @@ recomeça do zero e os problemas já concluídos são pulados (`already generate
 
 | Saída | Formato | Destino |
 |---|---|---|
-| `Mutant_<n>.cpp` (n de 1 a 100) | C++: o `AC_ref.cpp` com 1 posição alterada, idêntico byte a byte fora dela | `data/mutants/problems/<id>/` (pasta ignorada pelo Git, nunca versionada) |
+| `Mutant_<n>.cpp` (n de 1 a 100) | C++: o `AC_ref.cpp` com 1 posição alterada, idêntico byte a byte fora dela | `data/mutants/problems/<id>/` (pasta ignorada pelo Git, nunca versionada); é o caminho de onde os módulos seguintes vão ler os mutantes |
 | `generation.json` | JSON (`schema_version` 1): por mutante, o operador e a variante usados; por problema, quantos candidatos foram descartados e por quê | mesma pasta; alimenta os relatórios do módulo |
 
 ## (e) Dependências e pré-requisitos
@@ -110,19 +124,27 @@ recomeça do zero e os problemas já concluídos são pulados (`already generate
 
 ## (f) Limitações conhecidas
 
+- **Empacotamento ainda não existe**: quando existir, o pacote (`data/mutants.zip`) será descompactado
+  em `data/` e cairá no mesmo caminho acima, de modo que quem gerou e quem só recebeu leem os
+  mutantes do mesmo lugar; até lá, `data/mutants/` é resultado de desenvolvimento, local e sem valor
+  como resultado do experimento. O `generate` nunca sobrescreve uma pasta de problema que já exista.
 - **Só primeira ordem por enquanto**: um problema em que uma alteração por vez não alcança 100
   mutantes válidos termina em `FAILED` e não grava nada. A combinação de duas ou três alterações
   (que fecha a cota nesses casos) ainda não está disponível neste módulo.
 - **Custo de tempo**: cada candidato é compilado e executado de verdade, e só uma fração é
   aceita. Medido em 2026-09-24 no problema `189_C` (usa `bits/stdc++.h`): compilar leva cerca de
-  1,8 s e, para aceitar 20 mutantes, foi preciso avaliar 83 candidatos (28 equivalentes, 22 que não
-  compilam, 7 com erro de execução, 6 com tempo excedido), em cerca de 350 s (duas execuções: 359 s e
-  346 s, com o mesmo resultado nas duas). Por extrapolação (não medida),
-  os 100 mutantes de um problema assim levam da ordem de meia hora e os 200 problemas, dezenas de
-  horas. O comando roda em série (um candidato de cada vez) e pode ser interrompido e retomado.
-- **Candidatos que não compilam são esperados**: o analisador é sintático e não conhece tipos; ABS
-  ou UOI sobre um operando que não é numérico (por exemplo, `cout << x` com `abs(cout)`) simplesmente
-  não compila e é descartado. Isso custa tempo, não corretude.
+  1,8 s e gerar os 100 mutantes levou 795 s (13 min 16 s), avaliando 241 candidatos (141 descartados:
+  64 não compilam, 48 equivalentes, 18 com erro de execução, 11 com tempo excedido). Depois do filtro descrito abaixo, 8 problemas completos (2026-09-24, computador de 4 núcleos e 8
+  threads) levaram 3.520 s em série (média de 440 s por problema) e 1.700 s com `--workers 4`, ou
+  seja, cerca de 2 vezes mais rápido, com exatamente os mesmos mutantes. Extrapolando (não medido),
+  os 200 problemas levariam cerca de 24 horas em série e cerca de 12 com 4 trabalhadores; o ganho
+  depende do computador. O comando pode ser interrompido e retomado.
+- **Ainda há candidatos que não compilam**: o analisador é sintático e não conhece tipos. As causas
+  mais comuns (leitura e escrita com `cin`/`cout`, `++` em algo que não se atribui, `abs` de
+  tamanho) já são evitadas e, em três problemas medidos em 2026-09-24, os erros de compilação
+  caíram de 28–32% dos candidatos para 0%, 1% e 17% (4,5% nos 8 problemas gerados por completo); o resto (por exemplo, ABS ou UOI sobre uma
+  variável `stringstream`, cujo tipo só um analisador de tipos revelaria) é descartado pela
+  validação. Isso custa tempo, não corretude.
 - **Mutantes equivalentes só são detectados pela suíte oficial**: um mutante que se comporta como o
   original em todos os testes oficiais é descartado, mesmo que seja diferente em alguma entrada que
   nenhum teste cobre.
@@ -136,4 +158,4 @@ recomeça do zero e os problemas já concluídos são pulados (`already generate
 
 | Comando | Verificado em | Revisão |
 |---|---|---|
-| `generate` | pendente | — |
+| `generate` | 2026-09-24 | d2c3a3e+dirty |

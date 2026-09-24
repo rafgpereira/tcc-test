@@ -102,7 +102,7 @@ medido, e isso é registrado como uma divergência/decisão nova no ciclo da imp
 **Decisão**: mesmo padrão já usado no módulo de dataset — cada problema é processado
 isoladamente, seus mutantes escritos primeiro em `data/mutants/building/<problem_id>/` e só
 movidos atomicamente (`os.replace` por diretório, ou arquivo a arquivo com um marcador de
-conclusão) para `data/mutants/<problem_id>/` quando os 100 mutantes (ou a exclusão registrada,
+conclusão) para `data/mutants/problems/<problem_id>/` quando os 100 mutantes (ou a exclusão registrada,
 FR-009) estiverem decididos. Uma interrupção no meio de um problema descarta o `building/`
 parcial e o refaz do zero na retomada, sem tocar nos problemas já completos — não há
 necessidade de checkpoint mais fino dentro de um problema, porque o motor de execução já é o
@@ -193,3 +193,149 @@ de mutante.
   para 200 problemas em série. **Pergunta aberta para os autores**: paralelizar `generate` (vários
   `slot`s, resultados consumidos na ordem dos candidatos, como em `validate` do dataset) antes da
   execução completa; a mesma pergunta de desempenho do piloto de ordem superior (R4).
+
+### R13 (complemento) — Geração completa de `189_C` (2026-09-24, executada pelos autores)
+
+`generate --problem 189_C` (cota 100, primeira ordem, motor real, em série): **795 s** (13 min 16 s);
+100 aceitos após avaliar 241 candidatos (**41,5%** de aceitação no conjunto, contra 24% nos
+primeiros 83); descartados 141: 64 erro de compilação, 48 equivalentes, 18 RE, 11 TLE; ~3,3 s por
+candidato avaliado. **Substitui a extrapolação anterior** (≈30 min por problema e ≈100 h no total,
+feita a partir dos 24% iniciais): com esse problema como referência, 200 problemas em série são
+**≈44 h** (200 × 795 s), sem contar os problemas que precisarem de ordem superior. Observação de
+qualidade (não decidida): o `Mutant_1.cpp` é `0 >> n` no lugar de `cin >> n`, isto é, o ABS aceitou
+um mutante que simplesmente não lê a entrada; é válido (WA) mas pouco informativo, e sítios de
+E/S de fluxo (`cin >>`, `cout <<`) respondem por parte dos 64 erros de compilação. Decisão dos
+autores: manter (sem novo filtro) ou excluir o ABS/UOI dos operandos de `cin`/`cout`.
+
+### R14 — Paralelização de `generate` (proposta de 2026-09-24, aprovada, implementada e validada no mesmo dia)
+
+**Desenho: paralelismo entre problemas, não dentro de um problema.** `generate --workers N`
+(padrão: metade das CPUs, mínimo 1, como em `validate`/`audit` do módulo de dataset; `N=1` é o
+comportamento atual). Cada problema é uma tarefa independente e inteira: um trabalhador roda
+`select_mutants` (o código de hoje, sem alteração) no **seu próprio `slot`** do motor.
+
+- **Mecanismo reaproveitado** de `dataset.validation.runtime.PoolRuntime`: `ProcessPoolExecutor`
+  com contexto `fork`, uma fila de `slot`s, `initializer` que pega um `slot`, prepara o diretório de
+  trabalho (`isolation.prepare_slot_workdir`) e constrói `real_engine()`; `kill_slot_processes` de
+  todos os `slot`s ao começar e ao terminar; SIGINT ignorado nos filhos (o processo principal trata
+  Ctrl+C e limpa). Novo arquivo `src/mutation/runtime.py` (`PoolRuntime`, `InlineRuntime` e
+  `ThreadRuntime` para os testes, com a mesma interface).
+- **Por que entre problemas e não entre candidatos** (o que `validate` faz): são 200 tarefas
+  independentes para 4 a 7 trabalhadores, então a ocupação é total sem janela de candidatos em voo
+  nem candidatos desperdiçados ao atingir a cota; o resultado de cada problema é exatamente o de
+  hoje por construção (a ordem dos candidatos, o conjunto `seen` e o corte em 100 são internos ao
+  problema), então **o número de trabalhadores não pode mudar o conjunto de mutantes** — só
+  a ordem em que as linhas de progresso aparecem. Limite assumido: um problema isolado (`--problem
+  X`, ou a cauda de um problema difícil de ordem superior) continua em série.
+- **Persistência só no processo principal**: o trabalhador devolve o `Selection` (dataclasses
+  imutáveis, serializáveis) e o processo principal grava (`building/` → `problems/`, igual a hoje),
+  à medida que os problemas terminam; uma interrupção nunca deixa problema parcial em `problems/`.
+  `InfraError` num trabalhador cancela o restante e sai com código `3`; Ctrl+C sai com `130`; ambos
+  retomáveis como hoje.
+- **Estimativa** (a partir dos 795 s medidos em `189_C`, supondo-o típico): 200 × 795 s ≈ 44 h em
+  série; ≈ 11 h com 4 trabalhadores (padrão em 8 CPUs) e ≈ 6,3 h com 7, no ideal. Não medido para os
+  outros problemas.
+- **Risco a medir, não assumir**: sob carga, um veredito de margem (tempo no limiar) pode mudar. O
+  motor mede tempo de CPU, não de relógio, o que atenua, e as 6 execuções concordantes protegem cada
+  aceite; mesmo assim, a validação da proposta compara, para 8 problemas, o resultado com `--workers 1`
+  e com `--workers 4` (hash a hash) e registra a taxa de divergência aqui.
+- **Tarefas**: T059 a T064 em `tasks.md`; T059–T062 e T064 implementadas (`src/mutation/runtime.py`,
+  `--workers`); **T063 (medir 8 problemas com `--workers 1` e `4`) é execução dos autores**.
+  Com o filtro de R16 o tempo por problema também cai (menos candidatos que não compilam, e cada
+  um custava 4 compilações): as estimativas de horas acima usam os 795 s de antes do filtro e são,
+  portanto, conservadoras.
+
+### R15 — Estabilidade entre rodadas independentes (2026-09-24, teste da simplificação de R10)
+
+**Pergunta**: seis execuções sobre um único binário compilado (R10) bastam para que duas rodadas
+independentes de `generate` aceitem o mesmo conjunto, ou o conjunto diverge como divergiram as WA
+do dataset (D13/D18/D19)? **Medição**: `generate --problem 189_C` duas vezes, cada uma sobre um
+`data/mutants/problems/189_C` vazio, sem reaproveitar nada da outra (a primeira, dos autores, 795 s;
+a segunda, minha, 831 s; código sem alteração entre elas). Resultado:
+
+| Comparação | Resultado |
+|---|---|
+| Arquivos `Mutant_1.cpp` a `Mutant_100.cpp` | 100 de 100 idênticos (`diff -rq`) |
+| SHA-256 por mutante, na mesma posição | 100 de 100 iguais; hash do conjunto ordenado igual nas duas rodadas |
+| `generation.json` (operador/variante de cada um, descartes por motivo) | idêntico: 64 erro de compilação, 48 equivalentes, 18 RE, 11 TLE |
+| **Taxa de divergência** | **0 de 100 mutantes (0%)**; 0 candidatos com veredito diferente entre as rodadas |
+
+**Leitura**: nenhuma instabilidade apareceu num problema em que os candidatos descartados
+incluem 11 TLE e 18 RE (os casos de margem que causaram a divergência no dataset). Isso sustenta
+R10 **para este problema**, mas é uma amostra de um problema e duas rodadas (um erro de 0/100 não
+prova taxa zero): a comparação deve ser repetida na validação de R14 (8 problemas, `--workers 1`
+contra `--workers 4`) e, com mais peso, na execução final, comparando o pacote com uma segunda
+geração. Se alguma divergência aparecer, R10 é reaberto (recompilar entre as verificações).
+
+### R16 — Redução dos erros de compilação (2026-09-24, a pedido dos autores)
+
+**Medição da causa** (todos os candidatos de primeira ordem de 5 problemas reais — `189_C`,
+`265_D`, `171_F`, `1005_C`, `630_L` — compilados um a um com o motor real): **353 de 1.463 (24%) não
+compilam**. Os erros dominantes: (1) E/S de fluxo — operador `<<`/`>>` trocado, ou `abs`/`-`/`++`
+na frente de `cin`/`cout`/`endl`/da variável lida: `abs(std::ostream&)`, `abs(std::istream&)`,
+`no match for operator>>`, **~65% do total**; (2) `++`/`--` na frente de algo que não é atribuível
+(`lvalue required as increment/decrement operand`, 94 casos); (3) `abs` de tamanho sem sinal
+(`abs(size_type)` ambíguo, 14 casos). Custo adicional: como o motor tenta 4 padrões da cascata,
+**um erro de compilação custa 4 compilações** (~7 s), não uma.
+
+**Decisão** (só sintaxe, sem inferência de tipos, R9 refinado): não são sítios (a) o operador e o
+operando esquerdo de uma cadeia de `<<`/`>>` que começa em `cin`/`cout`/`cerr`/`clog` (com ou sem
+`std::`), nem o operando direito de `cin >>`; o operando direito de `cout <<` (o valor impresso)
+continua; (b) operandos que são literal de string ou `endl`/`flush`/`ends`; (c) ABS sobre
+`.size()`/`.length()`/`sizeof` (sem sinal: ambíguo ou equivalente); (d) `++`/`--` só na frente de
+operando atribuível (identificador, subscrito, membro, ponteiro, parênteses). Expressões dentro de
+uma instrução de fluxo (`cout << (a + b)`) mantêm os seus sítios.
+
+**Efeito medido** (mesmos problemas, motor real; a regra (c) ainda não existia nesta medição):
+
+| Problema | Candidatos antes → depois | Não compilam antes → depois | Que compilam antes → depois |
+|---|---|---|---|
+| `189_C` | 259 → 172 | 76 (29%) → **0 (0%)** | 183 → 172 |
+| `630_L` | 315 → 224 | 88 (28%) → **2 (1%)** | 227 → 222 |
+| `171_F` | 292 → 233 | 94 (32%) → **39 (17%)** | 198 → 194 |
+
+Erros restantes em `171_F`: sobretudo `abs(size_type)` (regra (c), acrescentada depois da medição) e
+variáveis `stringstream` (`ss >> x`, `ss << x`), que só um tipo revelaria. **Custo em qualidade**:
+os candidatos que compilam caíram de 3% a 6% (11, 5 e 4 por problema): são os poucos que mexiam na
+E/S e compilavam (ex.: `0 >> n` no lugar de `cin >> n`, mutante que não lê a entrada, R13), que
+saem por serem pouco informativos. **Consequência para a cota**: o número de candidatos brutos nos
+200 `AC_ref.cpp` cai (mediana 274 → 198; mínimo 26; **34 problemas abaixo de 100**, antes 8; 102
+abaixo de 200), porque o que saiu era quase só o que não compilaria; o conjunto de candidatos
+**válidos** cai pouco (3–6%), então o risco de precisar de ordem superior sobe um pouco, e a
+medição por problema (`generation.json`, relatório) é quem mostra quantos. O `Mutant_1.cpp` de
+`189_C` deixa de ser `0 >> n`.
+
+### R14 (validação, T063) — `--workers 1` contra `--workers 4` em 8 problemas (2026-09-24)
+
+**Execução** (feita por mim, a pedido dos autores, uma rodada depois da outra, sem outra carga
+relevante na máquina, código com o filtro de R16): `generate` sobre 8 problemas —
+`1196_D1`, `1278_B`, `1288_C`, `265_D`, `523_C`, `630_G`, `719_A`, `967_C` (os de menores `testes.json`
+com pelo menos 230 candidatos brutos) — duas vezes, cada uma sobre `data/mutants` vazio; máquina:
+Intel i7-1165G7 (4 núcleos, 8 threads).
+
+| Comparação | Resultado |
+|---|---|
+| Arquivos (`Mutant_<n>.cpp` e `generation.json`) das duas rodadas | **idênticos** (`diff -rq`) |
+| SHA-256 por mutante, mesma posição | **800 de 800 iguais** (8 problemas × 100), hash do conjunto ordenado igual em cada problema |
+| Funil de descartes por problema | idêntico nos 8 (incluindo 70 TLE, 77 RE e 6 MLE entre os descartados, os casos de margem) |
+| **Taxa de divergência** | **0 de 800 mutantes (0%)** |
+| Tempo (relógio) | **3.520 s** com `--workers 1`; **1.700 s** com `--workers 4`: **aceleração de 2,07×**, não 4× |
+
+**Leitura**: (1) o número de trabalhadores não mudou nenhum mutante, como previsto por construção
+(R14) e por R10/R15 (estabilidade entre execuções); junto com R15 são 900 mutantes comparados entre
+execuções independentes, nenhuma divergência. (2) O ganho real é de ~2×: cada problema ficou ~1,8×
+mais lento sob 4 trabalhadores (ex.: `1196_D1`, 404 s → 746 s), porque a máquina tem 4 núcleos
+físicos (8 threads) e é um portátil sujeito a redução de frequência; e o fim da rodada tem cauda
+(as duas ondas de 4 problemas). Em outra máquina o ganho será outro; `--workers` é regulável.
+(3) **Extrapolação para os 200 problemas** (não medida; o tempo médio de 440 s por problema
+em série vem destes 8, que são de testes pequenos): ≈ 24 h em série, ≈ 12 h com 4 trabalhadores,
+sem contar os problemas que precisarem de ordem superior (US2). Substitui as estimativas de 44 h/11 h
+(feitas sobre `189_C` antes do filtro de R16).
+
+### R16 (complemento) — Erros de compilação nos 8 problemas da validação de R14
+
+Nas 8 gerações completas de R14: **63 erros de compilação em 1.415 candidatos avaliados
+(4,5%)**, contra 24% antes do filtro (R16); aceitação **56,5%** (800 de 1.415, contra 41,5% em
+`189_C` antes do filtro). Por problema, de 0 (`265_D`) a 26 (`967_C`) erros. Descartes totais nos 8:
+63 não compilam, 466 equivalentes, 77 RE, 70 TLE, 6 MLE (o que restou de falhas são os mutantes
+equivalentes, que só a suíte oficial revela).

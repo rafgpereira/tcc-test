@@ -45,9 +45,64 @@ def test_a_right_shift_expression_is_a_site_even_in_a_file_that_has_nested_templ
     assert ops[0].eligible_operators == (AOR,)  # arithmetic in this context (shifts, see research)
 
 
-def test_stream_extraction_is_a_binary_expression_site_like_any_other():
-    source = wrap("cin >> n;", prelude="int n;")
-    assert [text_of(source, s) for s in operator_sites(source)] == [">>"]
+# ------------------------------------------------------------------ stream I/O is not a target
+
+
+def test_stream_extraction_has_no_sites_at_all():
+    source = wrap("cin >> n >> m;", prelude="int n, m;")
+    assert find_sites(source) == []  # not the operator, not `cin`, not the variables read
+
+
+def test_std_qualified_streams_are_streams_too():
+    source = wrap("std::cin >> n; std::cout << std::endl;", prelude="int n;")
+    assert find_sites(source) == []
+
+
+def test_what_cout_prints_is_a_normal_operand_but_the_stream_is_not():
+    source = wrap("cout << x << y;", prelude="int x, y;")
+    sites = find_sites(source)
+    assert described(source, sites) == [("OPERAND_RIGHT", "y"), ("OPERAND_RIGHT", "x")]  # pre-order
+    assert all(s.parent_operator == "<<" for s in sites)
+
+
+def test_stream_manipulators_and_text_are_not_operands():
+    source = wrap('cout << "sum: " << x << endl << flush;', prelude="int x;")
+    assert described(source, find_sites(source)) == [("OPERAND_RIGHT", "x")]
+
+
+def test_an_expression_inside_a_stream_statement_keeps_its_own_sites():
+    source = wrap("cout << (a + b) << endl;", prelude="int a, b;")
+    texts = described(source, find_sites(source))
+    assert ("OPERATOR", "+") in texts and ("OPERAND_RIGHT", "(a + b)") in texts
+    assert ("OPERATOR", "<<") not in texts
+
+
+def test_a_shift_that_does_not_start_at_a_stream_is_still_arithmetic():
+    source = wrap("int r = (a << 2) >> 1;", prelude="int a;")
+    assert [text_of(source, s) for s in operator_sites(source)] == [">>", "<<"]
+
+
+def test_the_operand_type_is_recorded_for_operand_sites_only():
+    source = wrap("auto r = v[0] + 1;", prelude="int v[2];")
+    sites = find_sites(source)
+    assert [(s.kind.name, s.operand_type) for s in sites] == [
+        ("OPERATOR", None),
+        ("OPERAND_LEFT", "subscript_expression"),
+        ("OPERAND_RIGHT", "number_literal"),
+    ]
+
+
+def test_abs_is_not_offered_for_unsigned_sizes():
+    source = wrap("auto r = v.size() + n + sizeof(int);", prelude="vector<int> v; int n;")
+    operands = {
+        text_of(source, s): s.eligible_operators
+        for s in find_sites(source)
+        if s.kind is not SiteKind.OPERATOR
+    }
+    assert operands["v.size()"] == (UOI,)
+    assert operands["sizeof(int)"] == (UOI,)
+    assert operands["v.size() + n"] == (ABS, UOI)  # a sum is not itself flagged
+    assert operands["n"] == (ABS, UOI)
 
 
 # ------------------------------------------------------------------ literals and comments

@@ -301,7 +301,7 @@ avaliação.
 
 | Comando | Serviço | O que faz |
 |---|---|---|
-| `docker compose run --rm sandbox python -m mutation generate` | `sandbox` | gera até 100 mutantes por problema a partir do `AC_ref.cpp` (por enquanto só com uma alteração por mutante); `--problem ID` restringe a um problema |
+| `docker compose run --rm sandbox python -m mutation generate` | `sandbox` | gera até 100 mutantes por problema a partir do `AC_ref.cpp` (por enquanto só com uma alteração por mutante); `--problem ID` restringe a um problema; `--workers N` processa N problemas ao mesmo tempo (padrão: metade das CPUs) |
 | `docker compose run --rm sandbox pytest tests/mutation` | `sandbox` | testes do módulo, inclusive os que compilam e executam C++ |
 
 Os comandos `package`, `verify` e `report` do módulo ainda não existem; quando existirem, entram

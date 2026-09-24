@@ -255,6 +255,33 @@ tenha ≥ 100 sítios de primeira ordem (a maioria, pela estimativa da spec).
 
 ---
 
+## Phase 3b: Paralelização de `generate` (aprovada pelos autores em 2026-09-24; research.md, R14)
+
+**Purpose**: reduzir a geração dos 200 problemas de ≈44 h em série (extrapolado de `189_C`, R13; ≈24 h em série com o filtro de R16, medido em 8 problemas) para
+horas, com um trabalhador por `slot` do motor, sem mudar o conjunto de mutantes.
+
+- [X] T059 [P] Write tests in `tests/mutation/test_runtime.py` com motor falso: com `ThreadRuntime`
+  de 4 trabalhadores e atrasos que invertem a ordem de conclusão, os arquivos gravados (bytes de
+  cada `Mutant_<n>.cpp` e de cada `generation.json`) são idênticos aos de `InlineRuntime`; um
+  `InfraError` num trabalhador propaga e nada desse problema é gravado; `close()` limpa os `slot`s
+- [X] T060 [P] Write tests in `tests/mutation/test_cli_generate.py`: `--workers` (inteiro positivo;
+  `0` ou texto é erro de uso, código `2`), padrão metade das CPUs, `--workers 1` igual ao
+  comportamento atual, Ctrl+C durante o pool sai com `130` sem deixar problema em `problems/`
+- [X] T061 Implement `src/mutation/runtime.py` (`PoolRuntime`, `InlineRuntime`, `ThreadRuntime`),
+  espelhando `dataset.validation.runtime` (fork, fila de `slot`s, `initializer`, `kill_slot_processes`)
+- [X] T062 Adapt `generate` em `src/mutation/__main__.py` para submeter problemas ao runtime e
+  gravar cada `Selection` no processo principal, com a opção `--workers`
+- [X] T063 📌 PROPAGAR — Validar a proposta: rodar 8 problemas com `--workers 1` e com `--workers 4`
+  (executada em 2026-09-24, a pedido dos autores: 0 de 800 mutantes divergentes, aceleração de 2,07×; research.md R14) e comparar os hashes de cada mutante; registrar a taxa de divergência
+  medida e o tempo de cada rodada em `research.md` (R14) e em `docs/metodologia-referencia.md`
+  (seção 2.7)
+- [X] T064 Atualizar `src/mutation/README.md` (b) e o `README.md` da raiz com `--workers`
+
+**Checkpoint** (atingido em 2026-09-24): `generate --workers 4` produziu, nos 8 problemas testados, os
+mesmos mutantes que `--workers 1`, em ~48% do tempo (aceleração de 2,07× nesta máquina de 4 núcleos).
+
+---
+
 ## Phase 4: User Story 2 - Fechar a cota de 100 com ordem superior determinística (Priority: P1)
 
 **Goal**: quando a primeira ordem não basta, completar a cota de 100 combinando pares e, se
@@ -330,7 +357,7 @@ fase 2.
 
 - [ ] T036 [P] [US3] Write tests in `tests/mutation/test_packaging.py`: entradas do zip
   ordenadas por caminho; mesmas convenções determinísticas já testadas para o dataset (timestamp
-  fixo, `ZIP_DEFLATED` em nível fixo, raiz `mutants/` dentro do zip); empacotar o mesmo
+  fixo, `ZIP_DEFLATED` em nível fixo, raiz `mutants/problems/<id>/` dentro do zip, de modo que `unzip data/mutants.zip -d data/` produza o mesmo caminho que `generate` grava); empacotar o mesmo
   `data/mutants/problems/` duas vezes dá o mesmo hash de zip; `package` se recusa (código `1`) se
   houver qualquer `data/mutants/building/<id>/` pendente; problemas com `ExclusionAlert` não têm
   pasta dentro do zip
@@ -342,7 +369,9 @@ fase 2.
 - [ ] T038 [P] [US3] Write tests in `tests/mutation/test_verify.py`: pacote íntegro → `OK`,
   código `0`; um byte alterado → `changed`; um arquivo removido → `missing`; um arquivo extra →
   `extra`; funciona só com o zip e o manifesto, sem precisar de `data/mutants/` (mesmo
-  comportamento pós-clonagem já provado para o dataset)
+  comportamento pós-clonagem já provado para o dataset); com `extracted_dir`, só os `Mutant_<n>.cpp` de
+  `problems/<id>/` contam: `generation.json` e `building/` de uma geração local não são `extra`
+  (contracts/cli.md, "Fluxo: quem gera e quem só recebe")
 
 ### Implementation for User Story 3
 

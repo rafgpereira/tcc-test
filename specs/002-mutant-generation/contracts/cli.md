@@ -34,6 +34,7 @@ resultado.
 | Opção | Padrão | Efeito |
 |---|---|---|
 | `--problem ID` | todos | processa só esse problema; pode ser repetida (uso: desenvolvimento/depuração); um ID que não está em `data/dataset` é erro de uso (código `2`) |
+| `--workers N` | metade das CPUs (mínimo 1) | problemas processados em paralelo, cada um num `slot` próprio do motor; **não altera o resultado**, só o tempo; inteiro positivo, senão erro de uso (código `2`); `1` roda no próprio processo |
 | `--resume` (implícito) | — | pula problemas já completos em `data/mutants/`; não há flag para desativar (mesmo comportamento sempre seguro do módulo de dataset) |
 
 Um problema que não fecha a cota fica registrado como falha (`FAILED`) e o comando termina com código
@@ -61,8 +62,25 @@ Comando manual e explícito — nunca chamado por `generate`.
 ### `verify` (serviço `app`)
 
 Recalcula os hashes de `data/mutants.zip` (ou, com `--extracted DIR`, de uma árvore já
-descompactada) e compara com `manifests/mutants.manifest.json`, apontando `changed`/`missing`/
-`extra` — mesmo comportamento de `dataset verify`.
+descompactada, tipicamente `data/mutants`) e compara com `manifests/mutants.manifest.json`,
+apontando `changed`/`missing`/`extra` — mesmo comportamento de `dataset verify`. Na árvore
+descompactada só contam os `Mutant_<n>.cpp` de `problems/<id>/`; o `generation.json` e a pasta
+`building/` de uma geração local não são "extras".
+
+## Fluxo: quem gera e quem só recebe
+
+Existe **um único caminho de consumo**, `data/mutants/problems/<id>/Mutant_<n>.cpp`, seja qual
+for a origem dos arquivos:
+
+| Quem | O que faz | Onde os mutantes ficam |
+|---|---|---|
+| Autor que faz a **execução final** | `generate` → `report` → `package` → `verify`; commita `data/mutants.zip` e os dois JSON de `manifests/` | já em `data/mutants/problems/` (não precisa descompactar nada) |
+| O **outro autor** (ou qualquer pessoa) | `git pull`; `rm -rf data/mutants` (se houver geração local antiga); `unzip data/mutants.zip -d data/`; `verify --extracted data/mutants` | `data/mutants/problems/`, idêntico ao do autor que gerou |
+| Rodada de **desenvolvimento** | `generate` (e `report`), sem `package` | `data/mutants/problems/`, nunca versionado; não vale como resultado do experimento |
+
+`generate` nunca sobrescreve uma pasta de problema já existente em `problems/`: se ela veio de um
+pacote descompactado (não tem `generation.json`), é pulada, não regerada. Assim, quem só recebe o
+pacote não gera nada por engano, e quem gerou não precisa descompactar o que já tem.
 
 ## Fora do contrato
 

@@ -43,8 +43,8 @@ def limits():
 
 
 def mixed(source: str) -> list:
-    """A deterministic mix by content: a quarter does not compile, a quarter is equivalent."""
-    bucket = int(sha256_of(source), 16) % 4
+    """A deterministic mix by content: an eighth does not compile, an eighth is equivalent."""
+    bucket = int(sha256_of(source), 16) % 8
     return ["CE"] if bucket == 0 else [Verdict.AC] if bucket == 1 else [Verdict.WA]
 
 

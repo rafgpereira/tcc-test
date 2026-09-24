@@ -749,13 +749,13 @@ fixou os pontos que o texto acima deixava abertos (detalhes e motivos em
 - Operadores bit a bit, vírgula, `~` e `+` unário não são sítios; condições de `#if`/`#elif` também
   não.
 
-**Medição sobre os 200 `AC_ref.cpp` reais (2026-09-24, dataset `manifests/dataset.manifest.json`,
+**Medição sobre os 200 `AC_ref.cpp` reais, ANTES do filtro de fluxo descrito em 2.7 (2026-09-24, dataset `manifests/dataset.manifest.json`,
 gerador de candidatos de primeira ordem, antes de qualquer validação)**: mediana de **274**
 candidatos por problema (mínimo 35, em `630_J`; máximo 2.104); **8 dos 200** têm menos de 100
 candidatos brutos e 64 têm menos de 200. É maior que a estimativa grosseira de 2.2 (mediana ≈146,
 44 abaixo de 100), porque a estimativa usava a contagem de identificadores como proxy dos
 operandos. A contagem que importa para a cota, porém, é a de candidatos **aceitos** pela validação
-(2.3): ver 2.7.
+(2.3): ver 2.8.
 
 ### 2.3 Validação antes de aceitar um mutante
 
@@ -783,7 +783,7 @@ operandos. A contagem que importa para a cota, porém, é a de candidatos **acei
    **[DECIDIDO NA IMPLEMENTAÇÃO, 2026-09-24 — research.md, R10]** As 6 execuções são a primeira
    execução mais 5 reexecuções do **mesmo binário**, compilado uma vez (não 3 checagens
    independentes que recompilam, como no reparo de WA): recompilar triplicaria o custo dominante
-   (a compilação, ~1,8 s, ver 2.7) e a instabilidade que se quer pegar é de tempo de execução, não
+   (a compilação, ~1,8 s, ver 2.8) e a instabilidade que se quer pegar é de tempo de execução, não
    de compilação. Se a auditoria futura mostrar mutantes instáveis que recompilar teria pegado,
    a decisão é reaberta. Um texto já avaliado no problema (aceito ou descartado antes) conta como
    duplicata e não é recompilado (R11).
@@ -868,6 +868,16 @@ Princípio II, emenda 1.1.0) se aplica, sem diferença de fundo, a mutantes.
   dataset — porque a garantia de reprodutibilidade aqui não pode depender só da seed, pelo motivo
   medido acima. Um comando de verificação, análogo ao do dataset, recalcula os hashes e os
   compara com o manifesto.
+- **Fluxo de circulação (quem gera e quem só recebe)** **[DECIDIDO, 2026-09-24]**: há um único
+  caminho de consumo, `data/mutants/problems/<id>/Mutant_<n>.cpp`, e o zip usa a raiz
+  `mutants/problems/<id>/` para que `unzip data/mutants.zip -d data/` caia exatamente nele — o
+  mesmo desenho do dataset (`dataset/problems/<id>/` → `data/dataset/problems/<id>/`). O autor que
+  faz a execução final roda `generate`, `report`, `package` e `verify` e commita zip e manifestos; os
+  mutantes dele já estão no caminho de consumo. O outro autor só faz `git pull`, apaga qualquer
+  `data/mutants/` de desenvolvimento, descompacta e confere com `verify --extracted data/mutants`.
+  Uma rodada de desenvolvimento usa o mesmo caminho, mas não é versionada nem vale como resultado.
+  `generate` nunca sobrescreve uma pasta de problema existente (uma pasta vinda do pacote não tem
+  `generation.json` e é pulada). Detalhes em `specs/002-mutant-generation/contracts/cli.md`.
 - **Relatório** (`manifests/mutation_report.json`, versionado): funil de descarte por motivo
   (duplicata, não compila, TLE/MLE/RE, equivalente, instável), quantos mutantes de cada problema
   vieram de primeira vs. de ordem superior, distribuição por operador, a lista de alertas de
@@ -880,7 +890,22 @@ primeira ordem, a partir só do `AC_ref`. Como mutantes equivalentes já são de
 validação (2.3), o termo `EM` (mutantes equivalentes) na fórmula do Escore de Mutação (seção 5)
 continua sempre 0 no cálculo final do pipeline.
 
-### 2.7 Medições da primeira implementação (`generate`, primeira ordem) **[MEDIDO, 2026-09-24]**
+### 2.7 Redução dos erros de compilação **[DECIDIDO E MEDIDO, 2026-09-24 — `research.md`, R16]**
+
+Em 1.463 candidatos de primeira ordem de 5 problemas reais, **24% não compilavam**, ~65% por E/S de
+fluxo (`abs(cin)`, `cin << n`, `++` em `endl`...), o resto por `++`/`--` em algo não atribuível e
+`abs` de tamanho sem sinal; cada erro custa 4 compilações (cascata de padrões). Passaram a **não ser
+sítios** (só sintaxe, sem tipos): a cadeia de `<<`/`>>` que começa em `cin`/`cout`/`cerr`/`clog` (o
+operando direito de `cout <<` continua), literais de string e `endl`/`flush`/`ends` como operandos,
+ABS sobre `.size()`/`.length()`/`sizeof`, e `++`/`--` sobre operando não atribuível. **Efeito
+medido**: erros de compilação de 29%→0% (`189_C`), 28%→1% (`630_L`), 32%→17% (`171_F`, resto
+sobretudo `abs(size_type)` — regra acrescentada depois da medição — e `stringstream`); candidatos
+que compilam caem 3–6% (saem sobretudo mutantes que só mexem na leitura, como `0 >> n`).
+Candidatos brutos nos 200 problemas: mediana 274 → **198**, problemas abaixo de 100: 8 → **34**
+(o risco de ordem superior sobe um pouco; medido por problema na execução). Substitui, para fins
+de estimativa, os números da medição anterior de 2.2.
+
+### 2.8 Medições da primeira implementação (`generate`, primeira ordem) **[MEDIDO, 2026-09-24]**
 
 Primeira medição do custo real da validação, com o motor de execução real (`gcc` 13.2.0, serviço
 `sandbox`), sobre o problema `189_C` (`AC_ref.cpp` que usa `bits/stdc++.h`, 259 candidatos de
@@ -898,14 +923,33 @@ final.
 | Repetibilidade | as duas execuções deram exatamente o mesmo funil (28/22/7/6) e a mesma distribuição de operadores: mesma sequência de candidatos, sem seed |
 | Teste de integração de 8 mutantes aceitos do mesmo problema | 159 s (`tests/mutation/test_uniqueness.py`) |
 
-**Leitura (extrapolação, não medida)**: com ~24% de aceitação e ~4 s por candidato avaliado, os 100
-mutantes de um problema como este exigiriam ~415 candidatos, da ordem de 30 minutos em série; para
-os 200 problemas, da ordem de 100 horas em série. O custo é dominado pela compilação (o motor
-recompila cada candidato) e pelos TLE (cada um espera o limite de tempo do problema). Isso torna a
-paralelização da geração (vários `slot`s do motor, com os resultados consumidos na ordem dos
-candidatos, como já é feito em `validate` do módulo de dataset) a decisão de desempenho a tomar
-antes da execução completa; ela **não** está implementada nem decidida — é pergunta aberta para os
-autores, junto do piloto de ordem superior.
+**Estabilidade entre rodadas independentes (2026-09-24, teste de R10; repetida com 800 mutantes em
+R14, também 0% de divergência)**: duas gerações completas e
+independentes de `189_C` (795 s e 831 s, mesmo código) deram **os mesmos 100 arquivos, o mesmo
+SHA-256 em cada posição e o mesmo `generation.json`**: divergência de **0 em 100** mutantes, apesar
+de 11 TLE e 18 RE entre os descartados (candidatos de margem). Sustenta a simplificação de 2.3
+(item 4: 6 execuções sobre um binário compilado uma vez) para esse problema; é amostra de um
+problema e duas rodadas, a repetir na validação da paralelização e na execução final
+(`research.md`, R15).
+
+**Geração completa de `189_C` (2026-09-24, executada pelos autores, cota 100, em série, antes do
+filtro de 2.7)**: 795 s (13 min 16 s); 100 aceitos após avaliar 241 candidatos (41,5% de
+aceitação), com 141 descartes: 64 erro de compilação, 48 equivalentes, 18 RE, 11 TLE; ~3,3 s por
+candidato avaliado. Esse resultado motivou o filtro de 2.7 e a paralelização: o primeiro mutante
+gerado era `0 >> n` no lugar de `cin >> n` (não lê a entrada), o que o filtro passou a evitar.
+
+**Paralelização de `generate` (2026-09-24, `research.md` R14)**: um trabalhador por `slot` do motor,
+paralelismo entre problemas, resultado idêntico por construção — **aprovada pelos autores,
+implementada e validada**. Validação em 8 problemas (`1196_D1`, `1278_B`, `1288_C`, `265_D`,
+`523_C`, `630_G`, `719_A`, `967_C`; Intel i7-1165G7, 4 núcleos e 8 threads): `--workers 1` contra
+`--workers 4` deram os mesmos arquivos e os mesmos SHA-256 (**0 de 800 mutantes divergentes**,
+funil de descartes idêntico, com 70 TLE, 77 RE e 6 MLE entre os descartados); tempo de 3.520 s para
+1.700 s, **aceleração de 2,07×** (cada problema fica ~1,8× mais lento sob 4 trabalhadores; em
+outra máquina o ganho será outro). Com o filtro, 63 dos 1.415 candidatos avaliados nesses 8
+problemas não compilaram (**4,5%**, contra 24% antes) e a aceitação foi de 56,5%; o tempo médio
+foi de 440 s por problema em série. Extrapolação (não medida) para os 200 problemas: ≈24 h em série
+e ≈12 h com 4 trabalhadores, sem contar os que precisarem de ordem superior. Substitui a
+extrapolação de ≈44 h, feita sobre `189_C` antes do filtro.
 
 **Primeiro ponto de parada da implementação**: `generate` com primeira ordem só. Um problema em
 que ela não alcança 100 mutantes aceitos termina em falha explícita e nada é gravado (a combinação
@@ -1137,7 +1181,8 @@ a partir de 2026-09-23, `specs/002-mutant-generation/`.
 
 | Data | O que mudou | Seções |
 |---|---|---|
-| 2026-09-24 | **Primeira história de `002-mutant-generation` implementada (`generate`, primeira ordem)**: deslocamentos como AOR, operandos de ABS/UOI e unário legal por operador pai, execuções de estabilidade sobre um binário compilado uma vez, duplicata = todo texto já avaliado (`research.md` R8 a R12); medição sobre os 200 `AC_ref.cpp` reais: mediana de 274 candidatos de primeira ordem brutos, 8 de 200 com menos de 100; medição de custo em `189_C` (aceitação de 24% dos candidatos, compilação de ~1,8 s, ~100 h extrapoladas para os 200 problemas em série) e a pergunta aberta sobre paralelizar a geração. Decisão D1–D6 sem alteração | 2.2, 2.3, 2.7, 7 |
+| 2026-09-24 | **Redução dos erros de compilação e paralelização de `generate` (`002-mutant-generation`)**: filtro sintático de sítios de E/S de fluxo, de operandos de texto/manipuladores, de ABS sobre tamanhos e de `++`/`--` sobre não atribuíveis (24% de candidatos que não compilavam em 5 problemas; depois: 0%, 1% e 17% nos três re-medidos; candidatos brutos: mediana 274 → 198, 8 → 34 problemas abaixo de 100); `--workers` com paralelismo entre problemas (R14 aprovada) | 2.2, 2.7, 2.8 |
+| 2026-09-24 | **Primeira história de `002-mutant-generation` implementada (`generate`, primeira ordem)**: deslocamentos como AOR, operandos de ABS/UOI e unário legal por operador pai, execuções de estabilidade sobre um binário compilado uma vez, duplicata = todo texto já avaliado (`research.md` R8 a R12); medição sobre os 200 `AC_ref.cpp` reais: mediana de 274 candidatos de primeira ordem brutos, 8 de 200 com menos de 100; medição de custo em `189_C` (aceitação de 24% nos primeiros 83 candidatos, compilação de ~1,8 s) e duas gerações independentes de `189_C` com resultado idêntico (0 de 100 mutantes divergentes, R15) e geração completa medida (795 s, 100 mutantes, 41,5% de aceitação, antes do filtro de fluxo); paralelização (R14) aprovada, implementada e validada em 8 problemas (0 de 800 mutantes divergentes, aceleração de 2,07× com 4 trabalhadores, erros de compilação em 4,5% dos candidatos); fluxo de circulação dos mutantes (quem gera / quem só recebe; caminho único `data/mutants/problems/`) fixado em 2.6. Decisão D1–D6 sem alteração | 2.2, 2.3, 2.8, 7 |
 | 2026-09-23 | **`/speckit.plan` do módulo `002-mutant-generation`**: confirmação empírica de que `tree-sitter-cpp` disambigua corretamente o `>>` de template do `>>` de operador, testada sobre um `AC_ref.cpp` real do dataset (`175_B`); escopo de ABS/UOI definido como os operandos de sítios ROR/AOR, sem precisar de inferência de tipo; MS (5.2) passa a ser calculado sobre os problemas com mutantes completos (pode ser < 200), nunca TDF/TFP. Detalhes em `specs/002-mutant-generation/{plan,research,data-model}.md` | 2.1, 5.2 |
 | 2026-09-23 | **Seção 2 reescrita (`/speckit.specify` do módulo `002-mutant-generation`)**: geração de mutantes por AST (`tree-sitter`), conjunto completo de operadores de Offutt et al. (ROR/AOR/LCR + ABS/UOI, motivado por medição de 199/200 `AC_ref.cpp` reais abaixo de 100 ocorrências dos operadores originais), mutação de ordem superior por regra determinística sem busca, base de mutação exclusivamente `AC_ref` (sem ACs adicionais do dataset de origem, D4), e arquitetura de reprodutibilidade em que o pacote de mutantes da execução final é compactado e versionado (`data/mutants.zip` + manifesto), por causa da instabilidade de margem do motor já medida em D18/D19 — isso exigiu emenda ao Princípio II da Constitution (v1.6.0). Decisões D1–D6, com proveniência completa, em `specs/002-mutant-generation/spec.md` | 2, 6, 7 |
 | 2026-09-18 | Decisões D1–D5 da spec: splits combinados, tradução como critério, `generated_tests`, flag `-Wl,--stack` removida (pilha em tempo de execução), problemas com menos de 100 WAs excluídos, sem cota por macrocategoria com alerta < 30 | 1.1, 1.2, 1.4, 6, 7 |

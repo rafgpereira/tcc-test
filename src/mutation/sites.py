@@ -13,6 +13,8 @@ visited. ``discovery_index`` is the position in that list, and every later choic
 (which candidates come first, which combinations are tried) follows it, so no seed is needed.
 """
 
+import re
+
 import tree_sitter_cpp
 from tree_sitter import Language, Node, Parser
 
@@ -28,6 +30,20 @@ _PARSER = Parser(Language(tree_sitter_cpp.language()))
 
 _PREPROCESSOR_WITH_CONDITION = ("preproc_if", "preproc_elif")
 
+# Stream I/O (`cin >> a >> b`, `cout << x << endl`) is not a mutation target: swapping its operator,
+# or putting `abs`/`-`/`++` in front of the stream or of the variable being read, never compiles
+# (measured: research R16). The value written by `cout <<` is a normal operand and stays a site.
+_STREAM_ROOTS = frozenset({"cin", "cout", "cerr", "clog"})
+_SHIFTS = ("<<", ">>")
+# Operands that are not numbers whatever the types are: text and stream manipulators.
+_NON_NUMERIC_OPERAND_TYPES = frozenset(
+    {"string_literal", "raw_string_literal", "concatenated_string"}
+)
+_STREAM_MANIPULATORS = frozenset({"endl", "flush", "ends"})
+# Sizes are unsigned: `abs` of one is ambiguous to the compiler, and where it compiles it changes
+# nothing (an equivalent mutant), so ABS is not offered for them.
+_UNSIGNED_OPERAND = re.compile(r"(?:(?:\.|->)(?:size|length)\s*\(\s*\)|^sizeof\b.*)$", re.DOTALL)
+
 _OPERATOR_OF_TOKEN: dict[str, MutationOperator] = {
     **dict.fromkeys(RELATIONAL_TOKENS, MutationOperator.ROR),
     **dict.fromkeys(ARITHMETIC_TOKENS, MutationOperator.AOR),
@@ -42,6 +58,44 @@ def _token(node: Node | None) -> str | None:
     return node.type if node is not None else None
 
 
+def _text(node: Node) -> str:
+    return node.text.decode("utf-8") if node.text is not None else ""
+
+
+def _is_stream_expression(node: Node) -> bool:
+    """``cin >> a >> b`` and ``cout << x << endl``: a chain of shifts that starts at a std stream."""
+    while (
+        node.type == "binary_expression" and _token(node.child_by_field_name("operator")) in _SHIFTS
+    ):
+        left = node.child_by_field_name("left")
+        if left is None:
+            return False
+        node = left
+    return _text(node).removeprefix("std::") in _STREAM_ROOTS and node.type in (
+        "identifier",
+        "qualified_identifier",
+    )
+
+
+def _is_numeric_candidate(operand: Node) -> bool:
+    """Can ABS or UOI possibly apply to this operand, judging only by its syntax?"""
+    if operand.type in _NON_NUMERIC_OPERAND_TYPES:
+        return False
+    if operand.type in ("identifier", "qualified_identifier") and (
+        _text(operand).removeprefix("std::") in _STREAM_MANIPULATORS
+    ):
+        return False
+    return not (operand.type == "binary_expression" and _is_stream_expression(operand))
+
+
+def _without_abs(
+    operand: Node, operators: tuple[MutationOperator, ...]
+) -> tuple[MutationOperator, ...]:
+    if _UNSIGNED_OPERAND.search(_text(operand)):
+        return tuple(op for op in operators if op is not MutationOperator.ABS)
+    return operators
+
+
 def _binary_sites(node: Node, next_index: int) -> list[Site]:
     operator = node.child_by_field_name("operator")
     left, right = node.child_by_field_name("left"), node.child_by_field_name("right")
@@ -53,11 +107,24 @@ def _binary_sites(node: Node, next_index: int) -> list[Site]:
         if category in _ABS_PARENTS
         else (MutationOperator.UOI,)
     )
-    parts = (
-        (SiteKind.OPERATOR, operator, (category,), None),
-        (SiteKind.OPERAND_LEFT, left, operand_operators, operator.type),
-        (SiteKind.OPERAND_RIGHT, right, operand_operators, operator.type),
-    )
+    parts = [(SiteKind.OPERATOR, operator, (category,), None)]
+    if not _is_stream_expression(node):
+        parts.append((SiteKind.OPERAND_LEFT, left, operand_operators, operator.type))
+        parts.append((SiteKind.OPERAND_RIGHT, right, operand_operators, operator.type))
+    elif operator.type == "<<":  # what `cout` prints is a value; what `cin` reads is not
+        parts = [(SiteKind.OPERAND_RIGHT, right, operand_operators, operator.type)]
+    else:
+        parts = []
+    parts = [p for p in parts if p[0] is SiteKind.OPERATOR or _is_numeric_candidate(p[1])]
+    parts = [
+        (
+            kind,
+            part,
+            _without_abs(part, operators) if kind is not SiteKind.OPERATOR else operators,
+            parent,
+        )
+        for kind, part, operators, parent in parts
+    ]
     return [
         Site(
             kind=kind,
@@ -67,6 +134,7 @@ def _binary_sites(node: Node, next_index: int) -> list[Site]:
             discovery_index=next_index + offset,
             eligible_operators=operators,
             parent_operator=parent,
+            operand_type=None if kind is SiteKind.OPERATOR else part.type,
         )
         for offset, (kind, part, operators, parent) in enumerate(parts)
     ]

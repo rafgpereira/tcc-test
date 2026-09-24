@@ -5,7 +5,7 @@ import json
 import pytest
 
 import mutation.__main__ as cli
-from mutation import config, persistence
+from mutation import config, persistence, runtime
 
 
 @pytest.fixture()
@@ -18,10 +18,19 @@ def repo(tmp_path, dataset_builder, dense_problem, monkeypatch):
 
 @pytest.fixture()
 def fake_engine(make_engine, monkeypatch):
-    """The command builds `real_engine()`; give it the fake one instead (and no leftovers to kill)."""
+    """The command builds a real runtime; give it one over the fake engine (and no leftovers)."""
     engine = make_engine()
-    monkeypatch.setattr("dataset.validation.engine.real_engine", engine.as_engine)
+    made = []
+
+    def make_runtime(workers):
+        made.append(workers)
+        if workers == 1:
+            return runtime.InlineRuntime(engine.as_engine())
+        return runtime.ThreadRuntime(engine.as_engine(), workers)
+
+    monkeypatch.setattr(cli, "_make_runtime", make_runtime)
     monkeypatch.setattr("sandbox.isolation.kill_slot_processes", lambda slot: 0)
+    engine.runtimes_made = made
     return engine
 
 
@@ -122,3 +131,57 @@ def test_ctrl_c_exits_130_and_leaves_no_closed_problem(repo, fake_engine, monkey
     assert cli.main(["generate"]) == cli.EXIT_INTERRUPTED
     assert "safe to run the command again" in capsys.readouterr().err
     assert persistence.closed_problems(repo) == []
+
+
+def test_a_problem_folder_received_from_the_package_is_never_regenerated(repo, fake_engine, capsys):
+    """Unzipping `data/mutants.zip` gives `Mutant_<n>.cpp` files and no `generation.json`."""
+    received = repo / config.PROBLEMS_DIR / "189_C"
+    received.mkdir(parents=True)
+    (received / "Mutant_1.cpp").write_text("from the package")
+    assert cli.main(["generate"]) == 0
+    assert (received / "Mutant_1.cpp").read_text() == "from the package"
+    assert sum(fake_engine.compiles.values()) == 0
+    assert "already generated, skipped" in capsys.readouterr().out
+
+
+def test_workers_must_be_a_positive_integer(repo, fake_engine):
+    for bad in ("0", "-1", "two"):
+        assert cli.main(["generate", "--workers", bad]) == cli.EXIT_USAGE
+    assert fake_engine.runtimes_made == []
+
+
+def test_the_default_number_of_workers_is_half_of_the_cpus(monkeypatch):
+    monkeypatch.setattr(cli.os, "cpu_count", lambda: 8)
+    assert cli.default_workers() == 4
+    monkeypatch.setattr(cli.os, "cpu_count", lambda: 1)
+    assert cli.default_workers() == 1
+    monkeypatch.setattr(cli.os, "cpu_count", lambda: None)
+    assert cli.default_workers() == 1
+
+
+def test_one_worker_runs_in_this_process_and_more_use_the_pool(repo, fake_engine):
+    cli.main(["generate", "--workers", "1"])
+    cli.main(["generate", "--workers", "3"])
+    assert fake_engine.runtimes_made == [1, 3]
+
+
+def test_the_default_run_asks_for_the_default_number_of_workers(repo, fake_engine, monkeypatch):
+    monkeypatch.setattr(cli.os, "cpu_count", lambda: 10)
+    cli.main(["generate"])  # the parser default is computed when the parser is built
+    assert fake_engine.runtimes_made == [5]
+
+
+def test_the_runtime_is_closed_even_when_the_run_is_interrupted(repo, monkeypatch, make_engine):
+    closed = []
+
+    class Spy(runtime.InlineRuntime):
+        def close(self):
+            closed.append(True)
+
+    monkeypatch.setattr(cli, "_make_runtime", lambda workers: Spy(make_engine().as_engine()))
+    monkeypatch.setattr("sandbox.isolation.kill_slot_processes", lambda slot: 0)
+    monkeypatch.setattr(
+        cli.orchestrator, "select_mutants", lambda *a, **k: (_ for _ in ()).throw(KeyboardInterrupt)
+    )
+    assert cli.main(["generate", "--workers", "1"]) == cli.EXIT_INTERRUPTED
+    assert closed == [True]

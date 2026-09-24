@@ -30,9 +30,23 @@ _UOI_ON_OPERAND = {  # which unary operators may be inserted, by operator of the
 }
 _UOI_SWAP = {"unary_expression": ("-", "!"), "update_expression": ("++", "--")}
 
+# `++x` and `--x` need something that can be assigned to; anything else never compiles.
+_LVALUE_TYPES = frozenset(
+    {
+        "identifier",
+        "qualified_identifier",
+        "subscript_expression",
+        "field_expression",
+        "pointer_expression",
+        "parenthesized_expression",
+    }
+)
+
 ABS_VARIANTS = 3  # zero, positive, negative
 
-_SIMPLE_OPERAND = re.compile(r"[A-Za-z_]\w*|\d[\w.']*")
+# An identifier with subscripts and member accesses, or a number: nothing an unary operator could bind
+# to only partly (`-v[1]`, `!p->ok`).
+_SIMPLE_OPERAND = re.compile(r"[A-Za-z_]\w*(?:\[[^\[\]]*\]|\.\w+|->\w+)*|\d[\w.']*")
 
 
 def _text(source_bytes: bytes, site: Site) -> str:
@@ -140,6 +154,8 @@ def uoi(source: str, site: Site, variant: int) -> str | None:
             return None
         return _replace(raw, site, token)
     if token not in _UOI_ON_OPERAND.get(_category(site.parent_operator) or "", ()):
+        return None
+    if token in ("++", "--") and site.operand_type not in _LVALUE_TYPES:
         return None
     return _replace(raw, site, token + _operand(_text(raw, site)))
 

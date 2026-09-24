@@ -44,7 +44,7 @@ já cobertos para o dataset).
 
 ```bash
 docker compose run --rm sandbox python -m mutation generate --problem 1000_B
-ls data/mutants/1000_B/ | wc -l   # esperado: 100 (ou menos, com um alerta no relatório)
+ls data/mutants/problems/1000_B/ | wc -l   # esperado: 101 (100 mutantes + generation.json)
 docker compose run --rm app python -m mutation report
 cat manifests/mutation_report.json
 ```
@@ -71,6 +71,17 @@ docker compose run --rm app python -m mutation package
 docker compose run --rm app python -m mutation verify
 git status --short data/mutants.zip manifests/mutants.manifest.json manifests/mutation_report.json
 ```
+
+Quem **só recebe** o pacote (o outro autor, depois de `git pull`) não gera nada: apaga qualquer
+`data/mutants/` de desenvolvimento, descompacta e confere —
+
+```bash
+rm -rf data/mutants
+unzip data/mutants.zip -d data/
+docker compose run --rm app python -m mutation verify --extracted data/mutants
+```
+
+— e passa a ler os mutantes do mesmo caminho que o autor que gerou: `data/mutants/problems/<id>/`.
 
 Esperado: `generate` processa os 200 problemas (retomável se interrompido, R5); `package` recusa
 rodar se houver `building/` pendente; `verify` confirma a integridade do zip recém-gerado;

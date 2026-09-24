@@ -15,6 +15,7 @@ Não persistido como arquivo — estrutura interna de `src/mutation/sites.py`.
 | `start_byte`, `end_byte` | `int` | intervalo de bytes no `AC_ref.cpp` original a substituir |
 | `discovery_index` | `int` | posição na travessia pré-ordem (R3) — define a ordem determinística de tudo neste módulo |
 | `eligible_operators` | `tuple[MutationOperator, ...]` | quais operadores (ROR/AOR/LCR/ABS/UOI) se aplicam a este sítio, na ordem em que são tentados |
+| `operand_type` | `str \| None` | tipo do nó `tree-sitter` do operando (`None` nos sítios de operador); só se põe `++`/`--` na frente de algo que pode ser atribuído (`identifier`, `subscript_expression`, `field_expression`, ...) |
 | `parent_operator` | `str \| None` | token do operador do `binary_expression` a que um sítio de operando pertence (`None` nos sítios de operador); decide qual unário é legal na frente do operando |
 
 Identidade: dois sítios são o mesmo sítio quando `(node_type, start_byte, end_byte, kind)` coincidem;
@@ -33,6 +34,16 @@ Enum: `ROR`, `AOR`, `LCR`, `ABS`, `UOI`. Cada um é uma função pura em `operat
 | LCR | `OPERATOR` (nó lógico: `&& \|\|`) | 1 (o outro conector) |
 | ABS | `OPERAND_LEFT`/`OPERAND_RIGHT` de sítio ROR ou AOR | 3 (`0`, `(+abs(x))`, `(-abs(x))`); zero sobre o literal `0` não é mutação |
 | UOI | `OPERAND_LEFT`/`OPERAND_RIGHT` de qualquer sítio ROR/AOR/LCR, ou `OPERATOR` de `unary_expression`/`update_expression` | operando de ROR: `- ! ++ --`; de AOR: `- ++ --` (nunca `!`); de LCR: só `!`; sobre `-x`/`!x` existente troca um pelo outro; sobre `++`/`--` existente troca um pelo outro |
+
+Não são sítios (medido em R16, por só gerarem candidatos que não compilam): **E/S de fluxo** — em
+`cin >> a >> b` e `cout << x << endl` (cadeia de deslocamentos que começa em `cin`/`cout`/`cerr`/
+`clog`, com ou sem `std::`) não há sítio de operador nem de operando esquerdo, e o operando direito
+só existe para `cout <<` (o valor impresso; o que `cin >>` lê é um destino, não um valor);
+**operandos que são texto** (literal de string) ou **manipuladores** (`endl`, `flush`, `ends`); **ABS
+sobre tamanhos** (`x.size()`, `x.length()`, `sizeof ...`: são sem sinal, `abs` é ambíguo ou não
+muda nada). Expressões aritméticas/relacionais dentro de uma instrução de fluxo (`cout << (a + b)`)
+continuam com os seus próprios sítios. `++`/`--` só entram na frente de operando atribuível
+(`operand_type`).
 
 Um operando composto recebe parênteses na frente do unário (`!(a * b) < c`), para o unário valer
 sobre a subexpressão inteira. Operadores bit a bit (`& \| ^`), vírgula e `~`/`+` unário não são
@@ -105,11 +116,17 @@ arquivo, mais o hash e tamanho do próprio zip. Layout dentro do zip:
 
 ```text
 mutants/
-└── <problem_id>/
-    ├── Mutant_1.cpp
-    ├── ...
-    └── Mutant_100.cpp        # ausente para problemas com ExclusionAlert
+└── problems/
+    └── <problem_id>/
+        ├── Mutant_1.cpp
+        ├── ...
+        └── Mutant_100.cpp    # ausente para problemas com ExclusionAlert
 ```
+
+Com `unzip data/mutants.zip -d data/` o resultado é `data/mutants/problems/<problem_id>/`, **o mesmo
+caminho** em que `generate` grava (e, portanto, o mesmo que os módulos consumidores leem, tenha o
+autor gerado os mutantes ou só recebido o pacote) — analogamente ao dataset, cuja raiz do zip
+(`dataset/problems/<id>/`) reproduz o layout de consumo `data/dataset/problems/<id>/`.
 
 Só os `Mutant_<n>.cpp` entram no zip; o `generation.json` fica de fora.
 

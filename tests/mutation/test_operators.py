@@ -220,3 +220,19 @@ def test_abs_zero_on_the_literal_zero_is_not_a_mutation():
     site = site_of(source, SiteKind.OPERAND_RIGHT, "0")
     assert apply(source, site, ABS, 0) is None  # the text would not change
     assert variants(source, site, ABS) == ["a + (+abs(0))", "a + (-abs(0))"]
+
+
+def test_increment_and_decrement_are_only_inserted_in_front_of_something_assignable():
+    source = f"{PRELUDE}int v[3];\nint main() {{ auto r = v[1] + a; }}\n"
+    element = site_of(source, SiteKind.OPERAND_LEFT, "v[1]")
+    assert variants(source, element, UOI) == [
+        "-v[1] + a",
+        "++v[1] + a",
+        "--v[1] + a",
+    ]
+    literal = program("a + 2")
+    site = site_of(literal, SiteKind.OPERAND_RIGHT, "2")
+    assert variants(literal, site, UOI) == ["a + -2"]  # `++2` and `--2` would never compile
+    total = program("(a + b) * c")
+    inner = site_of(total, SiteKind.OPERAND_LEFT, "(a + b)")
+    assert variants(total, inner, UOI)[0].startswith("-(a + b)")
