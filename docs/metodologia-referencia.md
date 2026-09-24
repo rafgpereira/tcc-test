@@ -881,8 +881,15 @@ Princípio II, emenda 1.1.0) se aplica, sem diferença de fundo, a mutantes.
 - **Relatório** (`manifests/mutation_report.json`, versionado): funil de descarte por motivo
   (duplicata, não compila, TLE/MLE/RE, equivalente, instável), quantos mutantes de cada problema
   vieram de primeira vs. de ordem superior, distribuição por operador, a lista de alertas de
-  exclusão de problema (vazia no caso esperado) e a revisão de código (git) do módulo que
-  produziu aquele resultado — dado para o texto do TCC, nunca os arquivos-fonte dos mutantes.
+  exclusão de problema (vazia no caso esperado), a contagem de problemas (só primeira ordem,
+  com ordem superior, excluídos: o número que se compara com a estimativa de 75% abaixo), o hash do
+  manifesto do dataset verificado antes de ler (liga o relatório à versão exata do dataset) e a
+  revisão de código (git, hash completo de 40 hex, opcionalmente `+dirty`) que produziu aquele
+  resultado — dado para o texto do TCC, nunca os arquivos-fonte dos mutantes. **[IMPLEMENTADO,
+  2026-09-24]** Comandos: `report` (a qualquer momento, sem timestamp, idempotente), `package` (só
+  na execução final; recusa dataset divergente, `building/` pendente, problema danificado e
+  problemas ainda não gerados; refaz o relatório do que empacotou) e `verify`. Os contêineres não
+  montam `.git`, então a revisão é passada de fora: `--code-revision "$(git rev-parse HEAD)"`.
 
 Resultado esperado: para a grande maioria dos problemas (estimativa: ao menos 3 em cada 4),
 exatamente 100 mutantes comportamentalmente distintos e válidos, obtidos inteiramente de
@@ -972,6 +979,21 @@ faltam poucos e os pares aceitos chegam rápido; o parâmetro `max_attempts` exi
 mas sem constante em `config.py`. Reabrir se a execução completa mostrar algum problema com mais
 de 1.000 candidatos de ordem superior tentados sem fechar. Limite: amostra de 3 problemas, os mais
 esparsos por contagem bruta.
+
+### 2.10 Recuperação de execuções interrompidas **[VALIDADO, 2026-09-24 — `research.md`, R19]**
+
+Um problema só aparece em `data/mutants/problems/` inteiro (montado em `building/`, fechado por
+uma renomeação atômica); interromper por qualquer motivo (Ctrl+C, `docker stop`, `kill -9`,
+queda de energia) perde **só** o problema em andamento, que é refeito do zero na próxima execução;
+os já fechados não são tocados e o resultado final é idêntico, byte a byte, ao de uma execução
+nunca interrompida. Validação real (motor real, `630_G` e `719_A`): SIGINT com 2 trabalhadores
+encerrou o container em 1 s (a validação achou e corrigiu uma falha: antes, o `close` do pool
+esperava os problemas em voo e Ctrl+C não saía em 40 s); SIGKILL depois de um problema fechado
+deixou `problems/` com o problema completo e nada pela metade, e a retomada pulou o fechado
+(mesmo hash e mesmo `mtime`) e gerou o outro, com o mesmo funil de descartes da geração sem
+interrupção. Acrescentados: aviso `DAMAGED` (arquivo de problema fechado perdido ou alterado,
+`package` se recusa), trava `flock` contra dois `generate` simultâneos e recusa do `package`
+quando faltam problemas do dataset.
 
 ---
 
@@ -1162,7 +1184,7 @@ Registro exigido pela Constitution (princípio 1), para atualizar o texto final 
 evitar inconsistência entre o que a banca aprovou e o que foi construído. Origem:
 `specs/001-dataset-extraction/spec.md`, decisões de 2026-09-18 a 2026-09-22 (itens 1–16); e
 `specs/002-mutant-generation/spec.md`, decisões de 2026-09-23 (itens 17–21); e decisões de
-implementação de 2026-09-24 (itens 22 e 23).
+implementação de 2026-09-24 (itens 22 a 24).
 
 | # | Divergência | Onde |
 |---|---|---|
@@ -1189,6 +1211,7 @@ implementação de 2026-09-24 (itens 22 e 23).
 | 21 | Reprodutibilidade de mutantes não depende só da seed: dado que a validação de cada mutante reutiliza o motor cuja instabilidade de margem já foi medida (D18/D19), o pacote da execução final é compactado e versionado (`data/mutants.zip`), exigindo emenda ao Princípio II da Constitution (v1.6.0, 2026-09-23) | 2.6 |
 | 22 | Na implementação, `<<`/`>>` contam como aritméticos (AOR, trocados só entre si); ABS e UOI agem sobre operandos de expressões relacionais e aritméticas, UOI também sobre os lógicos, com o unário legal dependente do operador pai; as 6 execuções de estabilidade são sobre um binário compilado uma vez, não 3 checagens que recompilam | 2.2, 2.3 |
 | 23 | Ordem superior implementada como pares e trios de mutantes de primeira ordem aceitos em ordem lexicográfica, com sítios distintos e disjuntos em bytes; exclusão com alerta e código de saída `0`; piloto nos 3 problemas mais esparsos: fecham só com pares (76% a 83% de segunda ordem); sem orçamento de tentativas | 2.4, 2.9 |
+| 24 | Relatório com contagem de problemas por forma de fechamento; revisão do código passada por `--code-revision` (contêineres sem `.git`); `package` recusa pacote de execução parcial, `building/` pendente e problema danificado; trava contra dois `generate` simultâneos | 2.6, 2.10 |
 
 ---
 
@@ -1200,6 +1223,7 @@ a partir de 2026-09-23, `specs/002-mutant-generation/`.
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-09-24 | **Histórias 3 e 4 de `002-mutant-generation` (`package`, `verify`, `report`) e recuperação validada**: layout do zip `mutants/problems/<id>/` (mesmo caminho de consumo do `generate`), relatório com contagem de problemas (só primeira ordem / ordem superior / excluídos), revisão do código passada de fora (`--code-revision`, os contêineres não têm `.git`); falha achada e corrigida na interrupção com trabalhadores (`close` esperava minutos); recuperação validada com o motor real (SIGINT em 1 s; SIGKILL e retomada sem perda nem refazer o que estava fechado); `report`/`package`/`verify` executados de verdade sobre 2 problemas reais (`research.md` R19, R20) | 2.6, 2.10 |
 | 2026-09-24 | **História 2 de `002-mutant-generation` implementada (ordem superior determinística e exclusão com alerta) e piloto R4 medido**: pares/trios de mutantes de primeira ordem aceitos em `itertools.combinations`, sítios distintos e disjuntos, exclusão com alerta e código de saída `0`; os 3 problemas mais esparsos fecham só com pares (76% a 83% dos mutantes de segunda ordem, 371 a 425 s), sem alertas; decisão: sem orçamento de tentativas (`research.md` R17, R18) | 2.4, 2.9 |
 | 2026-09-24 | **Redução dos erros de compilação e paralelização de `generate` (`002-mutant-generation`)**: filtro sintático de sítios de E/S de fluxo, de operandos de texto/manipuladores, de ABS sobre tamanhos e de `++`/`--` sobre não atribuíveis (24% de candidatos que não compilavam em 5 problemas; depois: 0%, 1% e 17% nos três re-medidos; candidatos brutos: mediana 274 → 198, 8 → 34 problemas abaixo de 100); `--workers` com paralelismo entre problemas (R14 aprovada) | 2.2, 2.7, 2.8 |
 | 2026-09-24 | **Primeira história de `002-mutant-generation` implementada (`generate`, primeira ordem)**: deslocamentos como AOR, operandos de ABS/UOI e unário legal por operador pai, execuções de estabilidade sobre um binário compilado uma vez, duplicata = todo texto já avaliado (`research.md` R8 a R12); medição sobre os 200 `AC_ref.cpp` reais: mediana de 274 candidatos de primeira ordem brutos, 8 de 200 com menos de 100; medição de custo em `189_C` (aceitação de 24% nos primeiros 83 candidatos, compilação de ~1,8 s) e duas gerações independentes de `189_C` com resultado idêntico (0 de 100 mutantes divergentes, R15) e geração completa medida (795 s, 100 mutantes, 41,5% de aceitação, antes do filtro de fluxo); paralelização (R14) aprovada, implementada e validada em 8 problemas (0 de 800 mutantes divergentes, aceleração de 2,07× com 4 trabalhadores, erros de compilação em 4,5% dos candidatos); fluxo de circulação dos mutantes (quem gera / quem só recebe; caminho único `data/mutants/problems/`) fixado em 2.6. Decisão D1–D6 sem alteração | 2.2, 2.3, 2.8, 7 |

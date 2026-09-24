@@ -34,6 +34,7 @@ DATASET_MANIFEST_PATH = Path("manifests") / "dataset.manifest.json"
 
 # Record kept next to the mutants of a problem (never packaged): how they were reached.
 GENERATION_FILE = "generation.json"
+LOCK_FILE = ".lock"  # flock: one `generate` at a time over data/mutants/
 
 
 def mutant_file_name(index: int) -> str:

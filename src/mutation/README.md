@@ -44,7 +44,19 @@ A ordem é sempre a mesma: os sítios de alteração são percorridos na ordem e
 aleatoriedade e não tem seed**: rodar duas vezes sobre o mesmo dataset dá os mesmos candidatos na
 mesma ordem (o único fator externo é o veredito do motor, por isso a confirmação em seis execuções).
 
-### Cenário: quero gerar os mutantes de um problema
+### Qual é o seu cenário?
+
+| Você quer... | Vá para |
+|---|---|
+| gerar os mutantes de um ou de alguns problemas (desenvolvimento, depuração) | [Cenário A](#cenário-a-gerar-os-mutantes) |
+| ser quem faz a **execução final** que sustenta os números do TCC (gerar tudo, empacotar, versionar) | [Cenário B](#cenário-b-execução-final-gerar-tudo-e-empacotar) |
+| só **usar** os mutantes que o outro autor já gerou e versionou (não gera nada) | [Cenário C](#cenário-c-só-receber-o-pacote-versionado) |
+| retomar uma execução que foi interrompida | [Interromper e retomar](#interromper-e-retomar) |
+
+Em todos os cenários os mutantes que os módulos seguintes leem ficam no **mesmo caminho**,
+`data/mutants/problems/<problema>/Mutant_<n>.cpp`, tenha você gerado ou só recebido o pacote.
+
+### Cenário A: gerar os mutantes
 
 ```bash
 docker compose run --rm sandbox python -m mutation generate --problem 189_C
@@ -67,21 +79,102 @@ inteira, um único `--problem` não fica mais rápido com mais trabalhadores. O 
    algum arquivo divergir (assim os mutantes nunca são gerados sobre um dataset diferente do
    versionado);
 2. processa cada problema e, ao terminar, imprime uma linha como
-   `100 mutants (by order: {1: 100}); discarded: {<motivo>: <quantos>, ...}; <N> s` (por ordem de
-   mutação, quantos candidatos foram descartados e por quê, e o tempo gasto no problema);
+   `[k/N] <problema>: 100 mutants (by order: {1: 100}); discarded: {<motivo>: <quantos>, ...}; <N> s`
+   (por ordem de mutação, quantos candidatos foram descartados e por quê, e o tempo gasto);
 3. grava o resultado em `data/mutants/problems/<problema>/`: `Mutant_1.cpp` a `Mutant_100.cpp`,
    na ordem em que foram aceitos, e `generation.json` (como cada um foi obtido; uso interno);
-4. no fim, resume: `done: N generated, N skipped, N excluded`.
+4. no fim, resume: `done: N generated, N skipped, N excluded` (e `, N damaged` se houver).
 
 **Como conferir:** `echo $?` deve mostrar `0`; `ls data/mutants/problems/189_C | wc -l` deve dar
 `101` (100 mutantes mais o `generation.json`); `diff data/dataset/problems/189_C/AC_ref.cpp
 data/mutants/problems/189_C/Mutant_1.cpp` mostra a alteração de uma única posição
 (duas ou três, se o `generation.json` do problema indicar mutantes de ordem superior).
 
-**Interromper e retomar:** apertar Ctrl+C (ou `docker stop`) é seguro — o comando termina com
-código `130`. Cada problema é montado numa pasta provisória (`data/mutants/building/`) e só passa
-para `data/mutants/problems/` inteiro, de uma vez; ao rodar de novo, o que estava pela metade
-recomeça do zero e os problemas já concluídos são pulados (`already generated, skipped`).
+**Só um `generate` por vez:** ele toma uma trava sobre `data/mutants/`; se você abrir um segundo
+terminal e rodar de novo, o segundo se recusa (`another ... generate is already running`, código
+`1`) em vez de disputar os mesmos arquivos. A trava some sozinha quando o primeiro termina, de
+qualquer maneira (Ctrl+C, `kill -9`, queda de energia).
+
+**Relatório a qualquer momento:** para ver o funil de descartes, a distribuição por ordem e por
+operador e os alertas do que já foi gerado (mesmo de uma execução parcial), rode (o `app` não tem
+`git`, por isso a revisão do código vai pela linha de comando):
+
+```bash
+docker compose run --rm app python -m mutation report --code-revision "$(git rev-parse HEAD)"
+```
+
+Ele confere o dataset, lê o `generation.json` de cada problema e grava
+`manifests/mutation_report.json` (sem data nem hora: rodar de novo sobre o mesmo estado dá o mesmo
+arquivo). Vale `+dirty` no fim da revisão se o código tem alterações não commitadas.
+
+### Cenário B: execução final (gerar tudo e empacotar)
+
+Só faz sentido **uma vez**, na execução que vai sustentar os números do TCC (Constitution,
+Princípio II, emenda 1.6.0); as rodadas de desenvolvimento não são versionadas. Commite o código
+antes (a revisão gravada no relatório e nos carimbos é a do commit).
+
+```bash
+docker compose run --rm sandbox python -m mutation generate --workers 4
+docker compose run --rm app python -m mutation package --code-revision "$(git rev-parse HEAD)"
+docker compose run --rm app python -m mutation verify
+git status --short data/mutants.zip manifests/mutants.manifest.json manifests/mutation_report.json
+```
+
+`package` **se recusa** (código `1`, sem gravar nada) se: o dataset divergir do manifesto; a revisão
+for malformada; algum problema estiver pela metade em `data/mutants/building/` (rode `generate` de
+novo); algum problema já fechado tiver perdido ou tiver tido um mutante alterado (`DAMAGED`); ou
+faltar gerar algum problema do dataset (`--allow-partial` empacota mesmo assim, só para teste, nunca
+para o pacote que será versionado). Ele grava, nessa ordem, `data/mutants.zip` (só os
+`Mutant_<n>.cpp` dos problemas completos; um problema excluído não tem pasta), o manifesto
+`manifests/mutants.manifest.json` (SHA-256 de cada arquivo) e o relatório
+`manifests/mutation_report.json`, e imprime `packaged N problems (N excluded): ...`. Rodar de novo
+dá exatamente os mesmos bytes. `verify` recalcula os hashes do zip e de cada arquivo dentro dele e
+imprime `OK` (código `0`) ou `changed:`/`missing:`/`extra:` seguidos de `FAIL` (código `1`).
+
+**Quem commita o quê** é sempre decisão sua: o comando só deixa os três arquivos prontos
+(`git status` os mostra como novos). O zip deve ficar abaixo de 100 MB (o `package` avisa acima de
+95 MB; o GitHub recusa acima de 100 MB).
+
+### Cenário C: só receber o pacote versionado
+
+Depois de um `git pull` que trouxe `data/mutants.zip` e os manifestos, **não rode `generate`**:
+
+```bash
+rm -rf data/mutants
+unzip data/mutants.zip -d data/
+docker compose run --rm app python -m mutation verify --extracted data/mutants
+```
+
+O `rm` apaga qualquer geração local de desenvolvimento (que pode ter mutantes diferentes: o motor
+tem margem de instabilidade, então regenerar não garante os mesmos arquivos). O `unzip` recria
+`data/mutants/problems/<problema>/`, o mesmo caminho do Cenário A. `verify --extracted` confere a
+pasta descompactada arquivo a arquivo (só os `Mutant_<n>.cpp` contam; `generation.json` e a pasta
+`building/` de uma geração local não são "extras") e deve terminar em `OK`. Se um `generate` for
+rodado por engano sobre essa pasta, ele **pula** os problemas que já existem (`already generated,
+skipped`) e nunca os sobrescreve.
+
+### Interromper e retomar
+
+Você pode interromper a geração por qualquer motivo — Ctrl+C, `docker stop`, fechar o terminal,
+`kill -9`, queda de energia — e rodar **o mesmo comando** de novo:
+
+- **Nada do que já estava pronto se perde nem é refeito.** Um problema só aparece em
+  `data/mutants/problems/` inteiro e completo (ele é montado em `data/mutants/building/` e passa de
+  uma vez, com uma única renomeação); ao retomar, os já concluídos são pulados
+  (`already generated, skipped`) sem nem serem tocados.
+- **O que estava em andamento é refeito do zero**, e só isso: um problema leva alguns minutos
+  (`generate` grava um problema apenas quando ele termina; com `--workers N`, até `2N` problemas
+  podem estar em andamento e serão refeitos). Sobras da execução interrompida (pastas
+  pela metade em `building/`, arquivos temporários) são descartadas no início da próxima.
+- **Ctrl+C e `docker stop` encerram na hora** (código `130`): os trabalhadores e os compiladores
+  em andamento são finalizados sem esperar o problema terminar.
+- O resultado depois de retomar é **exatamente** o de uma execução que nunca foi interrompida
+  (mesmos arquivos, mesmos SHA-256), porque a ordem dos candidatos não depende de quando nem de
+  quantas vezes você parou.
+- Se um problema já concluído perdeu ou teve um mutante editado depois (por engano, ou por disco),
+  o `generate` não o pula em silêncio: imprime `DAMAGED (missing: ...; changed: ...)`, termina
+  com código `1` e o `package` também se recusa. Para regerar só esse problema, apague a pasta dele
+  (`rm -r data/mutants/problems/<problema>`) e rode de novo.
 
 ### Se algo der errado
 
@@ -89,15 +182,26 @@ recomeça do zero e os problemas já concluídos são pulados (`already generate
 |---|---|---|
 | `error: data/dataset does not match manifests/dataset.manifest.json:` seguido de `changed:`/`missing:`/`extra:` (código `1`) | `data/dataset` não é o dataset versionado | `unzip data/dataset.zip -d data/` (sobrescreve com a versão correta) e rode de novo |
 | `error: not in data/dataset: <id>` (código `2`) | o `--problem` não existe no dataset | confira o nome da pasta em `data/dataset/problems/` |
+| `error: another ... generate is already running over data/mutants/` (código `1`) | outro `generate` está rodando sobre os mesmos dados | espere ele terminar (ou interrompa-o); não é preciso apagar nada |
+| `<id>: DAMAGED (missing: ...)` (código `1` no fim) | um problema já concluído perdeu ou teve alterado um `Mutant_<n>.cpp` | `rm -r data/mutants/problems/<id>` e rode `generate` de novo |
 | `ALERT: <id> reached only N of 100 mutants (highest order tried: K); the problem is left out of the mutation score` (o comando ainda termina com código `0`) | nem uma alteração por vez, nem pares, nem trios de alterações chegaram a 100 mutantes válidos nesse problema, então ele é **excluído** do conjunto de mutantes | nenhum `Mutant_<n>.cpp` é gravado para ele (só o `generation.json`, com `status` `excluded`); os demais seguem normalmente e o problema entra no relatório como alerta. Não é um erro a corrigir: é o resultado esperado para um código com pouquíssimos pontos de alteração |
+| `error: ... pass it from the host: --code-revision "$(git rev-parse HEAD)"` (código `1`) | o `report`/`package` rodou no serviço `app`, que não tem o `git` | passe a revisão na linha de comando, como nos exemplos acima |
+| `error: N problem(s) half-written in data/mutants/building ...` (código `1`, no `package`) | uma geração foi interrompida e não foi terminada | rode `generate` de novo e depois `package` |
+| `error: K of N problems were not generated (...)` (código `1`, no `package`) | ainda faltam problemas do dataset | rode `generate` até terminar (só para teste: `--allow-partial`) |
+| `verify` termina em `FAIL` com `changed:`/`missing:`/`extra:` | o zip, ou a pasta descompactada, não é o que o manifesto descreve | veja o arquivo apontado; para a pasta descompactada, refaça `rm -rf data/mutants` e `unzip` |
 | `infrastructure failure: ...` (código `3`) | o próprio ambiente falhou (por exemplo, o compilador ou a pasta temporária do `sandbox`) | veja a mensagem, corrija (em geral `docker compose build`) e rode de novo; o comando retoma |
 
 ### Opções
 
-| Opção | Padrão | Efeito |
-|---|---|---|
-| `--problem ID` | todos os problemas | processa só esse problema (pode ser repetida) |
-| `--workers N` | metade das CPUs | quantos problemas são processados ao mesmo tempo; `1` roda tudo em série, no próprio processo; o resultado não muda |
+| Comando | Opção | Padrão | Efeito |
+|---|---|---|---|
+| `generate` | `--problem ID` | todos os problemas | processa só esse problema (pode ser repetida) |
+| `generate` | `--workers N` | metade das CPUs | quantos problemas são processados ao mesmo tempo; `1` roda tudo em série, no próprio processo; o resultado não muda |
+| `report` | `--code-revision HASH` | `git rev-parse HEAD` | commit do código (40 hex, opcionalmente `+dirty`); obrigatório passar de dentro do Docker |
+| `package` | `--code-revision HASH` | `git rev-parse HEAD` | idem |
+| `package` | `--allow-partial` | desligado | empacota mesmo com problemas ainda não gerados (só para teste) |
+| `verify` | `--zip`, `--manifest` | `data/mutants.zip`, `manifests/mutants.manifest.json` | o que conferir |
+| `verify` | `--extracted DIR` | (não confere pasta) | confere também a pasta descompactada, tipicamente `data/mutants` |
 
 ## (c) Entradas esperadas
 
@@ -106,30 +210,42 @@ recomeça do zero e os problemas já concluídos são pulados (`already generate
 | `data/dataset/problems/<id>/AC_ref.cpp` | C++ | dataset descompactado (módulo [`dataset`](../dataset/README.md)) |
 | `data/dataset/problems/<id>/testes.json` | JSON (`schema_version` 1) | idem: suíte oficial, na ordem de execução |
 | `data/dataset/problems/<id>/metadata.json` | JSON (`schema_version` 1) | idem: fornece os limites de tempo e de memória |
-| `manifests/dataset.manifest.json` | JSON | versionado no repositório; usado para conferir o dataset antes de começar |
+| `manifests/dataset.manifest.json` | JSON | versionado no repositório; usado para conferir o dataset antes de começar (`generate`, `report`, `package`) |
+| `data/mutants/problems/<id>/generation.json` | JSON (`schema_version` 1) | escrito pelo próprio `generate`; lido por `report`, `package` e pela retomada |
+| `data/mutants.zip` e `manifests/mutants.manifest.json` | zip e JSON | versionados (só depois da execução final); lidos por `verify` |
 
 ## (d) Saídas produzidas
 
 | Saída | Formato | Destino |
 |---|---|---|
 | `Mutant_<n>.cpp` (n de 1 a 100) | C++: o `AC_ref.cpp` com 1 posição alterada (ou 2 ou 3, na ordem superior), idêntico byte a byte fora delas | `data/mutants/problems/<id>/` (pasta ignorada pelo Git, nunca versionada); é o caminho de onde os módulos seguintes vão ler os mutantes |
-| `generation.json` | JSON (`schema_version` 1): por mutante, o operador e a variante usados; por problema, quantos candidatos foram descartados e por quê | mesma pasta; alimenta os relatórios do módulo |
+| `generation.json` | JSON (`schema_version` 1): por mutante, o operador e a variante usados; por problema, quantos candidatos foram descartados e por quê | mesma pasta; alimenta o relatório e marca o problema como concluído; **não** entra no zip |
+| `data/mutants.zip` | zip determinístico: só os `Mutant_<n>.cpp` dos problemas completos, sob `mutants/problems/<id>/` | `data/`; **versionado** só na execução final (`package`) |
+| `manifests/mutants.manifest.json` | JSON (`schema_version` 1): SHA-256 e tamanho do zip e de cada arquivo dentro dele | `manifests/`, versionado (`package`); lido por `verify` |
+| `manifests/mutation_report.json` | JSON (`schema_version` 1): contagem de problemas (só primeira ordem, com ordem superior, excluídos), funil de descartes por motivo, mutantes por ordem e por operador, alertas de exclusão, revisão do código e hash do manifesto do dataset | `manifests/`, versionado (`report`, e `package` o refaz) |
 
 ## (e) Dependências e pré-requisitos
 
 - Python 3.11, `tree-sitter` 0.26 e `tree-sitter-cpp` 0.23 (fixadas em `uv.lock`), GCC 13.2.0 —
   tudo já dentro da imagem do projeto (`docker compose build`).
 - Serviço `sandbox` do Docker Compose (sem rede), com o motor de execução do módulo
-  [`sandbox`](../sandbox/README.md), usado sem alteração.
+  [`sandbox`](../sandbox/README.md), usado sem alteração, para `generate`; serviço `app` para
+  `report`, `package` e `verify` (não compilam nem executam C++).
+- `git` no computador (fora do Docker) para obter a revisão do código: `report` e `package`
+  recebem `--code-revision "$(git rev-parse HEAD)"`.
 - Dataset já descompactado em `data/dataset/` e íntegro (o próprio comando confere).
 - Nenhuma variável de ambiente nem segredo: o módulo não chama nenhuma IA.
 
 ## (f) Limitações conhecidas
 
-- **Empacotamento ainda não existe**: quando existir, o pacote (`data/mutants.zip`) será descompactado
-  em `data/` e cairá no mesmo caminho acima, de modo que quem gerou e quem só recebeu leem os
-  mutantes do mesmo lugar; até lá, `data/mutants/` é resultado de desenvolvimento, local e sem valor
-  como resultado do experimento. O `generate` nunca sobrescreve uma pasta de problema que já exista.
+- **O pacote só vale para a execução final**: `data/mutants/` de uma rodada de desenvolvimento não é
+  versionado nem vale como resultado do experimento, porque o motor tem margem de instabilidade e
+  regenerar não garante os mesmos arquivos (por isso o pacote da execução final é versionado). O
+  `generate` nunca sobrescreve uma pasta de problema que já exista.
+- **Recuperação é por problema**: o que estava em andamento no momento da interrupção é refeito
+  inteiro (alguns minutos por problema); não há ponto de retomada dentro de um problema.
+- **`report` e `package` não sabem se o código estava commitado**: a revisão que você passa é a que
+  vai para o relatório; acrescente `+dirty` se havia alterações não commitadas.
 - **Mutantes de ordem superior são menos naturais**: quando uma alteração por vez não alcança 100
   mutantes válidos, o módulo combina pares e depois trios de alterações já válidas, sempre na ordem
   de aparição no código (sem busca). Um mutante de duas ou três alterações tende a ser mais fácil
@@ -165,4 +281,7 @@ recomeça do zero e os problemas já concluídos são pulados (`already generate
 
 | Comando | Verificado em | Revisão |
 |---|---|---|
-| `generate` | 2026-09-24 | 5a0f7cc+dirty |
+| `report` | 2026-09-24 | 5c726d8+dirty |
+| `package` | 2026-09-24 | 5c726d8+dirty |
+| `verify` | 2026-09-24 | 5c726d8+dirty |
+| `generate` | 2026-09-24 | 5c726d8+dirty |

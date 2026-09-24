@@ -51,6 +51,7 @@ SHA-256 e tamanho de cada arquivo dentro do zip, mais o hash e tamanho do zip in
 ```json
 {
   "schema_version": 1,
+  "problems": { "closed": 0, "complete": 0, "first_order_only": 0, "higher_order": 0, "excluded": 0 },
   "funnel": {
     "duplicate": 0,
     "compile_error": 0,
@@ -69,6 +70,12 @@ SHA-256 e tamanho de cada arquivo dentro do zip, mais o hash e tamanho do zip in
   "dataset_manifest_sha256": "…"
 }
 ```
+
+`problems` conta só o que já foi gerado: `complete + excluded = closed` e `first_order_only +
+higher_order = complete` (base do número que a metodologia compara com a estimativa de 75%).
+`code_revision` é o hash git completo de 40 hex (opcionalmente com `+dirty`, se o código tinha
+alteração não commitada) — nunca um hash curto. Todas as chaves de `funnel`, `order_distribution`
+e `operator_distribution` estão sempre presentes, mesmo com contagem 0.
 
 `exclusion_alerts` vazia é o caso esperado (spec, SC-003); presente sempre que o campo existir no
 JSON (nunca omitido), para que sua ausência nunca seja ambígua com "não verificado".

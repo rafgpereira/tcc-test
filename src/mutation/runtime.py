@@ -40,7 +40,7 @@ class Runtime(Protocol):
 
     def submit(self, task: ProblemTask) -> "Future[Selection]": ...
 
-    def close(self) -> None: ...
+    def close(self, *, abort: bool = False) -> None: ...
 
 
 class InlineRuntime:
@@ -70,7 +70,7 @@ class InlineRuntime:
             future.set_exception(exc)
         return future
 
-    def close(self) -> None:
+    def close(self, *, abort: bool = False) -> None:
         pass
 
 
@@ -85,8 +85,8 @@ class ThreadRuntime(InlineRuntime):
     def submit(self, task: ProblemTask) -> "Future[Selection]":
         return self._pool.submit(self._run, task)
 
-    def close(self) -> None:
-        self._pool.shutdown(cancel_futures=True)
+    def close(self, *, abort: bool = False) -> None:
+        self._pool.shutdown(wait=not abort, cancel_futures=True)
 
 
 _WORKER: dict = {}
@@ -136,7 +136,20 @@ class PoolRuntime:
     def submit(self, task: ProblemTask) -> "Future[Selection]":
         return self._pool.submit(_select_in_worker, task)
 
-    def close(self) -> None:
-        self._pool.shutdown(wait=True, cancel_futures=True)
+    def close(self, *, abort: bool = False) -> None:
+        """Shut the pool down; with ``abort`` (Ctrl+C, an error) do not wait for problems in flight.
+
+        Waiting would keep an interrupted run alive for as long as the slowest problem takes
+        (minutes). A problem in flight has nothing on disk yet (the main process writes a problem
+        only when it is finished), so dropping it loses nothing: the next run redoes it.
+        """
+        if abort:
+            self._pool.shutdown(wait=False, cancel_futures=True)
+            for worker in multiprocessing.active_children():
+                worker.terminate()
+            for worker in multiprocessing.active_children():
+                worker.join(timeout=5)
+        else:
+            self._pool.shutdown(wait=True, cancel_futures=True)
         for slot in range(self.workers):
-            isolation.kill_slot_processes(slot)
+            isolation.kill_slot_processes(slot)  # compilers and mutants still running

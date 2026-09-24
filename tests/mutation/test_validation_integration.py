@@ -121,3 +121,21 @@ def test_pairs_of_first_order_mutants_are_compiled_and_really_wrong(engine):
         compiled = engine.compile(mutant.source, SLOT)
         assert compiled.ok
         assert engine.run_suite(compiled.binary, SUITE.tests, LIMITS, SLOT).verdict is Verdict.WA
+
+
+def test_aborting_the_real_pool_returns_at_once_and_leaves_no_worker_behind():
+    """Ctrl+C must not wait minutes for the problems in flight (nothing of them is on disk)."""
+    import multiprocessing
+    import time
+
+    from mutation import runtime
+
+    tasks = [runtime.ProblemTask(f"1_{c}", ORIGINAL, SUITE, LIMITS, quota=30) for c in "ABC"]
+    pool = runtime.PoolRuntime(2)
+    futures = [pool.submit(t) for t in tasks]
+    time.sleep(3)  # workers are compiling by now
+    started = time.monotonic()
+    pool.close(abort=True)
+    assert time.monotonic() - started < 15
+    assert multiprocessing.active_children() == []
+    assert not any(f.done() and not f.cancelled() and f.exception() is None for f in futures[2:])

@@ -11,9 +11,13 @@ closed too, with ``generation.json`` only, so it is not retried on every run and
 list it.
 """
 
+import fcntl
+import hashlib
 import os
 import shutil
 from collections import Counter
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from dataset.persistence import store
@@ -38,6 +42,32 @@ def ensure_mutants_dir(root: Path) -> Path:
     store.make_private_dir(Path(root) / config.BUILDING_DIR)
     store.make_private_dir(Path(root) / config.PROBLEMS_DIR)
     return base
+
+
+class AlreadyRunningError(Exception):
+    """Another ``generate`` holds the lock of ``data/mutants/``."""
+
+
+@contextmanager
+def exclusive_run(root: Path) -> Iterator[None]:
+    """Only one ``generate`` at a time over the same ``data/mutants/``.
+
+    Two runs would fight over ``building/`` (the second would wipe what the first is writing).
+    The lock is an ``flock`` on ``data/mutants/.lock``: the operating system releases it when the
+    process ends, however it ends (Ctrl+C, ``kill -9``, a power cut), so it never goes stale.
+    """
+    ensure_mutants_dir(root)
+    with (Path(root) / config.MUTANTS_DIR / config.LOCK_FILE).open("a") as handle:
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise AlreadyRunningError(
+                "another `python -m mutation generate` is already running over data/mutants/"
+            ) from exc
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
 
 
 def building_path(root: Path, problem_id: str) -> Path:
@@ -135,6 +165,35 @@ def write_selection(root: Path, problem_id: str, selection: Selection) -> Path:
     target = problem_path(root, problem_id)
     os.rename(folder, target)  # the single atomic step that closes the problem
     return target
+
+
+def check_closed(root: Path, problem_id: str) -> list[str]:
+    """What is wrong with a closed problem, as ``missing:``/``changed:``/``extra:`` lines.
+
+    A closed problem is complete by construction (one atomic rename), so this only ever finds
+    damage done afterwards: a deleted or edited file. A folder without ``generation.json`` (unzipped
+    from the package) is not ours to judge and gives no findings.
+    """
+    folder = problem_path(root, problem_id)
+    if not (folder / config.GENERATION_FILE).is_file():
+        return []
+    try:
+        record = read_generation(root, problem_id)
+    except (ValueError, OSError):
+        return [f"unreadable: {config.GENERATION_FILE}"]
+    findings = []
+    expected = {m.file: m.sha256 for m in record.mutants}
+    for name, digest in expected.items():
+        path = folder / name
+        if not path.is_file():
+            findings.append(f"missing: {name}")
+        elif hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+            findings.append(f"changed: {name}")
+    found = {
+        p.name for p in folder.glob(f"{config.MUTANT_FILE_PREFIX}*{config.MUTANT_FILE_SUFFIX}")
+    }
+    findings += [f"extra: {name}" for name in sorted(found - set(expected))]
+    return findings
 
 
 def read_generation(root: Path, problem_id: str) -> Generation:

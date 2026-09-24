@@ -37,6 +37,15 @@ resultado.
 | `--workers N` | metade das CPUs (mínimo 1) | problemas processados em paralelo, cada um num `slot` próprio do motor; **não altera o resultado**, só o tempo; inteiro positivo, senão erro de uso (código `2`); `1` roda no próprio processo |
 | `--resume` (implícito) | — | pula problemas já completos em `data/mutants/`; não há flag para desativar (mesmo comportamento sempre seguro do módulo de dataset) |
 
+Uma única instância por vez: `generate` toma um `flock` em `data/mutants/.lock` e um segundo
+`generate` sobre os mesmos dados se recusa (código `1`, `another ... generate is already running`);
+o sistema operacional solta a trava quando o processo termina, de qualquer forma (Ctrl+C, `kill -9`),
+então ela nunca fica obsoleta. Um problema já fechado cujos arquivos foram perdidos ou alterados é
+apontado como `DAMAGED` (com a lista `missing:`/`changed:`/`extra:`) e **não** é pulado em silêncio:
+o comando termina com código `1` no fim; apagar a pasta do problema e rodar de novo regera só ele.
+Interromper (Ctrl+C, `docker stop`) encerra os trabalhadores na hora, sem esperar os problemas em
+voo, com código `130`; nada de um problema em voo estava gravado, e a próxima execução o refaz.
+
 Um problema cuja primeira ordem não fecha a cota segue para pares e, se preciso, trios de mutantes de
 primeira ordem (FR-004). Se ainda assim não chega a 100, o problema é **excluído** (FR-009): a saída
 traz uma linha `ALERT: <id> reached only N of 100 mutants (highest order tried: K)`, nenhum
@@ -50,17 +59,30 @@ Saída: progresso por problema (mutantes por ordem, descartes por motivo, tempo,
 
 ### `report` (serviço `app`)
 
-Recalcula `manifests/mutation_report.json` a partir do estado atual de `data/mutants/`
-(funil, distribuição por ordem/operador, alertas), incluindo `code_revision` (git) e
-`dataset_manifest_sha256`. Idempotente; pode ser rodado a qualquer momento, mesmo com
-`data/mutants/` parcial (útil durante o desenvolvimento).
+Recalcula `manifests/mutation_report.json` a partir do estado atual de `data/mutants/` (lê só os
+`generation.json`: funil, distribuição por ordem/operador, contagem de problemas, alertas),
+incluindo `code_revision` e `dataset_manifest_sha256`. Antes, verifica `data/dataset` contra o
+manifesto (código `1` se divergir). Idempotente (sem timestamp); pode ser rodado a qualquer
+momento, mesmo com `data/mutants/` parcial (útil durante o desenvolvimento).
+
+| Opção | Padrão | Efeito |
+|---|---|---|
+| `--code-revision HASH` | `git rev-parse HEAD` | commit git do código que gerou os mutantes (40 hex, opcionalmente `+dirty`). **Os contêineres não montam `.git`**: de dentro do Docker é preciso passá-lo, `--code-revision "$(git rev-parse HEAD)"`; sem git e sem a opção, o comando falha (código `1`) dizendo isso |
 
 ### `package` (serviço `app`)
 
-Só roda sobre um `data/mutants/` sem nenhum `building/` pendente (recusa-se, código `1`, se
-houver). Gera `data/mutants.zip` (determinístico) e `manifests/mutants.manifest.json`, e chama
-`report` internamente para garantir que o relatório reflita exatamente o que foi empacotado.
-Comando manual e explícito — nunca chamado por `generate`.
+Recusa-se (código `1`, nada é gravado) se: `data/dataset` divergir do manifesto; o `--code-revision`
+for malformado; houver algum `building/` pendente; algum problema fechado estiver danificado (um
+`Mutant_<n>.cpp` perdido ou alterado); ou faltarem problemas do dataset que ainda não foram gerados
+(a menos que se passe `--allow-partial`, para empacotar mesmo assim). Gera `data/mutants.zip`
+(determinístico, só os `Mutant_<n>.cpp` dos problemas completos) e `manifests/mutants.manifest.json`
+e, por fim, recalcula o `manifests/mutation_report.json` para refletir exatamente o que foi
+empacotado. Comando manual e explícito — nunca chamado por `generate`.
+
+| Opção | Padrão | Efeito |
+|---|---|---|
+| `--code-revision HASH` | `git rev-parse HEAD` | como em `report` |
+| `--allow-partial` | desligado | empacota mesmo com problemas do dataset ainda não gerados (uso: teste; **não** para o pacote que será versionado) |
 
 ### `verify` (serviço `app`)
 

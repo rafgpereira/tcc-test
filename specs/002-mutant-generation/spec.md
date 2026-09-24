@@ -362,6 +362,11 @@ de uma execução de teste contém os campos exigidos e que os totais somam corr
   de tempo de execução; a paralelização da geração (`--workers`, paralelismo entre problemas) foi
   aprovada, implementada e validada (0 de 800 mutantes divergentes entre `--workers 1` e `--workers 4`; 2,07×) e os erros de compilação foram reduzidos por filtro sintático de
   sítios (24% → ~0–17% medidos; metodologia, 2.7 e 2.8; `research.md`, R13, R14, R16).
+- **Recuperação de execuções interrompidas** (Princípio VII): interromper `generate` por qualquer
+  motivo perde só o problema em andamento; os fechados não são refeitos nem tocados e o resultado
+  final é idêntico ao de uma execução nunca interrompida (validado com o motor real; metodologia
+  2.10, `research.md` R19). Um segundo `generate` simultâneo se recusa e um problema fechado
+  danificado é apontado (`DAMAGED`), nunca pulado em silêncio.
 - **Dependência de módulos futuros**: a orquestração de IA e a avaliação experimental
   consomem os mutantes produzidos aqui, mas nada deles é entregue nesta feature.
 

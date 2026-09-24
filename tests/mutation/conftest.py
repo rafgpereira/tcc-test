@@ -154,3 +154,49 @@ def sparse_problem(dense_problem) -> dict[str, str]:
         for name, text in dense_problem.items()
     }
     return {**renamed, "AC_ref.cpp": "int main() {\n  int x = 1;\n  x++;\n  return 0;\n}\n"}
+
+
+@pytest.fixture()
+def write_problem():
+    """`write_problem(root, id, excluded=False)`: close a synthetic problem in ``data/mutants``."""
+    from mutation import config, persistence
+    from mutation.types import (
+        DiscardReason,
+        DiscardRecord,
+        ExclusionAlert,
+        Mutant,
+        MutationOperator,
+        Selection,
+        Site,
+        SiteKind,
+    )
+    from mutation.validation import sha256_of
+
+    site = Site(SiteKind.OPERATOR, "binary_expression", 0, 1, 0, (MutationOperator.ROR,))
+
+    def mutant(pid: str, index: int, order: int) -> Mutant:
+        text = f"// {pid} mutant {index}\nint main() {{ return {index}; }}\n"
+        return Mutant(
+            problem_id=pid,
+            index=index,
+            order=order,
+            sites=(site,) * order,
+            operators=((MutationOperator.ROR, 1),) * order,
+            source=text,
+            source_sha256=sha256_of(text),
+            verdict=Verdict.WA,
+            stability_runs=config.STABILITY_RUNS,
+        )
+
+    def write(root: Path, pid: str, *, excluded: bool = False) -> Path:
+        if excluded:
+            selection = Selection(
+                tuple(mutant(pid, i, 1) for i in range(1, 6)), ExclusionAlert(pid, 5, 3), ()
+            )
+        else:
+            mutants = tuple(mutant(pid, i, 1 if i <= 90 else 2) for i in range(1, 101))
+            discards = (DiscardRecord(pid, 1, DiscardReason.COMPILE_ERROR),)
+            selection = Selection(mutants, None, discards)
+        return persistence.write_selection(root, pid, selection)
+
+    return write

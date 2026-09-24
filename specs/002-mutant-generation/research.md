@@ -410,3 +410,69 @@ completa mostrar algum problema com mais de 1.000 candidatos de ordem superior t
 **Limite da amostra**: 3 problemas, os mais esparsos por contagem bruta de candidatos, não por
 contagem de aceitos; um problema com muitos candidatos que são quase todos equivalentes (aceitos
 poucos) não foi exercitado. O relatório da execução completa mostra isso.
+
+### R19 — Recuperação: garantias, falha encontrada e validação real (2026-09-24, a pedido dos autores)
+
+**Garantias** (Princípio VII, R5): (1) um problema só existe em `data/mutants/problems/` completo:
+é montado em `building/` e fechado por **uma** renomeação atômica; (2) o que estava em andamento é
+refeito do zero e só isso (`generate` grava um problema apenas quando ele termina; nada de um
+problema em voo estava em disco); (3) um problema fechado nunca é reescrito nem tocado; (4) o
+resultado depois de retomar é **o mesmo, byte a byte**, de uma execução nunca interrompida, porque a
+ordem dos candidatos não depende de quando se parou.
+
+**Falha encontrada ao validar** (motor real, `--workers 2`, SIGINT com 2 problemas em voo): o
+container **não saía** (40 s depois ainda rodava): `PoolRuntime.close` usava `shutdown(wait=True)`,
+que espera os problemas em voo terminarem (minutos), e os trabalhadores ignoram SIGINT. Ctrl+C
+parecia travado e, com `docker stop` (10 s de tolerância), acabava em SIGKILL. **Correção**:
+`close(abort=True)` em qualquer exceção (Ctrl+C, SIGTERM, falha do motor) encerra os trabalhadores e
+os processos dos `slot`s na hora.
+
+**Endurecimentos acrescentados** (nenhum muda o resultado de uma execução normal): (a)
+`persistence.check_closed`: um problema fechado que perdeu ou teve um `Mutant_<n>.cpp` alterado é
+apontado (`DAMAGED`, código `1`), não pulado em silêncio, e `package` se recusa; (b)
+`persistence.exclusive_run`: `flock` em `data/mutants/.lock` impede dois `generate` ao mesmo tempo
+(o segundo apagaria o `building/` do primeiro no reset inicial); o SO solta a trava se o processo
+morre, então nunca fica obsoleta; (c) `package` se recusa se faltarem problemas do dataset
+(`--allow-partial` só para teste): um pacote a versionar tem de ser o de uma execução inteira.
+
+**Validação automatizada** (`tests/mutation/test_recovery.py`, 14 testes, motor falso; e um teste
+de integração com o pool real): interrupção entre problemas, no meio da gravação de um problema, por
+`kill -9` (sobras em `building/` e arquivo temporário de escrita atômica), com 2 e 4 problemas em
+voo e repetida 3 vezes — em todos, o resultado depois de retomar é idêntico ao de uma execução
+limpa e os problemas já fechados não mudam nem de `mtime`; dois `generate` simultâneos; problema
+danificado; pasta recebida do pacote.
+
+**Validação real** (motor real, dois problemas `630_G` e `719_A`, executada por mim):
+
+| Cenário | Resultado |
+|---|---|
+| E1: SIGINT com `--workers 2`, 60 s depois de começar | container encerrou em **1 s**, código 130, `problems/` vazio e `building/` vazio (nada pela metade) |
+| E2: `--workers 1`, SIGKILL 20 s depois de `630_G` fechar (durante `719_A`) | `problems/` = só `630_G` (completo), sem `building/`, sem processos remanescentes |
+| E3: retomar o mesmo comando | `630_G: already generated, skipped` (mesmo hash do conjunto e mesmo `mtime` de antes do kill), `719_A` gerado (100 mutantes, 386 s), `building/` vazio; o funil de `719_A` (2 compilação, 28 equivalentes, 1 RE, 12 TLE) é o mesmo da geração sem interrupção de R14 |
+
+Perda observada: só o trabalho do problema em andamento no instante do kill (~5 min de CPU de
+`719_A`), como previsto; nenhum problema fechado foi perdido ou refeito.
+
+### R20 — `report`, `package` e `verify`: decisões (2026-09-24)
+
+- **Revisão do código**: os contêineres **não montam `.git`** (`docker-compose.override.yml`),
+  então `git rev-parse HEAD` não funciona lá dentro (contra o que T046 previa). `report` e `package`
+  recebem `--code-revision "$(git rev-parse HEAD)"` (40 hex, opcionalmente `+dirty`); sem a opção
+  tentam o `git` e, se falhar, dizem como passar. O esquema rejeita hash curto.
+- **`problems` no relatório** (acréscimo ao contrato): `closed`, `complete`, `first_order_only`,
+  `higher_order`, `excluded`. É o número que a metodologia (2.6) compara com a estimativa de que ao
+  menos 75% dos problemas fecham só de primeira ordem (SC-003); sem ele, T052 teria de recontá-lo
+  à mão.
+- **`report` confere o dataset** (`dataset_manifest_sha256`): recusa-se se `data/dataset` divergir
+  do manifesto, como `generate`.
+- **`package`** recusa: dataset divergente, revisão malformada, `building/` pendente, problema
+  danificado, problemas do dataset ainda não gerados (`--allow-partial`); grava zip → manifesto →
+  relatório (nessa ordem, o relatório reflete o que foi empacotado). Rodar duas vezes dá os mesmos
+  bytes (medido: mesmo SHA-256 do zip em duas execuções reais).
+- **Layout do zip** `mutants/problems/<id>/Mutant_<n>.cpp` (fluxo de circulação, cli.md): `unzip`
+  cai no caminho de consumo. `verify --extracted` só considera `Mutant_*.cpp` de `problems/<id>/`.
+- **Execução real** (2 problemas reais, `--allow-partial`, revisão `5c726d8+dirty`): `report`,
+  `package`, `verify` `OK`; `unzip` em `data/` e `verify --extracted data/mutants` `OK`; um byte
+  alterado aponta `changed: mutants/problems/630_G/Mutant_3.cpp` e `FAIL`; `generate` sobre a
+  pasta recebida pulou o problema (`already generated, skipped`). Resultado apagado depois: nada
+  disso é o pacote da execução final.

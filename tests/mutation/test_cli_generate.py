@@ -172,17 +172,32 @@ def test_the_default_run_asks_for_the_default_number_of_workers(repo, fake_engin
     assert fake_engine.runtimes_made == [5]
 
 
-def test_the_runtime_is_closed_even_when_the_run_is_interrupted(repo, monkeypatch, make_engine):
+def test_an_interrupted_run_closes_the_runtime_without_waiting_for_the_workers(
+    repo, monkeypatch, make_engine
+):
     closed = []
 
     class Spy(runtime.InlineRuntime):
-        def close(self):
-            closed.append(True)
+        def close(self, *, abort=False):
+            closed.append(abort)
 
     monkeypatch.setattr(cli, "_make_runtime", lambda workers: Spy(make_engine().as_engine()))
     monkeypatch.setattr("sandbox.isolation.kill_slot_processes", lambda slot: 0)
     monkeypatch.setattr(
         orchestrator, "select_mutants", lambda *a, **k: (_ for _ in ()).throw(KeyboardInterrupt)
     )
-    assert cli.main(["generate", "--workers", "1"]) == cli.EXIT_INTERRUPTED
+    cli.main(["generate", "--workers", "1"])
     assert closed == [True]
+
+
+def test_a_finished_run_closes_the_runtime_normally(repo, monkeypatch, make_engine):
+    closed = []
+
+    class Spy(runtime.InlineRuntime):
+        def close(self, *, abort=False):
+            closed.append(abort)
+
+    monkeypatch.setattr(cli, "_make_runtime", lambda workers: Spy(make_engine().as_engine()))
+    monkeypatch.setattr("sandbox.isolation.kill_slot_processes", lambda slot: 0)
+    cli.main(["generate", "--workers", "1"])
+    assert closed == [False]

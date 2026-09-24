@@ -355,18 +355,18 @@ fase 2.
 
 ### Tests for User Story 3 ⚠️ (escrever primeiro; devem FALHAR)
 
-- [ ] T036 [P] [US3] Write tests in `tests/mutation/test_packaging.py`: entradas do zip
+- [X] T036 [P] [US3] Write tests in `tests/mutation/test_packaging.py`: entradas do zip
   ordenadas por caminho; mesmas convenções determinísticas já testadas para o dataset (timestamp
   fixo, `ZIP_DEFLATED` em nível fixo, raiz `mutants/problems/<id>/` dentro do zip, de modo que `unzip data/mutants.zip -d data/` produza o mesmo caminho que `generate` grava); empacotar o mesmo
   `data/mutants/problems/` duas vezes dá o mesmo hash de zip; `package` se recusa (código `1`) se
   houver qualquer `data/mutants/building/<id>/` pendente; problemas com `ExclusionAlert` não têm
   pasta dentro do zip
-- [ ] T037 [P] [US3] Write tests in `tests/mutation/test_manifest.py`: restrições do
+- [X] T037 [P] [US3] Write tests in `tests/mutation/test_manifest.py`: restrições do
   `Manifest` citadas literalmente de [data-model.md](./data-model.md) ("Pacote de mutantes e
   manifesto"): `schema_version == 1`; `mutants_zip = {path, sha256, size}` com `path ==
   "data/mutants.zip"`; `files` ordenada por `path`, um item por arquivo dentro do zip; hash do
   manifesto bate após reempacotar os mesmos bytes
-- [ ] T038 [P] [US3] Write tests in `tests/mutation/test_verify.py`: pacote íntegro → `OK`,
+- [X] T038 [P] [US3] Write tests in `tests/mutation/test_verify.py`: pacote íntegro → `OK`,
   código `0`; um byte alterado → `changed`; um arquivo removido → `missing`; um arquivo extra →
   `extra`; funciona só com o zip e o manifesto, sem precisar de `data/mutants/` (mesmo
   comportamento pós-clonagem já provado para o dataset); com `extracted_dir`, só os `Mutant_<n>.cpp` de
@@ -375,15 +375,15 @@ fase 2.
 
 ### Implementation for User Story 3
 
-- [ ] T039 [P] [US3] Implement `src/mutation/schemas/manifest.py` (Pydantic; restrições exatas de
+- [X] T039 [P] [US3] Implement `src/mutation/schemas/manifest.py` (Pydantic; restrições exatas de
   T037) (makes the schema part of T037 pass)
-- [ ] T040 [US3] Implement `src/mutation/packaging.py` (`build_mutants_zip`) (makes T036 pass;
+- [X] T040 [US3] Implement `src/mutation/packaging.py` (`build_mutants_zip`) (makes T036 pass;
   depends on T039)
-- [ ] T041 [US3] Implement `src/mutation/integrity.py` (`verify`) (makes T038 pass; depends on
+- [X] T041 [US3] Implement `src/mutation/integrity.py` (`verify`) (makes T038 pass; depends on
   T039, T040)
-- [ ] T042 [US3] Add `package` (com a recusa de `building/` pendente) and `verify` subcommands to
+- [X] T042 [US3] Add `package` (com a recusa de `building/` pendente) and `verify` subcommands to
   `src/mutation/__main__.py` (depends on T011, T012, T040, T041)
-- [ ] T043 [US3] Update `src/mutation/README.md` (b), (e): descreve `package`/`verify`,
+- [X] T043 [US3] Update `src/mutation/README.md` (b), (e): descreve `package`/`verify`,
   deixando claro que só fazem sentido na execução final que sustenta os números do TCC
   (Constitution, emenda 1.6.0) — não em toda rodada de desenvolvimento; comandos nascem
   `pendente`
@@ -404,7 +404,7 @@ exatamente os alertas sintéticos.
 
 ### Tests for User Story 4 ⚠️ (escrever primeiro; devem FALHAR)
 
-- [ ] T044 [P] [US4] Write tests in `tests/mutation/test_report.py`: restrições citadas
+- [X] T044 [P] [US4] Write tests in `tests/mutation/test_report.py`: restrições citadas
   literalmente de [contracts/file-formats.md](./contracts/file-formats.md) (`schema_version`,
   `funnel`, `order_distribution`, `operator_distribution`, `exclusion_alerts`, `code_revision`,
   `dataset_manifest_sha256`); `exclusion_alerts` é `[]` (nunca omitido) quando não há nenhum
@@ -413,19 +413,47 @@ exatamente os alertas sintéticos.
 
 ### Implementation for User Story 4
 
-- [ ] T045 [P] [US4] Implement `src/mutation/schemas/report.py` (Pydantic, restrições exatas de
+- [X] T045 [P] [US4] Implement `src/mutation/schemas/report.py` (Pydantic, restrições exatas de
   T044)
-- [ ] T046 [US4] Implement `src/mutation/report.py` (`build_report`): lê `data/mutants/problems/`
+- [X] T046 [US4] Implement `src/mutation/report.py` (`build_report`): lê `data/mutants/problems/`
   e os registros de descarte acumulados durante `generate`, calcula os agregados, lê
   `dataset_manifest_sha256` do gate (T011) e `code_revision` via `git rev-parse HEAD` (makes T044
   pass; depends on T045)
-- [ ] T047 [US4] Add `report` subcommand to `src/mutation/__main__.py`; fazer `package` (T042)
+- [X] T047 [US4] Add `report` subcommand to `src/mutation/__main__.py`; fazer `package` (T042)
   chamar `report` internamente antes de finalizar, para o relatório sempre refletir o que foi
   empacotado (per [contracts/cli.md](./contracts/cli.md)) (depends on T042, T046)
-- [ ] T048 [US4] Update `src/mutation/README.md` (b), (d): descreve `report`, com um exemplo do
+- [X] T048 [US4] Update `src/mutation/README.md` (b), (d): descreve `report`, com um exemplo do
   JSON produzido
 
 **Checkpoint**: as quatro histórias funcionam de forma independente e compõem o módulo completo.
+
+---
+
+## Phase 6b: Recuperação e robustez (adicionada a pedido dos autores em 2026-09-24; research.md, R19)
+
+**Purpose**: garantir que uma execução interrompida por qualquer motivo é retomada sem perda e sem
+refazer o que já estava pronto, e que dois `generate` ao mesmo tempo ou um problema danificado nunca
+passam em silêncio.
+
+- [X] T065 [P] Write tests in `tests/mutation/test_recovery.py`: interrupção entre problemas,
+  no meio da gravação de um problema, por `kill -9` (sobras em `building/`, arquivo temporário de
+  escrita atômica), com vários problemas em voo (2 e 4 trabalhadores) e repetida 3 vezes; em todos, o
+  resultado depois de retomar é **byte a byte** o de uma execução nunca interrompida, e um problema
+  já fechado nunca é reescrito (nem o `mtime` muda)
+- [X] T066 Fix `PoolRuntime.close` (`abort=True`): Ctrl+C / `docker stop` / falha do motor não
+  esperam os problemas em voo (minutos) — encerram os trabalhadores e os processos dos `slot`s na
+  hora; medido em 2026-09-24 com o motor real: o container saiu em 1 s (antes, não saía em 40 s)
+- [X] T067 Add `persistence.check_closed` e o aviso `DAMAGED` em `generate` (e a recusa em
+  `package`): um problema fechado que perdeu ou teve um `Mutant_<n>.cpp` alterado é apontado, nunca
+  pulado em silêncio; apagar a pasta do problema basta para regerar só ele
+- [X] T068 Add `persistence.exclusive_run` (`flock` em `data/mutants/.lock`): um segundo `generate`
+  sobre os mesmos dados se recusa (código `1`); o SO solta o trava se o processo morrer, então nunca
+  fica obsoleta
+- [X] T069 📌 PROPAGAR — Validação real de recuperação (execuções dos autores/assistente sobre o
+  motor real): SIGINT com 2 trabalhadores, SIGKILL depois de um problema fechado e retomada;
+  registrar o resultado em `research.md` (R19) e em `docs/metodologia-referencia.md` (2.10)
+
+**Checkpoint**: interromper e retomar não perde nada e não refaz problemas fechados.
 
 ---
 
@@ -434,12 +462,12 @@ exatamente os alertas sintéticos.
 **Purpose**: fechar a feature (Constitution, Princípios VI e XI); nada aqui substitui as tarefas
 de documentação e propagação já feitas dentro das histórias.
 
-- [ ] T049 [P] Run lint and format over the whole repo: `docker compose run --rm app ruff check
+- [X] T049 [P] Run lint and format over the whole repo: `docker compose run --rm app ruff check
   .` and `docker compose run --rm app black --check .`; fix findings with `--fix`/`black .` até
   ambos ficarem limpos
-- [ ] T050 Run the full suite: `docker compose run --rm sandbox pytest` (incluindo os testes
+- [X] T050 Run the full suite: `docker compose run --rm sandbox pytest` (incluindo os testes
   `integration` deste módulo); todos passam; registrar a contagem no relatório final
-- [ ] T051 Execute `quickstart.md` Níveis 0 a 4 e registrar o resultado de cada um (comandos,
+- [ ] T051 Execute `quickstart.md` Níveis 0 a 4 (níveis 0 a 3 registrados em 2026-09-24; o 4 é a execução final, T052/T053) e registrar o resultado de cada um (comandos,
   saída, data) numa seção "Resultado da validação" ao final do arquivo; qualquer nível que falhe
   bloqueia a feature
 - [ ] T052 📌 PROPAGAR — Run the real generation over the 200 problems:
