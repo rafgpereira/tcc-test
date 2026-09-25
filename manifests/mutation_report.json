@@ -1,0 +1,33 @@
+{
+  "dataset_manifest_sha256": "6b3628c35abe0c9e2267415980de0702b920126c7335ed278380a591d575549f",
+  "exclusion_alerts": [],
+  "funnel": {
+    "compile_error": 1334,
+    "duplicate": 0,
+    "equivalent": 8997,
+    "mle": 166,
+    "re": 2014,
+    "tle": 1816,
+    "unstable": 28
+  },
+  "operator_distribution": {
+    "ABS": 5372,
+    "AOR": 2624,
+    "LCR": 171,
+    "ROR": 6332,
+    "UOI": 8580
+  },
+  "order_distribution": {
+    "1": 16930,
+    "2": 3061,
+    "3": 9
+  },
+  "problems": {
+    "closed": 200,
+    "complete": 200,
+    "excluded": 0,
+    "first_order_only": 113,
+    "higher_order": 87
+  },
+  "schema_version": 1
+}
