@@ -101,4 +101,4 @@ manifesto de mutantes (só existe depois do `package`).
 
 | Comando | Verificado em | Revisão |
 |---|---|---|
-| `check` (inclusive `--deep`) | 2026-09-25 | 29af6d0+dirty |
+| `check` (inclusive `--deep`) | 2026-09-25 | 6e4528a |

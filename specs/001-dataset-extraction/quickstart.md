@@ -105,7 +105,7 @@ docker compose run --rm app     python -m dataset extract
 docker compose run --rm sandbox python -m dataset validate            # meta: 200
 docker compose run --rm sandbox python -m dataset audit               # reexecução (FR-015a)
 docker compose run --rm app     python -m dataset package
-docker compose run --rm app     python scripts/verify_dataset.py
+docker compose run --rm app     python -m dataset verify
 ```
 
 Esperado (SC-001 a SC-015; o SC-016 é coberto no Nível 7): 200 problemas `complete` (ou déficit exato no relatório); auditoria
@@ -116,7 +116,7 @@ Depois de `package`, os módulos futuros consomem o dataset assim:
 
 ```bash
 unzip data/dataset.zip -d data/            # cria data/dataset/problems/<problem_id>/
-python scripts/verify_dataset.py --extracted data/dataset
+python -m dataset verify --extracted data/dataset
 ```
 
 > **Sobre a triagem**: problemas em `pending_triage` são esperados (cerca de 1 em cada 5 no
@@ -132,9 +132,9 @@ python scripts/verify_dataset.py --extracted data/dataset
 Em um clone novo, sem rodar extração:
 
 ```bash
-docker compose run --rm app python scripts/verify_dataset.py           # verifica o zip
+docker compose run --rm app python -m dataset verify           # verifica o zip
 unzip data/dataset.zip -d data/
-docker compose run --rm app python scripts/verify_dataset.py --extracted data/dataset
+docker compose run --rm app python -m dataset verify --extracted data/dataset
 ```
 
 Esperado: `OK`. Altere um byte de qualquer arquivo extraído (e, em outro teste, apague ou
@@ -177,8 +177,8 @@ Todos os níveis passaram; nenhum bloqueou a feature.
 | 2 — Motor contra programas de veredito conhecido | `python -m dataset selfcheck` | `9/9` casos, código `0`, estável | 2026-09-21 (T049); repetido a cada `validate` |
 | 3 — Fumaça com poucos problemas + prova de retomada (SC-006) | `extract --limit-rows` + `validate --target 2` (fumaça, T034); interrupção de propósito com `SIGTERM` no meio de um problema e retomada com o mesmo comando | Fumaça OK; retomada confirma SC-006 integralmente (mesmo problema `complete`, 0 pastas duplicadas, 0 arquivos truncados); achado D19 (campo medido `max_cpu_time_s` varia por ruído de hardware, não a seleção) | 2026-09-22 (T080) |
 | 4 — Triagem de AC (FR-011b, SC-015) | `validate --problem <ID>` sobre um problema cujo AC diverge; também observado 43 vezes na execução real (D8, D17) | Código `1`, `validacao.json` com `status: pending_triage` e `triage` completo; problema fora da amostra e não refeito | Testes automatizados (T056) + execução real, 2026-09-21 (T072) |
-| 5 — Execução completa e empacotamento | `extract`, `validate`, `audit`, `package`, `verify_dataset.py` sobre o dataset real | 1.234 elegíveis (T035); 200 de 200 completos em 5 h 06 min (T072); `audit` convergiu em 4 rodadas, a última sem reparo (T072/D18); `data/dataset.zip` real, 200 problemas, 12.891.474 bytes ≈ 12,3 MiB, `OK` na verificação (T093); reempacotar dá o mesmo hash (SC-008, confirmado em teste automatizado) | 2026-09-20 a 2026-09-22 |
-| 6 — Integridade pós-clonagem (SC-009) | `verify_dataset.py` no zip; `unzip` e a alternativa `python -m zipfile -e` (árvores idênticas); `--extracted`; byte alterado, arquivo removido, arquivo extra | `OK` no estado íntegro; `FAIL` apontando corretamente o arquivo em `changed`/`missing`/`extra` nos três casos testados de propósito | 2026-09-22 (T094) |
+| 5 — Execução completa e empacotamento | `extract`, `validate`, `audit`, `package`, `verify` (na época, `scripts/verify_dataset.py`, removido em 2026-09-25) sobre o dataset real | 1.234 elegíveis (T035); 200 de 200 completos em 5 h 06 min (T072); `audit` convergiu em 4 rodadas, a última sem reparo (T072/D18); `data/dataset.zip` real, 200 problemas, 12.891.474 bytes ≈ 12,3 MiB, `OK` na verificação (T093); reempacotar dá o mesmo hash (SC-008, confirmado em teste automatizado) | 2026-09-20 a 2026-09-22 |
+| 6 — Integridade pós-clonagem (SC-009) | `verify` (na época `verify_dataset.py`) no zip; `unzip` e a alternativa `python -m zipfile -e` (árvores idênticas); `--extracted`; byte alterado, arquivo removido, arquivo extra | `OK` no estado íntegro; `FAIL` apontando corretamente o arquivo em `changed`/`missing`/`extra` nos três casos testados de propósito | 2026-09-22 (T094) |
 | 7 — Documentação (Princípio XI, FR-031, FR-032, SC-016) | `check_docs_sync.py --closing --module src/dataset --module src/sandbox` (C1 a C6, CV) | Sai com `0`; nenhuma linha `pendente`; `src/dataset/README.md` passa a `Status: implementado`; todas as decisões D1–D19 com linha em `sync-matrix.json` e termos na metodologia | 2026-09-22 (T098/T099) |
 
 **Conclusão**: a feature `001-dataset-extraction` está pronta para `/speckit-converge` pelos

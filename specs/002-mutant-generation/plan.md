@@ -227,5 +227,5 @@ contra o código e a documentação implementados:
 | VI. O pipeline testa a si próprio | PASS | `tests/mutation/` e `tests/cli/`; suíte completa passa |
 | VII. Idempotência e retomada | PASS | `building/` + renomeação atômica; interrupção (SIGINT, SIGKILL) e retomada validadas com o motor real, sem perda (R19) |
 | IX. Simplicidade | PASS | mutador leve sobre `tree-sitter`; sem generalização além do necessário |
-| X. Revisão humana | PENDENTE DOS AUTORES | nenhum commit ou `git add` do agente (`git status` só mostra `modified`/`untracked`); a revisão do código gerado com apoio de IA antes de integrar à `main` é dos autores e deve ser registrada por eles |
+| X. Revisão humana | PASS | nenhum commit ou `git add` do agente; a revisão do código gerado com apoio de IA foi feita pelos autores antes de integrar à `main`, informada por Rafael em 2026-09-25 (commit `6e4528a`) |
 | XI. Documentação viva | PASS | metodologia, `spec.md`, `plan.md`, `research.md`, contratos, `quickstart.md`, README do módulo e da raiz atualizados; `check_docs_sync.py --closing` sem achados |

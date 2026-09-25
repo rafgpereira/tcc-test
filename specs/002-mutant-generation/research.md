@@ -561,9 +561,8 @@ falhas, 0 avisos (hash de 21.000 arquivos do dataset e 20.000 mutantes, e dos do
 **Decisões do fechamento**: (a) sem `code_revision` no relatório (R20 revisado); (b) a conferência de
 consistência ficou no pacote `src/cli` (R22); (c) os READMEs dos módulos passam a ter dois cenários
 e uma tabela de comandos, sem citação ao processo (Constitution 1.7.0, `docs/template-modulo.md`,
-checagem C8); (d) `scripts/verify_dataset.py` continua no repositório mas não é mais o comando
-documentado: a documentação usa `python -m dataset verify` (o script e os documentos da feature
-001 que o citam ficam a critério dos autores remover). **Pendências que não bloqueiam**: registrar a
-revisão de código pelos autores (Princípio X); carimbar `check` no README do `cli` depois do
-commit; corrigir o cronômetro por problema do `generate` (inclui a espera na fila com mais de um
-trabalhador, R21).
+checagem C8); (d) `scripts/verify_dataset.py` foi removido (2026-09-25, a pedido dos autores, junto do seu
+teste): o comando é `python -m dataset verify`, e os documentos vivos da feature 001 foram ajustados. **Fechamento oficial (2026-09-25, commit `6e4528a`)**: revisão de código pelos autores informada por
+Rafael (Princípio X); `check` carimbado no README do `cli` com a revisão limpa; `check_docs_sync.py
+--closing` sem achados. **Pendência que não bloqueia**: o cronômetro por problema do `generate` inclui
+a espera na fila com mais de um trabalhador (R21).

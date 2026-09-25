@@ -112,7 +112,7 @@ específico desses módulos é construído agora (Princípio IX).
 ├── .env.example              # HF_TOKEN opcional, HOST_UID/HOST_GID (segredos só em .env)
 ├── manifests/                # versionado: manifesto de hashes e relatório final (com .gitkeep)
 ├── scripts/                  # (com .gitkeep até haver scripts)
-│   ├── verify_dataset.py     # verificação de integridade pós-clonagem
+│   ├── (verify_dataset.py removido em 2026-09-25: use `python -m dataset verify`)
 │   └── check_docs_sync.py    # conformidade da documentação (Princípio XI)
 ├── src/
 │   ├── dataset/              # ESTE módulo (+ README.md pelo template)
@@ -393,7 +393,6 @@ src/
     ├── validation/           # suite.py engine.py ac.py wa.py runtime.py problem.py audit.py pipeline.py
     ├── persistence/          # store.py report.py
     └── integrity/            # packaging.py manifest.py verify.py
-scripts/verify_dataset.py
 scripts/check_docs_sync.py
 tests/
 ├── sandbox/

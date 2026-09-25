@@ -123,9 +123,9 @@ Constrói `data/dataset.zip` de forma determinística com todos os problemas `co
 meta não foi atingida, exceto com `--allow-partial`. Emite aviso se o zip passar de 95 MB
 (limite de 100 MB por arquivo do GitHub).
 
-### `verify` (serviço `app`) e `scripts/verify_dataset.py`
+### `verify` (serviço `app`)
 
-`python scripts/verify_dataset.py` é um invólucro fino sobre `dataset.integrity.verify()`.
+`python -m dataset verify` usa `dataset.integrity.verify()`. *(O invólucro `scripts/verify_dataset.py`, que fazia o mesmo, foi removido em 2026-09-25: o comando é só `python -m dataset verify`.)*
 
 | Opção | Padrão | Efeito |
 |---|---|---|

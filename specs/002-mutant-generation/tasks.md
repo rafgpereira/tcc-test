@@ -551,8 +551,7 @@ seguintes acrescentam a sua camada lá.
 - [X] T078 Constitution 1.7.0 (Princípios II e XI) e propagação: metodologia (0.1, 2, 2.11, 5.2, 7,
   8), `plan.md` (Constitution Check de fechamento), `research.md` (R23), `quickstart.md`
 - [X] T079 Fechamento: `Status: Implemented`; README do módulo `Status: implementado`; carimbos
-  refeitos (`generate` `8a45e6c`, `report`/`package`/`verify` `29af6d0`; `check` do `cli` a carimbar
-  depois do commit)
+  refeitos (`generate` `8a45e6c`, `report`/`package`/`verify` `29af6d0`, `check` do `cli` `6e4528a`)
 
 **Checkpoint**: `check_docs_sync.py --closing` sem achados; suíte completa e verificações verdes.
 
