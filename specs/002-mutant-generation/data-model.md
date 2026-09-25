@@ -143,7 +143,6 @@ nunca gerado automaticamente durante o desenvolvimento — ver contracts/cli.md.
 | `order_distribution` | `dict[int, int]` | quantos mutantes (somando todos os problemas) vieram de ordem 1, 2 ou 3 |
 | `operator_distribution` | `dict[MutationOperator, int]` | quantos mutantes usaram cada operador (um mutante de ordem 2+ conta para cada operador que usa) |
 | `exclusion_alerts` | `list[ExclusionAlert]` | vazia no caso esperado (SC-003/SC-001) |
-| `code_revision` | `str` | hash git completo (40 hex, opcionalmente `+dirty`) do código que gerou os mutantes; passado por `--code-revision` (os contêineres não têm `.git`) |
 | `dataset_manifest_sha256` | `str` | hash de `manifests/dataset.manifest.json` verificado antes de rodar (liga este relatório à versão exata do dataset consumida) |
 
 ## Reexportações do módulo `sandbox` (sem alteração)

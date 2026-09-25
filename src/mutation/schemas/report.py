@@ -5,15 +5,12 @@ and ``exclusion_alerts`` is always there, an empty list in the expected case. Th
 the same ``data/mutants/`` always gives the same bytes.
 """
 
-import re
-
 from pydantic import Field, field_validator, model_validator
 
 from dataset.schemas.common import PROBLEM_ID_PATTERN, Schema, SchemaVersion
 from mutation import config
 from mutation.types import DiscardReason, MutationOperator
 
-REVISION_PATTERN = re.compile(r"^[0-9a-f]{40}(\+dirty)?$")
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
 
 
@@ -48,7 +45,6 @@ class MutationReport(Schema):
     order_distribution: dict[int, int]
     operator_distribution: dict[MutationOperator, int]
     exclusion_alerts: list[ExclusionAlertEntry]  # never omitted, [] when there is none
-    code_revision: str
     dataset_manifest_sha256: str = Field(pattern=SHA256_PATTERN)
 
     @field_validator("funnel")
@@ -65,13 +61,6 @@ class MutationReport(Schema):
     @classmethod
     def _operators_are_all_five(cls, value):
         return _require_keys(value, set(MutationOperator), "operator_distribution")
-
-    @field_validator("code_revision")
-    @classmethod
-    def _revision_is_a_full_git_hash(cls, value: str) -> str:
-        if not REVISION_PATTERN.match(value):
-            raise ValueError("code_revision must be a 40-hex git commit hash, optionally +dirty")
-        return value
 
     @field_validator("funnel", "order_distribution", "operator_distribution")
     @classmethod

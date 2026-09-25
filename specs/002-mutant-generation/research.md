@@ -455,10 +455,13 @@ Perda observada: só o trabalho do problema em andamento no instante do kill (~5
 
 ### R20 — `report`, `package` e `verify`: decisões (2026-09-24)
 
-- **Revisão do código**: os contêineres **não montam `.git`** (`docker-compose.override.yml`),
-  então `git rev-parse HEAD` não funciona lá dentro (contra o que T046 previa). `report` e `package`
-  recebem `--code-revision "$(git rev-parse HEAD)"` (40 hex, opcionalmente `+dirty`); sem a opção
-  tentam o `git` e, se falhar, dizem como passar. O esquema rejeita hash curto.
+- **Revisão do código no relatório — retirada (2026-09-25)**: a primeira versão tinha `code_revision` e
+  a opção `--code-revision "$(git rev-parse HEAD)"` (os contêineres não montam `.git`, então o
+  `git` não funciona lá dentro, contra o que T046 previa). **Os autores pediram para remover**: o
+  módulo de dataset não grava revisão nenhuma e os comandos ficam mais limpos. O campo saiu do
+  relatório, a opção saiu de `report` e `package`, e FR-013 foi revisado. A rastreabilidade do
+  código passa a ser o commit que versiona os artefatos; o relatório segue ligado à versão exata
+  do dataset por `dataset_manifest_sha256`.
 - **`problems` no relatório** (acréscimo ao contrato): `closed`, `complete`, `first_order_only`,
   `higher_order`, `excluded`. É o número que a metodologia (2.6) compara com a estimativa de que ao
   menos 75% dos problemas fecham só de primeira ordem (SC-003); sem ele, T052 teria de recontá-lo
@@ -476,3 +479,34 @@ Perda observada: só o trabalho do problema em andamento no instante do kill (~5
   alterado aponta `changed: mutants/problems/630_G/Mutant_3.cpp` e `FAIL`; `generate` sobre a
   pasta recebida pulou o problema (`already generated, skipped`). Resultado apagado depois: nada
   disso é o pacote da execução final.
+
+### R21 — Execução final da geração sobre os 200 problemas (2026-09-24/25, executada pelos autores)
+
+`generate --workers 4` sobre os 200 problemas do dataset (commit `8a45e6c`), computador de 4 núcleos e
+8 threads. Números lidos do log do autor e dos `generation.json` (nada foi recalculado): o relatório
+(`report`) e o pacote (`package`, `verify`) **ainda não foram gerados**; estes valores entram nele.
+
+| Medida | Valor |
+|---|---|
+| Resultado | `done: 200 generated, 0 skipped, 0 excluded`, código 0; 0 `DAMAGED`, 0 `ALERT`, `building/` vazio |
+| Problemas | 200 completos, **0 excluídos** (SC-001 atingido); 20.000 mutantes, 20.200 arquivos (200 × 101) |
+| Tempo | **~7 h 26 min** de relógio (20:19 do dia 24 às 03:45 do dia 25, pelos horários do log), contra ~12 h extrapoladas em R14 |
+| Candidatos avaliados | 34.355; aceitos 20.000 (**58,2%**) |
+| Descartes (14.355) | 8.997 equivalentes (26,2% dos avaliados), 2.014 RE, 1.816 TLE, **1.334 não compilam (3,9%)**, 166 MLE, 28 instáveis (0,08%), 0 duplicatas |
+| Mutantes por ordem | 1ª: 16.930 (84,7%); 2ª: 3.061 (15,3%); 3ª: **9** (só em `981_B`) |
+| Problemas por forma de fechar | **113 só com primeira ordem (56,5%)**; 87 com ordem superior (43,5%) |
+| Operadores usados (em 23.079 usos) | UOI 8.580; ROR 6.332; ABS 5.372; AOR 2.624; LCR 171 |
+| Ordem superior por problema | nos 87 problemas com ela, mediana de 35 mutantes de ordem superior; 24 problemas com 50 ou mais; máximo 85 (`981_B`, com 15 de 1ª, 76 de 2ª e 9 de 3ª) |
+
+**SC-003 (estimativa de ≥75% dos problemas só com primeira ordem) não se confirmou**: 56,5%. A
+estimativa de pesquisa (2.2 da metodologia) contava sítios brutos, antes do filtro de fluxo de R16
+e antes de descontar os 26% de candidatos equivalentes; a medição real desta rodada substitui a
+estimativa. Isso **não** viola a feature (FR-004 existe para esse caso; nenhum problema foi excluído),
+mas muda o que o texto do TCC deve dizer: 15,3% dos mutantes são de ordem superior, e o ganho de
+realismo de um mutante de uma alteração só vale para 84,7% deles.
+
+**Achado sobre o log**: o tempo `N s` impresso ao fim de cada problema **inclui a espera na fila** do
+pool (é contado desde a submissão, e até `2 × workers` problemas ficam submetidos), então com
+`--workers > 1` **não** mede o tempo de cada problema (a soma dos tempos impressos é 82 h, para 7,4 h
+de relógio). O tempo total de relógio acima é o confiável. Corrigir o cronômetro (contar a partir do
+início da tarefa no trabalhador) é pendência de código, não de dados.

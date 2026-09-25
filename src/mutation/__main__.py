@@ -248,34 +248,16 @@ def _run_generate(args: argparse.Namespace) -> int:
 # ------------------------------------------------------------------------- package and verify
 
 
-def _add_revision_option(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "--code-revision",
-        default=None,
-        metavar="HASH",
-        help="git commit of this code (default: `git rev-parse HEAD`; from Docker pass "
-        '"$(git rev-parse HEAD)", the container has no .git)',
-    )
-
-
-def _write_report(root: Path, revision: str) -> Path:
-    report = report_module.build_report(root, code_revision=revision)
+def _write_report(root: Path) -> Path:
+    report = report_module.build_report(root)
     return report_module.write_report(root, report)
-
-
-def _configure_report(parser: argparse.ArgumentParser) -> None:
-    _add_revision_option(parser)
 
 
 def _run_report(args: argparse.Namespace) -> int:
     root = Path(".")
     try:
-        revision = report_module.resolve_revision(args.code_revision, root)
-        path = _write_report(root, revision)
-    except (report_module.RevisionError, dataset_gate.DatasetMismatchError) as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return EXIT_DATA_FAILURE
-    except FileNotFoundError as exc:
+        path = _write_report(root)
+    except (dataset_gate.DatasetMismatchError, FileNotFoundError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_DATA_FAILURE
     print(f"report: {path}")
@@ -283,7 +265,6 @@ def _run_report(args: argparse.Namespace) -> int:
 
 
 def _configure_package(parser: argparse.ArgumentParser) -> None:
-    _add_revision_option(parser)
     parser.add_argument(
         "--allow-partial",
         action="store_true",
@@ -294,13 +275,8 @@ def _configure_package(parser: argparse.ArgumentParser) -> None:
 def _run_package(args: argparse.Namespace) -> int:
     root = Path(".")
     try:
-        revision = report_module.resolve_revision(args.code_revision, root)  # fail before any work
         dataset_gate.verify_dataset(root)
-    except (
-        report_module.RevisionError,
-        dataset_gate.DatasetMismatchError,
-        FileNotFoundError,
-    ) as exc:
+    except (dataset_gate.DatasetMismatchError, FileNotFoundError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_DATA_FAILURE
     missing = [p for p in _problem_ids(root) if not persistence.problem_path(root, p).exists()]
@@ -331,7 +307,7 @@ def _run_package(args: argparse.Namespace) -> int:
         )
     print(f"manifest: {manifest_path}")
     # The report is rebuilt from what was just packaged, so it always describes exactly that.
-    print(f"report: {_write_report(root, revision)}")
+    print(f"report: {_write_report(root)}")
     return EXIT_OK
 
 
@@ -366,7 +342,7 @@ def _run_verify(args: argparse.Namespace) -> int:
 register(
     "report",
     "rebuild manifests/mutation_report.json from the generated problems (any time)",
-    _configure_report,
+    lambda parser: None,
     _run_report,
 )
 register(

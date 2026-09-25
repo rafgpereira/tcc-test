@@ -9,8 +9,7 @@ import pytest
 import mutation.__main__ as cli
 from mutation import config
 
-REVISION = "0123456789abcdef0123456789abcdef01234567"
-PACKAGE = ["package", "--code-revision", REVISION]
+PACKAGE = ["package"]
 
 
 @pytest.fixture()
@@ -33,7 +32,7 @@ def test_package_writes_the_zip_the_manifest_and_the_report(generated, capsys):
     out = capsys.readouterr().out
     assert "packaged 2 problems (0 excluded)" in out and "manifest:" in out and "report:" in out
     report = json.loads((generated / config.REPORT_PATH).read_text())
-    assert report["code_revision"] == REVISION and report["problems"]["complete"] == 2
+    assert report["problems"]["complete"] == 2 and "code_revision" not in report
     assert (generated / config.MUTANTS_ZIP).is_file() and (
         generated / config.MANIFEST_PATH
     ).is_file()
@@ -144,12 +143,6 @@ def test_package_refuses_a_dataset_that_differs_from_its_manifest(generated, cap
     (generated / "data" / "dataset" / "problems" / "1_A" / "AC_ref.cpp").write_text("tampered")
     assert cli.main(PACKAGE) == cli.EXIT_DATA_FAILURE
     assert "manifest" in capsys.readouterr().err
-    assert not (generated / config.MUTANTS_ZIP).exists()
-
-
-def test_package_refuses_a_malformed_revision_before_any_work(generated, capsys):
-    assert cli.main(["package", "--code-revision", "abc"]) == cli.EXIT_DATA_FAILURE
-    assert "40-hex" in capsys.readouterr().err
     assert not (generated / config.MUTANTS_ZIP).exists()
 
 

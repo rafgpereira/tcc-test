@@ -153,8 +153,7 @@ de uma execução de teste contém os campos exigidos e que os totais somam corr
 
 1. **Given** uma execução completa da geração de mutantes, **When** ela termina, **Then** o
    sistema grava um relatório com o funil de descarte por motivo, a distribuição de mutantes
-   por operador e por ordem (1ª vs. superior), qualquer alerta de exclusão de problema e a
-   revisão de código do módulo.
+   por operador e por ordem (1ª vs. superior) e qualquer alerta de exclusão de problema.
 
 ---
 
@@ -271,8 +270,10 @@ de uma execução de teste contém os campos exigidos e que os totais somam corr
   contendo, no mínimo: o funil de descarte por motivo (duplicata, não compila, TLE/MLE/RE,
   equivalente, instável), quantos mutantes de cada problema vieram de primeira ordem e quantos
   de ordem superior, a distribuição de mutantes por operador, a lista de alertas de exclusão de
-  problema (FR-009a, vazia no caso esperado) e a revisão de código (git) do módulo de mutação
-  que produziu aquele resultado.
+  problema (FR-009a, vazia no caso esperado). *(Revisado em 2026-09-25: a exigência da revisão de
+  código (git) no relatório foi retirada a pedido dos autores — os contêineres não têm `.git`, o
+  módulo de dataset não grava revisão nenhuma, e a rastreabilidade fica no commit que versiona os
+  artefatos; o relatório continua ligado à versão exata do dataset pelo hash do manifesto.)*
 - **FR-014**: O sistema MUST fornecer um comando de verificação, análogo ao já existente para o
   dataset, que recalcula os hashes de `data/mutants.zip` e os compara com
   `manifests/mutants.manifest.json`, apontando qualquer arquivo alterado, removido ou
@@ -316,7 +317,9 @@ de uma execução de teste contém os campos exigidos e que os totais somam corr
 - **SC-003**: Para ao menos três em cada quatro problemas completos do dataset, a cota de 100
   mutantes é alcançada inteiramente com mutantes de primeira ordem, sem precisar de combinações
   de ordem superior (estimativa de pesquisa baseada em medição sobre os 200 `AC_ref` reais; a
-  execução final registra o número real no relatório).
+  execução final registra o número real no relatório). **Medido em 2026-09-25 (execução real):
+  113 de 200 (56,5%) — a estimativa não se confirmou; nenhum problema foi excluído, então SC-001 se
+  cumpre; 15,3% dos mutantes são de ordem superior (`research.md` R21).**
 - **SC-004**: A verificação de integridade do pacote de mutantes passa em 100% das vezes sobre
   um pacote íntegro e falha, apontando exatamente o arquivo divergente, em 100% das vezes em
   que qualquer mutante for alterado, removido ou acrescentado sem reempacotar.

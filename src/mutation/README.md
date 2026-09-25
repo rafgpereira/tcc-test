@@ -96,26 +96,24 @@ terminal e rodar de novo, o segundo se recusa (`another ... generate is already 
 qualquer maneira (Ctrl+C, `kill -9`, queda de energia).
 
 **Relatório a qualquer momento:** para ver o funil de descartes, a distribuição por ordem e por
-operador e os alertas do que já foi gerado (mesmo de uma execução parcial), rode (o `app` não tem
-`git`, por isso a revisão do código vai pela linha de comando):
+operador e os alertas do que já foi gerado (mesmo de uma execução parcial), rode:
 
 ```bash
-docker compose run --rm app python -m mutation report --code-revision "$(git rev-parse HEAD)"
+docker compose run --rm app python -m mutation report
 ```
 
 Ele confere o dataset, lê o `generation.json` de cada problema e grava
 `manifests/mutation_report.json` (sem data nem hora: rodar de novo sobre o mesmo estado dá o mesmo
-arquivo). Vale `+dirty` no fim da revisão se o código tem alterações não commitadas.
+arquivo).
 
 ### Cenário B: execução final (gerar tudo e empacotar)
 
 Só faz sentido **uma vez**, na execução que vai sustentar os números do TCC (Constitution,
-Princípio II, emenda 1.6.0); as rodadas de desenvolvimento não são versionadas. Commite o código
-antes (a revisão gravada no relatório e nos carimbos é a do commit).
+Princípio II, emenda 1.6.0); as rodadas de desenvolvimento não são versionadas.
 
 ```bash
 docker compose run --rm sandbox python -m mutation generate --workers 4
-docker compose run --rm app python -m mutation package --code-revision "$(git rev-parse HEAD)"
+docker compose run --rm app python -m mutation package
 docker compose run --rm app python -m mutation verify
 git status --short data/mutants.zip manifests/mutants.manifest.json manifests/mutation_report.json
 ```
@@ -185,7 +183,6 @@ Você pode interromper a geração por qualquer motivo — Ctrl+C, `docker stop`
 | `error: another ... generate is already running over data/mutants/` (código `1`) | outro `generate` está rodando sobre os mesmos dados | espere ele terminar (ou interrompa-o); não é preciso apagar nada |
 | `<id>: DAMAGED (missing: ...)` (código `1` no fim) | um problema já concluído perdeu ou teve alterado um `Mutant_<n>.cpp` | `rm -r data/mutants/problems/<id>` e rode `generate` de novo |
 | `ALERT: <id> reached only N of 100 mutants (highest order tried: K); the problem is left out of the mutation score` (o comando ainda termina com código `0`) | nem uma alteração por vez, nem pares, nem trios de alterações chegaram a 100 mutantes válidos nesse problema, então ele é **excluído** do conjunto de mutantes | nenhum `Mutant_<n>.cpp` é gravado para ele (só o `generation.json`, com `status` `excluded`); os demais seguem normalmente e o problema entra no relatório como alerta. Não é um erro a corrigir: é o resultado esperado para um código com pouquíssimos pontos de alteração |
-| `error: ... pass it from the host: --code-revision "$(git rev-parse HEAD)"` (código `1`) | o `report`/`package` rodou no serviço `app`, que não tem o `git` | passe a revisão na linha de comando, como nos exemplos acima |
 | `error: N problem(s) half-written in data/mutants/building ...` (código `1`, no `package`) | uma geração foi interrompida e não foi terminada | rode `generate` de novo e depois `package` |
 | `error: K of N problems were not generated (...)` (código `1`, no `package`) | ainda faltam problemas do dataset | rode `generate` até terminar (só para teste: `--allow-partial`) |
 | `verify` termina em `FAIL` com `changed:`/`missing:`/`extra:` | o zip, ou a pasta descompactada, não é o que o manifesto descreve | veja o arquivo apontado; para a pasta descompactada, refaça `rm -rf data/mutants` e `unzip` |
@@ -197,8 +194,6 @@ Você pode interromper a geração por qualquer motivo — Ctrl+C, `docker stop`
 |---|---|---|---|
 | `generate` | `--problem ID` | todos os problemas | processa só esse problema (pode ser repetida) |
 | `generate` | `--workers N` | metade das CPUs | quantos problemas são processados ao mesmo tempo; `1` roda tudo em série, no próprio processo; o resultado não muda |
-| `report` | `--code-revision HASH` | `git rev-parse HEAD` | commit do código (40 hex, opcionalmente `+dirty`); obrigatório passar de dentro do Docker |
-| `package` | `--code-revision HASH` | `git rev-parse HEAD` | idem |
 | `package` | `--allow-partial` | desligado | empacota mesmo com problemas ainda não gerados (só para teste) |
 | `verify` | `--zip`, `--manifest` | `data/mutants.zip`, `manifests/mutants.manifest.json` | o que conferir |
 | `verify` | `--extracted DIR` | (não confere pasta) | confere também a pasta descompactada, tipicamente `data/mutants` |
@@ -231,8 +226,6 @@ Você pode interromper a geração por qualquer motivo — Ctrl+C, `docker stop`
 - Serviço `sandbox` do Docker Compose (sem rede), com o motor de execução do módulo
   [`sandbox`](../sandbox/README.md), usado sem alteração, para `generate`; serviço `app` para
   `report`, `package` e `verify` (não compilam nem executam C++).
-- `git` no computador (fora do Docker) para obter a revisão do código: `report` e `package`
-  recebem `--code-revision "$(git rev-parse HEAD)"`.
 - Dataset já descompactado em `data/dataset/` e íntegro (o próprio comando confere).
 - Nenhuma variável de ambiente nem segredo: o módulo não chama nenhuma IA.
 
@@ -244,8 +237,9 @@ Você pode interromper a geração por qualquer motivo — Ctrl+C, `docker stop`
   `generate` nunca sobrescreve uma pasta de problema que já exista.
 - **Recuperação é por problema**: o que estava em andamento no momento da interrupção é refeito
   inteiro (alguns minutos por problema); não há ponto de retomada dentro de um problema.
-- **`report` e `package` não sabem se o código estava commitado**: a revisão que você passa é a que
-  vai para o relatório; acrescente `+dirty` se havia alterações não commitadas.
+- **Resultado real (200 problemas, 2026-09-25):** 113 problemas (56,5%) fecham só com uma alteração
+  por mutante, 87 (43,5%) precisaram de combinações e nenhum foi excluído; 15,3% dos 20.000 mutantes
+  têm duas alterações e 9 (só no problema `981_B`) têm três.
 - **Mutantes de ordem superior são menos naturais**: quando uma alteração por vez não alcança 100
   mutantes válidos, o módulo combina pares e depois trios de alterações já válidas, sempre na ordem
   de aparição no código (sem busca). Um mutante de duas ou três alterações tende a ser mais fácil
@@ -257,11 +251,14 @@ Você pode interromper a geração por qualquer motivo — Ctrl+C, `docker stop`
 - **Custo de tempo**: cada candidato é compilado e executado de verdade, e só uma fração é
   aceita. Medido em 2026-09-24 no problema `189_C` (usa `bits/stdc++.h`): compilar leva cerca de
   1,8 s e gerar os 100 mutantes levou 795 s (13 min 16 s), avaliando 241 candidatos (141 descartados:
-  64 não compilam, 48 equivalentes, 18 com erro de execução, 11 com tempo excedido). Depois do filtro descrito abaixo, 8 problemas completos (2026-09-24, computador de 4 núcleos e 8
-  threads) levaram 3.520 s em série (média de 440 s por problema) e 1.700 s com `--workers 4`, ou
-  seja, cerca de 2 vezes mais rápido, com exatamente os mesmos mutantes. Extrapolando (não medido),
-  os 200 problemas levariam cerca de 24 horas em série e cerca de 12 com 4 trabalhadores; o ganho
-  depende do computador. O comando pode ser interrompido e retomado.
+  64 não compilam, 48 equivalentes, 18 com erro de execução, 11 com tempo excedido). Depois do
+  filtro descrito abaixo, 8 problemas completos (2026-09-24, computador de 4 núcleos e 8 threads)
+  levaram 3.520 s em série e 1.700 s com `--workers 4`, cerca de 2 vezes mais rápido, com
+  exatamente os mesmos mutantes. **A execução dos 200 problemas com `--workers 4` (2026-09-24/25)
+  levou cerca de 7 h 26 min de relógio**, avaliou 34.355 candidatos e aceitou 20.000 (58%); o ganho
+  depende do computador. O comando pode ser interrompido e retomado. O tempo impresso ao fim de
+  cada problema, com mais de um trabalhador, **inclui a espera na fila** e não mede o tempo do
+  problema; use o tempo total.
 - **Ainda há candidatos que não compilam**: o analisador é sintático e não conhece tipos. As causas
   mais comuns (leitura e escrita com `cin`/`cout`, `++` em algo que não se atribui, `abs` de
   tamanho) já são evitadas e, em três problemas medidos em 2026-09-24, os erros de compilação

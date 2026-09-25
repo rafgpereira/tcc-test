@@ -45,7 +45,7 @@ já cobertos para o dataset).
 ```bash
 docker compose run --rm sandbox python -m mutation generate --problem 1000_B
 ls data/mutants/problems/1000_B/ | wc -l   # esperado: 101 (100 mutantes + generation.json)
-docker compose run --rm app python -m mutation report --code-revision "$(git rev-parse HEAD)"
+docker compose run --rm app python -m mutation report
 cat manifests/mutation_report.json
 ```
 
@@ -81,11 +81,11 @@ Só para a execução que vai sustentar os números publicados. Tudo abaixo roda
 faz a execução, dentro do diretório do repositório. Tempo estimado (extrapolação, **não medida** para
 os 200): ~12 h com `--workers 4`, medido em 8 problemas de testes pequenos (`research.md` R14).
 
-**1. Código commitado e ambiente limpo** (a revisão gravada no relatório é a do commit):
+**1. Código commitado e ambiente limpo** (os artefatos ficam ligados ao commit que os versionar):
 
 ```bash
 git status --short src scripts pyproject.toml uv.lock Dockerfile docker-compose.yml docker-compose.override.yml   # vazio
-git rev-parse --short=7 HEAD          # anote: é a revisão da execução
+git rev-parse --short=7 HEAD          # anote: é o commit do código desta execução
 ls data                               # sem `mutants` nem `mutants.zip`
 df -h . | tail -1                     # com pelo menos 5 GB livres
 ```
@@ -129,11 +129,11 @@ for d in data/mutants/problems/*; do [ "$(ls $d | wc -l)" != 101 ] && echo "$d: 
 **5. Relatório, pacote e verificação:**
 
 ```bash
-docker compose run --rm app python -m mutation report  --code-revision "$(git rev-parse HEAD)"
-docker compose run --rm app python -m mutation package --code-revision "$(git rev-parse HEAD)"
+docker compose run --rm app python -m mutation report 
+docker compose run --rm app python -m mutation package
 docker compose run --rm app python -m mutation verify
 sha256sum data/mutants.zip
-docker compose run --rm app python -m mutation package --code-revision "$(git rev-parse HEAD)" >/dev/null
+docker compose run --rm app python -m mutation package >/dev/null
 sha256sum data/mutants.zip                                          # o mesmo hash de antes
 ls -lh data/mutants.zip                                             # abaixo de 95 MB (esperado: ~10 MB)
 ```

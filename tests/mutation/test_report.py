@@ -11,8 +11,6 @@ from mutation.dataset_gate import DatasetMismatchError
 from mutation.schemas.report import MutationReport
 from mutation.types import DiscardReason, MutationOperator
 
-REVISION = "0123456789abcdef0123456789abcdef01234567"
-
 
 @pytest.fixture()
 def repo(tmp_path, dataset_builder, write_problem, monkeypatch):
@@ -25,7 +23,7 @@ def repo(tmp_path, dataset_builder, write_problem, monkeypatch):
 
 
 def built(repo):
-    return report.build_report(repo, code_revision=REVISION)
+    return report.build_report(repo)
 
 
 def test_the_funnel_sums_the_discards_of_every_problem_including_excluded_ones(repo):
@@ -69,11 +67,10 @@ def test_exclusion_alerts_is_an_empty_list_never_omitted_when_there_is_none(
     assert data["exclusion_alerts"] == []
 
 
-def test_the_report_carries_the_revision_and_the_dataset_manifest_hash(repo):
+def test_the_report_carries_the_dataset_manifest_hash(repo):
     from mutation import dataset_gate
 
     result = built(repo)
-    assert result.code_revision == REVISION
     assert result.dataset_manifest_sha256 == dataset_gate.dataset_manifest_sha256(repo)
 
 
@@ -104,7 +101,6 @@ def test_the_written_file_has_the_documented_keys_and_lowercase_reasons(repo):
         "order_distribution",
         "operator_distribution",
         "exclusion_alerts",
-        "code_revision",
         "dataset_manifest_sha256",
     }
     assert data["schema_version"] == 1 and set(data["funnel"]) == {r.value for r in DiscardReason}
@@ -151,11 +147,9 @@ class TestSchema:
         with pytest.raises(ValidationError):
             MutationReport.model_validate(payload(operator_distribution=ops))
 
-    def test_the_revision_must_be_a_full_git_hash(self, payload):
-        for bad in ("abc", "g" * 40, REVISION.upper()):
-            with pytest.raises(ValidationError, match="40-hex"):
-                MutationReport.model_validate(payload(code_revision=bad))
-        assert MutationReport.model_validate(payload(code_revision=REVISION + "+dirty"))
+    def test_a_code_revision_field_is_not_part_of_the_report(self, payload):
+        with pytest.raises(ValidationError):
+            MutationReport.model_validate(payload(code_revision="0" * 40))
 
     def test_the_dataset_hash_must_be_sha256(self, payload):
         with pytest.raises(ValidationError):
@@ -182,33 +176,12 @@ class TestSchema:
 
 
 def test_the_report_command_writes_the_file(repo, capsys):
-    assert cli.main(["report", "--code-revision", REVISION]) == 0
+    assert cli.main(["report"]) == 0
     assert "report:" in capsys.readouterr().out
     assert (repo / config.REPORT_PATH).is_file()
 
 
 def test_the_report_command_refuses_a_dataset_that_differs(repo, capsys):
     (repo / "data" / "dataset" / "problems" / "1_A" / "AC_ref.cpp").write_text("tampered")
-    assert cli.main(["report", "--code-revision", REVISION]) == cli.EXIT_DATA_FAILURE
-    assert "manifest" in capsys.readouterr().err
-
-
-def test_a_malformed_revision_is_refused(repo, capsys):
-    assert cli.main(["report", "--code-revision", "nothex"]) == cli.EXIT_DATA_FAILURE
-    assert "40-hex" in capsys.readouterr().err
-
-
-def test_without_git_the_error_tells_how_to_pass_the_revision(repo, capsys, monkeypatch):
-    monkeypatch.setattr(
-        report.subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(FileNotFoundError("git"))
-    )
     assert cli.main(["report"]) == cli.EXIT_DATA_FAILURE
-    assert '--code-revision "$(git rev-parse HEAD)"' in capsys.readouterr().err
-
-
-def test_the_revision_is_taken_from_git_when_not_given(repo, monkeypatch):
-    class Done:
-        returncode, stdout, stderr = 0, REVISION + "\n", ""
-
-    monkeypatch.setattr(report.subprocess, "run", lambda *a, **k: Done())
-    assert report.resolve_revision(None) == REVISION
+    assert "manifest" in capsys.readouterr().err

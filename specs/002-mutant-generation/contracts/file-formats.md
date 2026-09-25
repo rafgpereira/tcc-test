@@ -66,15 +66,14 @@ SHA-256 e tamanho de cada arquivo dentro do zip, mais o hash e tamanho do zip in
   "exclusion_alerts": [
     { "problem_id": "0_A", "mutants_reached": 0, "highest_order_attempted": 3 }
   ],
-  "code_revision": "0000000000000000000000000000000000000000",
   "dataset_manifest_sha256": "…"
 }
 ```
 
 `problems` conta só o que já foi gerado: `complete + excluded = closed` e `first_order_only +
 higher_order = complete` (base do número que a metodologia compara com a estimativa de 75%).
-`code_revision` é o hash git completo de 40 hex (opcionalmente com `+dirty`, se o código tinha
-alteração não commitada) — nunca um hash curto. Todas as chaves de `funnel`, `order_distribution`
+O relatório **não** traz a revisão do código (retirada em 2026-09-25, spec FR-013): quem versiona
+os artefatos os liga ao commit. Todas as chaves de `funnel`, `order_distribution`
 e `operator_distribution` estão sempre presentes, mesmo com contagem 0.
 
 `exclusion_alerts` vazia é o caso esperado (spec, SC-003); presente sempre que o campo existir no

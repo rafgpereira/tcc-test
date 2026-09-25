@@ -883,17 +883,19 @@ Princípio II, emenda 1.1.0) se aplica, sem diferença de fundo, a mutantes.
   vieram de primeira vs. de ordem superior, distribuição por operador, a lista de alertas de
   exclusão de problema (vazia no caso esperado), a contagem de problemas (só primeira ordem,
   com ordem superior, excluídos: o número que se compara com a estimativa de 75% abaixo), o hash do
-  manifesto do dataset verificado antes de ler (liga o relatório à versão exata do dataset) e a
-  revisão de código (git, hash completo de 40 hex, opcionalmente `+dirty`) que produziu aquele
-  resultado — dado para o texto do TCC, nunca os arquivos-fonte dos mutantes. **[IMPLEMENTADO,
+  manifesto do dataset verificado antes de ler (liga o relatório à versão exata do dataset) — dado
+  para o texto do TCC, nunca os arquivos-fonte dos mutantes. **[IMPLEMENTADO,
   2026-09-24]** Comandos: `report` (a qualquer momento, sem timestamp, idempotente), `package` (só
   na execução final; recusa dataset divergente, `building/` pendente, problema danificado e
-  problemas ainda não gerados; refaz o relatório do que empacotou) e `verify`. Os contêineres não
-  montam `.git`, então a revisão é passada de fora: `--code-revision "$(git rev-parse HEAD)"`.
+  problemas ainda não gerados; refaz o relatório do que empacotou) e `verify`. *(Revisado em
+  2026-09-25, a pedido dos autores: o relatório não traz mais a revisão do código; os comandos não
+  têm opção de revisão, como os do dataset. A rastreabilidade é o commit que versiona os
+  artefatos.)*
 
 Resultado esperado: para a grande maioria dos problemas (estimativa: ao menos 3 em cada 4),
 exatamente 100 mutantes comportamentalmente distintos e válidos, obtidos inteiramente de
-primeira ordem, a partir só do `AC_ref`. Como mutantes equivalentes já são descartados na
+primeira ordem, a partir só do `AC_ref`. **[Medido em 2026-09-25, 2.11: 56,5% dos
+problemas só de primeira ordem; nenhum excluído.]** Como mutantes equivalentes já são descartados na
 validação (2.3), o termo `EM` (mutantes equivalentes) na fórmula do Escore de Mutação (seção 5)
 continua sempre 0 no cálculo final do pipeline.
 
@@ -994,6 +996,21 @@ deixou `problems/` com o problema completo e nada pela metade, e a retomada pulo
 interrupção. Acrescentados: aviso `DAMAGED` (arquivo de problema fechado perdido ou alterado,
 `package` se recusa), trava `flock` contra dois `generate` simultâneos e recusa do `package`
 quando faltam problemas do dataset.
+
+### 2.11 Execução final da geração de mutantes **[MEDIDO, 2026-09-24/25 — `research.md`, R21]**
+
+`generate --workers 4` sobre os 200 problemas (commit `8a45e6c`; computador de 4 núcleos e 8
+threads): **200 problemas completos, 0 excluídos, 0 danificados; 20.000 mutantes; ~7 h 26 min de
+relógio**. Avaliados 34.355 candidatos, 58,2% aceitos; descartes: 8.997 equivalentes (26,2%),
+2.014 RE, 1.816 TLE, 1.334 que não compilam (3,9%), 166 MLE, 28 instáveis (0,08%), nenhuma
+duplicata. **Por ordem: 84,7% dos mutantes de primeira ordem (16.930), 15,3% de segunda (3.061) e 9
+de terceira** (só em `981_B`). **113 dos 200 problemas (56,5%) fecham só com primeira ordem; 87
+(43,5%) precisaram de ordem superior**: a estimativa de pesquisa de "ao menos 3 em cada 4" (SC-003)
+**não se confirmou** (ela contava sítios brutos, antes do filtro de fluxo e sem descontar os
+equivalentes). Consequência para o texto do TCC: 15,3% dos mutantes têm duas ou três alterações.
+Operadores (em 23.079 usos): UOI 8.580, ROR 6.332, ABS 5.372, AOR 2.624, LCR 171. O relatório
+versionado (`manifests/mutation_report.json`) e o pacote ainda serão gerados; o tempo impresso por
+problema no log inclui a espera na fila e não deve ser citado (R21).
 
 ---
 
@@ -1184,7 +1201,7 @@ Registro exigido pela Constitution (princípio 1), para atualizar o texto final 
 evitar inconsistência entre o que a banca aprovou e o que foi construído. Origem:
 `specs/001-dataset-extraction/spec.md`, decisões de 2026-09-18 a 2026-09-22 (itens 1–16); e
 `specs/002-mutant-generation/spec.md`, decisões de 2026-09-23 (itens 17–21); e decisões de
-implementação de 2026-09-24 (itens 22 a 24).
+implementação de 2026-09-24 (itens 22 a 24) e resultado da execução real de 2026-09-25 (item 25).
 
 | # | Divergência | Onde |
 |---|---|---|
@@ -1211,7 +1228,8 @@ implementação de 2026-09-24 (itens 22 a 24).
 | 21 | Reprodutibilidade de mutantes não depende só da seed: dado que a validação de cada mutante reutiliza o motor cuja instabilidade de margem já foi medida (D18/D19), o pacote da execução final é compactado e versionado (`data/mutants.zip`), exigindo emenda ao Princípio II da Constitution (v1.6.0, 2026-09-23) | 2.6 |
 | 22 | Na implementação, `<<`/`>>` contam como aritméticos (AOR, trocados só entre si); ABS e UOI agem sobre operandos de expressões relacionais e aritméticas, UOI também sobre os lógicos, com o unário legal dependente do operador pai; as 6 execuções de estabilidade são sobre um binário compilado uma vez, não 3 checagens que recompilam | 2.2, 2.3 |
 | 23 | Ordem superior implementada como pares e trios de mutantes de primeira ordem aceitos em ordem lexicográfica, com sítios distintos e disjuntos em bytes; exclusão com alerta e código de saída `0`; piloto nos 3 problemas mais esparsos: fecham só com pares (76% a 83% de segunda ordem); sem orçamento de tentativas | 2.4, 2.9 |
-| 24 | Relatório com contagem de problemas por forma de fechamento; revisão do código passada por `--code-revision` (contêineres sem `.git`); `package` recusa pacote de execução parcial, `building/` pendente e problema danificado; trava contra dois `generate` simultâneos | 2.6, 2.10 |
+| 24 | Relatório com contagem de problemas por forma de fechamento; (a revisão do código no relatório, prevista aqui, foi retirada em 2026-09-25); `package` recusa pacote de execução parcial, `building/` pendente e problema danificado; trava contra dois `generate` simultâneos | 2.6, 2.10 |
+| 25 | Resultado real da geração dos 200 problemas: 56,5% dos problemas só de primeira ordem (a estimativa de ≥75% não se confirmou), 15,3% dos mutantes de ordem superior, 0 excluídos, 20.000 mutantes em ~7 h 26 min | 2.11 |
 
 ---
 
@@ -1223,6 +1241,7 @@ a partir de 2026-09-23, `specs/002-mutant-generation/`.
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-09-25 | **Execução real da geração de mutantes (`generate --workers 4`, 200 problemas) e revisão do relatório**: 200 completos, 0 excluídos, 20.000 mutantes em ~7 h 26 min; 56,5% dos problemas só de primeira ordem (SC-003 não se confirmou), 15,3% dos mutantes de ordem superior (9 de terceira, em `981_B`), 3,9% de candidatos que não compilam, 26,2% equivalentes; o tempo por problema do log inclui a espera na fila; a revisão do código foi retirada do relatório e dos comandos (`--code-revision` removido, a pedido dos autores; spec FR-013 revisado) | 2.6, 2.11, 7 |
 | 2026-09-24 | **Histórias 3 e 4 de `002-mutant-generation` (`package`, `verify`, `report`) e recuperação validada**: layout do zip `mutants/problems/<id>/` (mesmo caminho de consumo do `generate`), relatório com contagem de problemas (só primeira ordem / ordem superior / excluídos), revisão do código passada de fora (`--code-revision`, os contêineres não têm `.git`); falha achada e corrigida na interrupção com trabalhadores (`close` esperava minutos); recuperação validada com o motor real (SIGINT em 1 s; SIGKILL e retomada sem perda nem refazer o que estava fechado); `report`/`package`/`verify` executados de verdade sobre 2 problemas reais (`research.md` R19, R20) | 2.6, 2.10 |
 | 2026-09-24 | **História 2 de `002-mutant-generation` implementada (ordem superior determinística e exclusão com alerta) e piloto R4 medido**: pares/trios de mutantes de primeira ordem aceitos em `itertools.combinations`, sítios distintos e disjuntos, exclusão com alerta e código de saída `0`; os 3 problemas mais esparsos fecham só com pares (76% a 83% dos mutantes de segunda ordem, 371 a 425 s), sem alertas; decisão: sem orçamento de tentativas (`research.md` R17, R18) | 2.4, 2.9 |
 | 2026-09-24 | **Redução dos erros de compilação e paralelização de `generate` (`002-mutant-generation`)**: filtro sintático de sítios de E/S de fluxo, de operandos de texto/manipuladores, de ABS sobre tamanhos e de `++`/`--` sobre não atribuíveis (24% de candidatos que não compilavam em 5 problemas; depois: 0%, 1% e 17% nos três re-medidos; candidatos brutos: mediana 274 → 198, 8 → 34 problemas abaixo de 100); `--workers` com paralelismo entre problemas (R14 aprovada) | 2.2, 2.7, 2.8 |

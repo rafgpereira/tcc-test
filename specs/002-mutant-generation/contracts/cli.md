@@ -61,18 +61,15 @@ Saída: progresso por problema (mutantes por ordem, descartes por motivo, tempo,
 
 Recalcula `manifests/mutation_report.json` a partir do estado atual de `data/mutants/` (lê só os
 `generation.json`: funil, distribuição por ordem/operador, contagem de problemas, alertas),
-incluindo `code_revision` e `dataset_manifest_sha256`. Antes, verifica `data/dataset` contra o
+incluindo `dataset_manifest_sha256`. Antes, verifica `data/dataset` contra o
 manifesto (código `1` se divergir). Idempotente (sem timestamp); pode ser rodado a qualquer
 momento, mesmo com `data/mutants/` parcial (útil durante o desenvolvimento).
 
-| Opção | Padrão | Efeito |
-|---|---|---|
-| `--code-revision HASH` | `git rev-parse HEAD` | commit git do código que gerou os mutantes (40 hex, opcionalmente `+dirty`). **Os contêineres não montam `.git`**: de dentro do Docker é preciso passá-lo, `--code-revision "$(git rev-parse HEAD)"`; sem git e sem a opção, o comando falha (código `1`) dizendo isso |
+Sem opções (como `dataset report`).
 
 ### `package` (serviço `app`)
 
-Recusa-se (código `1`, nada é gravado) se: `data/dataset` divergir do manifesto; o `--code-revision`
-for malformado; houver algum `building/` pendente; algum problema fechado estiver danificado (um
+Recusa-se (código `1`, nada é gravado) se: `data/dataset` divergir do manifesto; houver algum `building/` pendente; algum problema fechado estiver danificado (um
 `Mutant_<n>.cpp` perdido ou alterado); ou faltarem problemas do dataset que ainda não foram gerados
 (a menos que se passe `--allow-partial`, para empacotar mesmo assim). Gera `data/mutants.zip`
 (determinístico, só os `Mutant_<n>.cpp` dos problemas completos) e `manifests/mutants.manifest.json`
@@ -81,7 +78,6 @@ empacotado. Comando manual e explícito — nunca chamado por `generate`.
 
 | Opção | Padrão | Efeito |
 |---|---|---|
-| `--code-revision HASH` | `git rev-parse HEAD` | como em `report` |
 | `--allow-partial` | desligado | empacota mesmo com problemas do dataset ainda não gerados (uso: teste; **não** para o pacote que será versionado) |
 
 ### `verify` (serviço `app`)

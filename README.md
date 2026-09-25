@@ -10,7 +10,7 @@ teste unitários em C++.
 > "Módulos e estado", abaixo); este documento é o ponto de partida e o índice, não o detalhe de
 > cada módulo.
 >
-> **Estado atual (2026-09-24)**: os módulos `dataset` (extração, validação e empacotamento do
+> **Estado atual (2026-09-25)**: os módulos `dataset` (extração, validação e empacotamento do
 > dataset) e `sandbox` (motor de execução isolada de C++, usado pelo `dataset` internamente) estão
 > **implementados**. O dataset experimental já foi gerado, validado e empacotado de verdade — o
 > zip (`data/dataset.zip`) e os manifestos de integridade já estão neste repositório; quem clona o
@@ -18,8 +18,9 @@ teste unitários em C++.
 > de mutantes** (`mutation`) está **em implementação**: o comando `generate` já gera os 100 mutantes
 > de cada problema (uma alteração por vez e, quando não basta, combinações de duas e três, ou a
 > exclusão do problema com alerta), pode ser interrompido e retomado sem perda, e o módulo também
-> tem o relatório (`report`) e o empacotamento verificável (`package`, `verify`); o que falta é a
-> execução completa que gera o pacote versionado (ver o
+> tem o relatório (`report`) e o empacotamento verificável (`package`, `verify`). A geração dos 200
+> problemas já foi executada de verdade (20.000 mutantes, nenhum problema excluído); o relatório e o
+> pacote versionado ainda serão gerados (ver o
 > [README do módulo](src/mutation/README.md)). Os demais módulos seguintes (chamadas aos modelos de
 > IA, avaliação, métricas, orquestrador) ainda não têm especificação nem código; a seção "Módulos
 > e estado" marca isso.
@@ -304,8 +305,8 @@ avaliação.
 | Comando | Serviço | O que faz |
 |---|---|---|
 | `docker compose run --rm sandbox python -m mutation generate` | `sandbox` | gera até 100 mutantes por problema a partir do `AC_ref.cpp` (uma alteração por mutante e, quando não basta, duas ou três; exclui com alerta o problema que nem assim chega a 100); `--problem ID` restringe a um problema; `--workers N` processa N problemas ao mesmo tempo (padrão: metade das CPUs); pode ser interrompido e retomado sem perda |
-| `docker compose run --rm app python -m mutation report --code-revision "$(git rev-parse HEAD)"` | `app` | recalcula `manifests/mutation_report.json` (funil de descartes, mutantes por ordem e por operador, alertas de exclusão) a partir do que já foi gerado |
-| `docker compose run --rm app python -m mutation package --code-revision "$(git rev-parse HEAD)"` | `app` | só na execução final: gera `data/mutants.zip`, `manifests/mutants.manifest.json` e o relatório |
+| `docker compose run --rm app python -m mutation report` | `app` | recalcula `manifests/mutation_report.json` (funil de descartes, mutantes por ordem e por operador, alertas de exclusão) a partir do que já foi gerado |
+| `docker compose run --rm app python -m mutation package` | `app` | só na execução final: gera `data/mutants.zip`, `manifests/mutants.manifest.json` e o relatório |
 | `docker compose run --rm app python -m mutation verify` | `app` | confere o zip (e, com `--extracted data/mutants`, a pasta descompactada) contra o manifesto |
 | `unzip data/mutants.zip -d data/` | (host) | descompacta os mutantes recebidos pelo Git em `data/mutants/problems/` |
 | `docker compose run --rm sandbox pytest tests/mutation` | `sandbox` | testes do módulo, inclusive os que compilam e executam C++ |

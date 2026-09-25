@@ -406,7 +406,7 @@ exatamente os alertas sintéticos.
 
 - [X] T044 [P] [US4] Write tests in `tests/mutation/test_report.py`: restrições citadas
   literalmente de [contracts/file-formats.md](./contracts/file-formats.md) (`schema_version`,
-  `funnel`, `order_distribution`, `operator_distribution`, `exclusion_alerts`, `code_revision`,
+  `funnel`, `order_distribution`, `operator_distribution`, `exclusion_alerts`,
   `dataset_manifest_sha256`); `exclusion_alerts` é `[]` (nunca omitido) quando não há nenhum
   alerta; o relatório é idempotente (rodar `report` duas vezes sobre o mesmo `data/mutants/` dá o
   mesmo JSON, exceto nada — não há timestamp neste arquivo)
@@ -417,7 +417,7 @@ exatamente os alertas sintéticos.
   T044)
 - [X] T046 [US4] Implement `src/mutation/report.py` (`build_report`): lê `data/mutants/problems/`
   e os registros de descarte acumulados durante `generate`, calcula os agregados, lê
-  `dataset_manifest_sha256` do gate (T011) e `code_revision` via `git rev-parse HEAD` (makes T044
+  `dataset_manifest_sha256` do gate (T011) (a revisão do código foi retirada do relatório em 2026-09-25) (makes T044
   pass; depends on T045)
 - [X] T047 [US4] Add `report` subcommand to `src/mutation/__main__.py`; fazer `package` (T042)
   chamar `report` internamente antes de finalizar, para o relatório sempre refletir o que foi
@@ -476,6 +476,10 @@ de documentação e propagação já feitas dentro das histórias.
   `spec.md`/`plan.md`/`research.md`: quantos problemas fecharam só com primeira ordem (compara
   com a estimativa de ≥ 75% da spec, SC-003), quantos precisaram de ordem superior, quantos
   `ExclusionAlert` ocorreram (se algum, os `problem_id` e o motivo), e o tempo total de execução
+  *(`generate` executado pelos autores em 2026-09-24/25 e números registrados em `research.md` R21 e
+  metodologia 2.11: 113 só de primeira ordem, 87 com ordem superior, 0 alertas, ~7 h 26 min; falta
+  gerar `manifests/mutation_report.json` com `report`, o que aguarda a revisão do fluxo de
+  verificação)*
 - [ ] T053 Package the real result: `python -m mutation package` seguido de `python -m mutation
   verify`; confirmar que `git status --short` mostra só `data/mutants.zip`,
   `manifests/mutants.manifest.json` e `manifests/mutation_report.json` como novidade — a decisão
