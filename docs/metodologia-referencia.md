@@ -29,6 +29,26 @@ Perguntas de pesquisa centrais: qual abordagem detecta melhor falhas lógicas re
 falsos positivos/alucinações (TFP), e como a combinação de insumos influencia
 positiva ou negativamente a cobertura (IIC — ver seção 5).
 
+### 0.1 Verificação de consistência entre artefatos **[DECIDIDO E EXECUTADO, 2026-09-25 — `docs/verificacao-consistencia.md`, `specs/002-mutant-generation/research.md` R22]**
+
+Cada módulo confere o seu artefato contra o manifesto (`dataset verify`, `mutation verify`); o
+conjunto é conferido por um comando da raiz, `scripts/check_consistency.py`, que percorre as pastas
+**descompactadas** e confere, por nomes e contagens (não pelo conteúdo dos códigos): o dataset tem
+o número de problemas do manifesto (200) e cada problema tem `AC_ref.cpp`, `enunciado.md`,
+`metadata.json`, `testes.json`, `validacao.json` e exatamente `WA_1` a `WA_100` (105 arquivos, nada
+a mais); cada problema de mutantes tem exatamente `Mutant_1` a `Mutant_100`; dataset e mutantes são
+**1:1 nos dois sentidos** (nenhum problema sem mutantes, nenhuma pasta de mutantes sem problema); e os
+nomes no disco são os que os manifestos listam. `--deep` também recalcula os SHA-256 de todos os
+arquivos e dos zips. Serve para ver a integridade num resumo com contagens e é o **portão** das
+etapas que consomem os dados (envio às IAs e execução final do experimento); cada módulo novo que
+produz uma pasta por problema (os testes gerados pelas IAs) acrescenta a sua camada. Motivação
+medida: `dataset verify` sem `--extracted` só confere o zip, então editar ou apagar um arquivo em
+`data/dataset/` continuava dando `OK`. Execução real sobre os dados reais (2026-09-25): `OK` em 0,6 s
+(dataset 200 pastas e 21.000 arquivos com nomes iguais aos do manifesto; 200 problemas de mutantes
+com 100 cada; relação 200/200, 0 sobrando; `--deep` também `OK`), com um aviso: o manifesto de mutantes
+ainda não existe. Além disso, `data/dataset/` só existe depois de um `unzip` manual (nenhum comando a
+cria), o que passou a constar do passo final do fluxo "gerar do zero" do módulo `dataset`.
+
 ---
 
 ## 1. Módulo: Dataset (extração, filtragem, validação, persistência)
@@ -427,6 +447,13 @@ arquivo do dataset e do próprio pacote), versionado no repositório em
 ignorado pelo Git exceto o zip). Arquivos soltos do
 dataset e mutantes nunca são versionados. Um comando de verificação recalcula os hashes e
 os compara com o manifesto. Ver Constitution, princípio 2 (v1.1.0).
+
+**[Esclarecido, 2026-09-25]** O comando de verificação sem `--extracted` confere **só o zip** contra o
+manifesto; a pasta `data/dataset/` (a que os módulos seguintes leem) só é conferida com
+`--extracted data/dataset`, e essa pasta **só existe depois de um `unzip` manual** do zip — nenhum
+comando do pipeline a cria, nem para quem gerou o dataset (o fluxo "gerar do zero" termina, por
+isso, com o `unzip`). O conjunto (dataset × mutantes, completo e 1:1) é conferido pelo comando da
+raiz descrito na seção 0.1.
 
 **[IMPLEMENTADO E TESTADO, 2026-09-22 — T082 a T092]** `package` (constrói o zip e o manifesto,
 recusa empacotar com déficit a menos que `--allow-partial`) e `verify`/`scripts/verify_dataset.py`
@@ -1241,6 +1268,7 @@ a partir de 2026-09-23, `specs/002-mutant-generation/`.
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-09-25 | **Verificação de consistência entre artefatos**: novo comando da raiz `scripts/check_consistency.py` (dataset descompactado × mutantes, por nomes e contagens, 1:1 nos dois sentidos; `--deep` confere os hashes), documento `docs/verificacao-consistencia.md`; esclarecido que `dataset verify` sem `--extracted` só confere o zip e que `data/dataset/` só existe depois de um `unzip` manual (passo final do fluxo "gerar do zero"); executado sobre os dados reais: OK | 0.1, 1.6 |
 | 2026-09-25 | **Execução real da geração de mutantes (`generate --workers 4`, 200 problemas) e revisão do relatório**: 200 completos, 0 excluídos, 20.000 mutantes em ~7 h 26 min; 56,5% dos problemas só de primeira ordem (SC-003 não se confirmou), 15,3% dos mutantes de ordem superior (9 de terceira, em `981_B`), 3,9% de candidatos que não compilam, 26,2% equivalentes; o tempo por problema do log inclui a espera na fila; a revisão do código foi retirada do relatório e dos comandos (`--code-revision` removido, a pedido dos autores; spec FR-013 revisado) | 2.6, 2.11, 7 |
 | 2026-09-24 | **Histórias 3 e 4 de `002-mutant-generation` (`package`, `verify`, `report`) e recuperação validada**: layout do zip `mutants/problems/<id>/` (mesmo caminho de consumo do `generate`), relatório com contagem de problemas (só primeira ordem / ordem superior / excluídos), revisão do código passada de fora (`--code-revision`, os contêineres não têm `.git`); falha achada e corrigida na interrupção com trabalhadores (`close` esperava minutos); recuperação validada com o motor real (SIGINT em 1 s; SIGKILL e retomada sem perda nem refazer o que estava fechado); `report`/`package`/`verify` executados de verdade sobre 2 problemas reais (`research.md` R19, R20) | 2.6, 2.10 |
 | 2026-09-24 | **História 2 de `002-mutant-generation` implementada (ordem superior determinística e exclusão com alerta) e piloto R4 medido**: pares/trios de mutantes de primeira ordem aceitos em `itertools.combinations`, sítios distintos e disjuntos, exclusão com alerta e código de saída `0`; os 3 problemas mais esparsos fecham só com pares (76% a 83% dos mutantes de segunda ordem, 371 a 425 s), sem alertas; decisão: sem orçamento de tentativas (`research.md` R17, R18) | 2.4, 2.9 |

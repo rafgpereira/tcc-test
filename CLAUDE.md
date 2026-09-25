@@ -16,7 +16,9 @@ TCC de dupla — Milena e Rafael, UnB.
 - `README.md` — visão geral do projeto (arquitetura, módulos, como reproduzir)
 - `docs/metodologia-referencia.md` — desenho experimental **corrente**, com
   histórico de atualizações datado; `docs/template-modulo.md` — formato do
-  README de cada módulo
+  README de cada módulo; `docs/verificacao-consistencia.md` — o que
+  `scripts/check_consistency.py` confere entre os artefatos (dataset, mutantes e,
+  no futuro, os das IAs) e como um módulo novo o estende
 - `src/dataset/` — extração e validação do dataset (code_contests)
 - `src/mutation/` — geração de mutantes
 - `src/ai_clients/` — orquestração das chamadas aos 3 modelos
@@ -57,12 +59,17 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
 - Extrair o pool do dataset (`app`, com rede): `docker compose run --rm app python -m dataset extract`
   e `... report`
 - Conferir a documentação: `docker compose run --rm app python scripts/check_docs_sync.py`
+- Conferir a consistência entre artefatos (dataset descompactado × mutantes, 1:1, com contagens; só
+  lê): `docker compose run --rm app python scripts/check_consistency.py [--deep]`. Todo módulo que
+  passa a produzir uma pasta por problema MUST entrar nele (`docs/verificacao-consistencia.md`)
 - Lint/formatação: `docker compose run --rm app ruff check .` /
   `docker compose run --rm app black .`
 - Verificar integridade do dataset local (compara contra
   `manifests/dataset.manifest.json`):
-  `docker compose run --rm app python scripts/verify_dataset.py`
-- Obter o dataset (qualquer integrante, sem rodar extração):
+  `docker compose run --rm app python scripts/verify_dataset.py` — sem opções confere só o **zip**;
+  para conferir a pasta `data/dataset/` use `--extracted data/dataset`
+- Obter o dataset (qualquer integrante, sem rodar extração; quem gerou o dataset também precisa
+  descompactar, nenhum comando cria `data/dataset/`):
   `git pull && unzip data/dataset.zip -d data/`
 
 ## Regras rápidas (resumo — detalhe está na constitution)

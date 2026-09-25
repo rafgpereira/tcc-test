@@ -165,7 +165,11 @@ src/
         ├── manifest.py    # (US3)
         └── report.py      # (US4)
 
+scripts/
+└── check_consistency.py   # (raiz, fora do módulo) dataset × mutantes, 1:1, por nomes e contagens; ver docs/verificacao-consistencia.md
+
 tests/
+├── consistency/           # testes de scripts/check_consistency.py
 ├── dataset/               # já existente
 ├── sandbox/                # já existente
 └── mutation/               # espelha src/mutation/

@@ -118,6 +118,14 @@ docker compose run --rm app python -m mutation verify
 git status --short data/mutants.zip manifests/mutants.manifest.json manifests/mutation_report.json
 ```
 
+Antes de `package` e de novo depois dele, confira o conjunto (só lê; mostra as contagens por
+problema e se dataset e mutantes estão 1:1, ver
+[`docs/verificacao-consistencia.md`](../../docs/verificacao-consistencia.md)):
+
+```bash
+docker compose run --rm app python scripts/check_consistency.py --deep
+```
+
 `package` **se recusa** (código `1`, sem gravar nada) se: o dataset divergir do manifesto; a revisão
 for malformada; algum problema estiver pela metade em `data/mutants/building/` (rode `generate` de
 novo); algum problema já fechado tiver perdido ou tiver tido um mutante alterado (`DAMAGED`); ou
@@ -141,6 +149,7 @@ Depois de um `git pull` que trouxe `data/mutants.zip` e os manifestos, **não ro
 rm -rf data/mutants
 unzip data/mutants.zip -d data/
 docker compose run --rm app python -m mutation verify --extracted data/mutants
+docker compose run --rm app python scripts/check_consistency.py --deep
 ```
 
 O `rm` apaga qualquer geração local de desenvolvimento (que pode ter mutantes diferentes: o motor

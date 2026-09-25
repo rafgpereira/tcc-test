@@ -50,7 +50,10 @@ unzip data/dataset.zip -d data/
 docker compose run --rm app python scripts/verify_dataset.py --extracted data/dataset
 ```
 
-Esperado: a última linha é `OK`. O `unzip` cria `data/dataset/problems/<problem_id>/`, uma pasta
+Esperado: a última linha é `OK` (o `--extracted` é o que confere a pasta descompactada; sem ele, o
+`verify` só confere o zip). Para um resumo com as contagens de todos os problemas e arquivos, rode
+também `docker compose run --rm app python scripts/check_consistency.py --only dataset` (ver
+[`docs/verificacao-consistencia.md`](../../docs/verificacao-consistencia.md)). O `unzip` cria `data/dataset/problems/<problem_id>/`, uma pasta
 por problema, cada uma com `enunciado.md`, `AC_ref.cpp` (a solução correta), `WA_1.cpp` a
 `WA_100.cpp` (as 100 falhas reais), `testes.json` (a suíte oficial), `metadata.json` (rating, tags,
 macrocategoria, limites) e `validacao.json` (o veredito de cada código e como ele foi decidido). É
@@ -70,7 +73,8 @@ data/dataset.zip data/` — produz a mesma árvore.
 Só é preciso se você está criando o dataset pela primeira vez, ou refazendo-o depois de uma
 mudança nos critérios ou no motor. É um processo de **cinco comandos manuais e separados**,
 nesta ordem, cada um descrito com detalhe logo abaixo: `extract` → `validate` → `audit` →
-`package` → `verify`. Nenhum comando chama o próximo sozinho. Leva de um a alguns dias de relógio
+`package` → `verify`, mais um passo final de **descompactar** o zip gerado (passo 6), que é o que
+cria a pasta `data/dataset/` usada pelos módulos seguintes. Nenhum comando chama o próximo sozinho. Leva de um a alguns dias de relógio
 (a validação sozinha leva horas), então é feito **uma única vez**, por uma pessoa, e o resultado é
 publicado pelo Git para as demais.
 
@@ -164,6 +168,24 @@ publicado pelo Git para as demais.
    `manifests/dataset.manifest.json`, `manifests/extraction_report.json`) são o que se manda para
    as demais pessoas pelo Git — nada disso é commitado automaticamente por nenhum dos comandos
    acima; é sempre uma decisão manual (`git add`, `git commit`, `git push`).
+
+6. **Descompactar o dataset que você acabou de gerar** — os cinco comandos acima só produzem o zip
+   (a partir de `data/work/problems/`); **nenhum deles cria `data/dataset/`**, que é a pasta que os
+   módulos seguintes leem (ver "Qual pasta eu uso?" em (d)). Ela só passa a existir quando você
+   descompacta o zip, exatamente como quem recebe o dataset pelo Git:
+
+   ```bash
+   rm -rf data/dataset                    # só se já existir uma versão antiga
+   unzip data/dataset.zip -d data/
+   docker compose run --rm app python scripts/verify_dataset.py --extracted data/dataset
+   docker compose run --rm app python scripts/check_consistency.py --only dataset
+   ```
+
+   Esperado: `OK` no `verify_dataset.py` e, no `check_consistency.py`, `Resultado: OK`, com
+   `pastas de problema: 200 (o manifesto diz 200)` e `200/200` em cada linha de arquivo. Sem este
+   passo, o módulo de mutantes (e os seguintes) não encontra o dataset e se recusa a rodar. Repare
+   que o `verify` do passo 5 só conferiu o **zip**; é o `--extracted` deste passo que confere a
+   **pasta** `data/dataset/`.
 
 O computador precisa ficar ligado durante a validação (a etapa mais longa); em notebook, mantenha
 na tomada e evite suspensão (`systemd-inhibit --what=sleep:idle -- <comando>` no Linux impede a

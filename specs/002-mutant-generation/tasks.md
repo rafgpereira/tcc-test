@@ -508,6 +508,35 @@ de documentação e propagação já feitas dentro das histórias.
 
 ---
 
+## Phase 8: Verificação de consistência entre artefatos (adicionada a pedido dos autores em 2026-09-25; research.md, R22)
+
+**Purpose**: um comando da raiz que percorre as pastas de verdade e confere, por nomes e contagens,
+que dataset e mutantes estão completos e 1:1; portão das etapas que consomem os dados. Referência
+viva: [`docs/verificacao-consistencia.md`](../../docs/verificacao-consistencia.md) — os módulos
+seguintes acrescentam a sua camada lá.
+
+- [X] T070 [P] Write tests in `tests/consistency/test_check_consistency.py`: repositório sintético
+  consistente passa com as contagens no resumo; cada arquivo fixo faltando, 99 WAs, WA fora da faixa,
+  arquivo a mais, contagem diferente do manifesto, pasta que não é de problema, nomes diferentes do
+  manifesto, dataset ausente e manifesto ausente (código `2`); 99 e 101 mutantes, `generation.json`
+  permitido, excluído como aviso, `building/` pendente, manifesto de mutantes ausente como aviso;
+  problema sem mutantes, mutantes sem problema, `--only`, camada desconhecida; `--deep` acha um byte
+  alterado que os nomes não veem, mutante alterado, zip diferente, zip ausente como aviso; listas
+  longas cortadas; uma camada nova é conferida sem mudar as verificações
+- [X] T071 Implement `scripts/check_consistency.py` (`Layer`/`Group`, `check_layer`,
+  `check_relation`, `run_checks`, `main`; só biblioteca padrão) (makes T070 pass)
+- [X] T072 Documentar: `docs/verificacao-consistencia.md`, seção no `README.md` da raiz e linha na
+  "Referência de comandos", `CLAUDE.md`, README do módulo `dataset` (passo 6 do cenário "do zero":
+  descompactar) e do `mutation`, `quickstart.md` (Nível 4), metodologia (seção 0.1)
+- [X] T073 📌 PROPAGAR — Execução real sobre os dados reais (dataset descompactado e 200 problemas
+  de mutantes): `OK`, 0 falhas, 1 aviso; registrar em `research.md` (R22) e na metodologia (0.1)
+- [ ] T074 Depois de `package`: rodar `check_consistency.py --deep` (sem o aviso de manifesto de
+  mutantes) e registrar o resultado (execução dos autores, roteiro do Nível 4 do `quickstart.md`)
+
+**Checkpoint**: `docker compose run --rm app python scripts/check_consistency.py --deep` sai `0`.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

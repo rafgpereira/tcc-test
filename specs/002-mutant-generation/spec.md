@@ -370,6 +370,10 @@ de uma execução de teste contém os campos exigidos e que os totais somam corr
   final é idêntico ao de uma execução nunca interrompida (validado com o motor real; metodologia
   2.10, `research.md` R19). Um segundo `generate` simultâneo se recusa e um problema fechado
   danificado é apontado (`DAMAGED`), nunca pulado em silêncio.
+- **Verificação de consistência entre artefatos**: `scripts/check_consistency.py` (comando da raiz,
+  só lê) confere por nomes e contagens que o dataset descompactado e os mutantes estão completos e
+  1:1, nos dois sentidos; `--deep` confere os hashes. Contrato e decisões em
+  `docs/verificacao-consistencia.md` e `research.md` R22; os módulos seguintes o estendem.
 - **Dependência de módulos futuros**: a orquestração de IA e a avaliação experimental
   consomem os mutantes produzidos aqui, mas nada deles é entregue nesta feature.
 

@@ -510,3 +510,38 @@ pool (é contado desde a submissão, e até `2 × workers` problemas ficam subme
 `--workers > 1` **não** mede o tempo de cada problema (a soma dos tempos impressos é 82 h, para 7,4 h
 de relógio). O tempo total de relógio acima é o confiável. Corrigir o cronômetro (contar a partir do
 início da tarefa no trabalhador) é pendência de código, não de dados.
+
+### R22 — Verificação de consistência entre artefatos (`scripts/check_consistency.py`) — 2026-09-25
+
+**Origem**: os autores notaram que (a) `dataset verify` sem `--extracted` só confere o **zip** (editar
+ou apagar um `AC_ref.cpp` em `data/dataset/` continuava dando `OK`; reproduzido numa cópia, R21 e
+resposta de 2026-09-25) e (b) nada conferia o conjunto — dataset e mutantes 1:1, com todos os arquivos
+de cada problema —, que precisa estar certo antes de a execução final extrair os dados do
+experimento e antes do envio às IAs. Confirmado também que `data/dataset/` só existe depois de um
+`unzip` manual (nenhum comando a cria), o que faltava no tutorial do dataset.
+
+**Decisões** (contrato e referência viva em `docs/verificacao-consistencia.md`):
+
+- **Comando da raiz** (`scripts/`, como `check_docs_sync.py` e `verify_dataset.py`), só biblioteca
+  padrão, só lê, serviço `app`; não pertence a um módulo porque cruza os artefatos de vários (e dos
+  futuros: testes das IAs).
+- **Nomes e contagens, não conteúdo** (pedido dos autores): pastas, arquivos, `100` WAs e `100`
+  mutantes por problema, nada além do esperado, nomes iguais aos que o manifesto lista; a **relação
+  1:1** dataset × mutantes nos dois sentidos (a verificação "de volta": pasta de mutantes sem
+  problema no dataset é falha). `--deep` acrescenta os SHA-256 de todos os arquivos e dos zips
+  contra os manifestos, para o momento em que os dados são consumidos.
+- **Extensível por `Layer`**: um módulo novo declara a pasta, os grupos de nomes e o manifesto; a
+  relação 1:1 com o dataset é conferida sem outra mudança (testado com uma camada fictícia de
+  "testes da IA").
+- **Contagem esperada de problemas vem do manifesto do dataset** (`problem_count`), não de uma
+  constante; excluído por FR-009 é `[AVISO]`; manifesto de mutantes ausente é `[AVISO]` (só existe
+  depois de `package`); `building/` não vazio é falha.
+- **Ainda não confere** (decisão dos autores: não se preocupar): se os mutantes vieram do `AC_ref`
+  atual do dataset (`generation.json` não guarda o hash do `AC_ref`).
+- **Como portão**: `--deep` com código `0` é a condição para etapas que consomem os dados; o futuro
+  orquestrador (`src/cli/`) chamará `run_checks`; mover o código para `src/` fica para essa feature.
+
+**Execução real** (dataset e mutantes reais, 2026-09-25, antes de `report`/`package`): 0,6 s, `OK`,
+1 aviso (sem manifesto de mutantes ainda); dataset 200 pastas (manifesto: 200), `200/200` em cada arquivo
+fixo e em `WA_1..WA_100`, nomes batem com o manifesto (21.000 arquivos); mutantes 200/200 com 100
+cada, `building/` vazio; relação 200/200 e 0 sobrando; `--deep` também `OK` (hash do dataset e do zip).

@@ -128,6 +128,10 @@ for d in data/mutants/problems/*; do [ "$(ls $d | wc -l)" != 101 ] && echo "$d: 
 
 **5. Relatório, pacote e verificação:**
 
+(antes, confira o conjunto: `docker compose run --rm app python scripts/check_consistency.py`;
+esperado `Resultado: OK`, com `200/200` em cada linha e um aviso, o de que o manifesto dos mutantes
+ainda não existe)
+
 ```bash
 docker compose run --rm app python -m mutation report 
 docker compose run --rm app python -m mutation package
@@ -146,6 +150,7 @@ docker compose run --rm app python -m mutation verify --extracted data/_check/mu
 diff -rq data/_check/mutants/problems data/mutants/problems | grep -v generation.json    # vazio
 rm -rf data/_check
 git status --short                                                  # só os 3 arquivos novos abaixo
+docker compose run --rm app python scripts/check_consistency.py --deep   # OK, 0 falhas, 0 avisos (agora o manifesto existe)
 ```
 
 Os três arquivos novos esperados: `data/mutants.zip`, `manifests/mutants.manifest.json`,

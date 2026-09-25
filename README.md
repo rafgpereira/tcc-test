@@ -243,6 +243,26 @@ Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
 | `mutation` | para gerar os mutantes de cada problema (em implementação: `generate`, `report`, `package` e `verify` prontos; falta a execução final) | [README do módulo](src/mutation/README.md) |
 | `ai_clients`, avaliação, `metrics`, `cli` | ainda não implementados | sem README ainda |
 
+## Conferir se os artefatos estão consistentes entre si
+
+Cada módulo confere o seu próprio artefato contra o manifesto (`dataset verify`, `mutation verify`).
+Para conferir o **conjunto** — se o dataset descompactado tem os 200 problemas e todos os arquivos
+de cada um, se os mutantes têm exatamente 100 por problema, e se **não sobra nem falta nada** em
+nenhum dos lados (todo problema tem mutantes, e nenhuma pasta de mutantes existe sem problema) —,
+há um comando na raiz que percorre as pastas de verdade e imprime um resumo com as contagens:
+
+```bash
+docker compose run --rm app python scripts/check_consistency.py          # nomes e contagens (menos de 1 s)
+docker compose run --rm app python scripts/check_consistency.py --deep   # e também os hashes de todos os arquivos
+```
+
+Ele só lê (não altera nada nem executa código), não olha o conteúdo dos códigos e termina com
+código `0` (sem falhas) ou `1`. Rode-o depois de descompactar o dataset, depois de gerar e empacotar
+os mutantes e, principalmente, **antes de qualquer etapa que consuma os dados** (o envio às IAs e a
+execução final do experimento): ele é o portão dessas etapas, e cada módulo novo que produz uma
+pasta por problema entra nele. O que ele confere, como ler o resultado e como estendê-lo estão em
+[`docs/verificacao-consistencia.md`](docs/verificacao-consistencia.md).
+
 ## Reprodutibilidade
 
 - Dependências fixadas em lockfile (`uv.lock`); imagem base fixada por digest; revisão do
@@ -271,10 +291,11 @@ existe de fato: `docker compose run --rm app python -m dataset --help`.
 |---|---|---|
 | `docker compose build` | (nenhum) | constrói a imagem; repita depois de mudanças no `Dockerfile` ou no `uv.lock` |
 | `docker compose run --rm sandbox pytest` | `sandbox` | todos os testes do projeto, inclusive os que compilam e executam C++ |
-| `docker compose run --rm sandbox pytest tests/<pasta>` | `sandbox` | os testes de uma parte: `tests/dataset`, `tests/sandbox`, `tests/mutation` ou `tests/docs` |
+| `docker compose run --rm sandbox pytest tests/<pasta>` | `sandbox` | os testes de uma parte: `tests/dataset`, `tests/sandbox`, `tests/mutation`, `tests/consistency` ou `tests/docs` |
 | `docker compose run --rm app ruff check .` | `app` | análise estática (`--fix` corrige o que for automático) |
 | `docker compose run --rm app black --check .` | `app` | confere a formatação; sem `--check` (`black .`) reformata os arquivos do repositório |
 | `docker compose run --rm app python scripts/check_docs_sync.py` | `app` | verifica se a documentação está sincronizada (READMEs, links, metodologia) |
+| `docker compose run --rm app python scripts/check_consistency.py [--deep]` | `app` | confere, olhando as pastas de verdade, se dataset e mutantes estão completos e 1:1 (200 problemas, 100 mutantes cada, nada sobrando); `--deep` também confere os hashes ([detalhes](docs/verificacao-consistencia.md)) |
 
 ### Módulo `dataset` (passo a passo completo: [README](src/dataset/README.md))
 
