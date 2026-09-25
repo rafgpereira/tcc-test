@@ -11,19 +11,14 @@ teste unitários em C++.
 > cada módulo.
 >
 > **Estado atual (2026-09-25)**: os módulos `dataset` (extração, validação e empacotamento do
-> dataset) e `sandbox` (motor de execução isolada de C++, usado pelo `dataset` internamente) estão
-> **implementados**. O dataset experimental já foi gerado, validado e empacotado de verdade — o
-> zip (`data/dataset.zip`) e os manifestos de integridade já estão neste repositório; quem clona o
-> projeto agora só precisa descompactar e conferir, não precisa gerar nada. O módulo de **geração
-> de mutantes** (`mutation`) está **em implementação**: o comando `generate` já gera os 100 mutantes
-> de cada problema (uma alteração por vez e, quando não basta, combinações de duas e três, ou a
-> exclusão do problema com alerta), pode ser interrompido e retomado sem perda, e o módulo também
-> tem o relatório (`report`) e o empacotamento verificável (`package`, `verify`). A geração dos 200
-> problemas já foi executada de verdade (20.000 mutantes, nenhum problema excluído); o relatório e o
-> pacote versionado ainda serão gerados (ver o
-> [README do módulo](src/mutation/README.md)). Os demais módulos seguintes (chamadas aos modelos de
-> IA, avaliação, métricas, orquestrador) ainda não têm especificação nem código; a seção "Módulos
-> e estado" marca isso.
+> dataset), `sandbox` (motor de execução isolada de C++) e `mutation` (100 mutantes por problema)
+> estão **implementados**, e os dois primeiros artefatos do experimento já foram gerados de verdade
+> e estão neste repositório: o dataset (`data/dataset.zip`, 200 problemas) e os mutantes
+> (`data/mutants.zip`, 20.000 mutantes), cada um com o seu manifesto de integridade. Quem clona o
+> projeto só precisa descompactar e conferir, não precisa gerar nada. Um comando na raiz,
+> `python -m cli check`, confere se dataset e mutantes estão completos e 1:1. Os demais módulos
+> (chamadas aos modelos de IA, avaliação, métricas, orquestrador) ainda não têm especificação nem
+> código; a tabela "Módulos e estado" marca isso.
 
 ## O que o experimento responde
 
@@ -84,11 +79,11 @@ na avaliação, para que nenhum código do dataset falhe no motor só durante o 
 |---|---|---|---|---|
 | `src/dataset/` | extrai, valida e empacota o dataset experimental | seção 1 | **implementado**: dataset real gerado, validado e empacotado (200 problemas, ~12 MiB) | [README](src/dataset/README.md) |
 | `src/sandbox/` | motor de execução isolada de C++, usado pelo `dataset` | seções 1.4 e 4 | **implementado**: motor, isolamento e auto-checagem testados | [README](src/sandbox/README.md) |
-| `src/mutation/` | gera 100 mutantes por problema | seção 2 | **em implementação** ([spec](specs/002-mutant-generation/spec.md)): comandos `generate`, `report`, `package` e `verify` implementados; a execução final que gera o pacote versionado ainda não foi feita | [README](src/mutation/README.md) |
+| `src/mutation/` | gera 100 mutantes por problema e os empacota | seção 2 | **implementado**: 200 problemas, 20.000 mutantes, pacote versionado (~9 MiB) | [README](src/mutation/README.md) |
 | `src/ai_clients/` | chamadas stateless aos 3 modelos | seção 3 | **sem spec** (pontos pendentes na metodologia, em especial o oráculo do SLM) | a criar |
 | avaliação | injeta as suítes geradas e registra vereditos em CSV | seção 4 | **sem spec** | a criar |
 | `src/metrics/` | TDF, MS, TFP, IIC | seção 5 | **sem spec** (IIC ainda não operacionalizado) | a criar |
-| `src/cli/` | orquestrador do experimento | — | **sem spec** | a criar |
+| `src/cli/` | comandos que cruzam módulos (hoje `check`) e, no futuro, o orquestrador do experimento | — | **em implementação**: `check` pronto; o orquestrador ainda sem especificação | [README](src/cli/README.md) |
 
 O formato dos READMEs de módulo é o de [`docs/template-modulo.md`](docs/template-modulo.md).
 
@@ -218,8 +213,10 @@ compila e executa C++, o que só é permitido dentro dele.
 | `.env` | suas configurações locais | não, nunca |
 | `data/work/` | espaço de trabalho de quem gera o dataset do zero (ver README do módulo `dataset`) | não |
 | `data/dataset/` | o dataset já descompactado e pronto para uso (ver README do módulo `dataset`) | não (é gerado a partir do zip) |
-| `data/dataset.zip` | o dataset validado, compactado | **sim**, é a única exceção em `data/` |
-| `manifests/` | manifesto de hashes e relatório final, para conferir a integridade do dataset | sim |
+| `data/dataset.zip` | o dataset validado, compactado | **sim** |
+| `data/mutants/` | os mutantes já descompactados (ou gerados) e prontos para uso (ver README do módulo `mutation`) | não (é gerado a partir do zip) |
+| `data/mutants.zip` | os mutantes da execução final, compactados | **sim** |
+| `manifests/` | manifestos de hashes e relatórios, para conferir a integridade dos artefatos | sim |
 
 ### Problemas comuns
 
@@ -238,29 +235,28 @@ Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
 
 | Módulo | Quando usar | Onde está o passo a passo |
 |---|---|---|
-| `dataset` | para obter o dataset experimental (o caso mais comum: só descompactar e conferir) ou para gerá-lo/regenerá-lo do zero | [README do módulo](src/dataset/README.md), seção "Qual é o seu cenário?" |
-| `sandbox` | não tem uso direto — é a biblioteca de execução isolada usada pelo `dataset` por baixo dos panos; só é operado diretamente para conferir a saúde do motor | [README do módulo](src/sandbox/README.md) |
-| `mutation` | para gerar os mutantes de cada problema (em implementação: `generate`, `report`, `package` e `verify` prontos; falta a execução final) | [README do módulo](src/mutation/README.md) |
-| `ai_clients`, avaliação, `metrics`, `cli` | ainda não implementados | sem README ainda |
+| `dataset` | obter o dataset (o caso comum: descompactar e conferir) ou gerá-lo do zero | [README do módulo](src/dataset/README.md) |
+| `sandbox` | sem uso direto: é a biblioteca de execução isolada; só se opera diretamente para conferir a saúde do motor | [README do módulo](src/sandbox/README.md) |
+| `mutation` | obter os mutantes (descompactar e conferir) ou gerá-los do zero | [README do módulo](src/mutation/README.md) |
+| `cli` | conferir se dataset e mutantes estão consistentes entre si | [README do módulo](src/cli/README.md) |
+| `ai_clients`, avaliação, `metrics` | ainda não implementados | sem README ainda |
 
 ## Conferir se os artefatos estão consistentes entre si
 
 Cada módulo confere o seu próprio artefato contra o manifesto (`dataset verify`, `mutation verify`).
 Para conferir o **conjunto** — se o dataset descompactado tem os 200 problemas e todos os arquivos
-de cada um, se os mutantes têm exatamente 100 por problema, e se **não sobra nem falta nada** em
-nenhum dos lados (todo problema tem mutantes, e nenhuma pasta de mutantes existe sem problema) —,
-há um comando na raiz que percorre as pastas de verdade e imprime um resumo com as contagens:
+de cada um, se os mutantes têm exatamente 100 por problema e se **não sobra nem falta nada** em
+nenhum dos lados —, há um comando que percorre as pastas de verdade e imprime um resumo com as
+contagens:
 
 ```bash
-docker compose run --rm app python scripts/check_consistency.py          # nomes e contagens (menos de 1 s)
-docker compose run --rm app python scripts/check_consistency.py --deep   # e também os hashes de todos os arquivos
+docker compose run --rm app python -m cli check          # nomes e contagens (menos de 1 s)
+docker compose run --rm app python -m cli check --deep   # e também os hashes de todos os arquivos
 ```
 
-Ele só lê (não altera nada nem executa código), não olha o conteúdo dos códigos e termina com
-código `0` (sem falhas) ou `1`. Rode-o depois de descompactar o dataset, depois de gerar e empacotar
-os mutantes e, principalmente, **antes de qualquer etapa que consuma os dados** (o envio às IAs e a
-execução final do experimento): ele é o portão dessas etapas, e cada módulo novo que produz uma
-pasta por problema entra nele. O que ele confere, como ler o resultado e como estendê-lo estão em
+Ele só lê, não olha o conteúdo dos códigos e termina com código `0` (sem falhas) ou `1`. Rode-o
+depois de descompactar o dataset e os mutantes e **antes de qualquer etapa que consuma os dados** (o
+envio às IAs e a execução final do experimento). O que ele confere e como estendê-lo estão em
 [`docs/verificacao-consistencia.md`](docs/verificacao-consistencia.md).
 
 ## Reprodutibilidade
@@ -269,73 +265,66 @@ pasta por problema entra nele. O que ele confere, como ler o resultado e como es
   dataset de origem fixada; seed fixa (`42`).
 - O dataset é distribuído como `data/dataset.zip` versionado, com o manifesto
   `manifests/dataset.manifest.json` (SHA-256 por arquivo) para verificar a identidade exata dos
-  dados. Arquivos soltos do dataset e mutantes gerados durante o desenvolvimento nunca são
-  versionados; o pacote de mutantes da **execução final** que sustenta os números publicados do
-  experimento é uma exceção (Constitution, Princípio II, emenda 1.6.0), pelo mesmo motivo do
-  dataset: o motor de execução tem instabilidade de margem já medida, então regenerar com a
-  mesma seed não garante reproduzir exatamente o mesmo conjunto.
+  dados. Os mutantes seguem o mesmo modelo: só o pacote da **execução final**
+  (`data/mutants.zip` e `manifests/mutants.manifest.json`) é versionado, porque o motor de execução
+  tem uma margem de instabilidade medida e regenerar não garante os mesmos mutantes. Arquivos soltos
+  de dataset ou de mutantes gerados durante o desenvolvimento nunca são versionados.
 - Chamadas a modelos comerciais custam dinheiro: o pipeline nunca as dispara em lote sem
   confirmação explícita de quem executa.
 
 ## Referência de comandos
 
-Lista única de **todos os comandos do projeto**, para não ser preciso procurá-los no código. Todos
-rodam na pasta do repositório; o que cada `<serviço>` é está em "Docker em poucas palavras" (`app`
-tem internet; `sandbox` não tem e é o único que compila e executa C++ de terceiros). O passo a
-passo de cada comando está no README do módulo correspondente. A ajuda embutida da CLI lista o que
-existe de fato: `docker compose run --rm app python -m dataset --help`.
+Lista única de **todos os comandos do projeto e suas variações**, para não ser preciso procurá-los
+no código. Todos rodam na pasta do repositório; `app` tem internet, `sandbox` não tem e é o único
+que compila e executa C++ de terceiros ("Docker em poucas palavras"). O passo a passo de cada módulo
+está no README dele; `--help` de qualquer comando lista as opções de fato disponíveis
+(`docker compose run --rm app python -m dataset --help`).
 
-### Ambiente, testes e qualidade (valem para todos os módulos)
+### Ambiente, testes e qualidade
 
-| Comando | Serviço | O que faz |
+| Comando | Serviço | O que faz / variações |
 |---|---|---|
-| `docker compose build` | (nenhum) | constrói a imagem; repita depois de mudanças no `Dockerfile` ou no `uv.lock` |
-| `docker compose run --rm sandbox pytest` | `sandbox` | todos os testes do projeto, inclusive os que compilam e executam C++ |
-| `docker compose run --rm sandbox pytest tests/<pasta>` | `sandbox` | os testes de uma parte: `tests/dataset`, `tests/sandbox`, `tests/mutation`, `tests/consistency` ou `tests/docs` |
-| `docker compose run --rm app ruff check .` | `app` | análise estática (`--fix` corrige o que for automático) |
-| `docker compose run --rm app black --check .` | `app` | confere a formatação; sem `--check` (`black .`) reformata os arquivos do repositório |
-| `docker compose run --rm app python scripts/check_docs_sync.py` | `app` | verifica se a documentação está sincronizada (READMEs, links, metodologia) |
-| `docker compose run --rm app python scripts/check_consistency.py [--deep]` | `app` | confere, olhando as pastas de verdade, se dataset e mutantes estão completos e 1:1 (200 problemas, 100 mutantes cada, nada sobrando); `--deep` também confere os hashes ([detalhes](docs/verificacao-consistencia.md)) |
+| `docker compose build` | (nenhum) | constrói a imagem; repita depois de mudar o `Dockerfile` ou o `uv.lock` |
+| `docker compose run --rm sandbox pytest` | `sandbox` | todos os testes do projeto; `pytest tests/<pasta>` roda uma parte: `tests/dataset`, `tests/sandbox`, `tests/mutation`, `tests/cli` ou `tests/docs` |
+| `docker compose run --rm app ruff check .` | `app` | análise estática; `--fix` corrige o que for automático |
+| `docker compose run --rm app black --check .` | `app` | confere a formatação; sem `--check` reformata os arquivos |
+| `docker compose run --rm app python scripts/check_docs_sync.py` | `app` | verifica se a documentação está sincronizada (READMEs, links, metodologia); `--module src/<módulo>` confere só um módulo |
 
-### Módulo `dataset` (passo a passo completo: [README](src/dataset/README.md))
+### Módulo `dataset` ([README](src/dataset/README.md))
 
-| Comando | Serviço | O que faz |
+| Comando | Serviço | O que faz / variações |
 |---|---|---|
-| `docker compose run --rm app python -m dataset extract` | `app` | lê o dataset de origem e grava o pool de problemas elegíveis |
-| `docker compose run --rm app python -m dataset report` | `app` | regenera o relatório legível a partir do que já foi processado |
-| `docker compose run --rm sandbox python -m dataset selfcheck` | `sandbox` | confere a saúde do motor de execução com programas de veredito conhecido |
-| `docker compose run --rm sandbox python -m dataset validate` | `sandbox` | executa cada problema no motor até reunir a amostra completa |
-| `docker compose run --rm sandbox python -m dataset audit` | `sandbox` | reexecuta a amostra já validada e repara automaticamente o que divergir |
-| `docker compose run --rm app python -m dataset package` | `app` | gera `data/dataset.zip` e o manifesto de integridade |
-| `docker compose run --rm app python -m dataset verify` | `app` | confere o zip (e, opcionalmente, uma extração) contra o manifesto |
-| `docker compose run --rm app python scripts/verify_dataset.py` | `app` | a mesma verificação, para quem só recebeu o zip (sem precisar do restante do projeto instalado) |
-| `unzip data/dataset.zip -d data/` | (host) | descompacta o dataset recebido pelo Git |
+| `docker compose run --rm app python -m dataset extract` | `app` | lê o dataset de origem e grava o pool de elegíveis; `--limit-rows N` (teste rápido), `--splits LIST`, `--seed INT`; retoma se interrompido |
+| `docker compose run --rm app python -m dataset report` | `app` | regenera o relatório legível do que já foi processado |
+| `docker compose run --rm sandbox python -m dataset selfcheck` | `sandbox` | confere a saúde do motor com programas de veredito conhecido |
+| `docker compose run --rm sandbox python -m dataset validate` | `sandbox` | executa cada problema no motor até reunir 200 completos; `--target N` (piloto: `--target 10`), `--workers N`, `--problem ID`; retoma se interrompido |
+| `docker compose run --rm sandbox python -m dataset audit` | `sandbox` | reexecuta a amostra e repara o que divergir; `--problem ID` (repetível), `--workers N` |
+| `docker compose run --rm app python -m dataset package` | `app` | gera `data/dataset.zip` e o manifesto; `--target N`, `--allow-partial` (só para teste) |
+| `docker compose run --rm app python -m dataset verify` | `app` | confere o zip contra o manifesto; `--extracted data/dataset` confere também a pasta descompactada |
+| `unzip data/dataset.zip -d data/` | (host) | descompacta o dataset em `data/dataset/` (nenhum comando o faz) |
+
+### Módulo `mutation` ([README](src/mutation/README.md))
+
+| Comando | Serviço | O que faz / variações |
+|---|---|---|
+| `docker compose run --rm sandbox python -m mutation generate` | `sandbox` | gera 100 mutantes por problema; `--problem ID` (repetível), `--workers N` (padrão metade das CPUs); pula o que já está concluído e retoma sem perda se interrompido |
+| `docker compose run --rm app python -m mutation report` | `app` | recalcula `manifests/mutation_report.json` a partir do que já foi gerado |
+| `docker compose run --rm app python -m mutation package` | `app` | só na execução final: gera `data/mutants.zip`, o manifesto e o relatório; `--allow-partial` (só para teste) |
+| `docker compose run --rm app python -m mutation verify` | `app` | confere o zip contra o manifesto; `--extracted data/mutants` confere também a pasta descompactada |
+| `unzip data/mutants.zip -d data/` | (host) | descompacta os mutantes em `data/mutants/problems/` |
+
+### Módulo `cli` ([README](src/cli/README.md))
+
+| Comando | Serviço | O que faz / variações |
+|---|---|---|
+| `docker compose run --rm app python -m cli check` | `app` | confere, pelas pastas de verdade, se dataset e mutantes estão completos e 1:1 (200 problemas, 100 mutantes cada, nada sobrando); `--deep` confere também os hashes; `--only dataset` (ou `mutants`) confere só uma camada |
 
 ### Módulo `sandbox` ([README](src/sandbox/README.md))
 
-| Comando | Serviço | O que faz |
-|---|---|---|
-| `docker compose run --rm sandbox pytest tests/sandbox` | `sandbox` | testes do motor: juiz, compilador, isolamento, limites |
-| `docker compose run --rm sandbox python -m dataset selfcheck` | `sandbox` | ver a tabela do módulo `dataset` (mesmo comando) |
-
-O motor não tem comando próprio: é uma biblioteca usada pelo `dataset` e, no futuro, pela
-avaliação.
-
-### Módulo `mutation` (passo a passo completo: [README](src/mutation/README.md))
-
-| Comando | Serviço | O que faz |
-|---|---|---|
-| `docker compose run --rm sandbox python -m mutation generate` | `sandbox` | gera até 100 mutantes por problema a partir do `AC_ref.cpp` (uma alteração por mutante e, quando não basta, duas ou três; exclui com alerta o problema que nem assim chega a 100); `--problem ID` restringe a um problema; `--workers N` processa N problemas ao mesmo tempo (padrão: metade das CPUs); pode ser interrompido e retomado sem perda |
-| `docker compose run --rm app python -m mutation report` | `app` | recalcula `manifests/mutation_report.json` (funil de descartes, mutantes por ordem e por operador, alertas de exclusão) a partir do que já foi gerado |
-| `docker compose run --rm app python -m mutation package` | `app` | só na execução final: gera `data/mutants.zip`, `manifests/mutants.manifest.json` e o relatório |
-| `docker compose run --rm app python -m mutation verify` | `app` | confere o zip (e, com `--extracted data/mutants`, a pasta descompactada) contra o manifesto |
-| `unzip data/mutants.zip -d data/` | (host) | descompacta os mutantes recebidos pelo Git em `data/mutants/problems/` |
-| `docker compose run --rm sandbox pytest tests/mutation` | `sandbox` | testes do módulo, inclusive os que compilam e executam C++ |
-
-### Módulos ainda não implementados
-
-`ai_clients`, avaliação, `metrics` e `cli` ainda não têm código nem comandos; quando forem
-implementados, cada um traz o seu README e as suas linhas nesta seção.
+O motor não tem comando próprio: é uma biblioteca usada pelo `dataset` e pelo `mutation` (e, no
+futuro, pela avaliação). `docker compose run --rm sandbox pytest tests/sandbox` roda os testes dele,
+e `python -m dataset selfcheck` (acima) confere a saúde do motor. Módulos ainda não implementados
+(`ai_clients`, avaliação, `metrics`) trazem os seus comandos aqui quando existirem.
 
 ## Glossário
 
@@ -359,13 +348,12 @@ implementados, cada um traz o seu README e as suas linhas nesta seção.
 | [`docs/metodologia-referencia.md`](docs/metodologia-referencia.md) | desenho experimental **corrente**: critérios, decisões e dados medidos de cada módulo, com histórico datado; é a base para o texto do TCC |
 | `src/<modulo>/README.md` | como usar cada módulo (propósito, execução, entradas, saídas, dependências, limitações) |
 | [`docs/template-modulo.md`](docs/template-modulo.md) | formato padronizado do README de cada módulo |
-| [`.specify/memory/constitution.md`](.specify/memory/constitution.md) | princípios do projeto (reprodutibilidade, isolamento, testes, documentação viva...) |
-| [`specs/NNN-nome/`](specs/) | especificação técnica e histórico de decisões de cada módulo, para quem quer o detalhe de implementação |
+| [`docs/verificacao-consistencia.md`](docs/verificacao-consistencia.md) | o que `python -m cli check` confere entre os artefatos e como estendê-lo |
 
 ## Regras de trabalho
 
-Reprodutibilidade acima de tudo: todo dado medido, critério ou decisão de desenho precisa estar
-refletido em [`docs/metodologia-referencia.md`](docs/metodologia-referencia.md), nunca só no
-código. Código gerado com apoio de IA é sempre revisado por um dos autores antes de ser
-considerado pronto. A sincronização da documentação é conferida por
+Todo dado medido, critério ou decisão de desenho precisa estar refletido em
+[`docs/metodologia-referencia.md`](docs/metodologia-referencia.md), nunca só no código. Código
+gerado com apoio de IA é revisado por um dos autores antes de ser considerado pronto. A
+sincronização da documentação é conferida por
 `docker compose run --rm app python scripts/check_docs_sync.py`.

@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-23
 
-**Status**: Draft
+**Status**: Implemented (2026-09-25)
 
 **Input**: User description: "Especificar o módulo de geração de mutantes, conforme
 `docs/metodologia-referencia.md`, seção 2, e as decisões tomadas em rodada de pesquisa e
@@ -370,7 +370,7 @@ de uma execução de teste contém os campos exigidos e que os totais somam corr
   final é idêntico ao de uma execução nunca interrompida (validado com o motor real; metodologia
   2.10, `research.md` R19). Um segundo `generate` simultâneo se recusa e um problema fechado
   danificado é apontado (`DAMAGED`), nunca pulado em silêncio.
-- **Verificação de consistência entre artefatos**: `scripts/check_consistency.py` (comando da raiz,
+- **Verificação de consistência entre artefatos**: `python -m cli check` (pacote `src/cli`,
   só lê) confere por nomes e contagens que o dataset descompactado e os mutantes estão completos e
   1:1, nos dois sentidos; `--deep` confere os hashes. Contrato e decisões em
   `docs/verificacao-consistencia.md` e `research.md` R22; os módulos seguintes o estendem.

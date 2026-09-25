@@ -1,6 +1,6 @@
 # Verificação de consistência entre artefatos
 
-> **Fonte única** do que o comando `scripts/check_consistency.py` confere, de como ler o seu
+> **Fonte única** do que o comando `python -m cli check` confere, de como ler o seu
 > resultado e de como um módulo novo o estende (Constitution, Princípios II e XI). Cada módulo que
 > passa a produzir uma pasta por problema **MUST** acrescentá-la a este comando no mesmo ciclo de
 > trabalho em que o módulo é implementado, e atualizar este documento.
@@ -21,12 +21,12 @@ manifestos.
 ## Como rodar
 
 ```bash
-docker compose run --rm app python scripts/check_consistency.py          # estrutura e nomes (menos de 1 s)
-docker compose run --rm app python scripts/check_consistency.py --deep   # e também os hashes de todos os arquivos
-docker compose run --rm app python scripts/check_consistency.py --only dataset   # só uma camada
+docker compose run --rm app python -m cli check          # estrutura e nomes (menos de 1 s)
+docker compose run --rm app python -m cli check --deep   # e também os hashes de todos os arquivos
+docker compose run --rm app python -m cli check --only dataset   # só uma camada
 ```
 
-Roda no serviço `app`, **só lê** (não escreve nada, não compila, não executa código de terceiros,
+Roda no serviço `app` (pacote `src/cli/`, README em `src/cli/README.md`), **só lê** (não escreve nada, não compila, não executa código de terceiros,
 não usa rede) e usa só a biblioteca padrão do Python. Código de saída: `0` sem nenhuma falha (avisos
 são permitidos), `1` com pelo menos uma falha, `2` para uso incorreto ou manifesto obrigatório
 ausente.
@@ -54,8 +54,8 @@ JSON.
 3. **Antes de qualquer etapa que consuma os dados** (o envio às IAs e a execução final do
    experimento): `--deep` com código de saída `0` é a condição para prosseguir. Quando o módulo
    orquestrador (`src/cli/`) for especificado, ele deve chamar esta verificação como portão
-   (`run_checks(root, only, deep)` devolve um `Report` com `ok`, `failures` e `warnings`; a decisão
-   de mover o código para `src/` fica para essa feature).
+   (`cli.consistency.run_checks(root, only, deep)` devolve um `Report` com `ok`, `failures` e
+   `warnings`; o código já está em `src/cli/`, importável).
 
 ## Decisões (2026-09-25)
 
@@ -69,12 +69,15 @@ JSON.
   chega a 100 mutantes; mas ele fica visível no resultado.
 - **Manifesto de mutantes ausente é aviso**: ele só existe depois de `mutation package`.
 - **Só lê**: nada é corrigido automaticamente; quem decide o que fazer é o autor.
+- **Comando com nome limpo, em `src/cli/`** (`python -m cli check`, 2026-09-25): comandos do projeto
+  são sempre `python -m <pacote> <subcomando>`, nunca o caminho de um script; a conferência que
+  cruza módulos mora no pacote `cli`, que será também o do orquestrador.
 
 ## Como um módulo novo o estende
 
-Acrescente uma `Layer` em `LAYERS` (`scripts/check_consistency.py`), com a pasta onde ficam as
+Acrescente uma `Layer` em `LAYERS` (`src/cli/consistency.py`), com a pasta onde ficam as
 pastas de problema, os grupos de nomes de arquivo que cada problema deve ter (`Group`), os nomes
 permitidos além deles, o manifesto (se houver) e o prefixo dos caminhos dentro dele. A relação 1:1
 com o dataset passa a ser conferida sem nenhuma outra mudança. Exemplo previsto: os testes gerados
 pelas IAs, uma pasta por problema (e por modelo e cenário, quando esse desenho for decidido).
-Acrescente também os testes em `tests/consistency/` e uma linha na tabela acima.
+Acrescente também os testes em `tests/cli/` e uma linha na tabela acima.

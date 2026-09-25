@@ -73,6 +73,16 @@ integridade commitado, contendo o hash (SHA-256) de cada arquivo persistido
 identidade exata de uma versão do dataset ou dos mutantes são verificáveis a
 qualquer momento recalculando os hashes e comparando com o manifesto.
 
+A verificação de integridade de um artefato (contra o seu manifesto) não basta
+sozinha: a coerência **entre** os artefatos (o dataset descompactado tem todos
+os problemas e arquivos, e cada problema tem exatamente os seus mutantes, sem
+sobrar nem faltar nada de nenhum lado) MUST ser conferida pelo comando
+`python -m cli check` (`docs/verificacao-consistencia.md`), e essa conferência,
+em modo `--deep`, MUST passar antes de qualquer etapa que consuma esses
+artefatos (o envio às IAs e a execução final do experimento). Todo módulo que
+passa a produzir uma pasta por problema MUST acrescentar a sua camada a esse
+comando no mesmo ciclo de trabalho em que é implementado.
+
 ### III. Isolamento Sem Estado nas Chamadas de IA
 
 Nenhuma chamada aos modelos (GPT-5.4-mini, Gemini 3.5 Flash, Qwen2.5-Coder)
@@ -198,17 +208,22 @@ atualizado sempre que um módulo novo for adicionado ou o fluxo entre módulos
 mudar.
 
 A documentação de uso — o README da raiz e o de cada módulo — é escrita para
-quem vai **operar** o pipeline, nunca um registro de como ele foi construído:
-MUST NOT citar identificadores de tarefa do spec-kit (`T035`, `T093`, ...)
-nem narrar o processo de implementação em si ("a auditoria achou X e foi
-corrigido"). Uma decisão de desenho é explicada em linguagem comum, com um
-link para a seção correspondente de `docs/metodologia-referencia.md` quando
-for preciso mais profundidade — nunca só pelo rótulo interno da decisão
-(`D13`, `FR-011b`). O README de um módulo com mais de um ponto de entrada
-organiza o "como executar" pelo cenário de uso de quem lê (por exemplo, "já
-tenho o artefato pronto" vs. "quero gerá-lo do zero"), não pela ordem
-cronológica em que o módulo foi implementado. O detalhe exato dessas regras,
-e a verificação automática que as garante, ficam em
+quem vai **operar** o pipeline, nunca um registro de como ele foi construído,
+e é enxuta, organizada e objetiva: MUST NOT citar o spec-kit, esta
+constitution e seus princípios, identificadores de requisito (`FR-`, `SC-`) ou
+de tarefa (`T035`), caminhos `specs/NNN-...` nem narrar o processo de
+implementação ("a auditoria achou X e foi corrigido"). Uma decisão de desenho é
+explicada em linguagem comum, com um link para a seção correspondente de
+`docs/metodologia-referencia.md` quando for preciso mais profundidade. O
+"como executar" de um módulo tem **só dois cenários**: rodar do zero, ou
+descompactar/usar o que já existe (o pacote versionado que outra pessoa
+gerou) — nunca cenários adicionais. **Todos** os comandos do módulo e suas
+variações (opções, escopo de um problema só, paralelismo, o que a interrupção e
+a retomada fazem) ficam numa única tabela, não em seções próprias; a mesma
+lista completa consta na "Referência de comandos" do README da raiz. Um comando
+é sempre `python -m <pacote> <subcomando>`, com nome limpo, nunca o caminho de
+um script. O detalhe exato dessas regras, e a verificação automática que as
+garante (`scripts/check_docs_sync.py`, inclusive a checagem C8), ficam em
 `docs/template-modulo.md`, que MUST ser mantido alinhado a este princípio.
 **Esta regra não vale para `docs/metodologia-referencia.md`**: ali, rótulos
 de decisão, medições datadas e o histórico de descobertas MUST permanecer —
@@ -287,6 +302,21 @@ Este documento tem precedência sobre decisões pontuais de implementação.
   (Princípio XI). Qualquer violação intencional MUST ser justificada por
   escrito na feature correspondente.
 - **Histórico de emendas**:
+  - 1.7.0 (2026-09-25) — Princípios II e XI. II: a coerência entre os artefatos
+    (dataset descompactado × mutantes, 1:1, com todos os arquivos de cada
+    problema) passa a ser conferida por um comando próprio, `python -m cli
+    check`, cujo modo `--deep` MUST passar antes de etapas que consomem os
+    dados; módulos novos acrescentam a sua camada. XI: a documentação de uso
+    passa a ter só dois cenários (rodar do zero ou descompactar o que já
+    existe), uma única tabela com todos os comandos e variações, comandos com
+    nome limpo (`python -m <pacote> <sub>`, nunca caminho de script) e nenhuma
+    citação ao spec-kit, à constitution, a requisitos ou a tarefas (checagem
+    automática C8). Justificativa: a pedido de Rafael, ao concluir o módulo de
+    mutantes — os READMEs tinham ficado extensos e confusos (seções por
+    cenário demais, retomada e variações espalhadas, referências ao processo de
+    especificação), e a verificação de integridade de cada artefato não
+    cobria o conjunto (`dataset verify` sem `--extracted` só conferia o zip;
+    nada conferia se dataset e mutantes estavam completos e 1:1).
   - 1.6.0 (2026-09-23) — Princípio II: a exceção de versionamento antes exclusiva do dataset
     (emenda 1.1.0) passa a poder se estender a qualquer artefato do experimento cuja
     identidade dependa de execução real de código de terceiros no motor (mutantes; módulos
@@ -388,4 +418,4 @@ Este documento tem precedência sobre decisões pontuais de implementação.
     ajustada para admitir essa exceção.
   - 1.0.0 (2026-09-18) — Ratificação inicial.
 
-**Version**: 1.6.0 | **Ratified**: 2026-09-18 | **Last Amended**: 2026-09-23
+**Version**: 1.7.0 | **Ratified**: 2026-09-18 | **Last Amended**: 2026-09-25

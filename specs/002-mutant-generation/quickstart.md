@@ -13,7 +13,7 @@ no contêiner (Constitution, Princípios II e V).
 - O ambiente já preparado conforme o [README da raiz](../../README.md) (mesmo ambiente do
   módulo de dataset — nenhuma imagem nova).
 - `data/dataset.zip` já descompactado em `data/dataset/` (`unzip data/dataset.zip -d data/`) e
-  verificado (`docker compose run --rm app python scripts/verify_dataset.py`) — este módulo se
+  verificado (`docker compose run --rm app python -m dataset verify`) — este módulo se
   recusa a rodar sobre um dataset não verificado (FR-010).
 
 ## Nível 0 — Dependência nova
@@ -96,7 +96,7 @@ df -h . | tail -1                     # com pelo menos 5 GB livres
 docker compose build
 docker compose run --rm sandbox pytest                               # todos passam (933 em 2026-09-24)
 docker compose run --rm sandbox python -m dataset selfcheck          # selfcheck OK: 9/9 cases
-docker compose run --rm app python scripts/verify_dataset.py         # OK
+docker compose run --rm app python -m dataset verify --extracted data/dataset   # OK
 docker compose run --rm app python scripts/check_docs_sync.py        # OK
 ```
 
@@ -128,7 +128,7 @@ for d in data/mutants/problems/*; do [ "$(ls $d | wc -l)" != 101 ] && echo "$d: 
 
 **5. Relatório, pacote e verificação:**
 
-(antes, confira o conjunto: `docker compose run --rm app python scripts/check_consistency.py`;
+(antes, confira o conjunto: `docker compose run --rm app python -m cli check`;
 esperado `Resultado: OK`, com `200/200` em cada linha e um aviso, o de que o manifesto dos mutantes
 ainda não existe)
 
@@ -150,7 +150,7 @@ docker compose run --rm app python -m mutation verify --extracted data/_check/mu
 diff -rq data/_check/mutants/problems data/mutants/problems | grep -v generation.json    # vazio
 rm -rf data/_check
 git status --short                                                  # só os 3 arquivos novos abaixo
-docker compose run --rm app python scripts/check_consistency.py --deep   # OK, 0 falhas, 0 avisos (agora o manifesto existe)
+docker compose run --rm app python -m cli check --deep   # OK, 0 falhas, 0 avisos (agora o manifesto existe)
 ```
 
 Os três arquivos novos esperados: `data/mutants.zip`, `manifests/mutants.manifest.json`,
@@ -165,4 +165,4 @@ Os três arquivos novos esperados: `data/mutants.zip`, `manifests/mutants.manife
 | 2 — um problema real | `generate --problem 189_C`: 100 mutantes, 795 s (execução dos autores, repetida sem divergência: `research.md` R15); `report` sobre 2 problemas reais gerou o JSON esperado; `ls data/mutants/problems/<id>` deu 101 |
 | 2b — interromper e retomar | SIGINT em 1 s; SIGKILL depois de um problema fechado; retomada sem perda (`research.md` R19) |
 | 3 — piloto | os três problemas mais esparsos fecham só com pares, 371 a 425 s (`research.md` R18); 8 problemas com `--workers 1` e `4`: 0 de 800 mutantes divergentes, 2,07× (`research.md` R14) |
-| 4 — execução completa e empacotamento | **pendente**: é a execução final dos autores (tarefas T052 e T053); `package` e `verify` já foram executados de verdade sobre 2 problemas reais com `--allow-partial` (`research.md` R20) |
+| 4 — execução completa e empacotamento | **feito pelos autores em 2026-09-24/25**: `generate --workers 4` (200 problemas, ~7 h 26 min), `report`, `package` (zip de 9,06 MiB), `verify` `OK`, `python -m cli check --deep` `OK` com 0 avisos (`research.md` R21 e R23) |

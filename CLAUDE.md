@@ -17,14 +17,14 @@ TCC de dupla — Milena e Rafael, UnB.
 - `docs/metodologia-referencia.md` — desenho experimental **corrente**, com
   histórico de atualizações datado; `docs/template-modulo.md` — formato do
   README de cada módulo; `docs/verificacao-consistencia.md` — o que
-  `scripts/check_consistency.py` confere entre os artefatos (dataset, mutantes e,
+  `python -m cli check` confere entre os artefatos (dataset, mutantes e,
   no futuro, os das IAs) e como um módulo novo o estende
 - `src/dataset/` — extração e validação do dataset (code_contests)
 - `src/mutation/` — geração de mutantes
 - `src/ai_clients/` — orquestração das chamadas aos 3 modelos
 - `src/sandbox/` — compilação e execução isolada em C++
 - `src/metrics/` — TDF, MS, TFP, IIC
-- `src/cli/` — orquestrador que amarra tudo
+- `src/cli/` — comandos que cruzam módulos (hoje `check`) e, no futuro, o orquestrador que amarra tudo
   (cada `src/<modulo>/` tem `README.md` no formato de `docs/template-modulo.md`)
 - `data/dataset.zip` — dataset validado, compactado, commitado uma única vez
   (Constitution, Princípio II)
@@ -60,13 +60,13 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
   e `... report`
 - Conferir a documentação: `docker compose run --rm app python scripts/check_docs_sync.py`
 - Conferir a consistência entre artefatos (dataset descompactado × mutantes, 1:1, com contagens; só
-  lê): `docker compose run --rm app python scripts/check_consistency.py [--deep]`. Todo módulo que
+  lê): `docker compose run --rm app python -m cli check [--deep]`. Todo módulo que
   passa a produzir uma pasta por problema MUST entrar nele (`docs/verificacao-consistencia.md`)
 - Lint/formatação: `docker compose run --rm app ruff check .` /
   `docker compose run --rm app black .`
 - Verificar integridade do dataset local (compara contra
   `manifests/dataset.manifest.json`):
-  `docker compose run --rm app python scripts/verify_dataset.py` — sem opções confere só o **zip**;
+  `docker compose run --rm app python -m dataset verify` — sem opções confere só o **zip**;
   para conferir a pasta `data/dataset/` use `--extracted data/dataset`
 - Obter o dataset (qualquer integrante, sem rodar extração; quem gerou o dataset também precisa
   descompactar, nenhum comando cria `data/dataset/`):
@@ -116,19 +116,19 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
   guia geral (arquitetura, preparação única do ambiente) que aponta, como um índice, para o
   README de cada módulo; o "(b) Como executar" de cada módulo é que detalha o funcionamento
   daquele módulo (serviço explicado, resultado esperado, como conferir, falhas comuns),
-  organizado por **cenário de uso** quando o módulo tem mais de um ponto de entrada (ex.: "já
-  tenho o artefato pronto" vs. "quero gerá-lo do zero"), não como um log cronológico de
-  desenvolvimento. Nunca supor que um termo ou valor de configuração é conhecido, e não afirmar
+  organizado nos **dois cenários** (do zero / usar o que já existe), não como um log cronológico
+  de desenvolvimento. Nunca supor que um termo ou valor de configuração é conhecido, e não afirmar
   tempo ou tamanho não medidos.
-- **README de módulo é documentação de uso, não um log de implementação**: MUST NOT citar
-  identificadores de tarefa do spec-kit (`T035`, `T093`, ...) nem narrar o processo pelo qual algo
-  foi construído; explique a decisão e o motivo em linguagem comum, com um link para a seção da
-  metodologia se for preciso mais profundidade. A tabela "Comandos verificados" de cada README
-  tem só `Comando | Verificado em | Revisão` (sem coluna de tarefa). Esse histórico de processo
-  continua existindo — em `specs/NNN-nome/tasks.md` e na seção 8 da metodologia, que é a
-  exceção: lá, rótulo de decisão e proveniência datada continuam obrigatórios — só não pertence
-  ao README (Constitution, Princípio XI; `docs/template-modulo.md`, regra 10). Checado
-  automaticamente por `check_docs_sync.py` (C7, tanto no README raiz quanto no de cada módulo).
+- **READMEs (raiz e de cada módulo) são documentação de uso: enxutos, organizados, objetivos.** Só
+  **dois cenários** no "como executar": rodar do zero, ou descompactar/usar o que já existe. **Todos
+  os comandos e suas variações numa única tabela** (opções, `--problem`, paralelismo, o que a
+  interrupção e a retomada fazem), sem seção própria para retomada ou variações; a mesma lista
+  completa na "Referência de comandos" da raiz. Comando com **nome limpo**, sempre `python -m
+  <pacote> <subcomando>` (nunca o caminho de um script). MUST NOT citar spec-kit, constitution,
+  princípios, `FR-`/`SC-`, tarefas (`T035`), `specs/NNN-...` nem narrar o processo de construção; a
+  proveniência datada das decisões fica só em `docs/metodologia-referencia.md`. Checado por
+  `check_docs_sync.py` (C7 e C8); formato em `docs/template-modulo.md`. A tabela "Comandos
+  verificados" tem só `Comando | Verificado em | Revisão`.
 - Todo módulo tem `src/<modulo>/README.md` (template em
   `docs/template-modulo.md`, seis campos) e o `README.md` da raiz é atualizado
   quando um módulo é adicionado ou o fluxo entre módulos muda; sem isso o

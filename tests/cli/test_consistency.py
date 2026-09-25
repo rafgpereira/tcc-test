@@ -1,28 +1,42 @@
-"""Tests for scripts/check_consistency.py: the artifacts of the pipeline agree with each other.
+"""Tests for `python -m cli check` (src/cli): the artifacts of the pipeline agree with each other.
 
 Every test builds a small repository in ``tmp_path`` (3 problems, real rules: 100 WAs and 100
-mutants each) and loads the script with ``importlib`` (``scripts/`` is not a package).
+mutants each).
 """
 
 import hashlib
-import importlib.util
 import json
 import shutil
-import sys
 
 import pytest
 
 IDS = ["1000_B", "1005_C", "2_A"]
 
 
-@pytest.fixture(scope="module")
-def check(repo_root):
-    path = repo_root / "scripts" / "check_consistency.py"
-    spec = importlib.util.spec_from_file_location("check_consistency", path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+class Facade:
+    """The library and the command line in one object."""
+
+    def __init__(self):
+        from cli import __main__ as entry
+        from cli import consistency
+
+        self._entry, self._lib = entry, consistency
+
+    def main(self, argv):
+        """``--root R [--only ..] [--deep]``: the command is always ``check``."""
+        root_args, rest = [], list(argv)
+        if "--root" in rest:
+            i = rest.index("--root")
+            root_args, rest = ["--root", rest[i + 1]], rest[:i] + rest[i + 2 :]
+        return self._entry.main([*root_args, "check", *rest])
+
+    def __getattr__(self, name):
+        return getattr(self._lib, name)
+
+
+@pytest.fixture()
+def check():
+    return Facade()
 
 
 DATASET_FILES = ["AC_ref.cpp", "enunciado.md", "metadata.json", "testes.json", "validacao.json"] + [
@@ -341,6 +355,6 @@ def test_a_new_layer_is_checked_and_related_with_no_change_to_the_checks(
         manifest_required=False,
         manifest_prefix="ai/",
     )
-    monkeypatch.setattr(check, "LAYERS", (*check.LAYERS, layer))
+    monkeypatch.setattr(check._lib, "LAYERS", (*check.LAYERS, layer))
     code, out = run(check, repo, capsys=capsys)
     assert code == 1 and "todo problema de dataset tem pasta em ia: 2/3" in out

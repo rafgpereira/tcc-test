@@ -467,10 +467,10 @@ de documentação e propagação já feitas dentro das histórias.
   ambos ficarem limpos
 - [X] T050 Run the full suite: `docker compose run --rm sandbox pytest` (incluindo os testes
   `integration` deste módulo); todos passam; registrar a contagem no relatório final
-- [ ] T051 Execute `quickstart.md` Níveis 0 a 4 (níveis 0 a 3 registrados em 2026-09-24; o 4 é a execução final, T052/T053) e registrar o resultado de cada um (comandos,
+- [X] T051 Execute `quickstart.md` Níveis 0 a 4 (níveis 0 a 3 registrados em 2026-09-24; o 4 é a execução final, T052/T053) e registrar o resultado de cada um (comandos,
   saída, data) numa seção "Resultado da validação" ao final do arquivo; qualquer nível que falhe
   bloqueia a feature
-- [ ] T052 📌 PROPAGAR — Run the real generation over the 200 problems:
+- [X] T052 📌 PROPAGAR — Run the real generation over the 200 problems:
   `docker compose run --rm sandbox python -m mutation generate`. Registrar em
   `manifests/mutation_report.json` e propagar para `docs/metodologia-referencia.md` (seção 2) e
   `spec.md`/`plan.md`/`research.md`: quantos problemas fecharam só com primeira ordem (compara
@@ -480,29 +480,29 @@ de documentação e propagação já feitas dentro das histórias.
   metodologia 2.11: 113 só de primeira ordem, 87 com ordem superior, 0 alertas, ~7 h 26 min; falta
   gerar `manifests/mutation_report.json` com `report`, o que aguarda a revisão do fluxo de
   verificação)*
-- [ ] T053 Package the real result: `python -m mutation package` seguido de `python -m mutation
+- [X] T053 Package the real result: `python -m mutation package` seguido de `python -m mutation
   verify`; confirmar que `git status --short` mostra só `data/mutants.zip`,
   `manifests/mutants.manifest.json` e `manifests/mutation_report.json` como novidade — a decisão
   de commitá-los (Constitution, emenda 1.6.0) é sempre do autor, nunca automática (Princípio X)
-- [ ] T054 Documentation conformity: set `src/mutation/README.md` to `Status: implementado` and
+- [X] T054 Documentation conformity: set `src/mutation/README.md` to `Status: implementado` and
   run `docker compose run --rm app python scripts/check_docs_sync.py --closing --module
   src/mutation --cli "python -m mutation" --cli-owner src/mutation` (exit `0`, sem linha
   `pendente`)
-- [ ] T055 📌 Methodology synchronization check: run `docker compose run --rm app python
+- [X] T055 📌 Methodology synchronization check: run `docker compose run --rm app python
   scripts/check_docs_sync.py --closing --feature specs/002-mutant-generation` (C1 a C6); para
   qualquer decisão ou número medido criado depois de T013, atualizar `sync-matrix.json` e
   `docs/metodologia-referencia.md` até o comando sair `0`; acrescentar a linha final datada à
   seção 8 da metodologia
-- [ ] T056 Final update of the root `README.md`: linha de `src/mutation/` na tabela "Módulos e
+- [X] T056 Final update of the root `README.md`: linha de `src/mutation/` na tabela "Módulos e
   estado" passa a `implementado`, seção "Referência de comandos" recebe os comandos de
   `mutation`, e a nota "Estado atual" é reescrita com a data; confirmar
   `check_docs_sync.py --only C2,C3,C4` sai `0`
-- [ ] T057 Constitution v1.6.0 compliance review for the feature: re-rodar a tabela "Constitution
+- [X] T057 Constitution v1.6.0 compliance review for the feature: re-rodar a tabela "Constitution
   Check" de `plan.md` contra o código e a documentação implementados; registrar qualquer desvio
   com justificativa em `plan.md` ("Complexity Tracking"); um dos autores revisa o código gerado
   com apoio de IA antes de integrar à `main` (Princípio X) — registrar quem e quando no relatório
   final
-- [ ] T058 Set `Status:` em `specs/002-mutant-generation/spec.md` para `Implemented` só se T049
+- [X] T058 Set `Status:` em `specs/002-mutant-generation/spec.md` para `Implemented` só se T049
   a T057 estiverem concluídas, e acrescentar a linha de fechamento à seção 8 da metodologia;
   senão deixar `Draft` e listar os itens pendentes no relatório final
 
@@ -510,12 +510,12 @@ de documentação e propagação já feitas dentro das histórias.
 
 ## Phase 8: Verificação de consistência entre artefatos (adicionada a pedido dos autores em 2026-09-25; research.md, R22)
 
-**Purpose**: um comando da raiz que percorre as pastas de verdade e confere, por nomes e contagens,
+**Purpose**: um comando (`python -m cli check`, pacote `src/cli`) que percorre as pastas de verdade e confere, por nomes e contagens,
 que dataset e mutantes estão completos e 1:1; portão das etapas que consomem os dados. Referência
 viva: [`docs/verificacao-consistencia.md`](../../docs/verificacao-consistencia.md) — os módulos
 seguintes acrescentam a sua camada lá.
 
-- [X] T070 [P] Write tests in `tests/consistency/test_check_consistency.py`: repositório sintético
+- [X] T070 [P] Write tests in `tests/cli/` (`test_consistency.py`, `test_main.py`): repositório sintético
   consistente passa com as contagens no resumo; cada arquivo fixo faltando, 99 WAs, WA fora da faixa,
   arquivo a mais, contagem diferente do manifesto, pasta que não é de problema, nomes diferentes do
   manifesto, dataset ausente e manifesto ausente (código `2`); 99 e 101 mutantes, `generation.json`
@@ -523,17 +523,38 @@ seguintes acrescentam a sua camada lá.
   problema sem mutantes, mutantes sem problema, `--only`, camada desconhecida; `--deep` acha um byte
   alterado que os nomes não veem, mutante alterado, zip diferente, zip ausente como aviso; listas
   longas cortadas; uma camada nova é conferida sem mudar as verificações
-- [X] T071 Implement `scripts/check_consistency.py` (`Layer`/`Group`, `check_layer`,
+- [X] T071 Implement `python -m cli check` (`src/cli/consistency.py` e `__main__.py`; inicialmente `scripts/check_consistency.py`, movido para `src/cli` em 2026-09-25 para ter nome limpo) (`Layer`/`Group`, `check_layer`,
   `check_relation`, `run_checks`, `main`; só biblioteca padrão) (makes T070 pass)
 - [X] T072 Documentar: `docs/verificacao-consistencia.md`, seção no `README.md` da raiz e linha na
   "Referência de comandos", `CLAUDE.md`, README do módulo `dataset` (passo 6 do cenário "do zero":
   descompactar) e do `mutation`, `quickstart.md` (Nível 4), metodologia (seção 0.1)
 - [X] T073 📌 PROPAGAR — Execução real sobre os dados reais (dataset descompactado e 200 problemas
   de mutantes): `OK`, 0 falhas, 1 aviso; registrar em `research.md` (R22) e na metodologia (0.1)
-- [ ] T074 Depois de `package`: rodar `check_consistency.py --deep` (sem o aviso de manifesto de
+- [X] T074 Depois de `package`: rodar `python -m cli check --deep` (sem o aviso de manifesto de
   mutantes) e registrar o resultado (execução dos autores, roteiro do Nível 4 do `quickstart.md`)
 
-**Checkpoint**: `docker compose run --rm app python scripts/check_consistency.py --deep` sai `0`.
+**Checkpoint**: `docker compose run --rm app python -m cli check --deep` sai `0` (executado em 2026-09-25 sobre os dados finais: `OK`, 0 falhas, 0 avisos).
+
+---
+
+## Phase 9: Fechamento, README e governança (2026-09-25)
+
+- [X] T075 Mover a conferência de consistência para `src/cli/` (`python -m cli check`), com
+  `README.md` do módulo `cli`, testes em `tests/cli/` e o comando com nome limpo na "Referência de
+  comandos"; `scripts/verify_dataset.py` deixa de ser o comando documentado (`python -m dataset
+  verify`)
+- [X] T076 Reescrever `src/dataset/README.md` e `src/mutation/README.md` em dois cenários (do zero /
+  descompactar o que já existe), uma tabela de comandos com as variações e sem citação ao processo
+  de especificação; README da raiz alinhado; `docs/template-modulo.md` atualizado
+- [X] T077 Checagem automática C8 em `scripts/check_docs_sync.py` (README sem spec-kit, Constitution,
+  `FR-`/`SC-`, `specs/NNN-...`), com testes; regra no `CLAUDE.md`
+- [X] T078 Constitution 1.7.0 (Princípios II e XI) e propagação: metodologia (0.1, 2, 2.11, 5.2, 7,
+  8), `plan.md` (Constitution Check de fechamento), `research.md` (R23), `quickstart.md`
+- [X] T079 Fechamento: `Status: Implemented`; README do módulo `Status: implementado`; carimbos
+  refeitos (`generate` `8a45e6c`, `report`/`package`/`verify` `29af6d0`; `check` do `cli` a carimbar
+  depois do commit)
+
+**Checkpoint**: `check_docs_sync.py --closing` sem achados; suíte completa e verificações verdes.
 
 ---
 

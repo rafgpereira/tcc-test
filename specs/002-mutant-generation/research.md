@@ -511,7 +511,7 @@ pool (é contado desde a submissão, e até `2 × workers` problemas ficam subme
 de relógio). O tempo total de relógio acima é o confiável. Corrigir o cronômetro (contar a partir do
 início da tarefa no trabalhador) é pendência de código, não de dados.
 
-### R22 — Verificação de consistência entre artefatos (`scripts/check_consistency.py`) — 2026-09-25
+### R22 — Verificação de consistência entre artefatos (`python -m cli check`) — 2026-09-25
 
 **Origem**: os autores notaram que (a) `dataset verify` sem `--extracted` só confere o **zip** (editar
 ou apagar um `AC_ref.cpp` em `data/dataset/` continuava dando `OK`; reproduzido numa cópia, R21 e
@@ -522,7 +522,8 @@ experimento e antes do envio às IAs. Confirmado também que `data/dataset/` só
 
 **Decisões** (contrato e referência viva em `docs/verificacao-consistencia.md`):
 
-- **Comando da raiz** (`scripts/`, como `check_docs_sync.py` e `verify_dataset.py`), só biblioteca
+- **Comando do pacote `cli`** (`python -m cli check`, `src/cli/`; primeiro foi `scripts/check_consistency.py`
+  e passou para `src/cli` em 2026-09-25 para ter nome limpo, como os demais comandos), só biblioteca
   padrão, só lê, serviço `app`; não pertence a um módulo porque cruza os artefatos de vários (e dos
   futuros: testes das IAs).
 - **Nomes e contagens, não conteúdo** (pedido dos autores): pastas, arquivos, `100` WAs e `100`
@@ -545,3 +546,24 @@ experimento e antes do envio às IAs. Confirmado também que `data/dataset/` só
 1 aviso (sem manifesto de mutantes ainda); dataset 200 pastas (manifesto: 200), `200/200` em cada arquivo
 fixo e em `WA_1..WA_100`, nomes batem com o manifesto (21.000 arquivos); mutantes 200/200 com 100
 cada, `building/` vazio; relação 200/200 e 0 sobrando; `--deep` também `OK` (hash do dataset e do zip).
+
+### R23 — Fechamento da feature (2026-09-25)
+
+**Artefatos finais** (gerados pelos autores e commitados): `data/mutants.zip` — 20.000 arquivos,
+9.499.327 bytes, SHA-256 `ffd44455a94715feeae869e556d95ec8614661c7b33a8cf4e63f7d88896a1d81`;
+`manifests/mutants.manifest.json` (3.387.809 bytes, 20.000 itens); `manifests/mutation_report.json`
+(629 bytes): 200 problemas fechados, 200 completos, 0 excluídos, 113 só de primeira ordem, 87 com
+ordem superior; ordem 1: 16.930, ordem 2: 3.061, ordem 3: 9; funil: 8.997 equivalentes, 2.014 RE,
+1.816 TLE, 1.334 não compilam, 166 MLE, 28 instáveis, 0 duplicatas; operadores: UOI 8.580, ROR
+6.332, ABS 5.372, AOR 2.624, LCR 171. `mutation verify` `OK`; `python -m cli check --deep` `OK`, 0
+falhas, 0 avisos (hash de 21.000 arquivos do dataset e 20.000 mutantes, e dos dois zips).
+
+**Decisões do fechamento**: (a) sem `code_revision` no relatório (R20 revisado); (b) a conferência de
+consistência ficou no pacote `src/cli` (R22); (c) os READMEs dos módulos passam a ter dois cenários
+e uma tabela de comandos, sem citação ao processo (Constitution 1.7.0, `docs/template-modulo.md`,
+checagem C8); (d) `scripts/verify_dataset.py` continua no repositório mas não é mais o comando
+documentado: a documentação usa `python -m dataset verify` (o script e os documentos da feature
+001 que o citam ficam a critério dos autores remover). **Pendências que não bloqueiam**: registrar a
+revisão de código pelos autores (Princípio X); carimbar `check` no README do `cli` depois do
+commit; corrigir o cronômetro por problema do `generate` (inclui a espera na fila com mais de um
+trabalhador, R21).

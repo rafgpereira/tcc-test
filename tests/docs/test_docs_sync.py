@@ -60,8 +60,7 @@ def module_readme(
     parts = [
         "# Módulo",
         "",
-        f"> **Status**: {status} · **Feature**:",
-        "> `specs/001-x/` · **Metodologia**: `docs/metodologia-referencia.md`, seção 1",
+        f"> **Status**: {status} · **Metodologia**: `docs/metodologia-referencia.md`, seção 1",
         "",
     ]
     for name in sections:
@@ -254,7 +253,9 @@ def test_c1_empty_purpose_fails(sync, tmp_path):
 
 
 def test_c1_missing_status_line_fails(sync, tmp_path):
-    text = module_readme().replace("> **Status**: em implementação · **Feature**:", "> Feature:")
+    text = module_readme().replace(
+        "> **Status**: em implementação · **Metodologia**:", "> Metodologia:"
+    )
     make_repo(tmp_path, sandbox_readme=text)
     assert run(sync, tmp_path, "--module", "src/sandbox", "--only", "C1") == 1
 
@@ -750,3 +751,60 @@ def test_c2_root_reference_is_checked_against_the_cli_of_the_run(sync, tmp_path,
     argv = ["--root", str(tmp_path), "--cli", f"{sys.executable} -m mutation", "--only", "C2"]
     assert sync.main(argv) == 1  # `verify` is missing from the reference
     assert "verify" in capsys.readouterr().out
+
+
+# --------------------------------------------------------------------------- C8
+
+
+@pytest.mark.parametrize(
+    "citation",
+    [
+        "conforme o spec-kit",
+        "pelo Speckit",
+        "regra da Constitution",
+        "a constitution manda",
+        "Princípio II",
+        "exigido por FR-004",
+        "critério SC-003",
+        "ver specs/002-mutant-generation/spec.md",
+    ],
+)
+def test_c8_a_process_citation_in_a_module_readme_fails(sync, tmp_path, citation, capsys):
+    make_repo(tmp_path, sandbox_readme=module_readme(extra=citation))
+    assert run(sync, tmp_path, "--module", "src/sandbox", "--only", "C8") == 1
+    out = capsys.readouterr().out
+    assert "C8" in out and "src/sandbox/README.md:" in out
+
+
+def test_c8_clean_readmes_pass(sync, tmp_path):
+    make_repo(tmp_path)
+    assert run(sync, tmp_path, "--only", "C8") == 0
+
+
+def test_c8_a_process_citation_in_the_root_readme_fails(sync, tmp_path, capsys):
+    make_repo(tmp_path, root_readme=root_readme(extra="Regra da Constitution, Princípio II."))
+    assert run(sync, tmp_path, "--only", "C8") == 1
+    assert "README.md:" in capsys.readouterr().out
+
+
+def test_c8_is_skipped_for_the_root_readme_in_module_mode(sync, tmp_path):
+    make_repo(tmp_path, root_readme=root_readme(extra="cita a Constitution"))
+    assert run(sync, tmp_path, "--module", "src/sandbox", "--only", "C8") == 0
+
+
+def test_c8_runs_by_default_in_module_mode_and_in_the_repository_run(sync, tmp_path):
+    make_repo(tmp_path, sandbox_readme=module_readme(extra="spec-kit"))
+    assert run(sync, tmp_path, "--module", "src/sandbox") == 1
+    assert run(sync, tmp_path) == 1
+
+
+def test_c8_the_methodology_and_the_specs_are_exempt(sync, tmp_path):
+    make_repo(tmp_path, methodology=methodology(extra="A Constitution e o spec-kit, FR-001."))
+    assert run(sync, tmp_path, "--only", "C8") == 0
+
+
+def test_c8_reports_the_line(sync, tmp_path, capsys):
+    make_repo(tmp_path, sandbox_readme=module_readme(extra="\n\nver a Constitution"))
+    run(sync, tmp_path, "--module", "src/sandbox", "--only", "C8")
+    line = next(l for l in capsys.readouterr().out.splitlines() if l.startswith("C8"))
+    assert line.split(":")[1].split()[0].isdigit()

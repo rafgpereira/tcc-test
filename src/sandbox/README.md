@@ -1,7 +1,6 @@
 # Módulo `sandbox` (motor de execução)
 
-> **Status**: implementado · **Feature**:
-> `specs/001-dataset-extraction/` · **Metodologia**: `docs/metodologia-referencia.md`, seções 1.4 e 4
+> **Status**: implementado · **Metodologia**: `docs/metodologia-referencia.md`, seções 1.4 e 4
 
 ## (a) Propósito
 
@@ -65,8 +64,7 @@ infraestrutura (`InfraError`).
 
 ### API para quem usa o motor
 
-Resumo; o contrato completo está em
-[engine-api.md](../../specs/001-dataset-extraction/contracts/engine-api.md).
+Resumo da API do motor (para quem escreve código que o usa).
 
 | Função | Para que serve |
 |---|---|
@@ -134,7 +132,6 @@ no repositório.
 ## Referências
 
 - Metodologia completa: [`docs/metodologia-referencia.md`](../../docs/metodologia-referencia.md), seções 1.4 e 4
-- Contratos técnicos: [engine-api.md](../../specs/001-dataset-extraction/contracts/engine-api.md)
 - Testes: `tests/sandbox/` (`docker compose run --rm sandbox pytest tests/sandbox`)
 
 ## Comandos verificados

@@ -165,11 +165,10 @@ src/
         ├── manifest.py    # (US3)
         └── report.py      # (US4)
 
-scripts/
-└── check_consistency.py   # (raiz, fora do módulo) dataset × mutantes, 1:1, por nomes e contagens; ver docs/verificacao-consistencia.md
+src/cli/                   # (fora do módulo mutation) python -m cli check: dataset × mutantes, 1:1, por nomes e contagens; ver docs/verificacao-consistencia.md
 
 tests/
-├── consistency/           # testes de scripts/check_consistency.py
+├── cli/                   # testes de src/cli (check)
 ├── dataset/               # já existente
 ├── sandbox/                # já existente
 └── mutation/               # espelha src/mutation/
@@ -189,9 +188,18 @@ layout `src/<modulo>/` na feature 001).
 
 ## Complexity Tracking
 
-> Fill ONLY if Constitution Check has violations that must be justified
+Nenhuma violação da Constitution. Desvios do desenho original (contratos e plano da fase de
+especificação), todos decididos e registrados no ciclo em que apareceram (detalhe e motivos em
+`research.md`):
 
-Nenhuma violação a justificar — a tabela fica vazia intencionalmente.
+| Desvio | Onde |
+|---|---|
+| Motor pelo par `compile`/`run_suite` (`dataset.validation.engine.Engine`), não por `judge_source`; 6 execuções sobre um binário compilado uma vez | R10 |
+| Deslocamentos `<<`/`>>` como AOR; operandos de ABS/UOI e unário legal por operador pai; filtro sintático de E/S de fluxo, texto/manipuladores, ABS sobre tamanhos e `++`/`--` só sobre atribuíveis | R8, R9, R16 |
+| `generation.json` por problema (fora do zip); relatório com bloco `problems`; sem `code_revision` (retirado a pedido dos autores em 2026-09-25, FR-013 revisado) | R12, R20 |
+| Paralelismo entre problemas (`--workers`) e fim imediato de Ctrl+C | R14, R19 |
+| Recuperação: aviso `DAMAGED`, trava contra dois `generate`, `package` recusa execução parcial | R19, R20 |
+| Verificação de consistência entre artefatos como comando do pacote `src/cli` (`python -m cli check`), fora do escopo original | R22 |
 
 ## Constitution Check (pós-desenho da Fase 1)
 
@@ -203,3 +211,21 @@ definido para `mutants.manifest.json` e `mutation_report.json` ([data-model.md](
 lista concreta de garantias a cobrir ([contracts/mutation-api.md](./contracts/mutation-api.md),
 seção "Garantias"); o Princípio VII (idempotência) tem o desenho de `building/` + movimento
 atômico (R5). **Resultado**: PASS, sem violação nova.
+
+## Constitution Check (fechamento, 2026-09-25)
+
+Constitution v1.7.0 (emenda de 2026-09-25: coerência entre artefatos e formato dos READMEs). Rechecado
+contra o código e a documentação implementados:
+
+| Princípio | Resultado | Evidência |
+|---|---|---|
+| I. Metodologia mutável, divergências registradas | PASS | D1–D6 e as decisões de implementação (R8 a R22) na spec, em `research.md` e em `docs/metodologia-referencia.md` (§2, §7 itens 17–25, §8); SC-003 não se confirmou (56,5% em vez de ≥75%) e está registrado |
+| II. Reprodutibilidade | PASS | sem seed; `uv.lock` com `tree-sitter`/`tree-sitter-cpp`; gate do manifesto do dataset; pacote versionado com manifesto (`data/mutants.zip`, `manifests/mutants.manifest.json`); `python -m cli check --deep` `OK` |
+| III / VIII | N/A | o módulo não chama IA |
+| IV. Contratos versionados | PASS | `schema_version` 1 em `mutants.manifest.json`, `mutation_report.json` e `generation.json` (Pydantic) |
+| V. Execução isolada | PASS | só o motor do `sandbox`, sem alteração; limites lidos de `metadata.json`; `package`/`verify`/`report`/`check` não executam C++ |
+| VI. O pipeline testa a si próprio | PASS | `tests/mutation/` e `tests/cli/`; suíte completa passa |
+| VII. Idempotência e retomada | PASS | `building/` + renomeação atômica; interrupção (SIGINT, SIGKILL) e retomada validadas com o motor real, sem perda (R19) |
+| IX. Simplicidade | PASS | mutador leve sobre `tree-sitter`; sem generalização além do necessário |
+| X. Revisão humana | PENDENTE DOS AUTORES | nenhum commit ou `git add` do agente (`git status` só mostra `modified`/`untracked`); a revisão do código gerado com apoio de IA antes de integrar à `main` é dos autores e deve ser registrada por eles |
+| XI. Documentação viva | PASS | metodologia, `spec.md`, `plan.md`, `research.md`, contratos, `quickstart.md`, README do módulo e da raiz atualizados; `check_docs_sync.py --closing` sem achados |

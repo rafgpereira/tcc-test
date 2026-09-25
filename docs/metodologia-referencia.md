@@ -32,7 +32,7 @@ positiva ou negativamente a cobertura (IIC — ver seção 5).
 ### 0.1 Verificação de consistência entre artefatos **[DECIDIDO E EXECUTADO, 2026-09-25 — `docs/verificacao-consistencia.md`, `specs/002-mutant-generation/research.md` R22]**
 
 Cada módulo confere o seu artefato contra o manifesto (`dataset verify`, `mutation verify`); o
-conjunto é conferido por um comando da raiz, `scripts/check_consistency.py`, que percorre as pastas
+conjunto é conferido por um comando do pacote `cli`, `python -m cli check` (`src/cli/`), que percorre as pastas
 **descompactadas** e confere, por nomes e contagens (não pelo conteúdo dos códigos): o dataset tem
 o número de problemas do manifesto (200) e cada problema tem `AC_ref.cpp`, `enunciado.md`,
 `metadata.json`, `testes.json`, `validacao.json` e exatamente `WA_1` a `WA_100` (105 arquivos, nada
@@ -46,7 +46,9 @@ medida: `dataset verify` sem `--extracted` só confere o zip, então editar ou a
 `data/dataset/` continuava dando `OK`. Execução real sobre os dados reais (2026-09-25): `OK` em 0,6 s
 (dataset 200 pastas e 21.000 arquivos com nomes iguais aos do manifesto; 200 problemas de mutantes
 com 100 cada; relação 200/200, 0 sobrando; `--deep` também `OK`), com um aviso: o manifesto de mutantes
-ainda não existe. Além disso, `data/dataset/` só existe depois de um `unzip` manual (nenhum comando a
+ainda não existia. **Depois do empacotamento (2026-09-25, `--deep`)**: `OK`, 0 falhas e 0 avisos, com o
+hash de 21.000 arquivos do dataset, o de 20.000 mutantes e os dos dois zips conferindo com os
+manifestos. Além disso, `data/dataset/` só existe depois de um `unzip` manual (nenhum comando a
 cria), o que passou a constar do passo final do fluxo "gerar do zero" do módulo `dataset`.
 
 ---
@@ -694,6 +696,10 @@ real de 2026-09-20, com todas as colunas e gravando os problemas do pool, levou 
 
 ## 2. Módulo: Geração de Mutantes
 
+> **Estado (2026-09-25)**: módulo **implementado e executado sobre os 200 problemas**; o pacote
+> versionado (`data/mutants.zip`) e o relatório (`manifests/mutation_report.json`) existem. Os
+> resultados medidos estão em 2.7, 2.8, 2.9 e 2.11; as decisões, em 2.1 a 2.6 e 2.10.
+
 > **Revisão de 2026-09-23**: esta seção foi reescrita após uma rodada dedicada de pesquisa e
 > discussão técnica (o texto anterior, com um conjunto pequeno de operadores por pares e
 > mutação de ordem superior sem regra definida, era, por admissão dos próprios autores, a parte
@@ -883,7 +889,7 @@ Princípio II, emenda 1.1.0) se aplica, sem diferença de fundo, a mutantes.
   de travessia da AST.
 - **Gate de consistência com o dataset**: antes de gerar qualquer mutante, o módulo verifica o
   `data/dataset` local contra `manifests/dataset.manifest.json` (reaproveitando a mesma
-  checagem de `scripts/verify_dataset.py`) e se recusa a rodar se não corresponder — garante
+  checagem de `dataset verify`) e se recusa a rodar se não corresponder — garante
   mecanicamente que a entrada é sempre a mesma, tanto para quem descompactou o zip quanto para
   quem rodou a extração do zero.
 - **Mutantes de desenvolvimento**: gerados durante a iteração do módulo, vivem localmente
@@ -965,8 +971,8 @@ independentes de `189_C` (795 s e 831 s, mesmo código) deram **os mesmos 100 ar
 SHA-256 em cada posição e o mesmo `generation.json`**: divergência de **0 em 100** mutantes, apesar
 de 11 TLE e 18 RE entre os descartados (candidatos de margem). Sustenta a simplificação de 2.3
 (item 4: 6 execuções sobre um binário compilado uma vez) para esse problema; é amostra de um
-problema e duas rodadas, a repetir na validação da paralelização e na execução final
-(`research.md`, R15).
+problema e duas rodadas; repetida depois com 800 mutantes (R14, 0% de divergência). Não houve uma
+segunda geração completa dos 200 problemas para comparar com a final (`research.md`, R15).
 
 **Geração completa de `189_C` (2026-09-24, executada pelos autores, cota 100, em série, antes do
 filtro de 2.7)**: 795 s (13 min 16 s); 100 aceitos após avaliar 241 candidatos (41,5% de
@@ -1035,9 +1041,13 @@ de terceira** (só em `981_B`). **113 dos 200 problemas (56,5%) fecham só com p
 (43,5%) precisaram de ordem superior**: a estimativa de pesquisa de "ao menos 3 em cada 4" (SC-003)
 **não se confirmou** (ela contava sítios brutos, antes do filtro de fluxo e sem descontar os
 equivalentes). Consequência para o texto do TCC: 15,3% dos mutantes têm duas ou três alterações.
-Operadores (em 23.079 usos): UOI 8.580, ROR 6.332, ABS 5.372, AOR 2.624, LCR 171. O relatório
-versionado (`manifests/mutation_report.json`) e o pacote ainda serão gerados; o tempo impresso por
-problema no log inclui a espera na fila e não deve ser citado (R21).
+Operadores (em 23.079 usos): UOI 8.580, ROR 6.332, ABS 5.372, AOR 2.624, LCR 171. **Pacote e relatório
+(2026-09-25, gerados e versionados)**: `data/mutants.zip` com 20.000 arquivos, 9.499.327 bytes (9,06
+MiB; SHA-256 `ffd44455…a1d81`), `manifests/mutants.manifest.json` (3,4 MB, um item por arquivo) e
+`manifests/mutation_report.json` com os números acima (200 completos, 113 só de primeira ordem, 87
+com ordem superior, 0 alertas); `mutation verify` e `python -m cli check --deep` deram `OK`. O
+MS (seção 5.2) é, portanto, calculado sobre os 200 problemas. O tempo impresso por problema no log
+inclui a espera na fila e não deve ser citado (R21).
 
 ---
 
@@ -1136,6 +1146,9 @@ fechar 100 mutantes válidos mesmo após ordem superior (seção 2.4; caso raro 
 estimativa de pesquisa, mas registrado com alerta explícito quando ocorrer). TDF (5.1) e TFP
 (5.3) continuam sempre sobre os 200 problemas do dataset, sem essa exceção — só o denominador do
 MS pode variar.
+
+**[MEDIDO, 2026-09-25]** Na geração real dos mutantes nenhum problema foi excluído (0 alertas):
+os 200 problemas têm 100 mutantes, então o MS é a média sobre os 200 (seção 2.11).
 
 ### 5.3 Taxa de Falsos Positivos (TFP) — Alucinações
 Mede confiabilidade: ocorre falso positivo quando a suíte gerada pela IA reprova o
@@ -1268,7 +1281,8 @@ a partir de 2026-09-23, `specs/002-mutant-generation/`.
 
 | Data | O que mudou | Seções |
 |---|---|---|
-| 2026-09-25 | **Verificação de consistência entre artefatos**: novo comando da raiz `scripts/check_consistency.py` (dataset descompactado × mutantes, por nomes e contagens, 1:1 nos dois sentidos; `--deep` confere os hashes), documento `docs/verificacao-consistencia.md`; esclarecido que `dataset verify` sem `--extracted` só confere o zip e que `data/dataset/` só existe depois de um `unzip` manual (passo final do fluxo "gerar do zero"); executado sobre os dados reais: OK | 0.1, 1.6 |
+| 2026-09-25 | **Módulo `mutation` concluído (`Status: Implemented`)**: pacote (`data/mutants.zip`, 9,06 MiB, 20.000 mutantes), manifesto e relatório gerados e versionados; `verify` e `python -m cli check --deep` `OK`; MS calculado sobre os 200 problemas (0 exclusões); conferência de consistência movida para o pacote `src/cli` (`python -m cli check`) e `scripts/verify_dataset.py` deixa de ser o comando documentado (`python -m dataset verify`); READMEs de `dataset` e `mutation` reescritos em dois cenários (do zero / descompactar) com uma tabela de comandos e sem citação ao processo de especificação, checagem automática C8 e Constitution 1.7.0 | 0.1, 2, 2.11 |
+| 2026-09-25 | **Verificação de consistência entre artefatos**: novo comando `python -m cli check` (na época `scripts/check_consistency.py`, movido para `src/cli` no fechamento) (dataset descompactado × mutantes, por nomes e contagens, 1:1 nos dois sentidos; `--deep` confere os hashes), documento `docs/verificacao-consistencia.md`; esclarecido que `dataset verify` sem `--extracted` só confere o zip e que `data/dataset/` só existe depois de um `unzip` manual (passo final do fluxo "gerar do zero"); executado sobre os dados reais: OK | 0.1, 1.6 |
 | 2026-09-25 | **Execução real da geração de mutantes (`generate --workers 4`, 200 problemas) e revisão do relatório**: 200 completos, 0 excluídos, 20.000 mutantes em ~7 h 26 min; 56,5% dos problemas só de primeira ordem (SC-003 não se confirmou), 15,3% dos mutantes de ordem superior (9 de terceira, em `981_B`), 3,9% de candidatos que não compilam, 26,2% equivalentes; o tempo por problema do log inclui a espera na fila; a revisão do código foi retirada do relatório e dos comandos (`--code-revision` removido, a pedido dos autores; spec FR-013 revisado) | 2.6, 2.11, 7 |
 | 2026-09-24 | **Histórias 3 e 4 de `002-mutant-generation` (`package`, `verify`, `report`) e recuperação validada**: layout do zip `mutants/problems/<id>/` (mesmo caminho de consumo do `generate`), relatório com contagem de problemas (só primeira ordem / ordem superior / excluídos), revisão do código passada de fora (`--code-revision`, os contêineres não têm `.git`); falha achada e corrigida na interrupção com trabalhadores (`close` esperava minutos); recuperação validada com o motor real (SIGINT em 1 s; SIGKILL e retomada sem perda nem refazer o que estava fechado); `report`/`package`/`verify` executados de verdade sobre 2 problemas reais (`research.md` R19, R20) | 2.6, 2.10 |
 | 2026-09-24 | **História 2 de `002-mutant-generation` implementada (ordem superior determinística e exclusão com alerta) e piloto R4 medido**: pares/trios de mutantes de primeira ordem aceitos em `itertools.combinations`, sítios distintos e disjuntos, exclusão com alerta e código de saída `0`; os 3 problemas mais esparsos fecham só com pares (76% a 83% dos mutantes de segunda ordem, 371 a 425 s), sem alertas; decisão: sem orçamento de tentativas (`research.md` R17, R18) | 2.4, 2.9 |

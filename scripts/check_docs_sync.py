@@ -27,12 +27,16 @@ C7  operational READMEs (root, outside module mode, and every module README) cit
     was built (Constitution, Principle XI). Never applies to
     ``docs/metodologia-referencia.md``, which keeps decision labels and dated provenance on
     purpose.
+C8  operational READMEs (root and every module) never cite the specification process or its rules
+    (spec-kit, the Constitution and its principles, ``FR-``/``SC-`` ids, ``specs/NNN-...`` paths):
+    they explain what the project does and how to use it. The history of decisions lives in
+    ``docs/metodologia-referencia.md`` and in ``specs/``.
 CV  "Comandos verificados" table of each module README: stamps are well formed, ``pendente`` rows
     are not allowed once the module is implemented (or with --closing), every documented
     subcommand is listed, and with --closing a ``+dirty`` revision is rejected.
 
 Selection: ``--only`` wins; otherwise ``--closing`` runs everything; otherwise ``--module`` runs
-C1, C2, C3, C7 and CV for those modules; otherwise everything except C6.
+C1, C2, C3, C7, C8 and CV for those modules; otherwise everything except C6.
 
 Exit codes: 0 all selected checks pass, 1 at least one finding, 2 usage error.
 """
@@ -49,9 +53,9 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-ALL_IDS = ("C1", "C2", "C3", "C4", "C5", "C6", "C7", "CV")
-MODULE_IDS = ("C1", "C2", "C3", "C7", "CV")
-REPO_IDS = ("C1", "C2", "C3", "C4", "C5", "C7", "CV")
+ALL_IDS = ("C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "CV")
+MODULE_IDS = ("C1", "C2", "C3", "C7", "C8", "CV")
+REPO_IDS = ("C1", "C2", "C3", "C4", "C5", "C7", "C8", "CV")
 
 SECTIONS = (
     "(a) Propósito",
@@ -75,6 +79,14 @@ DEFAULT_CLI_MODULE = "dataset"
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 NO_MODULE_PHRASE = "nenhum módulo está implementado"
 TASK_ID_RE = re.compile(r"(?<![\w/`])T\d{3}(?![\w])")
+# What an operational README never cites: the specification process and its rules (C8).
+PROCESS_TERMS = (
+    (re.compile(r"spec-?kit", re.IGNORECASE), "spec-kit"),
+    (re.compile(r"constitution", re.IGNORECASE), "the Constitution"),
+    (re.compile(r"Princípio\s+[IVX]+"), "a Constitution principle"),
+    (re.compile(r"(?<![\w-])(?:FR|SC)-\d+"), "a requirement id (FR-/SC-)"),
+    (re.compile(r"specs/\d{3}-"), "a specs/NNN-... path"),
+)
 
 
 @dataclass(frozen=True)
@@ -566,6 +578,30 @@ def check_c7(ctx: Context) -> list[Finding]:
     return findings
 
 
+def check_c8(ctx: Context) -> list[Finding]:
+    findings = []
+    targets = [ctx.module_readme(m) for m in ctx.modules]
+    if not ctx.module_mode:
+        targets.append("README.md")
+    for rel in dict.fromkeys(targets):
+        text = ctx.read(rel)
+        if text is None:
+            continue
+        for number, line in enumerate(text.split("\n"), start=1):
+            for pattern, label in PROCESS_TERMS:
+                if pattern.search(line):
+                    findings.append(
+                        Finding(
+                            "C8",
+                            f"{rel}:{number}",
+                            f"cites {label}; operational READMEs explain what the project does "
+                            "and how to use it, never the specification process or its rules",
+                        )
+                    )
+                    break
+    return findings
+
+
 def check_cv(ctx: Context) -> list[Finding]:
     findings = []
     for module in ctx.modules:
@@ -624,6 +660,7 @@ CHECKS = {
     "C5": check_c5,
     "C6": check_c6,
     "C7": check_c7,
+    "C8": check_c8,
     "CV": check_cv,
 }
 
