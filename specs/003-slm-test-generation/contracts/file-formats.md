@@ -50,6 +50,7 @@ serviço `sandbox` roda como root e nada pode ficar com dono root no `./data` mo
     "ok": true,
     "reference_py": "import sys\n…"
   },
+  "model_digest": "sha256:…",
   "problem_id": "1000_B",
   "prompt_sha256": "…",
   "raw_response": "<edge_cases_analysis>\n…</reference_py>",

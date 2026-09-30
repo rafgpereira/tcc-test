@@ -1142,7 +1142,16 @@ template confirmados por Milena no mesmo dia]**:
 - **Persistência e retomada**: cada tentativa gera arquivos imutáveis (geração; execução) e o
   `suite.json` terminal é função pura deles; falha de interpretação encadeia a próxima tentativa
   já na fase de geração (não há nada a executar); `--resume` explícito recusa continuar se a
-  configuração (modelo, opções, template, dataset) mudou (R8).
+  configuração (modelo, opções, template, dataset) mudou (R8). O `digest` do modelo é gravado
+  também em cada tentativa, para que cada resultado se identifique sozinho.
+- **Falha de infraestrutura [DECIDIDO, 2026-09-30 — `research.md` R9, R12]**: nunca consome
+  tentativa — a mesma chamada é refeita com a **mesma seed**. As repetições consecutivas têm um
+  teto e a espera por uma resposta tem um *timeout* de leitura, ambos configuráveis pelo operador
+  no `.env` (`OLLAMA_MAX_INFRA_RETRIES`, padrão 30; `OLLAMA_HTTP_TIMEOUT_S`, padrão 900 s); ao
+  atingir o teto, o comando para sem gravar nada e a retomada refaz a mesma chamada. Motivo: um
+  *timeout* fixo curto demais para um Ollama em CPU faria a mesma chamada se repetir para sempre,
+  sem nunca gravar nada. Nenhum dos dois valores muda o conteúdo das respostas, por isso não entram
+  na identidade da execução. O tempo máximo real por chamada é medido no piloto.
 - **Casos de teste da suíte**: gravados no contrato já existente `TestCase` (`input`, `output`) de
   `testes.json`; o módulo de avaliação, quando especificado, deve adotá-lo ou mudar o schema de
   propósito (decidido em 2026-09-30, item 29 da seção 6); a mesma forma vale para as suítes dos
@@ -1400,6 +1409,7 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-09-30 | **Revisão de consistência dos artefatos de `003-slm-test-generation` (`/speckit.analyze`)**: falha de infraestrutura na chamada ao Ollama continua sem consumir tentativa (mesma seed), agora com teto de repetições consecutivas e *timeout* de leitura configuráveis no `.env` (padrões 30 e 900 s), porque um *timeout* fixo curto para Ollama em CPU viraria repetição infinita; `digest` do modelo gravado também em cada tentativa; `python -m cli check --deep` passa a ser o primeiro passo obrigatório do piloto e da execução completa; registrada na spec a terceira pergunta de esclarecimento (falha de infraestrutura mantém a seed), que tinha ficado de fora | 3 |
 | 2026-09-30 | **Decisões pendentes do plano de `003-slm-test-generation` fechadas (Milena)**: amostragem do SLM `temperature 0.7`, `top_p 0.8`, `top_k 20`, `repeat_penalty 1.05` (item 27); template do prompt ajustado para FR-007 — maior caso escrito por inteiro, todo valor dentro das restrições (item 28); casos das suítes no contrato `TestCase` (`input`, `output`), a adotar também pela avaliação e pelos modelos comerciais (item 29); leitura do problema composta no módulo `ai_clients`, sem leitor novo no `dataset` | 3, 6, 7 |
 | 2026-09-30 | **`/speckit.plan` do módulo `003-slm-test-generation`**: medido o tamanho do prompt montado nos 200 problemas × 3 cenários (maior: 7.870 caracteres, híbrido `61_B`) e fixados `num_ctx 8192` / `num_predict 4096` com guarda de truncamento; chamada `/api/chat` com uma única mensagem; seeds 43 a 48; Python na sandbox com tempo × 10 e memória × 4 do limite do problema (7 problemas têm 61 MiB), só biblioteca padrão; estados por arquivos imutáveis com `--resume` explícito; casos no contrato `TestCase` existente. Achados: `temperature 0` anularia as retentativas (amostragem fica PROPOSTA, item 27); o template do prompt não cumpre FR-007 (item 28); o módulo de avaliação não tem schema de suíte (item 29). Corrigida a contagem de razões de descarte de tentativa, de 4 para 3, conforme a clarificação de 2026-09-29. Detalhes em `specs/003-slm-test-generation/{plan,research,data-model}.md` | 3, 6, 7 |
 | 2026-09-29 | **Seção 3 fechada para o SLM (`/speckit.specify` do módulo `003-slm-test-generation`)**: resolvido o "Ponto em aberto" sobre o detalhamento operacional do oráculo por execução — duas fases (geração com rede, sem executar; execução em sandbox sem rede, preenchendo `expected_output`), até 6 tentativas por problema × cenário (seed base + número da tentativa), descarte de entrada isolada vs. de tentativa inteira, falha de infraestrutura não consome tentativa, suíte descartada continua no N = 200 com taxa de descarte reportada à parte; resposta do SLM em texto com 3 blocos marcados (não JSON, D1); few-shot usa o primeiro teste público do próprio problema (D2); suítes seguem a exceção de versionamento dos mutantes, emenda 1.6.0, sem precisar de nova emenda (D3); parametrização de GPT-5.4-mini e Gemini 3.5 Flash e a regra de tamanho/normalização de suíte entre os 3 modelos permanecem pendentes (item 26 de 6). Decisões D1–D3, com proveniência completa, em `specs/003-slm-test-generation/spec.md` | 3, 6, 7 |

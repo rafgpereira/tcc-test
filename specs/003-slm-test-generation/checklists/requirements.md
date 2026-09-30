@@ -36,10 +36,12 @@
   `AC_ref.cpp`, `testes.json`, seeds, N = 200) são vocabulário de domínio do próprio
   experimento, não detalhe de implementação — mesmo padrão já adotado em
   `specs/001-dataset-extraction/spec.md` e `specs/002-mutant-generation/spec.md`.
-- Os 3 pontos que exigiam decisão dos autores (falha de infraestrutura vs. orçamento de
-  tentativas; exemplo do few-shot; versionamento das suítes) foram resolvidos nesta sessão via
-  perguntas diretas, sem deixar `[NEEDS CLARIFICATION]` pendente — decisões registradas em
-  "Divergências e Decisões sobre a Metodologia" (D1–D3) e já propagadas para
+- Os pontos que exigiam decisão dos autores foram resolvidos nesta sessão, sem deixar
+  `[NEEDS CLARIFICATION]` pendente: 3 perguntas de esclarecimento (falha mista de erro e timeout
+  em todas as entradas; etiqueta de hardware manual; falha de infraestrutura não consome
+  tentativa e mantém a seed), registradas em "Clarifications", e as decisões D1–D3 (formato de
+  resposta; exemplo do few-shot; versionamento das suítes), registradas em "Divergências e
+  Decisões sobre a Metodologia" e já propagadas para
   `docs/metodologia-referencia.md` (seções 3, 6, 7, 8), conforme Constitution, Princípio XI.
 - Itens em aberto que não bloqueiam esta feature (parametrização dos clientes GPT-5.4-mini e
   Gemini 3.5 Flash; regra final de tamanho/normalização de suíte entre os 3 modelos) ficam

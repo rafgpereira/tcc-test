@@ -34,7 +34,9 @@ problema; é a composição sinalizada em research R0 (não um leitor novo do `d
 ### 3.1 `RunConfig` — `data/suites/slm/run.json` (1 por execução)
 
 Identidade da execução; criado pelo primeiro `generate` (sem `--resume`) e comparado em todo
-`--resume` (research R8). Imutável.
+`--resume` (research R8): **todos os campos abaixo exceto `created_at`** entram na comparação.
+Imutável. O *timeout* de leitura e o teto de repetições de infraestrutura (research R9, R12) não
+fazem parte dele — não mudam o conteúdo de nenhuma resposta.
 
 | Campo | Tipo | Regra |
 |---|---|---|
@@ -58,6 +60,7 @@ Uma tentativa na fase de geração (FR-013a, FR-014, FR-024, FR-025). Imutável.
 |---|---|---|
 | `problem_id`, `scenario`, `attempt` | str, `Scenario`, int 1–6 | `attempt` sem buraco a partir de 1 |
 | `seed` | int | `== seed_base + attempt` (validado) |
+| `model_digest` | str | `digest` do modelo que respondeu (FR-003); `==` `run.json.model_digest`, senão a combinação é dano (§4) |
 | `prompt_sha256` | str | do prompt exato enviado (o texto se recompõe do template + dataset) |
 | `raw_response` | str | `message.content` **integral**, sem nenhuma alteração |
 | `ollama` | objeto | `model`, `created_at`, `done_reason`, `prompt_eval_count`, `eval_count`, `total_duration_ns`, `load_duration_ns`, `prompt_eval_duration_ns`, `eval_duration_ns` |
@@ -140,5 +143,6 @@ existente:
 | tentativa 6 falha (qualquer razão), sem `suite.json` | `finalizable` | quem encontrar grava `suite.json(discarded)` |
 
 Inconsistências (ex.: `attempt_3` sem `attempt_2`, execução sem geração, `seed` que não bate,
+`model_digest` de tentativa diferente do `run.json`,
 `suite.json` que não é a função dos arquivos) são **dano**: o comando não conserta, lista e sai com
 código 1, e `cli check` aponta o mesmo.

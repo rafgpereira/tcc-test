@@ -39,7 +39,9 @@ motor) · `130` interrompido (`Ctrl+C`, `docker stop`; é seguro rodar de novo).
 
 Antes de qualquer trabalho (inclusive no `--dry-run`), os dois verificam `data/dataset` contra
 `manifests/dataset.manifest.json` com `mutation.dataset_gate.verify_dataset` e saem com código 1
-se divergir (Edge Case da spec).
+se divergir (Edge Case da spec). `manifests/dataset.manifest.json` ausente (`FileNotFoundError` do
+portão) também sai com código 1, com a mesma orientação de restauração
+(`unzip data/dataset.zip -d data/`).
 
 Uma única instância por vez sobre `data/suites/slm/`: `flock` em `data/suites/slm/.lock`; um
 segundo comando se recusa com código 1 (`another python -m ai_clients command is already running`).
@@ -53,16 +55,20 @@ faz na hora a tentativa `n + 1`; se `n = 6`, grava `suite.json` com `status: dis
 
 | Opção | Efeito |
 |---|---|
-| `--resume` | obrigatória se `data/suites/slm/run.json` já existe; sem ela o comando recusa (código 2: `a run already exists in data/suites/slm; use --resume to continue it`). Com ela, a configuração atual (modelo e `digest`, versão do Ollama, opções, seed base, SHA-256 do template e do manifesto do dataset, fatores de limite) é comparada com o `run.json`; qualquer diferença → código 2, listando campo, valor gravado e valor atual. Sem `run.json`, `--resume` também é erro (código 2: nada a retomar) |
+| `--resume` | obrigatória se `data/suites/slm/run.json` já existe; sem ela o comando recusa (código 2: `a run already exists in data/suites/slm; use --resume to continue it`). Com ela, a configuração atual — todos os campos do `RunConfig` exceto `created_at` ([data-model.md §3.1](../data-model.md#31-runconfig--datasuitesslmrunjson-1-por-execução)) — é comparada com o `run.json`; qualquer diferença → código 2, listando campo, valor gravado e valor atual. Sem `run.json`, `--resume` também é erro (código 2: nada a retomar) |
 | `--dry-run` | imprime, por combinação que seria chamada, o tamanho do prompt em caracteres e a tentativa/seed; ao fim, o maior prompt por cenário e o total de chamadas previstas; não exige `OLLAMA_BASE_URL`/`OLLAMA_HARDWARE_LABEL` |
 
 Variáveis de ambiente (`.env`, research R12): `OLLAMA_BASE_URL` e `OLLAMA_HARDWARE_LABEL`,
-obrigatórias fora do `--dry-run` (código 2 se faltarem).
+obrigatórias fora do `--dry-run` (código 2 se faltarem); `OLLAMA_HTTP_TIMEOUT_S` (padrão 900) e
+`OLLAMA_MAX_INFRA_RETRIES` (padrão 30), opcionais — valor que não é inteiro positivo → código 2.
 
 Falha de infraestrutura (Ollama inacessível, *timeout*, HTTP 5xx): imprime
-`ollama unavailable (<motivo>); retrying the same call (seed S) in T s` e repete a mesma chamada,
-sem gravar nada e sem limite de repetições; o operador interrompe com `Ctrl+C` se quiser (código
-130, retomável). Erro de configuração (HTTP 4xx, modelo ausente, `digest` diferente, guarda de
+`ollama unavailable (<motivo>); retrying the same call (seed S) in T s (retry k of N)` e repete a
+mesma chamada, sem gravar nada, até `OLLAMA_MAX_INFRA_RETRIES` repetições consecutivas; atingido o
+teto, sai com código 3 (`ollama unavailable after N consecutive retries (<motivo>); nothing was
+recorded for <id> <scenario> attempt <n>; run generate --resume when the service is back`), sem
+consumir tentativa. O operador também pode interromper antes com `Ctrl+C` (código 130). Nos dois
+casos a retomada refaz a mesma chamada com a mesma seed. Erro de configuração (HTTP 4xx, modelo ausente, `digest` diferente, guarda de
 `num_ctx`): código 3, nada gravado para a tentativa.
 
 Saída por chamada: `<id> <scenario> attempt <n> seed <s>: parsed (<k> inputs) | unparseable
@@ -95,8 +101,9 @@ Funciona com a execução incompleta (conta pendentes). Código 1 se houver comb
 ## `package` (serviço `app`)
 
 Gera `data/slm_suites.zip` (determinístico) e `manifests/slm_suites.manifest.json`. Recusa (código 1)
-se alguma das 600 combinações não tiver `suite.json`, se houver dano, ou se `--problem`/`--scenario`
-forem usados (não existem neste comando: o pacote é sempre da execução completa, D3).
+se alguma das 600 combinações não tiver `suite.json` ou se houver dano. Não tem `--problem` nem
+`--scenario`: o pacote é sempre da execução completa (D3), e passar uma dessas opções é erro de uso
+do `argparse` (código 2).
 
 ## `verify` (serviço `app`)
 

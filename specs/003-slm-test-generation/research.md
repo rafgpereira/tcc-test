@@ -52,7 +52,10 @@ sem necessidade enquanto há um modelo só — Princípio IX).
 `{"role": "user", "content": <prompt>}`, sem campo `system`, sem `context`, sem `format`, e
 `options` completos e explícitos (R4). Cliente HTTP da biblioteca padrão (`urllib.request`), uma
 conexão nova por requisição. Antes da primeira chamada de uma execução, `GET /api/version` e
-`GET /api/tags` registram a versão do Ollama e o `digest` do modelo (identificador exato, FR-003).
+`GET /api/tags` registram a versão do Ollama e o `digest` do modelo (identificador exato, FR-003),
+gravados no `run.json` **e** repetidos em cada `attempt_<n>.generation.json` (decidido em
+2026-09-30, revisão de consistência A1), para que cada resultado persistido se identifique sozinho;
+um `digest` de tentativa diferente do `run.json` é dano (data-model §4).
 
 **Motivo**: `/api/chat` com lista de mensagens de tamanho 1 é sem estado por construção — não há
 como uma chamada herdar histórico. `/api/generate` devolve `context` (tokens da conversa) que, se
@@ -294,9 +297,10 @@ exclusive_run`): um comando por vez sobre a árvore, inclusive entre os serviço
 
 **`--resume`** (pedido do autor): `generate` sem `--resume` só roda se `data/suites/slm/run.json`
 **não** existir (execução nova, cria o `run.json`); se existir, recusa (código 2) dizendo para usar
-`--resume`. Com `--resume`, recalcula a configuração da execução (modelo e `digest`, versão do
-Ollama, opções de amostragem, `num_ctx`, `num_predict`, seed base, SHA-256 do template, SHA-256 do
-manifesto do dataset, fatores de limite) e **recusa** (código 2, listando o que mudou) se diferir do
+`--resume`. Com `--resume`, recalcula a configuração da execução — **todos os campos do
+`RunConfig` exceto `created_at`**: `model`, `model_digest`, `model_quantization`, `ollama_version`,
+`options` (amostragem, `num_ctx`, `num_predict`), `seed_base`, `max_attempts`, SHA-256 do template,
+SHA-256 do manifesto do dataset e os dois fatores de limite — e **recusa** (código 2, listando o que mudou) se diferir do
 `run.json`: uma retomada nunca mistura tentativas de configurações diferentes sob a mesma execução.
 A etiqueta de hardware **não** faz parte dessa identidade — é gravada por chamada (FR-025), e trocar
 de máquina no meio é permitido e fica registrado. `execute` não tem `--resume`: não inicia
@@ -315,7 +319,7 @@ explícita; ela também protege contra continuar por engano com o template ou o 
 
 | Desfecho | Exemplos | Efeito |
 |---|---|---|
-| `OllamaUnavailable` (infraestrutura) | recusa de conexão, DNS, *timeout* de conexão/leitura (`HTTP_TIMEOUT_S = 900`), HTTP 5xx, corpo que não é JSON | não grava nada; espera com recuo exponencial (5 s, 10 s, 20 s, … até 60 s) e **repete a mesma chamada com a mesma seed**, sem limite de repetições (a spec deixa a interrupção para o operador); cada espera é impressa |
+| `OllamaUnavailable` (infraestrutura) | recusa de conexão, DNS, *timeout* de conexão/leitura (`OLLAMA_HTTP_TIMEOUT_S`, padrão 900 s), HTTP 5xx, corpo que não é JSON | não grava nada; espera com recuo exponencial (5 s, 10 s, 20 s, … até 60 s) e **repete a mesma chamada com a mesma seed**, até `OLLAMA_MAX_INFRA_RETRIES` repetições consecutivas (padrão 30); cada espera é impressa. Atingido o teto: código 3 (`ollama unavailable after N consecutive retries (<último motivo>); nothing was recorded for <id> <scenario> attempt <n>; run generate --resume when the service is back`), sem gravar nada e sem consumir tentativa. O contador zera a cada resposta recebida |
 | `OllamaConfigError` (configuração) | HTTP 4xx (modelo não instalado, opção inválida), `digest` do modelo diferente do `run.json`, guarda de `num_ctx` (R3) | não grava nada; aborta com código 3 e mensagem acionável |
 | resposta recebida | qualquer 200 com `message.content` | grava `attempt_<n>.generation.json` (a interpretação decide se é falha `unparseable_response`) |
 
@@ -326,6 +330,16 @@ efeito de FR-007.
 
 **Motivo**: separa com precisão o que é do ambiente (nunca consome orçamento) do que é do modelo.
 O recuo em testes usa relógio e `sleep` injetados (sem espera real).
+
+**Teto e *timeout* configuráveis (decidido em 2026-09-30, revisão de consistência U1)**: um
+*timeout* fixo de 900 s poderia ser curto para um Ollama em CPU (4.096 *tokens* de saída a poucos
+*tokens* por segundo passam disso); como *timeout* é falha de infraestrutura, a mesma chamada se
+repetiria para sempre sem nunca gravar nada. Por isso o *timeout* de leitura e o teto de repetições
+consecutivas vêm do `.env` (R12), com padrão em `config.py`, e o piloto (quickstart, Nível 4) mede
+o tempo máximo real por chamada para validar o padrão. Nenhum dos dois entra no `run.json`: não
+mudam o conteúdo de nenhuma resposta, só quanto se espera por ela. **Alternativas**: sem teto (a
+redação anterior da spec — rejeitada porque um *timeout* curto demais vira laço infinito
+silencioso); teto fixo no código (rejeitado: o valor certo depende do hardware do operador).
 
 ---
 
@@ -376,7 +390,16 @@ Python é curta frente à chamada ao modelo. Sem tempo medido, não se antecipa 
   gravado em cada tentativa; nunca autodetectado (clarificação de 2026-09-29).
 
 Ausência de qualquer uma → `generate` recusa com código 2 (exceto em `--dry-run`, que não chama o
-modelo). O nome do modelo (`qwen2.5-coder:7b`) é constante do desenho experimental em
+modelo).
+
+Mais duas variáveis **opcionais** (R9), com padrão em `ai_clients/config.py`:
+
+- `OLLAMA_HTTP_TIMEOUT_S` — *timeout* de leitura de uma resposta, em segundos (padrão `900`);
+- `OLLAMA_MAX_INFRA_RETRIES` — repetições consecutivas de uma mesma chamada por falha de
+  infraestrutura antes de o comando parar (padrão `30`; com o recuo de 5 s a 60 s, ≈ 27 min de
+  espera).
+
+Valor que não é inteiro positivo → código 2. O nome do modelo (`qwen2.5-coder:7b`) é constante do desenho experimental em
 `ai_clients/config.py`, não `.env`.
 
 ⚠ **Sinalizado** (plan.md, S6): no Linux, um contêiner não resolve `host.docker.internal` sem

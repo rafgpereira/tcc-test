@@ -27,7 +27,8 @@ class SLMClient(Protocol):
     def complete(self, model: str, prompt: str, options: GenerationOptions) -> Completion: ...
 
 class OllamaClient:                # implementação real, urllib, POST /api/chat, stream=false
-    def __init__(self, base_url: str, *, timeout_s: float = config.HTTP_TIMEOUT_S) -> None: ...
+    def __init__(self, base_url: str, *, timeout_s: float) -> None: ...
+        # timeout_s = OLLAMA_HTTP_TIMEOUT_S do .env, ou config.DEFAULT_HTTP_TIMEOUT_S (900)
 ```
 
 Invariantes (testadas com `FakeSLMClient` em `tests/ai_clients/fakes.py`):

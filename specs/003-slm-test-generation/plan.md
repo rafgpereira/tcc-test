@@ -71,7 +71,9 @@ piloto (quickstart, Nível 4) — não se afirma tempo não medido.
 
 **Constraints**: `num_ctx = 8192`, `num_predict = 4096` (R3, medido); limites do Python = limite do
 problema × `PY_TIME_FACTOR = 10` (tempo) e × `PY_MEMORY_FACTOR = 4` (memória), nunca constantes
-absolutas (R7); seed da tentativa `n` = `42 + n`; no máximo 6 tentativas; chamadas sequenciais.
+absolutas (R7); seed da tentativa `n` = `42 + n`; no máximo 6 tentativas; chamadas sequenciais;
+*timeout* de leitura (`OLLAMA_HTTP_TIMEOUT_S`, padrão 900 s) e teto de repetições consecutivas por
+falha de infraestrutura (`OLLAMA_MAX_INFRA_RETRIES`, padrão 30) configuráveis no `.env` (R9, R12).
 
 **Scale/Scope**: 600 combinações; no máximo 3.600 chamadas ao modelo e 3.600 avaliações; 1 a 4
 testes públicos por problema.
@@ -83,7 +85,7 @@ testes públicos por problema.
 | Princípio | Como o plano cumpre | Status |
 |---|---|---|
 | I. Metodologia mutável | Decisões novas do plano (R3, R4, R5a, R7, R8, e as decisões S1/S2/S4/S5 de 2026-09-30) registradas na metodologia, seção 3, e na seção 7; corrigida a contagem "4 razões" → 3 (clarificação de 2026-09-29) | ✅ |
-| II. Reprodutibilidade | Seeds fixas e registradas; todas as opções de amostragem explícitas; `digest` do modelo, versão do Ollama e hashes do template e do dataset no `run.json` e comparados no `--resume`; JSON determinístico; pacote + manifesto da execução final (exceção da emenda 1.6.0, D3); camada `slm_suites` no `cli check` | ✅ |
+| II. Reprodutibilidade | Seeds fixas e registradas; todas as opções de amostragem explícitas; `digest` do modelo (também em cada tentativa), versão do Ollama e hashes do template e do dataset no `run.json` e comparados no `--resume`; `cli check --deep` antes do piloto e da execução completa; JSON determinístico; pacote + manifesto da execução final (exceção da emenda 1.6.0, D3); camada `slm_suites` no `cli check` | ✅ |
 | III. Sem estado | `/api/chat` com uma única mensagem, sem `context`; cliente sem estado mutável; verificado em todo teste pelo cliente falso (SC-005) | ✅ |
 | IV. Contratos versionados | Pydantic com `schema_version: 1` para `run.json`, geração, execução, suíte, relatório, manifesto; casos no contrato `TestCase` existente (S2) | ✅ |
 | V. Sandboxing | `reference_py` só no serviço `sandbox`, pelo mesmo `execute` do motor (uid por slot, rlimits, sem rede, sem capacidades), limites derivados de `metadata.json`; workdir novo por execução | ✅ |
@@ -124,7 +126,7 @@ src/ai_clients/
 ├── __init__.py
 ├── __main__.py          # registro de subcomandos (padrão de mutation/__main__.py)
 ├── README.md            # template docs/template-modulo.md
-├── config.py            # modelo, opções, seed base, fatores, caminhos, HTTP_TIMEOUT_S
+├── config.py            # modelo, opções, seed base, fatores, caminhos, padrões de timeout/teto
 ├── problem.py           # ProblemInput (composição S1)
 ├── prompt.py            # template + context_data por cenário
 ├── ollama.py            # SLMClient, OllamaClient, exceções
@@ -140,9 +142,13 @@ src/ai_clients/
     ├── run.py  generation.py  execution.py  suite.py  report.py  manifest.py
 src/cli/consistency.py   # + camada slm_suites
 tests/ai_clients/
+├── conftest.py          # dataset sintético empacotado e com manifesto (como tests/mutation)
 ├── fakes.py             # FakeSLMClient, runner Python falso, relógio falso
-├── test_parser.py  test_prompt.py  test_ollama.py  test_store.py  test_generation.py
-├── test_execution.py  test_resume.py  test_report.py  test_packaging.py  test_cli.py
+├── test_schemas.py  test_problem.py  test_store.py
+├── test_prompt.py  test_parser.py  test_ollama.py  test_generation.py  test_cli_generate.py
+├── test_oracle.py  test_execution.py  test_cli_execute.py
+├── test_resume.py  test_resume_config.py  test_damage.py
+├── test_report.py  test_packaging.py
 └── test_oracle_integration.py      # @pytest.mark.integration
 tests/cli/test_consistency.py       # + casos da camada slm_suites
 docker-compose.yml                  # + extra_hosts no app (S6)

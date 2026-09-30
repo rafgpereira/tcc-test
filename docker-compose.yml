@@ -7,6 +7,9 @@ services:
     security_opt: ["no-new-privileges:true"]
     env_file: [{ path: .env, required: false }]   # long form must be a list; .env is optional
     environment: { HF_HOME: /tmp/hf }     # read-only root: Hugging Face cache on the tmpfs
+    # Lets `http://host.docker.internal:11434` reach an Ollama running on the host (needed on Linux;
+    # Docker Desktop already provides the name). Only here: `sandbox` stays without network.
+    extra_hosts: ["host.docker.internal:host-gateway"]
     volumes: ["./data:/app/data", "./manifests:/app/manifests"]
     tmpfs: ["/tmp:size=2g"]
 

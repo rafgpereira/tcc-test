@@ -18,7 +18,8 @@ não é objeto de avaliação. Decisões detalhadas de modelo, formato de respos
 reprodutibilidade, retentativas, fases de geração/execução e registro de proveniência tomadas
 em rodada de pesquisa e discussão técnica prévia à especificação (registrada em documento
 compartilhado com a dupla), confirmadas por ambos os autores antes deste `/speckit.specify`, e
-refinadas nas 3 perguntas de esclarecimento respondidas nesta sessão (ver Divergências, D1–D3).
+refinadas nas 3 perguntas de esclarecimento respondidas nesta sessão (ver Clarifications); as
+decisões D1–D3 estão em Divergências.
 Fora do escopo: clientes do GPT-5.4-mini e do Gemini 3.5 Flash, execução das suítes contra
 WA/mutantes e cálculo das métricas."
 
@@ -36,6 +37,13 @@ WA/mutantes e cálculo das métricas."
   operador informa uma etiqueta de hardware via `.env` (junto do endereço do Ollama), e o
   pipeline só grava esse texto; não há autodetecção, o que seria incorreto quando o Ollama roda
   num servidor remoto (FR-003).
+- Q: Uma falha de infraestrutura na chamada ao Ollama (serviço inacessível, timeout de conexão,
+  erro do lado do servidor) consome uma das 6 tentativas do problema × cenário? → A: Não — a
+  mesma chamada é refeita com a **mesma seed** quando o serviço volta a responder; só as 3 razões
+  de conteúdo (FR-018) consomem o orçamento (FR-018a, SC-007). (Registrada em 2026-09-30: a
+  pergunta foi respondida na sessão de 2026-09-29, mas tinha ficado fora desta lista. O teto de
+  repetições consecutivas acrescentado em 2026-09-30, FR-018a, não muda essa regra: atingi-lo
+  encerra o comando sem gastar tentativa, e a retomada usa a mesma seed.)
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -213,9 +221,12 @@ tentativas por razão) somam corretamente.
   individualmente; o descarte final da suíte não perde o detalhe de qual tentativa falhou por
   qual motivo.
 - Falha de infraestrutura (Ollama fora do ar) ocorre repetidamente, sem nunca voltar a responder:
-  o módulo não define um limite de reexecuções por falta de infraestrutura (isso não consome o
-  orçamento de 6 tentativas) — cabe ao operador interromper manualmente; não é uma condição de
-  descarte de suíte.
+  a mesma chamada é repetida até um teto de repetições consecutivas configurável no `.env`
+  (FR-018a); ao atingi-lo, o comando para com erro de infraestrutura, sem gravar nada daquela
+  tentativa e sem consumir o orçamento de 6 tentativas — rodar o comando de novo, com o serviço de
+  volta, refaz a mesma chamada com a mesma seed. Não é uma condição de descarte de suíte.
+  (Decidido em 2026-09-30, na revisão de consistência dos artefatos; antes o módulo não tinha
+  teto e dependia de o operador interromper manualmente.)
 - Solução Python referenciando bibliotecas fora da biblioteca padrão do Python, ou com uma
   sintaxe inválida: tratada pela sandbox como erro de execução, cobrindo os mesmos casos já
   previstos (falha em todos os testes públicos ou em todas as entradas, conforme onde o erro
@@ -304,6 +315,10 @@ tentativas por razão) somam corretamente.
 - **FR-018a**: Uma falha de infraestrutura na chamada ao Ollama (serviço inacessível, timeout de
   conexão, erro do lado do servidor) MUST NOT consumir uma unidade do orçamento de 6 tentativas —
   a mesma chamada, com a mesma seed, MUST ser reexecutada quando o serviço voltar a responder.
+  As repetições consecutivas de uma mesma chamada MUST ter um teto, e o tempo máximo de espera de
+  uma resposta MUST ser um *timeout* de leitura; ambos são configuráveis pelo operador no `.env`
+  (com valor padrão). Atingir o teto MUST encerrar o comando com erro de infraestrutura, sem
+  gravar a tentativa e sem consumir o orçamento; a próxima execução refaz a mesma chamada.
 - **FR-019**: Quando a solução Python falha (erro de execução ou timeout) em algumas entradas
   geradas, mas não em todas, MUST ser descartada só a entrada que falhou — a suíte mantém as
   demais entradas, e o descarte MUST registrar qual entrada e por quê.
@@ -314,7 +329,10 @@ tentativas por razão) somam corretamente.
   previsível, derivada da seed base somada ao número da tentativa (1 a 6).
 - **FR-021**: As novas tentativas MUST acontecer em rodadas: depois de cada execução, somente os
   problemas × cenários cuja tentativa foi marcada como falha (FR-018) MUST voltar para uma nova
-  chamada de geração, com a próxima seed; combinações já aceitas MUST NOT ser regeneradas.
+  chamada de geração, com a próxima seed; combinações já aceitas MUST NOT ser regeneradas. A
+  falha de interpretação (FR-018, razão (a)) é a exceção: como não há nada a executar, a fase de
+  geração já faz a tentativa seguinte, com a próxima seed, na mesma execução, sem esperar uma
+  rodada de execução (decidido no plano, 2026-09-30, `research.md` R8).
 - **FR-022**: Depois de 6 tentativas marcadas como falha (FR-018) para o mesmo problema ×
   cenário, a suíte MUST ser descartada por completo, com o motivo registrado.
 - **FR-023**: Uma suíte descartada (FR-022) MUST continuar contando no N = 200 problemas usado
@@ -407,6 +425,10 @@ tentativas por razão) somam corretamente.
   `AC_ref.cpp`, `testes.json` (para as restrições do enunciado, os limites de tempo/memória de
   `metadata.json`, e o primeiro teste público usado no few-shot) e nada além disso — nenhuma
   mudança de schema é necessária nesses módulos.
+- **Nome do campo da saída esperada**: o `expected_output` desta especificação é gravado no campo
+  `output` de cada caso da suíte, que segue o contrato de caso de teste já existente no projeto
+  (`TestCase`, `input`/`output`, o mesmo de `testes.json`); o futuro módulo de avaliação e as suítes
+  dos dois modelos comerciais adotam a mesma forma (decisão de 2026-09-30, `plan.md`, S2).
 - **Motor de execução**: a fase de execução reaproveita, sem alteração, o isolamento (sandbox
   sem rede, limites via metadados do problema) já construído no módulo `sandbox`; a validação
   contra os testes públicos e as entradas geradas usa o mesmo mecanismo de comparação de saída
@@ -456,8 +478,8 @@ A seção 3 da metodologia (`docs/metodologia-referencia.md`) estava marcada com
 parte menos polida, especialmente a configuração do SLM" e continha um "Ponto em aberto" sobre o
 detalhamento operacional do oráculo por execução. As decisões abaixo, tomadas em rodada de
 pesquisa e discussão técnica prévia a este `/speckit.specify` (documento compartilhado com a
-dupla) e refinadas nas 3 perguntas de esclarecimento respondidas nesta sessão (2026-09-29),
-fecham essa pendência.
+dupla), junto com as 3 perguntas de esclarecimento respondidas nesta sessão (2026-09-29,
+registradas em Clarifications), fecham essa pendência.
 
 - **D1 — Formato de resposta: texto com 3 blocos marcados, não JSON (decidido, diverge do texto
   atual da metodologia)**: a metodologia (seção 3) descreve a saída do Qwen2.5-Coder como
