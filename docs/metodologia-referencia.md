@@ -1053,38 +1053,120 @@ inclui a espera na fila e não deve ser citado (R21).
 
 ## 3. Módulo: Orquestração de IA / Geração de Prompt
 
-**[PENDENTE — parte menos polida da metodologia, especialmente a configuração do SLM.
-Tratar como rascunho a refinar em conjunto durante o /speckit.clarify deste módulo.]**
+**[PARCIALMENTE DECIDIDO — a parte do SLM (geração de suítes) foi fechada em
+`specs/003-slm-test-generation/spec.md` (2026-09-29); a parametrização exata dos dois
+modelos comerciais (GPT-5.4-mini, Gemini 3.5 Flash) e a orquestração deles continuam
+pendentes, a especificar em módulo futuro.]**
 
 **Modelos avaliados**:
 - GPT-5.4-mini (OpenAI, API) — `reasoning_effort: medium`, saída travada em JSON
-  (`strict: true`), sem retenção de histórico (`store: false`).
+  (`strict: true`), sem retenção de histórico (`store: false`). **[PENDENTE — fora do
+  escopo de `003-slm-test-generation`; especificado em módulo futuro.]**
 - Gemini 3.5 Flash (Google, API) — `thinking_level: medium`, `generateContent`
-  (stateless nativo), saída `mimeType: application/json`.
+  (stateless nativo), saída `mimeType: application/json`. **[PENDENTE — idem.]**
 - Qwen2.5-Coder-7B (local, via Ollama) — sem parâmetro de esforço de raciocínio
-  (limitação arquitetural do modelo, considerar na análise de resultados), saída
-  `format: json`, cada chamada disparada sem retenção de histórico.
+  (limitação arquitetural do modelo, considerar na análise de resultados); saída em
+  **texto plano com 3 blocos marcados** (`<edge_cases_analysis>`, `<inputs>` com vários
+  `<input>`, `<reference_py>`), não JSON (ver abaixo); cada chamada disparada sem
+  retenção de histórico. **[DECIDIDO, 2026-09-29 — `specs/003-slm-test-generation/spec.md`,
+  D1.]**
 
 **Regra de isolamento**: toda requisição é *stateless* — nenhum modelo pode reter
 contexto de chamadas anteriores. Isso é requisito de arquitetura, não só de prompt
-(ver Constitution, princípio 3).
+(ver Constitution, princípio III).
 
-**Particularidade do SLM — oráculo por execução [confirmar/refinar]**: diferente dos
-dois modelos de fronteira (que preveem o `expected_output` de forma preditiva, o que
-é suscetível a erro), o SLM deve gerar sua própria solução de referência e executá-la
-sobre as entradas que ele mesmo formula, derivando o `expected_output` de execução
-real (não de predição). Isso é tratado como comportamento agêntico: delega o cálculo
-da saída a um interpretador determinístico em vez da rede neural. **Ponto em aberto**:
-detalhamento operacional de como isso é orquestrado (quando o SLM roda seu próprio
-código, onde isso é validado, o que acontece se o código de referência gerado por
-ele estiver incorreto) ainda precisa ser fechado pela dupla.
+**Particularidade do SLM — oráculo por execução [DECIDIDO, 2026-09-29 —
+`specs/003-slm-test-generation/spec.md`]**: diferente dos dois modelos de fronteira
+(que preveem o `expected_output` de forma preditiva, o que é suscetível a erro), o SLM
+gera, numa única resposta, as entradas (explorando casos-limite, respeitando as
+restrições do enunciado) e uma solução de referência do problema **em Python** — nunca
+prevê a saída. O pipeline separa duas fases: (1) **geração**, com rede — envia a
+requisição ao Ollama e persiste a resposta crua, as entradas, a solução Python e a
+seed, sem executar nada; (2) **execução**, em sandbox sem rede — roda a solução Python
+contra os testes públicos do problema (único critério de validação da solução; o
+`AC_ref.cpp` nunca é usado para aprovar, descartar ou corrigir) e, se ela passa, contra
+as entradas geradas, preenchendo `expected_output` com o resultado da execução real. A
+solução Python roda no mesmo motor de isolamento do módulo `sandbox` (sem rede, sem
+privilégios, memória derivada dos metadados do problema), sob um tempo limite generoso
+(múltiplo do limite do problema, só contra laço infinito) e nunca é objeto de
+avaliação. Uma entrada em que a solução falha isoladamente é descartada sozinha; se a
+solução falha nos testes públicos, ou falha (erro/timeout) em 100% das entradas
+geradas, a tentativa inteira é descartada e uma nova tentativa é gerada (seed base +
+número da tentativa), até 6 tentativas — depois disso, a suíte daquele problema ×
+cenário é descartada por completo, registrada, e continua contando no N = 200 das
+métricas (a taxa de descarte é reportada à parte). Falha de infraestrutura na chamada
+ao Ollama (serviço fora do ar, timeout de conexão) não consome tentativa — só as 3
+razões de conteúdo (resposta não interpretável, falha em teste público, falha — erro de
+execução e/ou timeout, em qualquer combinação — em 100% das entradas geradas) consomem
+(a clarificação de 2026-09-29 juntou "erro em todas" e "timeout em todas" numa razão só;
+corrigido aqui em 2026-09-30, no `/speckit.plan`). Limitação a registrar: nos cenários com código
+(caixa-branca e híbrido), o SLM pode traduzir o `AC_ref` para Python em vez de
+resolver o problema de forma independente, o que tende a reduzir a TFP por construção
+— não há verificação própria de não determinismo da solução Python gerada. Detalhes
+completos (schema da suíte, formato exato de persistência, retomada) em
+`specs/003-slm-test-generation/`.
+
+**Parametrização técnica do SLM [DECIDIDO no plano, 2026-09-30 —
+`specs/003-slm-test-generation/research.md`, R2–R8; amostragem, forma dos casos e ajuste do
+template confirmados por Milena no mesmo dia]**:
+
+- **Chamada**: `POST /api/chat` do Ollama, `stream: false`, **uma única mensagem** (`role:
+  user`) com o prompt inteiro, sem `context` nem `system` — sem estado por construção (R2). O
+  `digest` do modelo (`qwen2.5-coder:7b`), a quantização e a versão do Ollama são registrados por
+  execução e conferidos em toda retomada.
+- **Janela de contexto medida**: o maior prompt montado entre os 200 problemas tem **7.870
+  caracteres** (híbrido, `61_B`; mediana do híbrido 5.224; maior caixa-preta 6.701; maior
+  caixa-branca 5.469; medição de 2026-09-30). Fixados **`num_ctx = 8192`** e **`num_predict =
+  4096`** (≈ 3.150 *tokens* de prompt no pior caso, estimativa pessimista de 2,5 caracteres por
+  *token*). Guarda em tempo de execução: se `prompt_eval_count + num_predict > num_ctx`, a execução
+  para sem gravar a tentativa (o Ollama truncaria o prompt em silêncio) (R3). O máximo real de
+  `prompt_eval_count` é medido no piloto.
+- **Amostragem [DECIDIDO, 2026-09-30 — item 27 da seção 6]**: `temperature 0.7`, `top_p 0.8`, `top_k 20`,
+  `repeat_penalty 1.05` (configuração de geração publicada pelo fabricante do
+  Qwen2.5-Coder-7B-Instruct), todos enviados explicitamente; **seed base 42**, seed da tentativa
+  `n` = `42 + n` (43 a 48). Achado que restringe a escolha: com `temperature 0` a decodificação é
+  gulosa, a seed não tem efeito e as 6 tentativas repetiriam a mesma resposta (R4).
+- **Montagem do prompt**: o `<context_data>` usa sub-rótulos fixos (`<problem_statement>`,
+  `<reference_solution_cpp>`), e o híbrido é a união literal dos outros dois; fora dele, o prompt
+  dos 3 cenários de um problema é idêntico byte a byte (R5).
+- **Interpretação**: cada tag de topo abre e fecha exatamente uma vez, na ordem fixa; texto fora
+  dos blocos é ignorado e contado (não corrigido); cerca Markdown dentro do código Python não é
+  removida (vira erro de execução); entradas repetidas são mantidas e contadas, por inflarem o
+  tamanho da suíte (R6).
+- **Execução do Python**: CPython 3.11 base da imagem, só biblioteca padrão (`-I -S -B -X utf8`),
+  no mesmo `execute` do motor (uid por slot, sem rede, rlimits), workdir novo por execução;
+  **tempo = limite do problema × 10** e **memória = limite do problema × 4** (os 7 problemas de
+  61 MiB tornariam a memória do próprio interpretador um risco com fator 1; a confirmar no piloto)
+  (R7). O `expected_output` gravado é a saída crua da execução; a comparação futura usa a regra
+  única do motor (`outputs_equal`).
+- **Persistência e retomada**: cada tentativa gera arquivos imutáveis (geração; execução) e o
+  `suite.json` terminal é função pura deles; falha de interpretação encadeia a próxima tentativa
+  já na fase de geração (não há nada a executar); `--resume` explícito recusa continuar se a
+  configuração (modelo, opções, template, dataset) mudou (R8).
+- **Casos de teste da suíte**: gravados no contrato já existente `TestCase` (`input`, `output`) de
+  `testes.json`; o módulo de avaliação, quando especificado, deve adotá-lo ou mudar o schema de
+  propósito (decidido em 2026-09-30, item 29 da seção 6); a mesma forma vale para as suítes dos
+  dois modelos comerciais.
+- **Leitura do problema**: composta localmente no módulo `ai_clients` a partir dos leitores já
+  existentes do dataset (`Metadata`, `Testes`) e da leitura direta de `enunciado.md`/`AC_ref.cpp`;
+  nenhum leitor novo no módulo `dataset` (decidido em 2026-09-30).
+- **Ajuste do template para FR-007 [DECIDIDO, 2026-09-30 — item 28 da seção 6]**: a RULE 2 deixa
+  de pedir "the maximum size allowed by the constraints" e passa a pedir o maior caso que o modelo
+  consegue escrever por inteiro, com todo valor dentro das restrições; a RULE 3 ganha a frase
+  "Every value in every input MUST respect the constraints stated in the context." Motivo: uma
+  entrada do tamanho máximo estoura `num_predict` e a resposta sai truncada.
 
 **Template de prompt**: estrutura única em inglês, com marcação XML (`<system_rules>`,
 `<context_data>`, `<few_shot_example>`, `<task>`), combinando Few-Shot Prompting +
 Chain-of-Thought. Antes de gerar os testes, o modelo é obrigado a preencher um campo
 de análise prévia de casos-limite (`edge_cases_analysis`) — reduz alucinação e
-superficialidade. Um caso de teste público real do dataset é incluído como exemplo
-estrutural.
+superficialidade. O exemplo do `<few_shot_example>` é **o primeiro teste público do
+próprio problema sendo perguntado** (escolha determinística pela ordem em
+`testes.json`), igual nos 3 cenários daquele problema — nunca um exemplo fixo de outro
+problema, para não induzir o modelo a um formato de entrada que não corresponde ao
+problema real. **[DECIDIDO, 2026-09-29 — `specs/003-slm-test-generation/spec.md`, D2;
+regra a adotar também pelos módulos de orquestração do GPT-5.4-mini e do Gemini 3.5
+Flash, para manter o desenho experimental comparável entre os 3 modelos.]**
 
 **Composição dos 3 cenários**: a única variação entre eles é o conteúdo do bloco
 `<context_data>` do template — todo o resto (regras de sistema, formato de saída,
@@ -1092,6 +1174,23 @@ parametrização dos modelos) permanece fixo:
 1. Caixa-Preta → só enunciado.
 2. Caixa-Branca → só `AC_ref.cpp`.
 3. Híbrida → enunciado + `AC_ref.cpp`.
+
+**Tamanho da suíte gerada — [PENDENTE, ver seção 6, item 26]**: não há limite fixo de
+casos de teste por suíte (o tamanho é variável de confusão conhecida, registrado para
+a análise); a regra final, se algum teto ou normalização for necessário para comparar
+cenários e modelos de forma justa, é uma decisão a alinhar entre os 3 clientes de
+modelo (SLM, GPT-5.4-mini, Gemini 3.5 Flash), ainda em aberto.
+
+**Versionamento das suítes geradas**: a mesma exceção de versionamento já usada para o
+dataset e para os mutantes (Constitution, Princípio II, emenda 1.6.0) se aplica às
+suítes de qualquer um dos 3 modelos — a identidade de uma suíte depende de uma chamada
+real e não estritamente reprodutível a uma API de IA. Ao final da execução completa do
+experimento, cada conjunto de suítes MAY ser compactado e commitado com manifesto
+SHA-256 próprio, no mesmo formato do dataset e dos mutantes; suítes geradas durante o
+desenvolvimento iterativo continuam nunca sendo versionadas. **[DECIDIDO para o SLM,
+2026-09-29 — `specs/003-slm-test-generation/spec.md`, D3; a mesma regra se estende, por
+consistência, às suítes dos dois modelos comerciais quando esse módulo for
+especificado.]**
 
 ---
 
@@ -1202,10 +1301,23 @@ diretamente ao objetivo específico de mapear desempenho por categoria algorítm
 
 1. ~~Mapeamento exato de tags do Codeforces → macrocategoria algorítmica~~ —
    **RESOLVIDO** (ver seção 1.3).
-2. Detalhamento operacional da estratégia de oráculo por execução do SLM (módulo 3).
+2. ~~Detalhamento operacional da estratégia de oráculo por execução do SLM (módulo 3)~~ —
+   **RESOLVIDO** (ver 3, `specs/003-slm-test-generation/spec.md`).
 3. Operacionalização do IIC no módulo de métricas: como e onde os conjuntos `D(R)`,
    `D(C)`, `D(H)` de falhas detectadas são registrados para permitir o cálculo de
    diferença de conjuntos.
+26. **[PENDENTE]** Regra de tamanho/normalização de suíte a alinhar entre os 3 clientes de
+    modelo (SLM, GPT-5.4-mini, Gemini 3.5 Flash), para que a comparação entre cenários e
+    modelos não seja enviesada pela variável de confusão "tamanho da suíte" (ver 3).
+27. ~~**[PROPOSTA]** Parâmetros de amostragem do SLM~~ — **RESOLVIDO** em 2026-09-30 (Milena):
+    `temperature 0.7`, `top_p 0.8`, `top_k 20`, `repeat_penalty 1.05` (configuração do fabricante;
+    `temperature 0` descartada porque anularia as retentativas; `research.md` R4) (ver 3).
+28. ~~**[PENDENTE]** Template do prompt não cumpria FR-007~~ — **RESOLVIDO** em 2026-09-30
+    (Milena): RULE 2 e RULE 3 de `src/prompt_templates/slm_prompt.txt` ajustadas (maior caso escrito
+    por inteiro, todo valor dentro das restrições; `research.md` R5a) (ver 3).
+29. ~~**[PENDENTE]** Forma dos casos de teste consumida pela avaliação~~ — **RESOLVIDO** em
+    2026-09-30 (Milena): contrato existente `TestCase` (`input`, `output`), a adotar também pelo
+    módulo de avaliação e pelas suítes dos modelos comerciais (ver 3).
 4. ~~**[PROPOSTA]** Extrair dos três splits combinados~~ — **RESOLVIDO** (ver 1.1).
 5. ~~**[PROPOSTA]** Adicionar `is_description_translated == false` como critério de
    elegibilidade~~ — **RESOLVIDO** (ver 1.2).
@@ -1241,7 +1353,9 @@ Registro exigido pela Constitution (princípio 1), para atualizar o texto final 
 evitar inconsistência entre o que a banca aprovou e o que foi construído. Origem:
 `specs/001-dataset-extraction/spec.md`, decisões de 2026-09-18 a 2026-09-22 (itens 1–16); e
 `specs/002-mutant-generation/spec.md`, decisões de 2026-09-23 (itens 17–21); e decisões de
-implementação de 2026-09-24 (itens 22 a 24) e resultado da execução real de 2026-09-25 (item 25).
+implementação de 2026-09-24 (itens 22 a 24) e resultado da execução real de 2026-09-25 (item 25);
+e `specs/003-slm-test-generation/spec.md`, decisões de 2026-09-29 (itens 26–28), e
+`specs/003-slm-test-generation/research.md`, plano de 2026-09-30 (item 29).
 
 | # | Divergência | Onde |
 |---|---|---|
@@ -1270,17 +1384,25 @@ implementação de 2026-09-24 (itens 22 a 24) e resultado da execução real de 
 | 23 | Ordem superior implementada como pares e trios de mutantes de primeira ordem aceitos em ordem lexicográfica, com sítios distintos e disjuntos em bytes; exclusão com alerta e código de saída `0`; piloto nos 3 problemas mais esparsos: fecham só com pares (76% a 83% de segunda ordem); sem orçamento de tentativas | 2.4, 2.9 |
 | 24 | Relatório com contagem de problemas por forma de fechamento; (a revisão do código no relatório, prevista aqui, foi retirada em 2026-09-25); `package` recusa pacote de execução parcial, `building/` pendente e problema danificado; trava contra dois `generate` simultâneos | 2.6, 2.10 |
 | 25 | Resultado real da geração dos 200 problemas: 56,5% dos problemas só de primeira ordem (a estimativa de ≥75% não se confirmou), 15,3% dos mutantes de ordem superior, 0 excluídos, 20.000 mutantes em ~7 h 26 min | 2.11 |
+| 26 | Resposta do SLM em texto com 3 blocos marcados (`<edge_cases_analysis>`, `<inputs>`, `<reference_py>`), não JSON como os dois modelos comerciais — evita erros de escape de código Python dentro de um campo JSON; a suíte persistida depois da interpretação continua JSON com schema versionado | 3 |
+| 27 | Exemplo do `<few_shot_example>` é o primeiro teste público do próprio problema sendo perguntado (não um exemplo fixo entre chamadas); mesma regra a adotar pelos módulos futuros de GPT-5.4-mini e Gemini 3.5 Flash | 3 |
+| 28 | Suítes SLM seguem a mesma exceção de versionamento dos mutantes (Constitution, Princípio II, emenda 1.6.0): pacote + manifesto SHA-256 ao final da execução completa, sem exigir nova emenda; falha de infraestrutura na chamada ao Ollama não consome uma das 6 tentativas por problema × cenário (só as 3 razões de conteúdo consomem) | 3 |
+| 29 | Parametrização técnica do SLM fixada no plano (2026-09-30): `/api/chat` com uma única mensagem; `num_ctx 8192` / `num_predict 4096` a partir do maior prompt medido (7.870 caracteres); seeds 43 a 48; Python com tempo × 10 e memória × 4 do limite do problema, só biblioteca padrão; amostragem `temperature 0.7` / `top_p 0.8` / `top_k 20` / `repeat_penalty 1.05` (não `temperature 0`, que anularia as retentativas); casos no contrato `TestCase`; template ajustado para respeitar restrições e não pedir entradas do tamanho máximo | 3 |
 
 ---
 
 ## 8. Histórico de atualizações deste documento
 
 Registro datado de cada atualização, para conduzir a revisão do texto escrito do TCC
-(Constitution, princípio XI). Origem: `specs/001-dataset-extraction/` (spec, plano, pesquisa) e,
-a partir de 2026-09-23, `specs/002-mutant-generation/`.
+(Constitution, princípio XI). Origem: `specs/001-dataset-extraction/` (spec, plano, pesquisa),
+`specs/002-mutant-generation/` (a partir de 2026-09-23) e `specs/003-slm-test-generation/`
+(a partir de 2026-09-29).
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-09-30 | **Decisões pendentes do plano de `003-slm-test-generation` fechadas (Milena)**: amostragem do SLM `temperature 0.7`, `top_p 0.8`, `top_k 20`, `repeat_penalty 1.05` (item 27); template do prompt ajustado para FR-007 — maior caso escrito por inteiro, todo valor dentro das restrições (item 28); casos das suítes no contrato `TestCase` (`input`, `output`), a adotar também pela avaliação e pelos modelos comerciais (item 29); leitura do problema composta no módulo `ai_clients`, sem leitor novo no `dataset` | 3, 6, 7 |
+| 2026-09-30 | **`/speckit.plan` do módulo `003-slm-test-generation`**: medido o tamanho do prompt montado nos 200 problemas × 3 cenários (maior: 7.870 caracteres, híbrido `61_B`) e fixados `num_ctx 8192` / `num_predict 4096` com guarda de truncamento; chamada `/api/chat` com uma única mensagem; seeds 43 a 48; Python na sandbox com tempo × 10 e memória × 4 do limite do problema (7 problemas têm 61 MiB), só biblioteca padrão; estados por arquivos imutáveis com `--resume` explícito; casos no contrato `TestCase` existente. Achados: `temperature 0` anularia as retentativas (amostragem fica PROPOSTA, item 27); o template do prompt não cumpre FR-007 (item 28); o módulo de avaliação não tem schema de suíte (item 29). Corrigida a contagem de razões de descarte de tentativa, de 4 para 3, conforme a clarificação de 2026-09-29. Detalhes em `specs/003-slm-test-generation/{plan,research,data-model}.md` | 3, 6, 7 |
+| 2026-09-29 | **Seção 3 fechada para o SLM (`/speckit.specify` do módulo `003-slm-test-generation`)**: resolvido o "Ponto em aberto" sobre o detalhamento operacional do oráculo por execução — duas fases (geração com rede, sem executar; execução em sandbox sem rede, preenchendo `expected_output`), até 6 tentativas por problema × cenário (seed base + número da tentativa), descarte de entrada isolada vs. de tentativa inteira, falha de infraestrutura não consome tentativa, suíte descartada continua no N = 200 com taxa de descarte reportada à parte; resposta do SLM em texto com 3 blocos marcados (não JSON, D1); few-shot usa o primeiro teste público do próprio problema (D2); suítes seguem a exceção de versionamento dos mutantes, emenda 1.6.0, sem precisar de nova emenda (D3); parametrização de GPT-5.4-mini e Gemini 3.5 Flash e a regra de tamanho/normalização de suíte entre os 3 modelos permanecem pendentes (item 26 de 6). Decisões D1–D3, com proveniência completa, em `specs/003-slm-test-generation/spec.md` | 3, 6, 7 |
 | 2026-09-25 | **Módulo `mutation` concluído oficialmente (`Status: Implemented`, commit `6e4528a`, revisão de código dos autores feita)**: pacote (`data/mutants.zip`, 9,06 MiB, 20.000 mutantes), manifesto e relatório gerados e versionados; `verify` e `python -m cli check --deep` `OK`; MS calculado sobre os 200 problemas (0 exclusões); conferência de consistência movida para o pacote `src/cli` (`python -m cli check`) e `scripts/verify_dataset.py` deixa de ser o comando documentado (`python -m dataset verify`); READMEs de `dataset` e `mutation` reescritos em dois cenários (do zero / descompactar) com uma tabela de comandos e sem citação ao processo de especificação, checagem automática C8 e Constitution 1.7.0 | 0.1, 2, 2.11 |
 | 2026-09-25 | **Verificação de consistência entre artefatos**: novo comando `python -m cli check` (na época `scripts/check_consistency.py`, movido para `src/cli` no fechamento) (dataset descompactado × mutantes, por nomes e contagens, 1:1 nos dois sentidos; `--deep` confere os hashes), documento `docs/verificacao-consistencia.md`; esclarecido que `dataset verify` sem `--extracted` só confere o zip e que `data/dataset/` só existe depois de um `unzip` manual (passo final do fluxo "gerar do zero"); executado sobre os dados reais: OK | 0.1, 1.6 |
 | 2026-09-25 | **Execução real da geração de mutantes (`generate --workers 4`, 200 problemas) e revisão do relatório**: 200 completos, 0 excluídos, 20.000 mutantes em ~7 h 26 min; 56,5% dos problemas só de primeira ordem (SC-003 não se confirmou), 15,3% dos mutantes de ordem superior (9 de terceira, em `981_B`), 3,9% de candidatos que não compilam, 26,2% equivalentes; o tempo por problema do log inclui a espera na fila; a revisão do código foi retirada do relatório e dos comandos (`--code-revision` removido, a pedido dos autores; spec FR-013 revisado) | 2.6, 2.11, 7 |

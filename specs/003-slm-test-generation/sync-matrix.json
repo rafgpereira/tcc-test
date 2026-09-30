@@ -1,0 +1,29 @@
+{
+ "rows": [
+  {
+   "id": "D1",
+   "methodology_section": "3",
+   "needles": [
+    "texto plano com 3 blocos marcados"
+   ],
+   "source": "spec.md#D1"
+  },
+  {
+   "id": "D2",
+   "methodology_section": "3",
+   "needles": [
+    "o primeiro teste público do"
+   ],
+   "source": "spec.md#D2"
+  },
+  {
+   "id": "D3",
+   "methodology_section": "3",
+   "needles": [
+    "Versionamento das suítes geradas"
+   ],
+   "source": "spec.md#D3"
+  }
+ ],
+ "schema_version": 1
+}

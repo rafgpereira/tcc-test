@@ -10,15 +10,16 @@ teste unitários em C++.
 > "Módulos e estado", abaixo); este documento é o ponto de partida e o índice, não o detalhe de
 > cada módulo.
 >
-> **Estado atual (2026-09-25)**: os módulos `dataset` (extração, validação e empacotamento do
+> **Estado atual (2026-09-30)**: os módulos `dataset` (extração, validação e empacotamento do
 > dataset), `sandbox` (motor de execução isolada de C++) e `mutation` (100 mutantes por problema)
 > estão **implementados**, e os dois primeiros artefatos do experimento já foram gerados de verdade
 > e estão neste repositório: o dataset (`data/dataset.zip`, 200 problemas) e os mutantes
 > (`data/mutants.zip`, 20.000 mutantes), cada um com o seu manifesto de integridade. Quem clona o
 > projeto só precisa descompactar e conferir, não precisa gerar nada. Um comando na raiz,
-> `python -m cli check`, confere se dataset e mutantes estão completos e 1:1. Os demais módulos
-> (chamadas aos modelos de IA, avaliação, métricas, orquestrador) ainda não têm especificação nem
-> código; a tabela "Módulos e estado" marca isso.
+> `python -m cli check`, confere se dataset e mutantes estão completos e 1:1. A geração de suítes
+> de teste pelo modelo local (Qwen2.5-Coder-7B, módulo `ai_clients`) está especificada e planejada,
+> ainda sem código; os demais módulos (chamadas aos dois modelos comerciais, avaliação, métricas,
+> orquestrador) ainda não têm especificação nem código; a tabela "Módulos e estado" marca isso.
 
 ## O que o experimento responde
 
@@ -80,7 +81,7 @@ na avaliação, para que nenhum código do dataset falhe no motor só durante o 
 | `src/dataset/` | extrai, valida e empacota o dataset experimental | seção 1 | **implementado**: dataset real gerado, validado e empacotado (200 problemas, ~12 MiB) | [README](src/dataset/README.md) |
 | `src/sandbox/` | motor de execução isolada de C++, usado pelo `dataset` | seções 1.4 e 4 | **implementado**: motor, isolamento e auto-checagem testados | [README](src/sandbox/README.md) |
 | `src/mutation/` | gera 100 mutantes por problema e os empacota | seção 2 | **implementado**: 200 problemas, 20.000 mutantes, pacote versionado (~9 MiB) | [README](src/mutation/README.md) |
-| `src/ai_clients/` | chamadas stateless aos 3 modelos | seção 3 | **sem spec** (pontos pendentes na metodologia, em especial o oráculo do SLM) | a criar |
+| `src/ai_clients/` | chamadas stateless aos 3 modelos | seção 3 | **planejado** para o modelo local (SLM): desenho decidido, sem código; os dois modelos comerciais ainda sem especificação | a criar |
 | avaliação | injeta as suítes geradas e registra vereditos em CSV | seção 4 | **sem spec** | a criar |
 | `src/metrics/` | TDF, MS, TFP, IIC | seção 5 | **sem spec** (IIC ainda não operacionalizado) | a criar |
 | `src/cli/` | comandos que cruzam módulos (hoje `check`) e, no futuro, o orquestrador do experimento | — | **em implementação**: `check` pronto; o orquestrador ainda sem especificação | [README](src/cli/README.md) |
