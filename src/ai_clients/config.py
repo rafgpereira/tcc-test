@@ -18,8 +18,9 @@ TOP_P = 0.8
 TOP_K = 20
 REPEAT_PENALTY = 1.05
 
-# Context window, from the largest assembled prompt of the 200 problems (7,870 characters, hybrid
-# scenario of 61_B, measured on 2026-09-30); `num_ctx` counts prompt and answer together.
+# Context window, from the largest assembled prompt of the 200 problems (8,118 characters, hybrid
+# scenario of 61_B, `generate --dry-run` on 2026-09-30); `num_ctx` counts prompt and answer
+# together.
 NUM_CTX = 8192
 NUM_PREDICT = 4096
 

@@ -13,9 +13,9 @@ Gera, para cada problema do dataset e cada um dos três cenários de contexto, u
 e tenha o dataset descompactado em `data/dataset/`
 ([README do módulo `dataset`](../dataset/README.md), Cenário B).
 
-**Este módulo ainda está em implementação: nenhum comando dele existe ainda.** Esta seção descreve
-o funcionamento planejado e será completada, com os comandos exatos, à medida que cada comando for
-implementado e executado de verdade.
+**Este módulo ainda está em implementação.** Hoje só existe a etapa de geração (`generate`); a
+execução das soluções, o relatório e o pacote ainda não existem, e a seção será completada à
+medida que cada comando for implementado e executado de verdade.
 
 Para cada problema e cada cenário — **caixa-preta** (o modelo vê só o enunciado), **caixa-branca**
 (só a solução de referência em C++) e **híbrido** (os dois) — o modelo recebe um único pedido, sem
@@ -31,12 +31,56 @@ O trabalho tem duas etapas, cada uma num serviço do Docker Compose:
 1. **Geração** (serviço `app`, com internet, para falar com o Ollama): envia os pedidos e guarda
    cada resposta do modelo exatamente como veio, sem executar nada.
 2. **Execução** (serviço `sandbox`, sem internet, o único autorizado a executar código de
-   terceiros): roda as soluções Python e calcula as saídas esperadas.
+   terceiros): roda as soluções Python e calcula as saídas esperadas. *(ainda não disponível)*
 
 ### Cenário A — Rodar do zero
 
-A completar quando os comandos existirem. Em linhas gerais: alternar a geração e a execução até
-todas as combinações de problema e cenário terminarem, gerar o relatório e empacotar.
+**Preparar o Ollama e o `.env`.** Num servidor Ollama (nesta máquina ou em outra), baixe o modelo
+com `ollama pull qwen2.5-coder:7b`. No `.env` (o arquivo de configuração na raiz do projeto, ver
+`.env.example`), preencha:
+
+- `OLLAMA_BASE_URL` — o endereço do Ollama: `http://host.docker.internal:11434` se ele roda nesta
+  máquina (o serviço `app` enxerga a máquina por esse nome), ou `http://<servidor>:11434` se roda
+  em outra;
+- `OLLAMA_HARDWARE_LABEL` — um texto que descreve a máquina onde o Ollama roda (placa de vídeo,
+  processador, memória), gravado junto de cada resposta; nunca é detectado sozinho.
+
+Opcionais: `OLLAMA_HTTP_TIMEOUT_S` (quanto esperar por uma resposta, padrão 900 segundos; aumente
+se o Ollama roda sem placa de vídeo) e `OLLAMA_MAX_INFRA_RETRIES` (quantas vezes seguidas a mesma
+chamada é repetida se o Ollama não responder, padrão 30).
+
+**1. Conferir o que seria enviado, sem chamar o modelo:**
+
+```bash
+docker compose run --rm app python -m ai_clients generate --dry-run
+```
+
+Não grava nada nem precisa do Ollama. Imprime uma linha por pedido previsto
+(`<id> <cenário> attempt 1 seed 43: prompt <N> chars`) e, no fim, `dry run: 600 calls planned` e o
+maior pedido de cada cenário. Medido em 2026-09-30 sobre os 200 problemas: 600 pedidos; o maior tem
+8.118 caracteres (híbrido de `61_B`). Antes de listar, o comando confere o dataset inteiro contra o
+manifesto, o que pode levar alguns minutos.
+
+**2. Gerar:**
+
+```bash
+docker compose run --rm app python -m ai_clients generate
+```
+
+A primeira execução cria `data/suites/slm/run.json` (qual modelo, com quais parâmetros, sobre qual
+dataset). Para cada problema e cenário, grava em `data/suites/slm/problems/<id>/<cenário>/` um
+arquivo `attempt_<n>.generation.json` com a resposta do modelo e o que foi lido dela, e imprime uma
+linha por pedido, como `1000_B black_box attempt 1 seed 43: parsed (7 inputs) — 1570+812 tokens,
+stop, 21.5 s` (exemplo ilustrativo, não medido). Se a resposta não puder ser lida
+(`unparseable (...)`), o pedido seguinte, com a próxima seed, é feito na hora; depois de 6
+respostas ilegíveis a suíte daquele problema e cenário é descartada (`suite.json` com `status:
+discarded`). No fim: `done: N calls, N parsed, N unparseable, N discarded suites; N pending
+execution`.
+
+Rodar de novo exige `--resume` (proteção contra continuar por engano uma execução antiga):
+`docker compose run --rm app python -m ai_clients generate --resume`.
+
+A etapa de execução (que calcula as saídas esperadas) e o relatório ainda não existem.
 
 ### Cenário B — Descompactar o que já existe
 
@@ -45,22 +89,34 @@ integridade contra o manifesto.
 
 ### Comandos
 
+| Comando | Serviço | O que faz / variações |
+|---|---|---|
+| `python -m ai_clients generate` | `app` | pede ao modelo as entradas e a solução Python de cada problema e cenário ainda pendente e grava as respostas. `--resume` é obrigatório quando já existe `data/suites/slm/run.json` (continua a mesma execução; sem ele o comando recusa com código `2`). `--dry-run` só lista os pedidos previstos e o tamanho de cada um, sem Ollama e sem gravar nada. `--limit N` trata no máximo N combinações de problema e cenário (na ordem: problema em ordem alfabética, depois caixa-preta, caixa-branca, híbrido). `--problem ID` e `--scenario black_box`, `white_box` ou `hybrid` (repetíveis) restringem. Se o Ollama não responde, a mesma chamada é repetida (espera de 5 s dobrando até 60 s) sem gastar tentativa, até `OLLAMA_MAX_INFRA_RETRIES` vezes seguidas; aí o comando para com código `3` sem gravar nada daquela tentativa. Interrompido (Ctrl+C, `docker stop`), sai com `130`; rodar de novo com `--resume` refaz só a chamada que estava em andamento, com a mesma seed |
+
 Subcomandos **planejados** (ainda não disponíveis):
 
 | Subcomando | Serviço | O que vai fazer |
 |---|---|---|
-| `generate` | `app` | envia os pedidos ao modelo e guarda as respostas; `--resume` para continuar uma execução já começada, `--dry-run` para só mostrar o que seria enviado, `--limit N`, `--problem ID`, `--scenario S` |
 | `execute` | `sandbox` | roda as soluções Python e calcula as saídas esperadas; `--dry-run`, `--limit N`, `--problem ID`, `--scenario S` |
 | `report` | `app` | grava o relatório com os números agregados |
 | `package` | `app` | gera o pacote versionável da execução final e o manifesto de integridade |
 | `verify` | `app` | confere o pacote (e, com `--extracted`, a pasta descompactada) contra o manifesto |
 
-Códigos de saída planejados: `0` sucesso, `1` falha de dados, `2` uso incorreto, `3` falha de
-infraestrutura ou de configuração do Ollama, `130` interrompido.
+Códigos de saída: `0` sucesso, `1` falha de dados, `2` uso incorreto, `3` falha de infraestrutura
+ou de configuração do Ollama, `130` interrompido.
 
 ### Se algo der errado
 
-A completar junto com os comandos.
+| O que aparece | O que fazer |
+|---|---|
+| `error: data/dataset does not match manifests/dataset.manifest.json`, ou `... not found; restore the versioned dataset` (`1`) | `unzip data/dataset.zip -d data/` (apague `data/dataset` antes) e rode de novo |
+| `error: OLLAMA_BASE_URL is not set in .env` (ou `OLLAMA_HARDWARE_LABEL`) (`2`) | preencha a variável no `.env` |
+| `error: a run already exists in data/suites/slm; use --resume to continue it` (`2`) | rode com `--resume`; para começar do zero, apague `data/suites/slm` |
+| `ollama unavailable (...); retrying the same call ...` | o Ollama não respondeu; o comando espera e tenta de novo sozinho. Confira se o Ollama está no ar e se o endereço do `.env` está certo |
+| `infrastructure failure: ollama unavailable after N consecutive retries ...` (`3`) | coloque o Ollama no ar e rode `generate --resume`; nada foi perdido |
+| `configuration error: model qwen2.5-coder:7b is not installed ...` (`3`) | `ollama pull qwen2.5-coder:7b` no servidor do Ollama |
+| `configuration error: ... the prompt may have been truncated ...` (`3`) | o pedido não coube na janela de contexto do modelo; avise os autores (é um parâmetro do experimento); nada foi gravado |
+| `error: another ... command is already running` (`1`) | espere o outro comando terminar |
 
 ## (c) Entradas esperadas
 
@@ -107,6 +163,7 @@ A completar junto com os comandos.
 
 | Comando | Verificado em | Revisão |
 |---|---|---|
+| `generate --dry-run` (200 problemas) | 2026-09-30 | 2e679ae+dirty |
 | `generate` | pendente | — |
 | `execute` | pendente | — |
 | `report` | pendente | — |

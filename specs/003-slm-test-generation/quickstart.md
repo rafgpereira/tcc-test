@@ -57,7 +57,7 @@ docker compose run --rm app python -m ai_clients generate --dry-run
 ```
 
 Esperado: 600 chamadas previstas (tentativa 1, seeds 43), maior prompt por cenário igual à medição de
-research R3 (7.870 caracteres no híbrido, `61_B`); nada gravado em `data/suites/`.
+research R3 com o prompt real (8.118 caracteres no híbrido, `61_B`, medido em 2026-09-30); nada gravado em `data/suites/`.
 
 ## Nível 4 — Piloto real pequeno (Ollama de verdade)
 

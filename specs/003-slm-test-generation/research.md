@@ -93,6 +93,14 @@ Componentes: template ≈ 2,9 mil caracteres; `enunciado.md` mediana 1.728 (máx
 mediana 690 (máx. 2.541); primeiro teste público mediana 18 (máx. 152, `1371_C`). Todos os 200
 problemas têm pelo menos um teste público (1 a 4; mediana 2).
 
+**Medição com o prompt real (2026-09-30, `python -m ai_clients generate --dry-run` sobre os 200
+problemas, T027)**: a tabela acima foi medida antes da redação final do template (ajuste de FR-007)
+e sem os sub-rótulos `<problem_statement>`/`<reference_solution_cpp>` de R5. Com o prompt
+exatamente como o código o monta: **600 chamadas previstas**; maior prompt caixa-preta **6.896**
+caracteres (`61_B`), caixa-branca **5.674** (`893_C`), híbrido **8.118** (`61_B`). Na mesma
+estimativa pessimista de 2,5 caracteres por *token*, ≈ 3.250 *tokens* + 4.096 de saída ≈ 7.350,
+ainda abaixo de 8.192: a decisão abaixo não muda.
+
 **Decisão**: `num_ctx = 8192`, `num_predict = 4096`.
 
 **Motivo**: mesmo numa estimativa pessimista de 2,5 caracteres por *token* (o normal para texto em

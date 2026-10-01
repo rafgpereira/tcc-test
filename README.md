@@ -314,6 +314,15 @@ está no README dele; `--help` de qualquer comando lista as opções de fato dis
 | `docker compose run --rm app python -m mutation verify` | `app` | confere o zip contra o manifesto; `--extracted data/mutants` confere também a pasta descompactada |
 | `unzip data/mutants.zip -d data/` | (host) | descompacta os mutantes em `data/mutants/problems/` |
 
+### Módulo `ai_clients` ([README](src/ai_clients/README.md))
+
+Em implementação: por enquanto só a etapa de geração existe. Precisa de `OLLAMA_BASE_URL` e
+`OLLAMA_HARDWARE_LABEL` no `.env` (ver `.env.example`).
+
+| Comando | Serviço | O que faz / variações |
+|---|---|---|
+| `docker compose run --rm app python -m ai_clients generate` | `app` | pede ao modelo local (Ollama) as entradas de teste e a solução Python de cada problema e cenário pendente e grava as respostas em `data/suites/slm/`; `--resume` (obrigatório depois da primeira execução), `--dry-run` (só lista os pedidos, sem Ollama e sem gravar), `--limit N`, `--problem ID`, `--scenario S`; se o Ollama não responde, repete a mesma chamada sem gastar tentativa até `OLLAMA_MAX_INFRA_RETRIES` vezes e para com código `3`; retoma sem perda se interrompido |
+
 ### Módulo `cli` ([README](src/cli/README.md))
 
 | Comando | Serviço | O que faz / variações |
@@ -324,8 +333,9 @@ está no README dele; `--help` de qualquer comando lista as opções de fato dis
 
 O motor não tem comando próprio: é uma biblioteca usada pelo `dataset` e pelo `mutation` (e, no
 futuro, pela avaliação). `docker compose run --rm sandbox pytest tests/sandbox` roda os testes dele,
-e `python -m dataset selfcheck` (acima) confere a saúde do motor. Módulos ainda não implementados
-(`ai_clients`, avaliação, `metrics`) trazem os seus comandos aqui quando existirem.
+e `python -m dataset selfcheck` (acima) confere a saúde do motor. Os comandos que faltam no
+`ai_clients` e os módulos ainda não implementados (avaliação, `metrics`) entram aqui quando
+existirem.
 
 ## Glossário
 

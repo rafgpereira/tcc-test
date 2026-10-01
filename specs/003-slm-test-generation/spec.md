@@ -452,7 +452,7 @@ tentativas por razão) somam corretamente.
   medição sobre os 200 prompts reais e MUST ser fixados no planejamento técnico (`plan.md`), não
   nesta especificação. **Fixados em 2026-09-30** (`plan.md`, `research.md` R3 e R7): `num_ctx =
   8192` e `num_predict = 4096`, a partir do maior prompt medido (7.870 caracteres, híbrido de
-  `61_B`), com guarda de truncamento em tempo de execução; tempo da solução Python = limite do
+  `61_B`; remedido com o prompt real em 2026-09-30: 8.118), com guarda de truncamento em tempo de execução; tempo da solução Python = limite do
   problema × 10 e memória = limite do problema × 4 (ambos a confirmar no piloto). Temperatura e
   demais parâmetros de amostragem (FR-025) decididos em 2026-09-30 (`research.md` R4): `temperature
   0.7`, `top_p 0.8`, `top_k 20`, `repeat_penalty 1.05`, seed base 42. O template do prompt foi

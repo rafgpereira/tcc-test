@@ -14,8 +14,9 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from ai_clients import config, problem, store
-from ai_clients.errors import ConfigurationError
+from ai_clients import config, generation, problem, prompt, store
+from ai_clients.errors import ConfigurationError, InfrastructureError
+from ai_clients.ollama import OllamaClient
 from mutation import dataset_gate as gate
 from sandbox.types import InfraError
 
@@ -146,6 +147,118 @@ def max_infra_retries() -> int:
     return _env_positive_int(config.ENV_MAX_INFRA_RETRIES, config.DEFAULT_MAX_INFRA_RETRIES)
 
 
+# ----------------------------------------------------------------------------------- generate
+
+# Replaced by the tests (a fake client, a clock that does not wait).
+make_client = OllamaClient
+make_clock = generation.SystemClock
+
+
+def _required_env(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if not value:
+        raise UsageError(f"{name} is not set in .env (see .env.example)")
+    return value
+
+
+def _configure_generate(parser: argparse.ArgumentParser) -> None:
+    add_common_options(parser)
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="continue the run already started in data/suites/slm (required once run.json exists)",
+    )
+
+
+def _dry_run_generate(root: Path, combinations, template, limit: int | None) -> int:
+    planned = 0
+    largest: dict[str, tuple[int, str]] = {}
+    problems: dict[str, problem.ProblemInput] = {}
+    for problem_id, scenario in combinations:
+        state = store.combination_state(root, problem_id, scenario)
+        if state.kind != "pending_generation":
+            continue
+        if limit is not None and planned >= limit:
+            break
+        if problem_id not in problems:
+            problems[problem_id] = problem.load_problem(root, problem_id)
+        size = len(prompt.build_prompt(template, problems[problem_id], scenario))
+        print(
+            f"{problem_id} {scenario} attempt {state.attempt} seed "
+            f"{config.seed_for(state.attempt)}: prompt {size} chars"
+        )
+        planned += 1
+        if size > largest.get(scenario, (0, ""))[0]:
+            largest[scenario] = (size, problem_id)
+    print(f"dry run: {planned} calls planned")
+    for scenario in config.SCENARIOS:
+        if scenario in largest:
+            size, problem_id = largest[scenario]
+            print(f"largest prompt: {scenario} {size} chars ({problem_id})")
+    return EXIT_OK
+
+
+def _run_generate(args: argparse.Namespace) -> int:
+    root = Path(".")
+    failed = dataset_gate(root)
+    if failed is not None:
+        return failed
+    combinations = selected_combinations(root, args)
+    template = prompt.load_template()
+    if args.dry_run:
+        return _dry_run_generate(root, combinations, template, args.limit)
+    base_url = _required_env(config.ENV_BASE_URL)
+    _required_env(config.ENV_HARDWARE_LABEL)
+    timeout_s, retries = http_timeout_s(), max_infra_retries()
+    if store.run_exists(root) and not args.resume:
+        raise UsageError("a run already exists in data/suites/slm; use --resume to continue it")
+    if args.resume and not store.run_exists(root):
+        raise UsageError(
+            "nothing to resume: data/suites/slm/run.json does not exist; "
+            "run generate without --resume to start a run"
+        )
+    client = make_client(base_url, timeout_s=timeout_s)
+    clock = make_clock()
+
+    def echo(message: str) -> None:
+        print(message, flush=True)
+
+    with store.exclusive_run(root):
+        current = generation.current_run_config(
+            client, template, root, clock=clock, max_infra_retries=retries, echo=echo
+        )
+        if args.resume:
+            run = store.read_run(root)
+        else:
+            store.write_run(root, current)
+            run = current
+        result = generation.generate(
+            root,
+            combinations,
+            client,
+            template=template,
+            run=run,
+            hardware_label=lambda: _required_env(config.ENV_HARDWARE_LABEL),
+            max_infra_retries=retries,
+            clock=clock,
+            echo=echo,
+            limit=args.limit,
+        )
+    print(
+        f"done: {result.calls} calls, {result.parsed} parsed, {result.unparseable} unparseable, "
+        f"{result.discarded} discarded suites; {result.pending_execution} pending execution"
+    )
+    return EXIT_OK
+
+
+register(
+    "generate",
+    "call the local model for every problem x scenario still pending (run it in the app service)",
+    _configure_generate,
+    _run_generate,
+)
+
+
 # ------------------------------------------------------------------------------------- parser
 
 
@@ -191,7 +304,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     except ConfigurationError as exc:
         print(f"configuration error: {exc}", file=sys.stderr)
         return EXIT_INFRA
-    except InfraError as exc:
+    except (InfraError, InfrastructureError) as exc:
         print(f"infrastructure failure: {exc}", file=sys.stderr)
         return EXIT_INFRA
     finally:
