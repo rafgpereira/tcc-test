@@ -4,7 +4,7 @@ import pytest
 
 from ai_clients import config, generation, store
 from ai_clients.errors import InfrastructureError
-from ai_clients.ollama import OllamaConfigError, OllamaUnavailable
+from ai_clients.ollama import ModelRepetition, OllamaConfigError, OllamaUnavailable
 from ai_clients.prompt import load_template
 from tests.ai_clients.fakes import FakeClock, FakeSLMClient, completion, well_formed_response
 
@@ -63,7 +63,7 @@ def test_the_run_config_identifies_model_options_template_and_dataset(repo, temp
         "top_k": 20,
         "repeat_penalty": 1.05,
         "num_ctx": 8192,
-        "num_predict": 4096,
+        "num_predict": config.NUM_PREDICT,
     }
     assert (run.seed_base, run.max_attempts, run.py_time_factor, run.py_memory_factor) == (
         42,
@@ -117,6 +117,33 @@ def test_six_unparseable_answers_discard_the_suite(repo, template):
     assert {a.failure for a in suite.attempts} == {"unparseable_response"}
     assert [a.detail for a in suite.attempts] == ["missing_block:edge_cases_analysis"] * 6
     assert result.discarded == 1 and result.pending_execution == 0
+
+
+REPEAT = ModelRepetition('HTTP 500 from /api/chat: {"error":"token repeat limit reached"}')
+
+
+def test_the_token_repeat_limit_fails_the_attempt_and_goes_to_the_next_seed(repo, template):
+    client = make_client({("1_A", "black_box", 43): REPEAT, ("1_A", "black_box", 44): GOOD})
+    clock = FakeClock()
+    result, lines = generate(repo, client, template, [("1_A", "black_box")], clock=clock)
+    assert [r["options"]["seed"] for r in client.requests] == [43, 44]  # never the same seed again
+    assert clock.sleeps == []
+    first = store.read_generation(repo, "1_A", "black_box", 1)
+    assert first.model_failure.reason == "repetition" and "token repeat limit" in (
+        first.model_failure.detail
+    )
+    assert first.ollama is None and first.raw_response == ""
+    assert first.parse.ok is False and first.parse.error == "repetition"
+    assert (result.calls, result.parsed, result.unparseable, result.repetition) == (2, 1, 0, 1)
+    assert lines[0].startswith("1_A black_box attempt 1 seed 43: model failure (repetition)")
+
+
+def test_six_repetitions_discard_the_suite_with_that_reason(repo, template):
+    client = make_client({("1_A", "black_box", 42 + n): REPEAT for n in range(1, 7)})
+    result, _ = generate(repo, client, template, [("1_A", "black_box")])
+    suite = store.read_suite(repo, "1_A", "black_box")
+    assert suite.status == "discarded" and {a.failure for a in suite.attempts} == {"repetition"}
+    assert result.discarded == 1 and result.repetition == 6
 
 
 def test_an_outage_retries_the_same_call_without_consuming_an_attempt(repo, template):
@@ -200,7 +227,7 @@ def test_every_call_is_one_new_request_with_the_options_of_the_design(repo, temp
             "top_k": 20,
             "repeat_penalty": 1.05,
             "num_ctx": 8192,
-            "num_predict": 4096,
+            "num_predict": config.NUM_PREDICT,
             "seed": 43,
         }
     prompts = [r["prompt"] for r in client.requests]

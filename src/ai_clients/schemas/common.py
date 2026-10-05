@@ -21,8 +21,9 @@ class Scenario(str, Enum):
 
 
 class AttemptFailure(str, Enum):
-    """The three reasons that consume one of the 6 attempts; nothing else does."""
+    """The four reasons that consume one of the 6 attempts; nothing else does."""
 
+    REPETITION = "repetition"  # the model failed the call: Ollama's "token repeat limit reached"
     UNPARSEABLE_RESPONSE = "unparseable_response"
     PUBLIC_TEST_FAILED = "public_test_failed"
     ALL_INPUTS_FAILED = "all_inputs_failed"  # runtime error and/or timeout on every input

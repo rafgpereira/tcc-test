@@ -40,8 +40,9 @@ Cada linha do resultado começa com `[OK]`, `[FALHA]`, `[AVISO]` ou `[INFO]` e t
 |---|---|---|
 | **Dataset** | `data/dataset/problems/` (a pasta descompactada) | o número de pastas de problema é o `problem_count` do manifesto; nenhuma entrada que não seja pasta de problema (nome `<contest>_<índice>`); cada problema tem `AC_ref.cpp`, `enunciado.md`, `metadata.json`, `testes.json`, `validacao.json` e `WA_1.cpp` a `WA_100.cpp` (exatamente 100, sem buracos), **e nenhum outro arquivo**; os nomes de arquivo no disco são exatamente os que o manifesto lista (faltando e sobrando) |
 | **Mutantes** | `data/mutants/problems/` | cada problema tem `Mutant_1.cpp` a `Mutant_100.cpp` (exatamente 100) e nenhum outro arquivo além do `generation.json`; nenhum problema pela metade em `data/mutants/building/`; se `manifests/mutants.manifest.json` existir, os nomes batem com ele; um problema **excluído** por não alcançar 100 mutantes (previsto pela especificação) aparece como `[AVISO]`, não como falha |
-| **Relação 1:1** | as duas acima | todo problema do dataset tem pasta de mutantes; **nenhuma pasta de mutantes sem problema no dataset** (é a verificação "de volta", dos mutantes para o dataset) |
-| `--deep` | as duas acima e os zips | o SHA-256 e o tamanho de todos os arquivos batem com o manifesto (o mesmo que `dataset verify --extracted` e `mutation verify --extracted`), e o zip bate com o hash que o manifesto guarda; zip ausente é só aviso |
+| **Suítes do modelo local** (`slm_suites`) | `data/suites/slm/problems/` | cada problema tem as pastas `black_box`, `white_box` e `hybrid` e nada além delas; em cada uma, só `suite.json` e arquivos `attempt_<n>.generation.json`/`attempt_<n>.execution.json`, com as gerações numeradas de 1 em diante sem buraco, nenhuma execução sem a geração correspondente e no máximo 6 tentativas; cada cenário tem `suite.json`; se `manifests/slm_suites.manifest.json` existir, os nomes de **todos** os arquivos de `data/suites/slm/` (inclusive `run.json`, fora `.lock`) batem com ele. **Enquanto o manifesto não existe** (execução ainda não empacotada), pasta de problema ou de cenário faltando e `suite.json` faltando são a execução em andamento: `[AVISO]`, mesmo com `--deep`, e a pasta inteira ausente também; buraco nas tentativas, mais de 6, arquivo estranho e pasta sem problema no dataset são `[FALHA]` sempre. **Depois do `package`**, tudo o que falta é `[FALHA]` |
+| **Relação 1:1** | as acima | todo problema do dataset tem pasta de mutantes e de suítes; **nenhuma pasta de mutantes ou de suítes sem problema no dataset** (é a verificação "de volta", para o dataset) |
+| `--deep` | as acima e os zips | o SHA-256 e o tamanho de todos os arquivos batem com o manifesto (o mesmo que `dataset verify --extracted` e `mutation verify --extracted`), e o zip bate com o hash que o manifesto guarda; zip ausente é só aviso |
 
 Não confere (de propósito): o conteúdo dos códigos; se os mutantes foram gerados a partir do
 `AC_ref.cpp` que está no dataset (só os identificadores e as contagens); o formato interno dos
@@ -68,6 +69,21 @@ JSON.
 - **Excluído é aviso, não falha**: FR-009 do módulo de mutantes prevê excluir um problema que não
   chega a 100 mutantes; mas ele fica visível no resultado.
 - **Manifesto de mutantes ausente é aviso**: ele só existe depois de `mutation package`.
+
+## Decisões (2026-10-01): camada `slm_suites`
+
+- **Duas profundidades**: a camada confere pasta de problema → pasta de cenário → arquivos de
+  tentativa (só os nomes, nunca o conteúdo; quem confere o conteúdo é o próprio `ai_clients`, que
+  aponta combinação danificada). O manifesto lista os arquivos a partir de `suites/slm/`, como
+  dentro do zip, e por isso também `run.json`.
+- **Execução em andamento é aviso até o `package`**: o piloto e a execução completa começam,
+  ambos, por `cli check --deep` com saída `0`, e nesse momento a árvore do modelo local ainda não
+  existe (antes do piloto) ou está pela metade (o piloto, que a execução completa continua com
+  `--resume`). Exigir `suite.json` em todo cenário com `--deep`, como dizia o contrato da camada,
+  tornaria esse primeiro passo impossível. O que falta só vira falha quando o manifesto existe,
+  isto é, quando a execução foi declarada completa e empacotada (o `package` já recusa empacotar
+  uma execução incompleta). Estruturas impossíveis (buraco, mais de 6 tentativas, arquivo
+  estranho, pasta sem problema) são falha desde o início.
 - **Só lê**: nada é corrigido automaticamente; quem decide o que fazer é o autor.
 - **Comando com nome limpo, em `src/cli/`** (`python -m cli check`, 2026-09-25): comandos do projeto
   são sempre `python -m <pacote> <subcomando>`, nunca o caminho de um script; a conferência que

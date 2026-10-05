@@ -101,7 +101,8 @@ caracteres (`61_B`), caixa-branca **5.674** (`893_C`), híbrido **8.118** (`61_B
 estimativa pessimista de 2,5 caracteres por *token*, ≈ 3.250 *tokens* + 4.096 de saída ≈ 7.350,
 ainda abaixo de 8.192: a decisão abaixo não muda.
 
-**Decisão**: `num_ctx = 8192`, `num_predict = 4096`.
+**Decisão**: `num_ctx = 8192`, `num_predict = 4096`. **Revisada em 2026-10-04 (R13, item 4)**:
+`num_predict = 5120`, com a razão caracteres/*token* medida no piloto 1.
 
 **Motivo**: mesmo numa estimativa pessimista de 2,5 caracteres por *token* (o normal para texto em
 inglês e C++ no tokenizador do Qwen2.5 fica entre 3 e 4), o maior prompt dá ≈ 3.150 *tokens*;
@@ -189,6 +190,11 @@ do template já corrigido:
 >
 > Every value in every input MUST respect the constraints stated in the context.
 
+**Revisão de 2026-10-04 (R13, item 4)**: no piloto 1, 3 respostas foram cortadas por `num_predict`;
+o item 2 da RULE 2 passou a ser "large cases: Use values up to the maximum allowed by the constraints,
+but keep the NUMBER of elements in each input small enough to write out fully (e.g., at most ~100
+elements)." e o item 1 perdeu "(including empty input if allowed)" (R13, item 2).
+
 ---
 
 ## R6 — Interpretação da resposta (FR-009, FR-010, Edge Cases)
@@ -205,13 +211,15 @@ do template já corrigido:
 3. Dentro de `<inputs>`: um ou mais pares `<input>…</input>` não aninhados; texto não branco entre
    eles → falha (`text_between_inputs`). Nenhum `<input>` → falha (`no_inputs`).
 4. Normalização de cada entrada: remover linhas totalmente brancas do início e do fim e garantir
-   exatamente um `\n` final. Entrada vazia depois disso → falha (`empty_input`, Edge Case da spec).
-   Espaços **dentro** das linhas não são tocados.
+   exatamente um `\n` final. Espaços **dentro** das linhas não são tocados. Entrada vazia depois
+   disso: até 2026-10-04 era falha (`empty_input`); **desde R13 (item 2)** é descartada sozinha e
+   contada (`empty_inputs`), e só "todas vazias" é falha (`only_empty_inputs`).
 5. `<edge_cases_analysis>` e `<reference_py>` vazios (só espaço) → falha (`empty_block:<tag>`).
    O código Python é gravado como veio (só `\r\n` → `\n` e linhas brancas das pontas removidas); se
-   o modelo o embrulhar numa cerca Markdown (```` ```python ````), ela **não** é removida — o código
-   vira `SyntaxError`, falha nos testes públicos e a tentativa é descartada pela razão (b). Isso é
-   consequência de não haver correção heurística, e a frequência é medida no piloto.
+   o modelo o embrulhar numa cerca Markdown (```` ```python ````), ela **não** era removida — o código
+   virava `SyntaxError` e falhava nos testes públicos. **Revisado em 2026-10-04 (R13, item 1)**: a
+   cerca que envolve o código inteiro é removida e registrada (`markdown_fence_removed`); qualquer
+   outra continua como veio.
 6. Entradas repetidas dentro da mesma resposta **não** são removidas (fidelidade à saída do modelo);
    a quantidade de duplicatas é registrada na suíte e no relatório, porque infla o tamanho da suíte
    (variável de confusão da spec, FR-012).
@@ -221,8 +229,8 @@ casos; ignorar texto externo evita descartar respostas corretas por uma frase de
 alterar o que é interpretado.
 
 **Alternativas**: parser XML (`xml.etree`) — quebra com `<`, `&` em entradas e no código Python;
-regex gulosa — ambígua com tags repetidas; extrair o código de cercas Markdown — correção
-heurística vetada pela spec.
+regex gulosa — ambígua com tags repetidas; extrair o código de qualquer cerca Markdown — correção
+heurística vetada pela spec (só a cerca que envolve o bloco inteiro sai, R13).
 
 ---
 
@@ -255,6 +263,17 @@ heurística vetada pela spec.
   sobrevivente → tentativa falha, `all_inputs_failed` (FR-018c, combinação qualquer de erro e
   timeout, conforme a clarificação de 2026-09-29).
 - `AC_ref.cpp` **nunca** é compilado nem executado nesta fase (FR-017) — nem é lido pelo `execute`.
+
+**Implementação (2026-10-01)**: `ai_clients/oracle.py`. Nos testes públicos o veredito é o
+`judge_test` completo; nas entradas geradas a chamada é `judge_test(run, "", limites)` e só
+importam `TLE` (→ `timeout`) e `MLE`/`RE` (→ `runtime_error`, com o veredito), já que não há
+saída com que comparar — `AC`/`WA` contra a string vazia só dizem que o programa terminou bem;
+a entrada que termina bem é mantida se o `stdout` for UTF-8 válido, com `verdict` nulo. O
+`execute` lê do problema só `metadata.json` e `testes.json` (`problem.load_judge_input`), então
+`AC_ref.cpp` nem é aberto nesta fase. Código e entradas são codificados com `surrogatepass`: um
+*surrogate* avulso vindo da resposta do modelo chega ao interpretador, que rejeita o código
+(erro de execução), em vez de derrubar o comando com `UnicodeEncodeError`. Um único slot (0):
+`isolation.kill_slot_processes(0)` no início e no fim do comando.
 
 **Medição de referência** (2026-09-30): limites de tempo 0,5 s (4 problemas), 1 s (101), 1,5 s
 (1), 2 s (82), 3 s (8), 4 s (2), 5 s (1), 10 s (1); limites de memória 61 MiB (7), 122 MiB (1),
@@ -314,6 +333,20 @@ A etiqueta de hardware **não** faz parte dessa identidade — é gravada por ch
 de máquina no meio é permitido e fica registrado. `execute` não tem `--resume`: não inicia
 execução nova (exige o `run.json`) e só processa o que está pendente, então é sempre retomada.
 
+**Implementação (2026-10-01)**: `store.combination_state` lê e confere **todos** os arquivos da
+combinação antes de derivar o estado, e com o `run.json` também o `model_digest` de cada tentativa
+e, numa combinação terminal, que o `suite.json` é byte a byte o que `finalize` grava a partir dos
+arquivos (a mesma função monta os dois). Divergência → `DamagedCombination`, com a lista
+`missing:`/`changed:`/`inconsistent:` (lista completa em [contracts/cli.md](./contracts/cli.md));
+`generate` e `execute` a reportam, seguem com as demais e saem com 1. Verificado com testes que
+interrompem (`KeyboardInterrupt`) nos quatro pontos — durante a chamada, entre a gravação de uma
+geração e a próxima, no meio da avaliação, entre a execução e o `suite.json` — e comparam a árvore
+final com a de uma execução sem interrupção (`tests/ai_clients/test_resume.py`): mesmas
+pastas e bytes, fora `created_at`/`requested_at`; a chamada interrompida volta com a mesma seed e
+nenhuma outra se repete. O `--resume` compara campo a campo (`RunConfig.differences`), um teste por
+campo. Quem encontra uma combinação `finalizable` (o `generate` ou o `execute`) grava o
+`suite.json`.
+
 **Alternativas**: um arquivo por combinação reescrito a cada passo (janela de corrupção lógica
 maior, apesar da escrita atômica); banco SQLite (dependência de formato binário, pior para
 empacotar e auditar); retomada implícita sem `--resume`, como no `mutation` (o autor pediu a opção
@@ -323,18 +356,20 @@ explícita; ela também protege contra continuar por engano com o template ou o 
 
 ## R9 — Falha de infraestrutura vs. falha de conteúdo (FR-018a, SC-007)
 
-**Decisão**: o cliente classifica toda chamada em três desfechos, e só o terceiro vira tentativa:
+**Decisão**: o cliente classifica toda chamada em quatro desfechos, e só os dois últimos gravam
+uma tentativa:
 
 | Desfecho | Exemplos | Efeito |
 |---|---|---|
-| `OllamaUnavailable` (infraestrutura) | recusa de conexão, DNS, *timeout* de conexão/leitura (`OLLAMA_HTTP_TIMEOUT_S`, padrão 900 s), HTTP 5xx, corpo que não é JSON | não grava nada; espera com recuo exponencial (5 s, 10 s, 20 s, … até 60 s) e **repete a mesma chamada com a mesma seed**, até `OLLAMA_MAX_INFRA_RETRIES` repetições consecutivas (padrão 30); cada espera é impressa. Atingido o teto: código 3 (`ollama unavailable after N consecutive retries (<último motivo>); nothing was recorded for <id> <scenario> attempt <n>; run generate --resume when the service is back`), sem gravar nada e sem consumir tentativa. O contador zera a cada resposta recebida |
-| `OllamaConfigError` (configuração) | HTTP 4xx (modelo não instalado, opção inválida), `digest` do modelo diferente do `run.json`, guarda de `num_ctx` (R3) | não grava nada; aborta com código 3 e mensagem acionável |
+| `OllamaUnavailable` (infraestrutura) | recusa de conexão, DNS, *timeout* de conexão/leitura (`OLLAMA_HTTP_TIMEOUT_S`, padrão 900 s), HTTP 5xx, túnel fora do ar (página de erro do ngrok com `ERR_NGROK_`, mesmo com HTTP 4xx), corpo que não é JSON | não grava nada; espera com recuo exponencial (5 s, 10 s, 20 s, … até 60 s) e **repete a mesma chamada com a mesma seed**, até `OLLAMA_MAX_INFRA_RETRIES` repetições consecutivas (padrão 30); cada espera é impressa. Atingido o teto: código 3 (`ollama unavailable after N consecutive retries (<último motivo>); nothing was recorded for <id> <scenario> attempt <n>; run generate --resume when the service is back`), sem gravar nada e sem consumir tentativa. O contador zera a cada resposta recebida |
+| `OllamaConfigError` (configuração) | HTTP 4xx do próprio Ollama (modelo não instalado, opção inválida), `digest` do modelo diferente do `run.json`, guarda de `num_ctx` (R3) | não grava nada; aborta com código 3 e mensagem acionável |
 | resposta recebida | qualquer 200 com `message.content` | grava `attempt_<n>.generation.json` (a interpretação decide se é falha `unparseable_response`) |
+| `ModelRepetition` (falha do modelo; desde 2026-10-04, R13 item 3) | HTTP 500 com `token repeat limit reached` no corpo | grava `attempt_<n>.generation.json` sem resposta (`model_failure.reason = "repetition"`); a tentativa falha com a razão `repetition` e a próxima seed é chamada |
 
 `done_reason` (`"stop"` ou `"length"`) é sempre gravado; `"length"` **não** é tratado à parte — uma
 resposta truncada normalmente não fecha `</reference_py>` e cai na falha de interpretação pelo
-parser; se fechar, segue o fluxo normal. O relatório conta `done_reason = "length"` para medir o
-efeito de FR-007.
+parser; se fechar, segue o fluxo normal. O relatório conta `done_reason = "length"` por cenário
+(desde R13) para medir o efeito de FR-007.
 
 **Motivo**: separa com precisão o que é do ambiente (nunca consome orçamento) do que é do modelo.
 O recuo em testes usa relógio e `sleep` injetados (sem espera real).
@@ -349,6 +384,14 @@ mudam o conteúdo de nenhuma resposta, só quanto se espera por ela. **Alternati
 redação anterior da spec — rejeitada porque um *timeout* curto demais vira laço infinito
 silencioso); teto fixo no código (rejeitado: o valor certo depende do hardware do operador).
 
+**Túnel fora do ar (achado no piloto, 2026-10-01)**: com o Ollama exposto por um túnel do ngrok, a
+queda do túnel responde **HTTP 404** com uma página de texto que traz `ERR_NGROK_3200` ("The endpoint
+... is offline"). Pela regra acima (todo 4xx é configuração) o comando parou com código 3 em vez de
+esperar o túnel voltar — numa execução de centenas de chamadas, uma queda curta pararia tudo.
+Decisão: resposta HTTP de erro cujo corpo contém `ERR_NGROK_` é `OllamaUnavailable` (espera e
+repete a mesma chamada com a mesma seed); o 4xx do próprio Ollama continua sendo configuração.
+Nada foi gravado na ocorrência real (a queda veio antes da primeira chamada ao modelo).
+
 ---
 
 ## R10 — Relatório, empacotamento e verificação (FR-027, FR-028)
@@ -359,7 +402,8 @@ silencioso); teto fixo no código (rejeitado: o valor certo depende do hardware 
   por estado e cenário, taxa de descarte por cenário e total (sobre as 600 combinações, N nunca
   reduzido), distribuição do tamanho das suítes aceitas (mín./quartis/máx. e histograma), funil de
   falhas por razão e por número da tentativa, entradas descartadas por razão, duplicatas,
-  `done_reason = "length"`, *tokens* (soma, máximo de `prompt_eval_count`), duração, seeds por
+  `done_reason = "length"`, cercas Markdown removidas e entradas vazias descartadas (as três por
+  cenário, R13), *tokens* (soma, máximo de `prompt_eval_count`), duração, seeds por
   combinação e etiquetas de hardware distintas com a contagem de chamadas de cada.
 - `python -m ai_clients package` → `data/slm_suites.zip` determinístico (constantes de
   `dataset.integrity.packaging`, raiz `suites/slm/` para que `unzip -d data/` caia no caminho que os
@@ -371,6 +415,18 @@ silencioso); teto fixo no código (rejeitado: o valor certo depende do hardware 
   cada problema do dataset, uma pasta com os 3 cenários, cada um com `suite.json` e com as
   tentativas numeradas sem buraco; nada sobrando; `--deep` confere hashes contra o manifesto. Sem
   manifesto (antes do `package`), a camada emite aviso, como a dos mutantes antes do empacotamento.
+
+**Implementação (2026-10-01)**: `ai_clients/report.py`, `packaging.py`, `schemas/report.py`,
+`schemas/manifest.py` e a camada `SLM_SUITES_LAYER` de `cli.consistency`. Regras fixadas no
+caminho (detalhe em [contracts/file-formats.md](./contracts/file-formats.md) §5 e §6): bloco
+`attempts` (`total`, `failed`) no relatório para validar o funil; quartis por interpolação linear;
+`input_discards` sobre todas as tentativas executadas e `duplicate_inputs` só das suítes aceitas;
+manifesto com a chave `slm_suites_zip`, como o `mutants_zip` dos mutantes; o `package` toma a
+trava de `data/suites/slm/`, recusa árvore incompleta, danificada ou com entrada que não é
+problema × cenário do dataset, e refaz o relatório logo depois do zip. **Divergência decidida na
+implementação**: na camada `slm_suites` do `cli check`, o que falta é aviso até o manifesto
+existir (com ou sem `--deep`), porque o piloto e a execução completa começam por `cli check --deep`
+com a árvore ainda vazia ou pela metade; depois do `package`, é falha.
 
 **Alternativas**: relatório impresso só no terminal (sem proveniência versionada, contraria FR-027).
 
@@ -413,3 +469,61 @@ Valor que não é inteiro positivo → código 2. O nome do modelo (`qwen2.5-cod
 ⚠ **Sinalizado** (plan.md, S6): no Linux, um contêiner não resolve `host.docker.internal` sem
 `extra_hosts: ["host.docker.internal:host-gateway"]` no serviço `app` do `docker-compose.yml`. É uma
 linha a acrescentar (só no `app`; o `sandbox` continua `network_mode: none`).
+
+---
+
+## R13 — Revisão depois do piloto 1 (2026-10-04)
+
+**Piloto 1 (2026-10-01 a 2026-10-03)**: 4 problemas (`1000_B`, `1005_C`, `1008_B`, `1_B`) × 3
+cenários = 12 combinações, todas terminais (5 aceitas, 7 descartadas); mais 2 combinações de `1009_B`
+começadas por um `generate` sem `--problem` interrompido à mão (`black_box` com a tentativa 1
+esperando `execute`; `white_box` com 2 tentativas não interpretadas). 57 chamadas no total; maior
+`prompt_eval_count` 2.044 (`1000_B` híbrido); chamada mais longa 166 s. Das 57: 6 não interpretadas
+(3 `unclosed_block:inputs`, todas com `done_reason = "length"` — 2 no híbrido, 1 na caixa-branca —, e
+3 `empty_input`); 51 interpretadas e executadas (exceto 1 pendente): 31 reprovadas no teste público
+por WA, 14 por RE, 5 aceitas. **Todas as 6** respostas com cerca Markdown em volta do `<reference_py>`
+eram do híbrido, e as 6 reprovaram no teste público por RE (`SyntaxError`). Num `generate` do piloto
+o Ollama respondeu HTTP 500 `token repeat limit reached` e, por R9, a mesma seed foi repetida até o
+teto de 30 repetições, sem gravar nada.
+
+Decisões (Milena, 2026-10-04), todas antes do piloto 2, que começa uma execução nova (o template, o
+`num_predict` e a versão do Ollama mudaram, e uma execução nunca mistura configurações, R8):
+
+1. **Cerca Markdown — removida só quando envolve o código inteiro** (substitui o item 5 de R6). Depois
+   da normalização do bloco, se a primeira linha for exatamente ```` ```python ````, ```` ```py ```` ou
+   ```` ``` ```` (espaços à direita tolerados) e a última for exatamente ```` ``` ````, as duas linhas
+   saem; qualquer outra cerca (só abertura, no meio do código, outra linguagem, recuada) fica como
+   veio. Registrado por tentativa (`parse.markdown_fence_removed`) e somado por cenário no relatório
+   (`markdown_fences_removed`). **Motivo**: no piloto a cerca foi o único motivo das 6 RE do híbrido
+   e não diz nada sobre a qualidade do teste; a regra é fixa, testada por tabela e contada, então não
+   é uma correção heurística. **Alternativa rejeitada**: extrair qualquer bloco cercado de dentro do
+   código (heurística aberta, ambígua com mais de uma cerca).
+2. **Entrada vazia — descartada sozinha** (substitui o item 4 de R6). A frase "including empty input
+   if allowed" saiu do prompt. No parser, um `<input>` vazio depois da normalização é descartado e
+   contado (`parse.empty_inputs`, somado por cenário no relatório como `empty_inputs`), sem invalidar
+   a tentativa — como já acontece com uma entrada que quebra a solução (R7). Só se **todas** forem
+   vazias a resposta é `unparseable_response` com o motivo `only_empty_inputs`. Os índices das entradas
+   em `parse.inputs`, na execução e no `suite.json` são os das entradas que sobraram.
+3. **`token repeat limit reached` é falha do modelo, não de infraestrutura** (corrige R9). O HTTP 500
+   cujo corpo traz esse texto vira `ModelRepetition` no cliente: grava `attempt_<n>.generation.json`
+   com `raw_response = ""`, `ollama = null`, `model_failure = {reason: "repetition", detail}` e
+   `parse = {ok: false, error: "repetition"}`; a tentativa conta como falha com a razão nova
+   `repetition` (quarta razão de `AttemptFailure`) e o `generate` segue para a próxima seed. **Motivo**:
+   com a mesma seed a mesma amostragem se repete, então repetir a chamada só gasta tempo até o teto.
+   Qualquer outro HTTP 5xx continua sendo infraestrutura.
+4. **Respostas cortadas** (`done_reason = "length"`): continuam sem tratamento próprio (caem no parser),
+   mas o relatório passa a contá-las **por cenário** (`done_reason_length`, com o total). O pedido
+   de "maior caso que dá para escrever" na RULE 2 foi trocado por: "Use values up to the maximum allowed
+   by the constraints, but keep the NUMBER of elements in each input small enough to write out fully
+   (e.g., at most ~100 elements)." E `num_predict` passa de 4.096 para **5.120**: o piloto mediu no
+   mínimo 3,32 caracteres por *token* (caixa-branca de `1000_B`), então o maior prompt dos 200 problemas
+   (8.074 caracteres com o template novo, híbrido de `61_B`) fica em ≈ 2.430 *tokens*; 8.192 − 5.120 =
+   3.072 de folga para o prompt cobrem até 2,63 caracteres por *token*. A guarda de R3 continua: se
+   um prompt não couber, a execução para (código 3), nada é truncado em silêncio.
+5. **Por que `generate --resume --problem 1000_B --problem 1005_C --problem 1008_B --problem 1_B` fez 0
+   chamadas**: as 12 combinações desses 4 problemas já estavam terminais (`suite.json` gravado), então
+   não havia tentativa pendente; o comportamento é o esperado. O único trabalho pendente no disco era de
+   `1009_B`, fora da seleção.
+6. **`next:` do `execute` repete a seleção**: a linha agora traz os mesmos `--problem`/`--scenario` com
+   que o `execute` foi chamado (antes sugeria o `generate --resume` sem nenhum, e copiar essa linha
+   no meio de um piloto roda as 600 combinações).

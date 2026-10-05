@@ -246,6 +246,24 @@ def test_an_unparseable_response_keeps_only_the_error():
         )
 
 
+def test_a_model_failure_has_no_answer_and_its_reason_as_the_parse_error():
+    failure = {"reason": "repetition", "detail": "token repeat limit reached"}
+    unparsed = {"ok": False, "error": "repetition"}
+    record = GenerationRecord.model_validate(
+        generation(raw_response="", ollama=None, parse=unparsed, model_failure=failure)
+    )
+    assert record.model_failure.reason == "repetition" and record.ollama is None
+    for wrong in (
+        dict(raw_response="", ollama=None, parse=unparsed),  # no reason recorded
+        dict(raw_response="", parse=unparsed, model_failure=failure),  # with ollama metadata
+        dict(raw_response="x", ollama=None, parse=unparsed, model_failure=failure),  # an answer
+        dict(raw_response="", ollama=None, parse={"ok": False, "error": "no_inputs"}),
+        dict(raw_response="", ollama=None, parse=parsed(), model_failure=failure),
+    ):
+        with pytest.raises(ValidationError):
+            GenerationRecord.model_validate(generation(**wrong))
+
+
 @pytest.mark.parametrize(
     "inputs",
     [
@@ -267,7 +285,7 @@ def test_parsed_blocks_are_not_empty(field_name):
         GenerationRecord.model_validate(generation(parse=parsed(**{field_name: "  \n"})))
 
 
-@pytest.mark.parametrize("field_name", ["extraneous_chars", "duplicate_inputs"])
+@pytest.mark.parametrize("field_name", ["extraneous_chars", "duplicate_inputs", "empty_inputs"])
 def test_parse_counters_are_not_negative(field_name):
     with pytest.raises(ValidationError):
         GenerationRecord.model_validate(generation(parse=parsed(**{field_name: -1})))

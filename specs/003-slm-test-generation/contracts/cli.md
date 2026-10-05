@@ -62,18 +62,21 @@ Variáveis de ambiente (`.env`, research R12): `OLLAMA_BASE_URL` e `OLLAMA_HARDW
 obrigatórias fora do `--dry-run` (código 2 se faltarem); `OLLAMA_HTTP_TIMEOUT_S` (padrão 900) e
 `OLLAMA_MAX_INFRA_RETRIES` (padrão 30), opcionais — valor que não é inteiro positivo → código 2.
 
-Falha de infraestrutura (Ollama inacessível, *timeout*, HTTP 5xx): imprime
+Falha de infraestrutura (Ollama inacessível, *timeout*, HTTP 5xx, túnel do ngrok fora do ar — HTTP de erro com `ERR_NGROK_` no corpo): imprime
 `ollama unavailable (<motivo>); retrying the same call (seed S) in T s (retry k of N)` e repete a
 mesma chamada, sem gravar nada, até `OLLAMA_MAX_INFRA_RETRIES` repetições consecutivas; atingido o
 teto, sai com código 3 (`ollama unavailable after N consecutive retries (<motivo>); nothing was
 recorded for <id> <scenario> attempt <n>; run generate --resume when the service is back`), sem
 consumir tentativa. O operador também pode interromper antes com `Ctrl+C` (código 130). Nos dois
 casos a retomada refaz a mesma chamada com a mesma seed. Erro de configuração (HTTP 4xx, modelo ausente, `digest` diferente, guarda de
-`num_ctx`): código 3, nada gravado para a tentativa.
+`num_ctx`): código 3, nada gravado para a tentativa. Exceção (desde 2026-10-04, research R13): o
+HTTP 500 com `token repeat limit reached` no corpo é falha do modelo, não de infraestrutura — grava
+a tentativa como falha `repetition` e segue para a próxima seed, sem esperar.
 
 Saída por chamada: `<id> <scenario> attempt <n> seed <s>: parsed (<k> inputs) | unparseable
-(<erro>) — <prompt_eval_count>+<eval_count> tokens, <done_reason>, <duração> s`. Resumo final:
-`done: N calls, N parsed, N unparseable, N discarded suites; N pending execution`.
+(<erro>) — <prompt_eval_count>+<eval_count> tokens, <done_reason>, <duração> s`, ou
+`<id> <scenario> attempt <n> seed <s>: model failure (repetition) — <erro do Ollama>`. Resumo final:
+`done: N calls, N parsed, N unparseable, N repetition, N discarded suites; N pending execution`.
 
 ## `execute` (serviço `sandbox`)
 
@@ -85,13 +88,38 @@ inicia execução nova (sem `run.json` → código 2, `run generate first`) e s�
 
 | Opção | Efeito |
 |---|---|
-| `--dry-run` | lista as tentativas pendentes de execução (id, cenário, tentativa, nº de entradas, testes públicos, limites efetivos) |
+| `--dry-run` | lista as tentativas pendentes de execução (id, cenário, tentativa, nº de entradas, testes públicos, limites efetivos): `<id> <scenario> attempt <n>: <k> inputs, <p> public tests, limits <t> s and <m> MiB`, e no fim `dry run: N attempts to execute`; também exige o `run.json` |
 
 Saída por tentativa: `<id> <scenario> attempt <n>: accepted (<k> kept, <d> discarded) |
-public_test_failed (test <i>: <verdict>) | all_inputs_failed (<t> timeout, <r> runtime_error)`.
+public_test_failed (test <i>: <verdict>) | all_inputs_failed (<t> timeout, <r> runtime_error)`,
+com `, <u> non_utf8_output` acrescentado ao último caso quando houver. Uma combinação
+`finalizable` (interrompida entre a execução e o `suite.json`) imprime
+`<id> <scenario> attempt <n>: suite recorded (<status>)` e **não** conta para o `--limit` (não há
+nada a executar). O `generate` também grava, sem chamar o modelo, o `suite.json` de toda
+combinação `finalizable` que encontrar (data-model §4: "quem encontrar grava").
+
+## Combinação danificada (`generate`, `execute`, `report`)
+
+Antes de decidir o que fazer com uma combinação, o comando lê e confere todos os arquivos dela;
+qualquer divergência é dano (data-model §4): a combinação não é tocada, os demais seguem, e ao fim
+o comando imprime em `stderr` uma linha `damaged: <id> <scenario>: <problema>; <problema>…` por
+combinação — cada problema começa com `missing:` (arquivo de tentativa que falta), `changed:`
+(`suite.json` diferente, byte a byte, do que os arquivos de tentativa dão) ou `inconsistent:`
+(JSON inválido, schema violado — inclusive seed que não bate —, arquivo que fala de outra
+combinação, `model_digest` diferente do `run.json`, execução de tentativa não interpretada, número
+de entradas diferente do da geração, tentativa depois de uma aceita, tentativa além da 6ª,
+arquivo estranho na pasta) — e sai com código 1. Temporários de escrita atômica deixados por um
+`kill -9` (`.<nome>.<sufixo>.tmp`) são ignorados, nunca lidos.
+
+Mensagem do `--resume` com configuração diferente (código 2): `the configuration differs from
+data/suites/slm/run.json, and a run never mixes configurations:` seguida de uma linha
+`  <campo>: recorded <valor gravado>, current <valor atual>` por campo (os de `options` como
+`options.<nome>`).
 Resumo final: `done: N executed, N accepted, N failed (N need a new generation), N discarded suites`.
-Se sobrou combinação que precisa de nova geração, a última linha diz o comando seguinte:
-`next: docker compose run --rm app python -m ai_clients generate --resume`.
+Se sobrou combinação que precisa de nova geração, a última linha diz o comando seguinte, com a
+mesma seleção (`--problem`, ordenados e sem repetição, e `--scenario`, na ordem canônica) com que o
+`execute` foi chamado (desde 2026-10-04):
+`next: docker compose run --rm app python -m ai_clients generate --resume [--problem ID ...] [--scenario S ...]`.
 
 ## `report` (serviço `app`)
 

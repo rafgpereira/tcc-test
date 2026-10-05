@@ -9,12 +9,15 @@ and ``suite.json`` only means computing ``suite.json`` again.
 """
 
 import fcntl
+import re
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
+
+from pydantic import ValidationError
 
 from ai_clients import config
 from ai_clients.schemas.execution import ExecutionRecord
@@ -26,13 +29,17 @@ from dataset.schemas.testes import TestCase
 
 __all__ = [
     "AlreadyRunningError",
+    "DamagedCombination",
     "ExecutionRecord",
     "GenerationRecord",
     "State",
+    "attempt_files",
     "combination_dir",
     "combination_state",
+    "count_in_state",
     "ensure_suites_dir",
     "exclusive_run",
+    "expected_suite",
     "finalize",
     "read_execution",
     "read_generation",
@@ -159,6 +166,154 @@ class State:
     attempt: int
 
 
+class DamagedCombination(Exception):
+    """The files of a problem × scenario are not what the commands write; never repaired.
+
+    ``problems`` lists what diverges, each line starting with ``missing:``, ``changed:`` or
+    ``inconsistent:`` and the file it is about.
+    """
+
+    def __init__(self, problem_id: str, scenario: str, problems: list[str]) -> None:
+        self.problem_id, self.scenario, self.problems = problem_id, scenario, problems
+        super().__init__(f"{problem_id} {scenario}: {'; '.join(problems)}")
+
+
+_ATTEMPT_FILE = re.compile(r"^attempt_(\d+)\.(generation|execution)\.json$")
+
+
+def _is_leftover(name: str) -> bool:
+    """A temporary file of an atomic write that a ``kill -9`` left behind: never read."""
+    return name.startswith(".") and name.endswith(".tmp")
+
+
+def _reason(exc: Exception) -> str:
+    if isinstance(exc, ValidationError):
+        error = exc.errors()[0]
+        where = ".".join(str(part) for part in error["loc"])
+        return f"{where}: {error['msg']}" if where else error["msg"]
+    return str(exc)
+
+
+@dataclass(frozen=True)
+class AttemptFiles:
+    generations: list[GenerationRecord]  # attempts 1, 2, ... without a gap
+    executions: dict[int, ExecutionRecord]
+    suite: Path | None
+
+
+def _load(root: Path, problem_id: str, scenario: str, run: RunConfig | None) -> AttemptFiles:
+    """Read and cross-check every file of the combination; ``DamagedCombination`` if any diverges."""
+    scenario = str(getattr(scenario, "value", scenario))
+    folder = combination_dir(root, problem_id, scenario)
+    problems: list[str] = []
+    found: dict[str, dict] = {"generation": {}, "execution": {}}
+    suite = None
+    for path in sorted(folder.iterdir()) if folder.is_dir() else []:
+        name = path.name
+        if _is_leftover(name):
+            continue
+        if name == config.SUITE_FILE and path.is_file():
+            suite = path
+            continue
+        match = _ATTEMPT_FILE.match(name)
+        if match is None or not path.is_file():
+            problems.append(f"inconsistent: {name}: not a file written by python -m ai_clients")
+            continue
+        attempt, kind = int(match[1]), match[2]
+        if not 1 <= attempt <= config.MAX_ATTEMPTS:
+            problems.append(f"inconsistent: {name}: there are only {config.MAX_ATTEMPTS} attempts")
+            continue
+        schema = GenerationRecord if kind == "generation" else ExecutionRecord
+        try:
+            record = schema.model_validate_json(path.read_bytes())
+        except ValueError as exc:  # also invalid JSON and invalid UTF-8
+            problems.append(f"inconsistent: {name}: {_reason(exc)}")
+            continue
+        named = (record.problem_id, record.scenario.value, record.attempt)
+        if named != (problem_id, scenario, attempt):
+            problems.append(f"inconsistent: {name}: it is about {' '.join(map(str, named))}")
+            continue
+        found[kind][attempt] = record
+    generations, executions = found["generation"], found["execution"]
+    last = max([*generations, *executions], default=0)
+    for n in range(1, last + 1):
+        if n not in generations:
+            problems.append(f"missing: {config.generation_file_name(n)}")
+    for n, record in sorted(generations.items()):
+        if run is not None and record.model_digest != run.model_digest:
+            problems.append(
+                f"inconsistent: {config.generation_file_name(n)}: model_digest "
+                f"{record.model_digest} differs from run.json ({run.model_digest})"
+            )
+        execution = executions.get(n)
+        if not record.parse.ok:
+            if execution is not None:
+                problems.append(
+                    f"inconsistent: {config.execution_file_name(n)}: attempt {n} was not parsed"
+                )
+        elif (
+            execution is not None
+            and execution.public_tests.failed_index is None
+            and len(execution.inputs) != len(record.parse.inputs)
+        ):
+            problems.append(
+                f"inconsistent: {config.execution_file_name(n)}: {len(execution.inputs)} "
+                f"inputs, the generation has {len(record.parse.inputs)}"
+            )
+        if n < last and record.parse.ok:  # a later attempt exists: this one must have failed
+            if execution is None:
+                problems.append(f"missing: {config.execution_file_name(n)}")
+            elif execution.outcome == "accepted":
+                problems.append(
+                    f"inconsistent: {config.generation_file_name(n + 1)}: attempt {n} was accepted"
+                )
+    if problems:
+        raise DamagedCombination(problem_id, scenario, problems)
+    return AttemptFiles([generations[n] for n in range(1, last + 1)], executions, suite)
+
+
+def _state_of_attempts(files: AttemptFiles) -> State:
+    if not files.generations:
+        return State("pending_generation", 1)
+    last = files.generations[-1]
+    n = last.attempt
+    if last.parse.ok:
+        execution = files.executions.get(n)
+        if execution is None:
+            return State("pending_execution", n)
+        if execution.outcome == "accepted":
+            return State("finalizable", n)
+    if n < config.MAX_ATTEMPTS:
+        return State("pending_generation", n + 1)
+    return State("finalizable", n)
+
+
+def combination_state(
+    root: Path, problem_id: str, scenario: str, run: RunConfig | None = None
+) -> State:
+    """The state of a problem × scenario, from the files present only (data-model.md, 4).
+
+    Every file is read and cross-checked first; ``DamagedCombination`` if anything diverges. With
+    ``run``, also the ``model_digest`` of every attempt and, for a terminal combination, that
+    ``suite.json`` is byte for byte what ``finalize`` writes from the attempt files.
+    """
+    files = _load(root, problem_id, scenario, run)
+    state = _state_of_attempts(files)
+    if files.suite is None:
+        return state
+    if state.kind != "finalizable":
+        raise DamagedCombination(
+            problem_id, scenario, ["inconsistent: suite.json: the attempts are not finished"]
+        )
+    if run is not None:
+        expected = store.dumps_json(_build_suite(files, problem_id, scenario, run))
+        if files.suite.read_bytes() != expected.encode("utf-8"):
+            raise DamagedCombination(
+                problem_id, scenario, ["changed: suite.json: not what the attempt files give"]
+            )
+    return State("terminal", 0)
+
+
 def read_suite(root: Path, problem_id: str, scenario: str) -> SlmSuite | None:
     path = combination_dir(root, problem_id, scenario) / config.SUITE_FILE
     if not path.is_file():
@@ -166,43 +321,10 @@ def read_suite(root: Path, problem_id: str, scenario: str) -> SlmSuite | None:
     return SlmSuite.model_validate_json(path.read_text(encoding="utf-8"))
 
 
-def _generations(root: Path, problem_id: str, scenario: str) -> list[GenerationRecord]:
-    """The generation records 1, 2, ... that exist without a gap."""
-    records = []
-    for attempt in range(1, config.MAX_ATTEMPTS + 1):
-        record = read_generation(root, problem_id, scenario, attempt)
-        if record is None:
-            break
-        records.append(record)
-    return records
-
-
-def combination_state(root: Path, problem_id: str, scenario: str) -> State:
-    """The state of a problem × scenario, from the files present only (data-model.md, 4)."""
-    folder = combination_dir(root, problem_id, scenario)
-    if (folder / config.SUITE_FILE).is_file():
-        return State("terminal", 0)
-    generations = _generations(root, problem_id, scenario)
-    if not generations:
-        return State("pending_generation", 1)
-    last = generations[-1]
-    n = last.attempt
-    if not last.parse.ok:
-        failed = True
-    else:
-        execution = read_execution(root, problem_id, scenario, n)
-        if execution is None:
-            return State("pending_execution", n)
-        if execution.outcome == "accepted":
-            return State("finalizable", n)
-        failed = True
-    if failed and n < config.MAX_ATTEMPTS:
-        return State("pending_generation", n + 1)
-    return State("finalizable", n)
-
-
 def _summary(generation: GenerationRecord, execution: ExecutionRecord | None) -> AttemptSummary:
-    if not generation.parse.ok:
+    if generation.model_failure is not None:
+        failure, detail = generation.model_failure.reason, generation.model_failure.detail
+    elif not generation.parse.ok:
         failure, detail = "unparseable_response", generation.parse.error
     elif execution.outcome == "public_test_failed":
         tests = execution.public_tests
@@ -226,16 +348,10 @@ def _summary(generation: GenerationRecord, execution: ExecutionRecord | None) ->
     )
 
 
-def finalize(root: Path, problem_id: str, scenario: str, run: RunConfig) -> SlmSuite | None:
-    """Write ``suite.json`` if the combination is finalizable; the same files give the same bytes.
-
-    This is the only place that writes ``suite.json``. Returns ``None`` if the combination is not
-    finalizable (already terminal, or still pending).
-    """
-    if combination_state(root, problem_id, scenario).kind != "finalizable":
-        return None
-    generations = _generations(root, problem_id, scenario)
-    executions = [read_execution(root, problem_id, scenario, g.attempt) for g in generations]
+def _build_suite(files: AttemptFiles, problem_id: str, scenario: str, run: RunConfig) -> SlmSuite:
+    """``suite.json`` as a pure function of the attempt files and of ``run.json``."""
+    generations = files.generations
+    executions = [files.executions.get(g.attempt) for g in generations]
     attempts = [_summary(g, e) for g, e in zip(generations, executions, strict=True)]
     last_generation, last_execution = generations[-1], executions[-1]
     accepted = attempts[-1].failure is None
@@ -249,7 +365,7 @@ def finalize(root: Path, problem_id: str, scenario: str, run: RunConfig) -> SlmS
                 discarded.append(
                     DiscardedInput(index=item.index, discard=item.discard, verdict=item.verdict)
                 )
-    suite = SlmSuite(
+    return SlmSuite(
         problem_id=problem_id,
         scenario=scenario,
         model=run.model,
@@ -262,5 +378,49 @@ def finalize(root: Path, problem_id: str, scenario: str, run: RunConfig) -> SlmS
         discarded_inputs=discarded,
         duplicate_inputs=last_generation.parse.duplicate_inputs if accepted else 0,
     )
+
+
+def attempt_files(
+    root: Path, problem_id: str, scenario: str, run: RunConfig | None = None
+) -> AttemptFiles:
+    """The attempt records of a combination, cross-checked; ``DamagedCombination`` if damaged."""
+    return _load(root, problem_id, scenario, run)
+
+
+def expected_suite(root: Path, problem_id: str, scenario: str, run: RunConfig) -> SlmSuite | None:
+    """The suite the attempt files give (what ``finalize`` writes), or ``None`` while pending.
+
+    For a terminal combination it is ``suite.json`` itself (``combination_state`` checks they are
+    byte for byte equal); for a finalizable one, the ``suite.json`` still to be written.
+    """
+    files = _load(root, problem_id, scenario, run)
+    if _state_of_attempts(files).kind != "finalizable":
+        return None
+    return _build_suite(files, problem_id, scenario, run)
+
+
+def finalize(root: Path, problem_id: str, scenario: str, run: RunConfig) -> SlmSuite | None:
+    """Write ``suite.json`` if the combination is finalizable; the same files give the same bytes.
+
+    This is the only place that writes ``suite.json``. Returns ``None`` if the combination is not
+    finalizable (already terminal, or still pending); ``DamagedCombination`` if it is damaged.
+    """
+    files = _load(root, problem_id, scenario, run)
+    if files.suite is not None or _state_of_attempts(files).kind != "finalizable":
+        return None
+    suite = _build_suite(files, problem_id, scenario, run)
     _write_once(combination_dir(root, problem_id, scenario) / config.SUITE_FILE, suite)
     return suite
+
+
+def count_in_state(
+    root: Path, combinations: Iterable[tuple[str, str]], kind: str, run: RunConfig | None = None
+) -> int:
+    """How many of ``combinations`` are in the state ``kind`` (a damaged one is in none)."""
+    total = 0
+    for problem_id, scenario in combinations:
+        try:
+            total += combination_state(root, problem_id, scenario, run).kind == kind
+        except DamagedCombination:
+            pass
+    return total

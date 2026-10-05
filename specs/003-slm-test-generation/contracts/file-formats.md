@@ -42,11 +42,14 @@ serviço `sandbox` roda como root e nada pode ficar com dono root no `./data` mo
     "prompt_eval_duration_ns": 900000000,
     "total_duration_ns": 21500000000
   },
+  "model_failure": null,
   "parse": {
     "duplicate_inputs": 0,
     "edge_cases_analysis": "…",
+    "empty_inputs": 0,
     "extraneous_chars": 0,
     "inputs": ["1\n", "5\n1 2 3 4 5\n"],
+    "markdown_fence_removed": false,
     "ok": true,
     "reference_py": "import sys\n…"
   },
@@ -124,10 +127,23 @@ Suíte descartada: `"status": "discarded"`, `"accepted_attempt": null`, `"tests"
 `ollama_version`, `options`, `seed_base`, `prompt_template_sha256`, `dataset_manifest_sha256`,
 `combinations` (`total`, `accepted`, `discarded`, `pending_generation`, `pending_execution`, por
 cenário e no total), `discard_rate` (por cenário e total, sobre `total`), `suite_size`
-(`min`, `p25`, `median`, `p75`, `max`, `histogram` por cenário), `attempt_failures` (por razão × número
-da tentativa), `input_discards` (por razão), `duplicate_inputs`, `done_reason_length`, `tokens`
-(`prompt_total`, `eval_total`, `prompt_max`), `duration_s_total`, `hardware` (etiqueta → nº de
-chamadas), `seeds` (`<id>/<scenario>` → lista de seeds usadas).
+(`count`, `min`, `p25`, `median`, `p75`, `max`, `histogram` por cenário e no total),
+`attempts` (`total` de chamadas respondidas, `failed` das que consumiram tentativa),
+`attempt_failures` (por razão × número da tentativa, razões de `AttemptFailure`, inclusive
+`repetition`), `input_discards` (por razão), `duplicate_inputs`, `done_reason_length`,
+`markdown_fences_removed` e `empty_inputs` (os três por cenário e no total, desde 2026-10-04;
+antes `done_reason_length` era um número só), `tokens` (`prompt_total`, `eval_total`, `prompt_max`), `duration_s_total`,
+`hardware` (etiqueta → nº de chamadas), `seeds` (`<id>/<scenario>` → lista de seeds usadas).
+
+Regras fixadas na implementação (2026-10-01): o escopo é sempre todo problema do dataset × os 3
+cenários; quartis e mediana por interpolação linear entre as posições vizinhas (a regra padrão do
+numpy), `null` quando não há suíte aceita; `histogram` com o tamanho como texto (chave JSON);
+`input_discards` conta as entradas descartadas de **todas** as tentativas executadas (inclusive as
+de tentativas que falharam por `all_inputs_failed`); `duplicate_inputs` soma só as das suítes
+aceitas (são as que inflam o tamanho de uma suíte usada); uma combinação `finalizable` entra pelo
+`suite.json` que os arquivos dão; `duration_s_total` é a soma de `total_duration_ns` relatada pelo
+Ollama, sem tempo de espera de infraestrutura. Nenhuma data no arquivo: a mesma árvore dá os
+mesmos bytes. Combinação danificada → o relatório não é gravado (código 1).
 
 ## 6. Camada `slm_suites` do `cli check`
 
@@ -135,10 +151,20 @@ Acrescentada a `cli.consistency.LAYERS` e a `docs/verificacao-consistencia.md`:
 
 - toda pasta de problema do dataset tem `data/suites/slm/problems/<id>/` com as 3 pastas de cenário,
   e nenhuma pasta sobra (1:1 nos dois sentidos, como a dos mutantes);
-- cada cenário tem `suite.json` (senão: falha com `--deep`, aviso sem ele — execução em andamento) e
-  `attempt_1..k.generation.json` sem buraco, com `k ≤ 6`;
-- `--deep`: SHA-256 de cada arquivo e do zip contra `manifests/slm_suites.manifest.json`; sem
-  manifesto, aviso (como os mutantes antes do `package`).
+- cada cenário tem `suite.json` e `attempt_1..k.generation.json` sem buraco, com `k ≤ 6`, nenhuma
+  execução sem a geração correspondente e nenhum outro arquivo;
+- `--deep`: SHA-256 de cada arquivo (todos os de `data/suites/slm/`, inclusive `run.json`, fora
+  `.lock`) e do zip contra `manifests/slm_suites.manifest.json`; sem manifesto, aviso (como os
+  mutantes antes do `package`).
+
+**Severidade (revisto em 2026-10-01, na implementação)**: o texto do plano dizia "cenário sem
+`suite.json`: falha com `--deep`, aviso sem ele". Isso tornava impossível o primeiro passo
+obrigatório do piloto e da execução completa (`cli check --deep` com saída `0`), em que a árvore
+ainda não existe ou está pela metade. Regra implementada: **enquanto o manifesto não existe**,
+pasta inteira ausente, problema sem pasta, cenário faltando e `suite.json` faltando são `[AVISO]`,
+com ou sem `--deep` (execução em andamento); buraco nas tentativas, mais de 6, arquivo estranho e
+pasta sem problema no dataset são `[FALHA]` sempre. **Depois do `package`** (manifesto presente),
+tudo o que falta é `[FALHA]`, inclusive a pasta não descompactada.
 
 ## 7. Pacote
 

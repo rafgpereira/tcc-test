@@ -18,11 +18,13 @@ TOP_P = 0.8
 TOP_K = 20
 REPEAT_PENALTY = 1.05
 
-# Context window, from the largest assembled prompt of the 200 problems (8,118 characters, hybrid
-# scenario of 61_B, `generate --dry-run` on 2026-09-30); `num_ctx` counts prompt and answer
-# together.
+# Context window, from the largest assembled prompt of the 200 problems (8,074 characters with the
+# template of 2026-10-04, hybrid scenario of 61_B); `num_ctx` counts prompt and answer together.
+# The answer budget leaves 3,072 tokens for the prompt: the first pilot (2026-10-01) measured at
+# least 3.32 characters per token, i.e. about 2,430 tokens for 61_B; a prompt that still does not
+# fit stops the run (`prompt_eval_count + num_predict > num_ctx`), it is never truncated silently.
 NUM_CTX = 8192
-NUM_PREDICT = 4096
+NUM_PREDICT = 5120
 
 # Attempts: attempt n (1..6) uses the seed SEED_BASE + n, i.e. 43..48.
 SEED_BASE = 42

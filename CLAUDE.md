@@ -59,8 +59,13 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
 - Extrair o pool do dataset (`app`, com rede): `docker compose run --rm app python -m dataset extract`
   e `... report`
 - Conferir a documentação: `docker compose run --rm app python scripts/check_docs_sync.py`
-- Conferir a consistência entre artefatos (dataset descompactado × mutantes, 1:1, com contagens; só
-  lê): `docker compose run --rm app python -m cli check [--deep]`. Todo módulo que
+- Suítes do modelo local (`ai_clients`; precisa de `OLLAMA_BASE_URL` e `OLLAMA_HARDWARE_LABEL` no
+  `.env`): alternar `docker compose run --rm app python -m ai_clients generate [--resume]` e
+  `docker compose run --rm sandbox python -m ai_clients execute` até o `execute` não imprimir
+  `next:`; depois `docker compose run --rm app python -m ai_clients report`, `... package` e
+  `... verify [--extracted data/suites/slm]`
+- Conferir a consistência entre artefatos (dataset descompactado × mutantes × suítes do modelo
+  local, 1:1, com contagens; só lê): `docker compose run --rm app python -m cli check [--deep]`. Todo módulo que
   passa a produzir uma pasta por problema MUST entrar nele (`docs/verificacao-consistencia.md`)
 - Lint/formatação: `docker compose run --rm app ruff check .` /
   `docker compose run --rm app black .`

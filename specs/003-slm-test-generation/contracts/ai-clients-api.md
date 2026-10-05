@@ -21,6 +21,8 @@ class Completion:
 
 class OllamaUnavailable(Exception): ...   # infraestrutura: repetir a MESMA chamada (R9)
 class OllamaConfigError(Exception): ...   # configuração: abortar, código 3
+class ModelRepetition(Exception): ...     # HTTP 500 "token repeat limit reached": tentativa falha
+                                          # com a razão `repetition`, próxima seed (R13)
 
 class SLMClient(Protocol):
     def model_info(self, model: str) -> ModelInfo: ...        # digest, quantização, versão
@@ -62,9 +64,11 @@ def parse_response(raw: str) -> ParseResult: ...   # puro, determinístico, sem 
 
 Tabela de casos mínima (`tests/ai_clients/test_parser.py`): resposta bem formada; texto antes/
 depois/entre blocos; cada bloco ausente; cada bloco duplicado; ordem trocada; `<input>` vazio e só
-espaços; texto não branco entre `<input>`s; `<inputs>` sem `<input>`; bloco não fechado; `\r\n`;
-cerca Markdown dentro de `<reference_py>` (mantida); entradas duplicadas (mantidas e contadas);
-`<`, `&` e `</input>` dentro do código Python.
+espaços (descartado sozinho e contado; todos vazios → `only_empty_inputs`); texto não branco entre
+`<input>`s; `<inputs>` sem `<input>`; bloco não fechado; `\r\n`; cerca Markdown em volta de todo o
+`<reference_py>` (```` ```python ````/```` ```py ````/```` ``` ```` … ```` ``` ````: removida e
+registrada) e qualquer outra cerca (mantida); entradas duplicadas (mantidas e contadas); `<`, `&` e
+`</input>` dentro do código Python. (Cerca e entrada vazia revistas em 2026-10-04, research R13.)
 
 ## `ai_clients.oracle` — execução do `reference_py`
 

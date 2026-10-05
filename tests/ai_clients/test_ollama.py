@@ -10,6 +10,7 @@ import pytest
 from ai_clients.errors import ConfigurationError
 from ai_clients.ollama import (
     GenerationOptions,
+    ModelRepetition,
     OllamaClient,
     OllamaConfigError,
     OllamaUnavailable,
@@ -166,6 +167,13 @@ def test_a_server_error_is_unavailable(server):
         client(server).complete("qwen2.5-coder:7b", "p", OPTIONS)
 
 
+def test_the_token_repeat_limit_is_a_failure_of_the_model_not_an_outage(server):
+    server.routes[("POST", "/api/chat")] = (500, {"error": "token repeat limit reached"})
+    with pytest.raises(ModelRepetition, match="token repeat limit reached") as caught:
+        client(server).complete("qwen2.5-coder:7b", "p", OPTIONS)
+    assert not isinstance(caught.value, OllamaUnavailable)
+
+
 def test_a_body_that_is_not_json_is_unavailable(server):
     server.routes[("POST", "/api/chat")] = (200, b"<html>proxy</html>")
     with pytest.raises(OllamaUnavailable):
@@ -178,6 +186,18 @@ def test_a_client_error_is_a_configuration_error(server, status):
     with pytest.raises(OllamaConfigError, match="not found"):
         client(server).complete("qwen2.5-coder:7b", "p", OPTIONS)
     assert issubclass(OllamaConfigError, ConfigurationError)
+
+
+@pytest.mark.parametrize("path", [("POST", "/api/chat"), ("GET", "/api/version")])
+def test_a_tunnel_that_is_offline_is_unavailable_not_a_configuration_error(server, path):
+    """ngrok answers 404 with ERR_NGROK_3200 while the tunnel is down: an outage, to wait out."""
+    page = b"The endpoint robin.ngrok-free.dev is offline.\n\nERR_NGROK_3200\n"
+    server.routes[path] = (404, page)
+    with pytest.raises(OllamaUnavailable, match="ERR_NGROK_3200"):
+        if path[0] == "POST":
+            client(server).complete("qwen2.5-coder:7b", "p", OPTIONS)
+        else:
+            client(server).model_info("qwen2.5-coder:7b")
 
 
 def test_model_info_reads_digest_quantization_and_version(server):

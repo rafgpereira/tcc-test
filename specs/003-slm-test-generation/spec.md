@@ -45,6 +45,20 @@ WA/mutantes e cálculo das métricas."
   repetições consecutivas acrescentado em 2026-09-30, FR-018a, não muda essa regra: atingi-lo
   encerra o comando sem gastar tentativa, e a retomada usa a mesma seed.)
 
+### Session 2026-10-04 (revisão depois do piloto 1, `research.md` R13)
+
+- Q: Uma cerca Markdown (```` ```python ````) em volta de todo o `<reference_py>` faz a solução
+  virar `SyntaxError` e reprovar no teste público (as 6 RE do híbrido no piloto 1). Remover? → A:
+  Só a cerca que envolve o código inteiro (primeira linha ```` ```python ````, ```` ```py ```` ou
+  ```` ``` ````; última ```` ``` ````) é removida, e a remoção é registrada por tentativa e somada
+  por cenário no relatório; qualquer outra cerca fica como veio (FR-010).
+- Q: Um `<input>` vazio invalida a tentativa inteira? → A: Não — é descartado sozinho e contado,
+  como uma entrada que quebra a solução (FR-019); só "todas vazias" é falha de interpretação. A
+  frase "including empty input if allowed" saiu do prompt.
+- Q: O Ollama responder HTTP 500 `token repeat limit reached` é falha de infraestrutura? → A: Não —
+  é falha do próprio modelo (com a mesma seed ele repetiria o laço): consome a tentativa com a
+  razão `repetition`, registrada, e a próxima seed é chamada (FR-018(d)).
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
@@ -80,8 +94,8 @@ rodado.
    solução Python de referência.
 2. **Given** uma resposta cuja estrutura de blocos (`<edge_cases_analysis>`, `<inputs>` com um
    ou mais `<input>`, `<reference_py>`) não pode ser interpretada, **When** ela é processada,
-   **Then** o sistema registra essa tentativa como falha de interpretação (uma das 3 razões de
-   descarte de tentativa), sem produzir uma suíte a partir dela.
+   **Then** o sistema registra essa tentativa como falha de interpretação (uma das razões de
+   descarte de tentativa de FR-018), sem produzir uma suíte a partir dela.
 3. **Given** um problema e um cenário cuja tentativa anterior falhou, **When** uma nova
    tentativa é disparada, **Then** o sistema usa a próxima seed prevista (seed base + número da
    tentativa) e envia uma chamada nova e independente, sem qualquer contexto da tentativa
@@ -132,15 +146,16 @@ demais.
    aceita como uma suíte de tamanho zero) e uma nova tentativa de geração é disparada para o
    mesmo problema × cenário, com a próxima seed.
 5. **Given** um problema × cenário que acumula 6 tentativas descartadas (por qualquer
-   combinação das 3 razões: resposta não interpretável, falha nos testes públicos, ou falha —
-   erro de execução e/ou timeout, em qualquer combinação — em 100% das entradas geradas),
+   combinação das razões de FR-018: resposta não interpretável, falha nos testes públicos, falha —
+   erro de execução e/ou timeout, em qualquer combinação — em 100% das entradas geradas, ou
+   falha do próprio modelo na chamada),
    **When** a 6ª tentativa também falha, **Then** o sistema descarta a suíte inteira daquele
    problema × cenário, registra o motivo de cada uma das 6 tentativas e continua contando esse
    problema no N = 200 usado pelas métricas, sem substituí-lo por outro.
 6. **Given** uma falha de infraestrutura na chamada ao Ollama (endereço inacessível, timeout de
    conexão, erro do lado do servidor), **When** ela ocorre, **Then** o sistema NÃO consome uma
    das 6 tentativas — a mesma chamada é reexecutada com a mesma seed assim que o serviço volta a
-   responder, distinguindo esse caso das 3 razões de descarte de conteúdo.
+   responder, distinguindo esse caso das razões de descarte de FR-018.
 
 ---
 
@@ -201,9 +216,11 @@ tentativas por razão) somam corretamente.
 
 ### Edge Cases
 
-- Resposta do modelo com blocos presentes mas em ordem trocada, duplicados, ou com um
-  `<input>` vazio dentro de `<inputs>`: tratada como falha de interpretação (mesma razão de
-  descarte de "resposta não interpretável"), sem tentativa de correção heurística.
+- Resposta do modelo com blocos presentes mas em ordem trocada ou duplicados: tratada como
+  falha de interpretação (mesma razão de descarte de "resposta não interpretável"), sem tentativa
+  de correção heurística. Um `<input>` vazio dentro de `<inputs>` é descartado sozinho e contado;
+  só se **todos** forem vazios a resposta é não interpretável (decidido em 2026-10-04; antes um
+  único `<input>` vazio invalidava a tentativa).
 - Uma entrada gerada que viola as restrições do enunciado (valor fora do intervalo declarado,
   mais elementos do que o limite): a instrução de respeitar as restrições é dada ao modelo no
   prompt; o módulo não valida cada entrada contra as restrições numéricas do enunciado depois de
@@ -276,8 +293,12 @@ tentativas por razão) somam corretamente.
   JSON, para evitar erros de escape de código dentro da solução Python.
 - **FR-010**: O sistema MUST interpretar deterministicamente os 3 blocos da resposta crua; se
   qualquer bloco obrigatório estiver ausente, vazio ou malformado, a tentativa correspondente
-  MUST ser registrada como falha de interpretação (uma das 3 razões de descarte de tentativa,
-  ver FR-018).
+  MUST ser registrada como falha de interpretação (uma das razões de descarte de tentativa, ver
+  FR-018). Duas regras fixas, cada ocorrência registrada por tentativa e somada por cenário no
+  relatório (decididas em 2026-10-04): uma cerca Markdown que envolve o `<reference_py>` inteiro
+  (primeira linha ```` ```python ````, ```` ```py ```` ou ```` ``` ````; última ```` ``` ````) MUST
+  ser removida, e nenhuma outra; um `<input>` vazio MUST ser descartado sozinho, e só a resposta
+  com todos os `<input>` vazios é falha de interpretação.
 - **FR-011**: A suíte persistida (depois de interpretada e, na fase de execução, com
   `expected_output` preenchido) MUST seguir um schema JSON formal e versionado (Constitution,
   Princípio IV), independentemente de a resposta crua do modelo não ser JSON.
@@ -311,9 +332,11 @@ tentativas por razão) somam corretamente.
   ou (c) a solução Python falha — por erro de execução, por timeout (FR-016), ou por qualquer
   combinação das duas razões entre entradas diferentes — em 100% das entradas geradas (ou seja,
   nenhuma entrada sobrevive ao descarte individual de FR-019; uma tentativa nunca é aceita com
-  suíte de tamanho zero).
+  suíte de tamanho zero); ou (d) o próprio modelo falha a chamada, sem resposta — o Ollama
+  interrompe a geração com `token repeat limit reached` (razão `repetition`, acrescentada em
+  2026-10-04: com a mesma seed o laço se repetiria, então não é falha de infraestrutura).
 - **FR-018a**: Uma falha de infraestrutura na chamada ao Ollama (serviço inacessível, timeout de
-  conexão, erro do lado do servidor) MUST NOT consumir uma unidade do orçamento de 6 tentativas —
+  conexão, erro do lado do servidor que não seja a falha do modelo de FR-018(d)) MUST NOT consumir uma unidade do orçamento de 6 tentativas —
   a mesma chamada, com a mesma seed, MUST ser reexecutada quando o serviço voltar a responder.
   As repetições consecutivas de uma mesma chamada MUST ter um teto, e o tempo máximo de espera de
   uma resposta MUST ser um *timeout* de leitura; ambos são configuráveis pelo operador no `.env`
@@ -352,7 +375,10 @@ tentativas por razão) somam corretamente.
 - **FR-027**: O sistema MUST produzir um relatório versionável, agregando: taxa de descarte por
   problema × cenário, distribuição do tamanho das suítes aceitas, funil de falha de tentativa
   por razão (não interpretável, falha em teste público, falha — erro de execução e/ou timeout —
-  em 100% das entradas), seeds usadas por combinação e hardware registrado por chamada.
+  em 100% das entradas, falha do modelo por repetição), seeds usadas por combinação e hardware
+  registrado por chamada; e, por cenário, as respostas cortadas pelo teto de saída
+  (`done_reason = "length"`), as cercas Markdown removidas e os `<input>` vazios descartados
+  (FR-010).
 - **FR-028**: Ao final da execução completa que sustenta os números publicados do experimento, o
   sistema MUST poder compactar as suítes SLM de todos os problemas × cenários em um pacote
   único, acompanhado de um manifesto de integridade SHA-256, no mesmo formato já usado para o
@@ -410,7 +436,7 @@ tentativas por razão) somam corretamente.
   100% das execuções, com limites de tempo e memória derivados dos metadados do problema (nunca
   hardcoded).
 - **SC-007**: Uma falha de infraestrutura na chamada ao Ollama nunca é contabilizada como uma
-  das 6 tentativas em nenhuma execução observada — só as 3 razões de conteúdo (FR-018) consomem
+  das 6 tentativas em nenhuma execução observada — só as razões de FR-018 consomem
   o orçamento, e nenhuma tentativa é aceita com uma suíte de tamanho zero.
 - **SC-008**: Ao concluir a feature, `docker compose run --rm app python
   scripts/check_docs_sync.py --closing` (sobre o pacote novo deste módulo, quando implementado)
@@ -453,7 +479,9 @@ tentativas por razão) somam corretamente.
   nesta especificação. **Fixados em 2026-09-30** (`plan.md`, `research.md` R3 e R7): `num_ctx =
   8192` e `num_predict = 4096`, a partir do maior prompt medido (7.870 caracteres, híbrido de
   `61_B`; remedido com o prompt real em 2026-09-30: 8.118), com guarda de truncamento em tempo de execução; tempo da solução Python = limite do
-  problema × 10 e memória = limite do problema × 4 (ambos a confirmar no piloto). Temperatura e
+  problema × 10 e memória = limite do problema × 4 (ambos a confirmar no piloto).
+  **Revisado em 2026-10-04** (`research.md` R13, depois do piloto 1): `num_predict = 5120`, com a
+  razão mínima medida de 3,32 caracteres por *token*; maior prompt com o template novo: 8.074. Temperatura e
   demais parâmetros de amostragem (FR-025) decididos em 2026-09-30 (`research.md` R4): `temperature
   0.7`, `top_p 0.8`, `top_k 20`, `repeat_penalty 1.05`, seed base 42. O template do prompt foi
   ajustado no mesmo dia para cumprir FR-007 (`research.md` R5a).

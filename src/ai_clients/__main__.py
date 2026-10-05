@@ -14,10 +14,21 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from ai_clients import config, generation, problem, prompt, store
+from ai_clients import (
+    config,
+    execution,
+    generation,
+    oracle,
+    packaging,
+    problem,
+    prompt,
+    report,
+    store,
+)
 from ai_clients.errors import ConfigurationError, InfrastructureError
 from ai_clients.ollama import OllamaClient
 from mutation import dataset_gate as gate
+from sandbox import isolation
 from sandbox.types import InfraError
 
 EXIT_OK = 0
@@ -107,6 +118,13 @@ def selected_combinations(root: Path, args: argparse.Namespace) -> list[tuple[st
     return [(pid, scenario) for pid in problems for scenario in scenarios]
 
 
+def selection_options(args: argparse.Namespace) -> str:
+    """The ``--problem``/``--scenario`` options of ``args``, as typed again in a ``next:`` line."""
+    options = [f"--problem {pid}" for pid in sorted(set(args.problem))]
+    options += [f"--scenario {s}" for s in config.SCENARIOS if s in args.scenario]
+    return "".join(f" {option}" for option in options)
+
+
 def dataset_gate(root: Path) -> int | None:
     """``None`` if ``data/dataset`` matches its manifest; otherwise print why and return 1."""
     try:
@@ -122,6 +140,25 @@ def dataset_gate(root: Path) -> int | None:
         )
         return EXIT_DATA_FAILURE
     return None
+
+
+def read_run_if_any(root: Path):
+    """``run.json`` if a run was started (so damage can be checked against it), else ``None``."""
+    return store.read_run(root) if store.run_exists(root) else None
+
+
+def report_damage(damaged: list[store.DamagedCombination]) -> int:
+    """Print every damaged combination; 1 if there is any (nothing was repaired), else 0."""
+    for exc in damaged:
+        print(f"damaged: {exc}", file=sys.stderr)
+    if damaged:
+        print(
+            f"error: {len(damaged)} damaged combination(s) in data/suites/slm were left as they "
+            "are; nothing was repaired",
+            file=sys.stderr,
+        )
+        return EXIT_DATA_FAILURE
+    return EXIT_OK
 
 
 def _env_positive_int(name: str, default: int) -> int:
@@ -174,8 +211,13 @@ def _dry_run_generate(root: Path, combinations, template, limit: int | None) -> 
     planned = 0
     largest: dict[str, tuple[int, str]] = {}
     problems: dict[str, problem.ProblemInput] = {}
+    run, damaged = read_run_if_any(root), []
     for problem_id, scenario in combinations:
-        state = store.combination_state(root, problem_id, scenario)
+        try:
+            state = store.combination_state(root, problem_id, scenario, run)
+        except store.DamagedCombination as exc:
+            damaged.append(exc)
+            continue
         if state.kind != "pending_generation":
             continue
         if limit is not None and planned >= limit:
@@ -195,7 +237,7 @@ def _dry_run_generate(root: Path, combinations, template, limit: int | None) -> 
         if scenario in largest:
             size, problem_id = largest[scenario]
             print(f"largest prompt: {scenario} {size} chars ({problem_id})")
-    return EXIT_OK
+    return report_damage(damaged)
 
 
 def _run_generate(args: argparse.Namespace) -> int:
@@ -229,6 +271,18 @@ def _run_generate(args: argparse.Namespace) -> int:
         )
         if args.resume:
             run = store.read_run(root)
+            differences = run.differences(current)
+            if differences:
+                lines = "\n".join(
+                    f"  {name}: recorded {recorded!r}, current {now!r}"
+                    for name, recorded, now in differences
+                )
+                raise UsageError(
+                    "the configuration differs from data/suites/slm/run.json, and a run never "
+                    f"mixes configurations:\n{lines}\n"
+                    "restore the recorded configuration, or move data/suites/slm away to start a "
+                    "new run"
+                )
         else:
             store.write_run(root, current)
             run = current
@@ -246,9 +300,10 @@ def _run_generate(args: argparse.Namespace) -> int:
         )
     print(
         f"done: {result.calls} calls, {result.parsed} parsed, {result.unparseable} unparseable, "
-        f"{result.discarded} discarded suites; {result.pending_execution} pending execution"
+        f"{result.repetition} repetition, {result.discarded} discarded suites; "
+        f"{result.pending_execution} pending execution"
     )
-    return EXIT_OK
+    return report_damage(result.damaged)
 
 
 register(
@@ -256,6 +311,192 @@ register(
     "call the local model for every problem x scenario still pending (run it in the app service)",
     _configure_generate,
     _run_generate,
+)
+
+
+# ------------------------------------------------------------------------------------ execute
+
+SLOT = 0  # one worker: every Python run uses the engine slot 0 (uid 10000)
+MIB = 1024 * 1024
+
+# Replaced by the tests (a fake runner; no real slot to clean).
+make_runner = lambda: oracle.run_python
+cleanup_slot = isolation.kill_slot_processes
+
+
+def _dry_run_execute(root: Path, combinations, limit: int | None) -> int:
+    planned = 0
+    run, damaged = store.read_run(root), []
+    for problem_id, scenario in combinations:
+        try:
+            state = store.combination_state(root, problem_id, scenario, run)
+        except store.DamagedCombination as exc:
+            damaged.append(exc)
+            continue
+        if state.kind != "pending_execution":
+            continue
+        if limit is not None and planned >= limit:
+            break
+        record = store.read_generation(root, problem_id, scenario, state.attempt)
+        judged = problem.load_judge_input(root, problem_id)
+        limits = oracle.python_limits(judged.metadata)
+        print(
+            f"{problem_id} {scenario} attempt {state.attempt}: {len(record.parse.inputs)} inputs, "
+            f"{len(judged.testes.public_tests)} public tests, limits "
+            f"{limits.time_limit_seconds:g} s and {limits.memory_limit_bytes / MIB:.0f} MiB"
+        )
+        planned += 1
+    print(f"dry run: {planned} attempts to execute")
+    return report_damage(damaged)
+
+
+def _run_execute(args: argparse.Namespace) -> int:
+    root = Path(".")
+    failed = dataset_gate(root)
+    if failed is not None:
+        return failed
+    combinations = selected_combinations(root, args)
+    if not store.run_exists(root):
+        raise UsageError("data/suites/slm/run.json does not exist; run generate first")
+    if args.dry_run:
+        return _dry_run_execute(root, combinations, args.limit)
+    run = store.read_run(root)
+
+    def echo(message: str) -> None:
+        print(message, flush=True)
+
+    with store.exclusive_run(root):
+        cleanup_slot(SLOT)  # leftovers of a run that was killed
+        try:
+            result = execution.execute(
+                root,
+                combinations,
+                run=run,
+                runner=make_runner(),
+                echo=echo,
+                limit=args.limit,
+                slot=SLOT,
+            )
+        finally:
+            cleanup_slot(SLOT)
+    print(
+        f"done: {result.executed} executed, {result.accepted} accepted, {result.failed} failed "
+        f"({result.need_generation} need a new generation), {result.discarded} discarded suites"
+    )
+    if result.pending_generation:
+        print(
+            "next: docker compose run --rm app python -m ai_clients generate --resume"
+            + selection_options(args)
+        )
+    return report_damage(result.damaged)
+
+
+def _run_report(args: argparse.Namespace) -> int:
+    root = Path(".")
+    if not store.run_exists(root):
+        raise UsageError("data/suites/slm/run.json does not exist; run generate first")
+    try:
+        built = report.build_report(root)
+    except report.DamagedTreeError as exc:
+        return report_damage(exc.damaged)
+    report.write_report(root, built)
+    print(f"report: {config.REPORT_PATH.as_posix()}")
+    total = built.combinations["total"]
+    print(
+        f"{total.total} combinations: {total.accepted} accepted, {total.discarded} discarded, "
+        f"{total.pending_generation} pending generation, {total.pending_execution} pending "
+        f"execution; discard rate {built.discard_rate['total']:.1%}"
+    )
+    return EXIT_OK
+
+
+def _run_package(args: argparse.Namespace) -> int:
+    root = Path(".")
+    failed = dataset_gate(root)
+    if failed is not None:
+        return failed
+    if not store.run_exists(root):
+        raise UsageError("data/suites/slm/run.json does not exist; run generate first")
+    with store.exclusive_run(root):
+        try:
+            result = packaging.build_zip(root, root / config.ZIP_PATH)
+        except report.DamagedTreeError as exc:
+            return report_damage(exc.damaged)
+        except packaging.UnfinishedRunError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return EXIT_DATA_FAILURE
+        packaging.write_manifest(root, packaging.build_manifest(result.zip_path))
+        # The report is rebuilt from what was just packaged, so it always describes exactly that.
+        report.write_report(root, report.build_report(root))
+    print(
+        f"packaged {result.combinations} combinations ({result.accepted} accepted, "
+        f"{result.discarded} discarded): {config.ZIP_PATH.as_posix()} ({result.size} bytes)"
+    )
+    if result.over_size_warning:
+        print(
+            f"warning: {config.ZIP_PATH.as_posix()} is {result.size} bytes, above the 95 MB "
+            "warning threshold (GitHub refuses pushes above 100 MB)",
+            file=sys.stderr,
+        )
+    print(f"manifest: {config.MANIFEST_PATH.as_posix()}")
+    print(f"report: {config.REPORT_PATH.as_posix()}")
+    return EXIT_OK
+
+
+def _configure_verify(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--extracted",
+        default=None,
+        metavar="DIR",
+        help="also check the extracted tree (data/suites/slm after unzip data/slm_suites.zip -d data/)",
+    )
+
+
+def _run_verify(args: argparse.Namespace) -> int:
+    root = Path(".")
+    manifest_path = root / config.MANIFEST_PATH
+    if not manifest_path.is_file():
+        print(f"error: manifest not found: {config.MANIFEST_PATH.as_posix()}", file=sys.stderr)
+        return EXIT_USAGE
+    extracted = Path(args.extracted) if args.extracted else None
+    result = packaging.verify(root / config.ZIP_PATH, manifest_path, extracted)
+    for path in result.changed:
+        print(f"changed: {path}")
+    for path in result.missing:
+        print(f"missing: {path}")
+    for path in result.extra:
+        print(f"extra: {path}")
+    print("OK" if result.ok else "FAIL")
+    return EXIT_OK if result.ok else EXIT_DATA_FAILURE
+
+
+register(
+    "package",
+    "zip a finished run into data/slm_suites.zip with its manifest and report (app service)",
+    lambda parser: None,
+    _run_package,
+)
+
+register(
+    "verify",
+    "check data/slm_suites.zip (and, with --extracted, data/suites/slm) against the manifest",
+    _configure_verify,
+    _run_verify,
+)
+
+register(
+    "report",
+    "write manifests/slm_generation_report.json from data/suites/slm (any time; reads only)",
+    lambda parser: None,
+    _run_report,
+)
+
+
+register(
+    "execute",
+    "run the Python solution of every attempt pending execution (run it in the sandbox service)",
+    add_common_options,
+    _run_execute,
 )
 
 

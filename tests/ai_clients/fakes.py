@@ -168,6 +168,66 @@ def echo_runner() -> FakePythonRunner:
     return FakePythonRunner(default=lambda code, stdin: run_result(stdin))
 
 
+ECHO_PY = "import sys\nsys.stdout.write(sys.stdin.read())\n"
+
+
+def start_run(root):
+    """Write the ``run.json`` a first ``generate`` with the fake client would write; return it."""
+    from ai_clients import generation, store
+    from ai_clients.prompt import load_template
+
+    run = generation.current_run_config(
+        FakeSLMClient({}, problem_ids=[]),
+        load_template(),
+        root,
+        now=lambda: "2026-10-01T12:00:00Z",
+        clock=FakeClock(),
+        max_infra_retries=1,
+        echo=print,
+    )
+    store.write_run(root, run)
+    return run
+
+
+def record_generation(
+    root,
+    problem_id: str = "1_A",
+    scenario: str = "black_box",
+    attempt: int = 1,
+    *,
+    inputs: Iterable[str] = ("1\n", "2\n"),
+    code: str = ECHO_PY,
+    parsed: bool = True,
+    hardware_label: str = "RTX 3060 12GB",
+):
+    """Write ``attempt_<n>.generation.json`` as ``generate`` would (no model involved); return it."""
+    from ai_clients import store
+    from ai_clients.schemas.generation import GenerationRecord
+    from tests.ai_clients.test_schemas import generation
+    from tests.ai_clients.test_schemas import parsed as parsed_block
+
+    inputs = list(inputs)
+    parse = (
+        parsed_block(inputs=inputs, reference_py=code, duplicate_inputs=0)
+        if parsed
+        else {"ok": False, "error": "missing_block:reference_py"}
+    )
+    run = store.read_run(root)
+    record = GenerationRecord(
+        **generation(
+            problem_id=problem_id,
+            scenario=scenario,
+            attempt=attempt,
+            seed=42 + attempt,
+            model_digest=run.model_digest,
+            hardware_label=hardware_label,
+            parse=parse,
+        )
+    )
+    store.write_generation(root, record)
+    return record
+
+
 @dataclass
 class FakeClock:
     """``now()`` and ``sleep(seconds)`` without waiting; every sleep is recorded."""

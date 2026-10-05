@@ -9,9 +9,14 @@ Rules (docs/metodologia-referencia.md, section 3; research R6), applied to the r
    changes what is read.
 3. ``<inputs>`` holds one or more ``<input>...</input>``, not nested, with only whitespace between.
 4. Each block loses the whitespace-only lines at its two ends and gets exactly one final ``\\n``;
-   spaces inside the lines are never touched. A block (or input) left empty fails.
-5. The code is kept as it came: a Markdown fence around it is NOT removed (it becomes a
-   ``SyntaxError`` and fails the public tests). Repeated inputs are kept and counted.
+   spaces inside the lines are never touched. An analysis or code block left empty fails. An
+   ``<input>`` left empty is dropped alone and counted (``empty_inputs``); only when every input
+   is empty does the answer fail (``only_empty_inputs``).
+5. The code is kept as it came, with ONE fixed exception: a Markdown fence wrapping the whole
+   block (first line exactly ```` ```python ````, ```` ```py ```` or ```` ``` ````, last line
+   exactly ```` ``` ````) is removed and recorded (``markdown_fence_removed``). Any other fence
+   stays (it becomes a ``SyntaxError`` and fails the public tests). Repeated inputs are kept and
+   counted.
 
 ``parse_response`` is pure and never raises: every answer is either parsed or has an error code.
 """
@@ -19,6 +24,8 @@ Rules (docs/metodologia-referencia.md, section 3; research R6), applied to the r
 from ai_clients.schemas.generation import ParsedResponse, UnparsedResponse
 
 TAGS = ("edge_cases_analysis", "inputs", "reference_py")
+FENCE_OPENINGS = ("```python", "```py", "```")
+FENCE_CLOSING = "```"
 
 
 class _Unparseable(Exception):
@@ -50,8 +57,18 @@ def _span(text: str, tag: str) -> tuple[int, int, int, int]:
     return start, start + len(opening), end, end + len(closing)
 
 
-def _inputs(body: str) -> list[str]:
-    inputs, position = [], 0
+def _strip_fence(code: str) -> tuple[str, bool]:
+    """Remove a Markdown fence that wraps the whole (normalized) code block, and only that one."""
+    lines = code.split("\n")[:-1]  # a normalized block ends with exactly one "\n"
+    opened = len(lines) >= 2 and lines[0].rstrip() in FENCE_OPENINGS
+    if opened and lines[-1].rstrip() == FENCE_CLOSING:
+        return _normalize_block("\n".join(lines[1:-1])), True
+    return code, False
+
+
+def _inputs(body: str) -> tuple[list[str], int]:
+    """The non-empty inputs, in order, and how many empty ones were dropped."""
+    inputs, empty, position = [], 0, 0
     while True:
         start = body.find("<input>", position)
         gap = body[position:] if start < 0 else body[position:start]
@@ -67,13 +84,14 @@ def _inputs(body: str) -> list[str]:
         if "<input>" in content:
             raise _Unparseable("nested_input")
         text = _normalize_block(content)
-        if not text:
-            raise _Unparseable("empty_input")
-        inputs.append(text)
+        if text:
+            inputs.append(text)
+        else:
+            empty += 1
         position = end + len("</input>")
     if not inputs:
-        raise _Unparseable("no_inputs")
-    return inputs
+        raise _Unparseable("only_empty_inputs" if empty else "no_inputs")
+    return inputs, empty
 
 
 def _parse(raw: str) -> ParsedResponse:
@@ -89,11 +107,11 @@ def _parse(raw: str) -> ParsedResponse:
     outside += [text[spans[i][3] : spans[i + 1][0]] for i in range(len(spans) - 1)]
     outside.append(text[spans[-1][3] :])
     analysis = _normalize_block(blocks["edge_cases_analysis"])
-    code = _normalize_block(blocks["reference_py"])
+    code, fence_removed = _strip_fence(_normalize_block(blocks["reference_py"]))
     for tag, value in (("edge_cases_analysis", analysis), ("reference_py", code)):
         if not value:
             raise _Unparseable(f"empty_block:{tag}")
-    inputs = _inputs(blocks["inputs"])
+    inputs, empty = _inputs(blocks["inputs"])
     return ParsedResponse(
         ok=True,
         edge_cases_analysis=analysis,
@@ -101,6 +119,8 @@ def _parse(raw: str) -> ParsedResponse:
         reference_py=code,
         extraneous_chars=sum(len("".join(part.split())) for part in outside),
         duplicate_inputs=len(inputs) - len(set(inputs)),
+        empty_inputs=empty,
+        markdown_fence_removed=fence_removed,
     )
 
 

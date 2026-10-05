@@ -44,6 +44,7 @@ foram decididos em 2026-09-30 (Milena, opção A em todas); S3 e S6 são informa
 | **S4** | **Temperatura e amostragem** não estão definidas em lugar nenhum; com `temperature = 0` as 6 retentativas seriam idênticas. | R4: `0.7 / top_p 0.8 / top_k 20 / repeat_penalty 1.05` (configuração do fabricante), seed base 42. | **Decidido em 2026-09-30 (Milena)**: A — valores do fabricante. |
 | **S5** | O `slm_prompt.txt` **não cumpre FR-007** (pede "maximum size allowed by the constraints" e não manda respeitar as restrições nem limitar o tamanho ao que cabe na resposta). | Template editado com a redação de R5a (RULE 2 e RULE 3). | **Decidido em 2026-09-30 (Milena)**: A — template editado; FR-007 passa a ser cumprido. |
 | **S6** | No Linux o serviço `app` não alcança o Ollama do host sem `extra_hosts`. | Acrescenta `extra_hosts: ["host.docker.internal:host-gateway"]` só ao `app` (o `sandbox` continua sem rede). | — (mudança de uma linha no `docker-compose.yml`). |
+| **S7** | Piloto 1 (2026-10-01 a 03, R13): cerca Markdown em volta de todo o código derrubou 6 tentativas do híbrido; um `<input>` vazio invalidava a tentativa inteira; `token repeat limit reached` (HTTP 500) era repetido como queda até o teto; 3 respostas cortadas por `num_predict`; o `next:` do `execute` sugeria o `generate` sem `--problem`. | Parser remove só a cerca que envolve o código inteiro e descarta `<input>` vazio sozinho (os dois contados); razão nova `repetition` (próxima seed); relatório por cenário de cortes, cercas e entradas vazias; RULE 2 trocada; `num_predict = 5120`; `next:` repete a seleção. | **Decidido em 2026-10-04 (Milena)**; o piloto 2 começa uma execução nova. |
 
 ## Technical Context
 
@@ -69,7 +70,7 @@ com o motor real e programas Python conhecidos.
 **Performance Goals**: nenhuma meta; o tempo por chamada depende do hardware do Ollama e é medido no
 piloto (quickstart, Nível 4) — não se afirma tempo não medido.
 
-**Constraints**: `num_ctx = 8192`, `num_predict = 4096` (R3, medido); limites do Python = limite do
+**Constraints**: `num_ctx = 8192`, `num_predict = 5120` (R3, medido; revisado no piloto 1, R13); limites do Python = limite do
 problema × `PY_TIME_FACTOR = 10` (tempo) e × `PY_MEMORY_FACTOR = 4` (memória), nunca constantes
 absolutas (R7); seed da tentativa `n` = `42 + n`; no máximo 6 tentativas; chamadas sequenciais;
 *timeout* de leitura (`OLLAMA_HTTP_TIMEOUT_S`, padrão 900 s) e teto de repetições consecutivas por
@@ -106,7 +107,7 @@ testes públicos por problema.
 specs/003-slm-test-generation/
 ├── spec.md
 ├── plan.md              # este arquivo
-├── research.md          # R0–R12
+├── research.md          # R0–R13
 ├── data-model.md
 ├── quickstart.md
 ├── sync-matrix.json     # D1–D3 da spec ↔ metodologia (check_docs_sync C5)

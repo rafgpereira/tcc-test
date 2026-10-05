@@ -3,9 +3,11 @@
 Every request is self-contained: ``messages`` has exactly one item (the whole prompt, as ``user``),
 and ``context``, ``system``, ``format`` or ``template`` are never sent, so no call can inherit
 anything from another. Every option is sent explicitly. A new HTTP connection is opened per request
-(standard library ``urllib``, no dependency). Errors are split in two: ``OllamaUnavailable`` is an
+(standard library ``urllib``, no dependency). Errors are split in three: ``OllamaUnavailable`` is an
 outage (retry the same call later, never consumes an attempt); ``OllamaConfigError`` means the run
-cannot go on as configured (stop, code 3).
+cannot go on as configured (stop, code 3); ``ModelRepetition`` is a failure of the model itself
+(Ollama stopped the generation with ``token repeat limit reached``): the same seed would fail
+again, so it consumes the attempt.
 """
 
 import dataclasses
@@ -50,8 +52,23 @@ class ModelInfo:
     ollama_version: str
 
 
+# The code an ngrok tunnel puts in its error page (ERR_NGROK_3200: the tunnel is offline).
+TUNNEL_ERROR = "ERR_NGROK_"
+# What Ollama answers (HTTP 500) when the model loops on the same tokens and it stops the generation.
+REPETITION_ERROR = "token repeat limit reached"
+
+
 class OllamaUnavailable(Exception):
-    """An outage (refused connection, DNS, timeout, HTTP 5xx, a body that is not JSON)."""
+    """An outage (refused connection, DNS, timeout, HTTP 5xx, a tunnel that is down, a body that
+    is not JSON)."""
+
+
+class ModelRepetition(Exception):
+    """The model looped on the same tokens and Ollama stopped it: a failed attempt, not an outage."""
+
+    def __init__(self, detail: str) -> None:
+        self.detail = detail
+        super().__init__(detail)
 
 
 class OllamaConfigError(ConfigurationError):
@@ -94,7 +111,11 @@ class OllamaClient:
                 raw = response.read()
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")[:500]
-            if exc.code >= 500:
+            if REPETITION_ERROR in detail:
+                raise ModelRepetition(f"HTTP {exc.code} from {path}: {detail}") from exc
+            # A tunnel in front of Ollama (ngrok) answers 4xx with an `ERR_NGROK_<n>` code while
+            # it is down: that is an outage of the service, not a wrong configuration.
+            if exc.code >= 500 or TUNNEL_ERROR in detail:
                 raise OllamaUnavailable(f"HTTP {exc.code} from {path}: {detail}") from exc
             raise OllamaConfigError(f"HTTP {exc.code} from {path}: {detail}") from exc
         except TimeoutError as exc:

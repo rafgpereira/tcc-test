@@ -131,5 +131,11 @@ def test_the_real_template_loads_and_keeps_the_fr007_wording():
     assert "Every value in every input MUST respect the constraints stated in the context." in (
         template.text
     )
-    assert "the largest case you can write out IN FULL" in template.text
-    assert "the maximum size allowed by the constraints" not in template.text
+    text = " ".join(template.text.split())  # the wording, whatever the line breaks
+    assert (
+        "Use values up to the maximum allowed by the constraints, but keep the NUMBER of elements "
+        "in each input small enough to write out fully (e.g., at most ~100 elements)."
+    ) in text
+    assert "the maximum size allowed by the constraints" not in text
+    assert "the largest case you can write out IN FULL" not in text
+    assert "including empty input" not in text

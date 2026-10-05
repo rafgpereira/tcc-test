@@ -23,8 +23,9 @@ problema; é a composição sinalizada em research R0 (não um leitor novo do `d
 
 - `Scenario`: `black_box` (só enunciado) · `white_box` (só `AC_ref.cpp`) · `hybrid` (os dois). Ordem
   canônica de processamento: esta.
-- `AttemptFailure` (as 3 razões de FR-018, as únicas que consomem orçamento):
-  `unparseable_response` · `public_test_failed` · `all_inputs_failed`.
+- `AttemptFailure` (as 4 razões de FR-018, as únicas que consomem orçamento):
+  `repetition` (desde 2026-10-04) · `unparseable_response` · `public_test_failed` ·
+  `all_inputs_failed`.
 - `InputDiscard` (FR-019): `timeout` (veredito `TLE`) · `runtime_error` (veredito `RE` ou `MLE`,
   guardado em `verdict`) · `non_utf8_output`.
 - `SuiteStatus`: `accepted` · `discarded`.
@@ -62,20 +63,24 @@ Uma tentativa na fase de geração (FR-013a, FR-014, FR-024, FR-025). Imutável.
 | `seed` | int | `== seed_base + attempt` (validado) |
 | `model_digest` | str | `digest` do modelo que respondeu (FR-003); `==` `run.json.model_digest`, senão a combinação é dano (§4) |
 | `prompt_sha256` | str | do prompt exato enviado (o texto se recompõe do template + dataset) |
-| `raw_response` | str | `message.content` **integral**, sem nenhuma alteração |
-| `ollama` | objeto | `model`, `created_at`, `done_reason`, `prompt_eval_count`, `eval_count`, `total_duration_ns`, `load_duration_ns`, `prompt_eval_duration_ns`, `eval_duration_ns` |
+| `raw_response` | str | `message.content` **integral**, sem nenhuma alteração; `""` quando há `model_failure` |
+| `ollama` | objeto ou `null` | `model`, `created_at`, `done_reason`, `prompt_eval_count`, `eval_count`, `total_duration_ns`, `load_duration_ns`, `prompt_eval_duration_ns`, `eval_duration_ns`; `null` só quando há `model_failure` |
 | `hardware_label` | str | de `OLLAMA_HARDWARE_LABEL` no momento da chamada |
 | `requested_at` | str ISO-8601 UTC | informativo |
 | `parse` | `ParseResult` | ver abaixo |
+| `model_failure` | objeto ou `null` (padrão) | desde 2026-10-04: `{reason: "repetition", detail}` quando o Ollama interrompeu a geração com `token repeat limit reached` (HTTP 500); então `parse = {ok: false, error: "repetition"}` e a tentativa é a falha `repetition` |
 
 `ParseResult` (união discriminada por `ok`):
 
 - `ok: true` → `edge_cases_analysis: str`, `inputs: list[str]` (≥ 1, cada uma não vazia e
   terminada em um único `\n`), `reference_py: str` (não vazio), `extraneous_chars: int ≥ 0`,
-  `duplicate_inputs: int ≥ 0`.
+  `duplicate_inputs: int ≥ 0`, `empty_inputs: int ≥ 0` (`<input>` vazios descartados, fora de
+  `inputs`; padrão 0) e `markdown_fence_removed: bool` (a cerca que envolvia o código inteiro foi
+  removida; padrão `false`) — os dois desde 2026-10-04 (research R13).
 - `ok: false` → `error: str` (código do parser, ex. `missing_block:reference_py`,
-  `duplicated_block:inputs`, `wrong_order`, `empty_input`, `text_between_inputs`). A tentativa
-  **é** a falha `unparseable_response`.
+  `duplicated_block:inputs`, `wrong_order`, `only_empty_inputs`, `text_between_inputs`; até
+  2026-10-04 também `empty_input`). A tentativa **é** a falha `unparseable_response` (ou
+  `repetition`, quando há `model_failure`).
 
 ### 3.3 `ExecutionRecord` — `problems/<id>/<scenario>/attempt_<n>.execution.json`
 
@@ -118,14 +123,18 @@ anteriores têm falha; `discarded` ⇒ exatamente 6 tentativas, todas com falha 
 
 ### 3.5 `SlmGenerationReport` — `manifests/slm_generation_report.json`
 
-Campos em research R10 / [contracts/file-formats.md](./contracts/file-formats.md#5-relatório). Soma
-de controle validada no schema: `accepted + discarded + pending == 600` (ou o número de combinações
-do escopo), e o funil por razão soma o total de tentativas falhas.
+Campos em research R10 / [contracts/file-formats.md](./contracts/file-formats.md#5-relatório). Somas
+de controle validadas no schema: `accepted + discarded + pending_generation + pending_execution ==
+total` em cada cenário e no total, os cenários somam o total, o funil por razão soma
+`attempts.failed`, e as chamadas por etiqueta de hardware somam `attempts.total`.
 
 ### 3.6 `SlmSuitesManifest` — `manifests/slm_suites.manifest.json`
 
-Mesma forma do manifesto dos mutantes (`files: [{path, sha256}]`, `zip: {path, sha256, bytes}`),
-em `ai_clients/schemas/manifest.py`.
+Mesma forma do manifesto dos mutantes, em `ai_clients/schemas/manifest.py`: `slm_suites_zip:
+{path, size, sha256}` (com `path` sempre `data/slm_suites.zip`, como o `mutants_zip` dos mutantes)
+e `files: [{path, size, sha256}]`, um por arquivo dentro do zip, `path` como dentro do zip
+(`suites/slm/...`), ordenado. *(2026-10-01: a forma `zip: {path, sha256, bytes}` escrita aqui no
+plano foi trocada pela do manifesto dos mutantes, que é o que "mesma forma" pedia.)*
 
 ## 4. Máquina de estados de uma combinação
 

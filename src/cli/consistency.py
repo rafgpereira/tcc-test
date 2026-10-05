@@ -8,7 +8,11 @@ Walks the real folders (the EXTRACTED dataset, ``data/dataset/``, and the mutant
   ``validacao.json`` and ``WA_1.cpp`` to ``WA_100.cpp``) and nothing else;
 * each problem has its ``Mutant_1.cpp`` to ``Mutant_100.cpp`` and nothing else;
 * dataset and mutants are 1:1: no problem without mutants, no mutants without a problem;
-* the names of the files on disk are the names the manifests list (missing and extra files).
+* the names of the files on disk are the names the manifests list (missing and extra files);
+* each problem has the suites of the local model (``data/suites/slm/``): one folder per scenario,
+  each with ``suite.json`` and its attempts numbered from 1 without a gap, at most 6. Before the run
+  is packaged (no manifest yet) a missing folder or ``suite.json`` is the run in progress, a
+  warning; afterwards it is a failure.
 
 It never reads the code inside the files and never writes anything. ``deep=True`` additionally
 recomputes the SHA-256 of every file and of the zips and compares them with the manifests, for the
@@ -23,6 +27,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -57,6 +62,15 @@ class Layer:
     zip_path: str | None = None  # the packaged zip, checked (only with --deep) against the manifest
     zip_key: str | None = None  # key of the zip entry in the manifest
     compared_names: frozenset[str] | None = None  # None: every name; else only these are compared
+    # The folder the manifest paths are relative to (after `manifest_prefix`), when it is not
+    # `root`; its files are then listed recursively, at any depth.
+    files_root: str | None = None
+    # True for an artifact built over time (a run): until its manifest exists, what is missing is
+    # the run in progress (a warning), never a failure.
+    in_progress_without_manifest: bool = False
+    # Checks of the inside of each problem folder, beyond the groups: (root, layer, problems,
+    # in progress) -> lines.
+    extra_checks: Callable[..., list[Line]] | None = None
 
 
 DATASET_LAYER = Layer(
@@ -101,9 +115,78 @@ MUTANTS_LAYER = Layer(
     compared_names=frozenset(f"Mutant_{i}.cpp" for i in range(1, MUTANTS_PER_PROBLEM + 1)),
 )
 
+SLM_SCENARIOS = ("black_box", "white_box", "hybrid")
+SLM_MAX_ATTEMPTS = 6
+SLM_ATTEMPT_FILE = re.compile(r"^attempt_(\d+)\.(generation|execution)\.json$")
+
+
+def _slm_attempt_lines(
+    root: Path, layer: Layer, problems: dict[str, set[str]], in_progress: bool
+) -> list[Line]:
+    """Inside each scenario: only ``suite.json`` and attempt files, numbered 1..k with k <= 6."""
+    base = root / layer.root
+    scenarios = gaps = without_suite = 0
+    broken, suites_missing, strange = [], [], []
+    for problem_id in sorted(problems):
+        for scenario in SLM_SCENARIOS:
+            folder = base / problem_id / scenario
+            if not folder.is_dir():
+                continue
+            scenarios += 1
+            names = {p.name for p in folder.iterdir() if not p.name.startswith(".")}
+            generations, executions = set(), set()
+            for name in sorted(names - {"suite.json"}):
+                match = SLM_ATTEMPT_FILE.match(name)
+                if match is None:
+                    strange.append(f"{problem_id}/{scenario}: {name}")
+                    continue
+                (generations if match[2] == "generation" else executions).add(int(match[1]))
+            last = max(generations | executions, default=0)
+            if last > SLM_MAX_ATTEMPTS or generations != set(range(1, last + 1)):
+                gaps += 1
+                broken.append(f"{problem_id}/{scenario}")
+            if "suite.json" not in names:
+                without_suite += 1
+                suites_missing.append(f"{problem_id}/{scenario}")
+    lines = [
+        Line(
+            OK if not broken else FAIL,
+            f"tentativas numeradas sem buraco, no máximo {SLM_MAX_ATTEMPTS}: "
+            f"{scenarios - gaps}/{scenarios}",
+            _listed(broken),
+        ),
+        Line(
+            OK if not suites_missing else (WARN if in_progress else FAIL),
+            f"suite.json em cada cenário: {scenarios - without_suite}/{scenarios}",
+            _listed(suites_missing),
+        ),
+    ]
+    if strange:
+        lines.append(
+            Line(FAIL, f"{len(strange)} arquivo(s) estranho(s) num cenário", _listed(strange))
+        )
+    return lines
+
+
+SLM_SUITES_LAYER = Layer(
+    key="slm_suites",
+    title="Suítes do modelo local (data/suites/slm/problems)",
+    root="data/suites/slm/problems",
+    groups=(Group("black_box, white_box e hybrid", frozenset(SLM_SCENARIOS)),),
+    allowed_extra=frozenset(),
+    manifest="manifests/slm_suites.manifest.json",
+    manifest_required=False,  # it only exists after `ai_clients package`
+    manifest_prefix="suites/slm/",
+    zip_path="data/slm_suites.zip",
+    zip_key="slm_suites_zip",
+    files_root="data/suites/slm",
+    in_progress_without_manifest=True,
+    extra_checks=_slm_attempt_lines,
+)
+
 # The first layer is the reference: every other layer must be 1:1 with it. A later module adds its
 # own Layer here (for example the tests generated by the AIs) and the relation check covers it.
-LAYERS: tuple[Layer, ...] = (DATASET_LAYER, MUTANTS_LAYER)
+LAYERS: tuple[Layer, ...] = (DATASET_LAYER, MUTANTS_LAYER, SLM_SUITES_LAYER)
 
 
 # ---------------------------------------------------------------------------------------- report
@@ -205,11 +288,15 @@ def check_layer(root: Path, layer: Layer, deep: bool) -> tuple[Section, dict[str
     """The structure of one layer; also returns its ``{problem_id: names}`` for the relation check."""
     section = Section(layer.title)
     folder = root / layer.root
+    manifest = _load_manifest(root, layer)
+    in_progress = layer.in_progress_without_manifest and manifest is None
     if not folder.is_dir():
-        section.add(FAIL, f"a pasta {layer.root} não existe")
+        if in_progress:
+            section.add(WARN, f"a pasta {layer.root} ainda não existe (nenhuma execução começou)")
+        else:
+            section.add(FAIL, f"a pasta {layer.root} não existe")
         return section, None
     problems, strange = _problem_folders(folder)
-    manifest = _load_manifest(root, layer)
     total = len(problems)
 
     if manifest is not None and "problem_count" in manifest:
@@ -223,7 +310,7 @@ def check_layer(root: Path, layer: Layer, deep: bool) -> tuple[Section, dict[str
             FAIL, f"{len(strange)} entrada(s) que não é pasta de problema", _listed(strange)
         )
     if total == 0:
-        section.add(FAIL, "nenhum problema encontrado")
+        section.add(WARN if in_progress else FAIL, "nenhum problema encontrado")
         return section, problems
 
     excluded = sorted(p for p in problems if _is_excluded(root, layer, p))
@@ -231,7 +318,7 @@ def check_layer(root: Path, layer: Layer, deep: bool) -> tuple[Section, dict[str
     for group in layer.groups:
         broken = sorted(p for p, names in checked.items() if not group.names <= names)
         good = len(checked) - len(broken)
-        status = OK if not broken else FAIL
+        status = OK if not broken else (WARN if in_progress else FAIL)
         detail = []
         if broken:
             detail = _listed(broken)
@@ -263,11 +350,20 @@ def check_layer(root: Path, layer: Layer, deep: bool) -> tuple[Section, dict[str
             ),
             _listed(left),
         )
+    if layer.extra_checks is not None:
+        section.lines.extend(layer.extra_checks(root, layer, problems, in_progress))
     section.lines.extend(_manifest_lines(root, layer, problems, manifest, deep))
     return section, problems
 
 
-def _tree_names(layer: Layer, problems: dict[str, set[str]]) -> set[str]:
+def _tree_names(root: Path, layer: Layer, problems: dict[str, set[str]]) -> set[str]:
+    if layer.files_root is not None:
+        base = root / layer.files_root
+        return {
+            f"{layer.manifest_prefix}{p.relative_to(base).as_posix()}"
+            for p in base.rglob("*")
+            if p.is_file() and not any(part.startswith(".") for part in p.relative_to(base).parts)
+        }
     names = set()
     for problem_id, files in problems.items():
         for name in files:
@@ -288,7 +384,7 @@ def _manifest_lines(
             )
         ]
     listed = {item["path"] for item in manifest["files"]}
-    on_disk = _tree_names(layer, problems)
+    on_disk = _tree_names(root, layer, problems)
     missing, extra = sorted(listed - on_disk), sorted(on_disk - listed)
     lines = []
     if not missing and not extra:
@@ -307,7 +403,7 @@ def _manifest_lines(
 
 def _deep_lines(root: Path, layer: Layer, manifest: dict, missing_names: set[str]) -> list[Line]:
     """Recompute the SHA-256 of every file the manifest lists (and of the zip) and compare."""
-    base = root / layer.root
+    base = root / (layer.files_root or layer.root)
     changed = []
     checked = 0
     for item in manifest["files"]:
@@ -355,8 +451,16 @@ def _deep_lines(root: Path, layer: Layer, manifest: dict, missing_names: set[str
 # --------------------------------------------------------------------------------- relation check
 
 
-def check_relation(layers: list[Layer], found: dict[str, dict[str, set[str]]]) -> Section | None:
-    """Every layer is 1:1 with the first one: nothing missing on either side."""
+def check_relation(
+    layers: list[Layer],
+    found: dict[str, dict[str, set[str]]],
+    in_progress: frozenset[str] = frozenset(),
+) -> Section | None:
+    """Every layer is 1:1 with the first one: nothing missing on either side.
+
+    A layer in ``in_progress`` (a run not packaged yet) may still lack problems: a warning. A
+    folder without a problem is always a failure.
+    """
     base_layer, others = layers[0], layers[1:]
     if not others or base_layer.key not in found:
         return None
@@ -365,14 +469,15 @@ def check_relation(layers: list[Layer], found: dict[str, dict[str, set[str]]]) -
     for layer in others:
         if layer.key not in found:
             section.add(
-                FAIL, f"{layer.title}: pasta ausente, relação com {base_layer.key} não conferida"
+                WARN if layer.key in in_progress else FAIL,
+                f"{layer.title}: pasta ausente, relação com {base_layer.key} não conferida",
             )
             continue
         theirs = set(found[layer.key])
         without = sorted(base - theirs)
         orphan = sorted(theirs - base)
         section.add(
-            OK if not without else FAIL,
+            OK if not without else (WARN if layer.key in in_progress else FAIL),
             f"todo problema de {base_layer.key} tem pasta em {layer.key}: {len(base) - len(without)}/{len(base)}",
             _listed(without),
         )
@@ -397,7 +502,12 @@ def run_checks(root: Path, only: list[str] | None = None, deep: bool = False) ->
         report.sections.append(section)
         if problems is not None:
             found[layer.key] = problems
-    relation = check_relation(layers, found)
+    in_progress = frozenset(
+        layer.key
+        for layer in layers
+        if layer.in_progress_without_manifest and _load_manifest(Path(root), layer) is None
+    )
+    relation = check_relation(layers, found, in_progress)
     if relation is not None:
         report.sections.append(relation)
     return report

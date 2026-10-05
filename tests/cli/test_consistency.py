@@ -62,8 +62,47 @@ def write_tree(root, layer_root, prefix, ids, names, manifest_files):
             )
 
 
-def build(root, *, mutants=True, package=True):
-    """A consistent repository: 3 problems, 105 files each, 100 mutants each, both manifests."""
+SCENARIOS = ("black_box", "white_box", "hybrid")
+SLM_FILES = ["attempt_1.generation.json", "attempt_1.execution.json", "suite.json"]
+
+
+def write_slm(root, ids=IDS, *, package=True):
+    """A finished SLM run: every problem × scenario accepted at attempt 1, and its manifest."""
+    files: list[dict] = []
+    base = root / "data/suites/slm"
+    base.mkdir(parents=True, exist_ok=True)
+    (base / "run.json").write_text("run", encoding="utf-8")
+    (base / ".lock").write_text("", encoding="utf-8")
+    files.append({"path": "suites/slm/run.json", "size": 3, "sha256": sha("run")})
+    for pid in ids:
+        for scenario in SCENARIOS:
+            folder = base / "problems" / pid / scenario
+            folder.mkdir(parents=True)
+            for name in SLM_FILES:
+                text = f"{pid}/{scenario}/{name}"
+                (folder / name).write_text(text, encoding="utf-8")
+                path = f"suites/slm/problems/{pid}/{scenario}/{name}"
+                files.append({"path": path, "size": len(text), "sha256": sha(text)})
+    (root / "data" / "slm_suites.zip").write_bytes(b"zip-slm")
+    if package:
+        (root / "manifests" / "slm_suites.manifest.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "slm_suites_zip": {
+                        "path": "data/slm_suites.zip",
+                        "size": 7,
+                        "sha256": sha("zip-slm"),
+                    },
+                    "files": sorted(files, key=lambda f: f["path"]),
+                }
+            )
+        )
+
+
+def build(root, *, mutants=True, package=True, slm=True):
+    """A consistent repository: 3 problems, 105 files each, 100 mutants each, the SLM suites of
+    each problem × scenario, and the three manifests."""
     (root / "manifests").mkdir(parents=True)
     files: list[dict] = []
     write_tree(root, "data/dataset/problems", "dataset/problems/", IDS, DATASET_FILES, files)
@@ -96,6 +135,8 @@ def build(root, *, mutants=True, package=True):
                     }
                 )
             )
+    if slm:
+        write_slm(root, package=package)
     return root
 
 
@@ -358,3 +399,127 @@ def test_a_new_layer_is_checked_and_related_with_no_change_to_the_checks(
     monkeypatch.setattr(check._lib, "LAYERS", (*check.LAYERS, layer))
     code, out = run(check, repo, capsys=capsys)
     assert code == 1 and "todo problema de dataset tem pasta em ia: 2/3" in out
+
+
+# -------------------------------------------------------------------------------- slm_suites layer
+
+
+def slm_folder(root, pid="1000_B", scenario=None):
+    base = root / "data/suites/slm/problems" / pid
+    return base / scenario if scenario else base
+
+
+def unpackaged(root):
+    (root / "manifests" / "slm_suites.manifest.json").unlink()
+    return root
+
+
+def test_a_finished_slm_run_passes_with_its_counts(check, repo, capsys):
+    code, out = run(check, repo, "--deep", capsys=capsys)
+    assert code == 0
+    assert "black_box, white_box e hybrid: 3/3" in out
+    assert "tentativas numeradas sem buraco, no máximo 6: 9/9" in out
+    assert "suite.json em cada cenário: 9/9" in out
+    assert "todo problema de dataset tem pasta em slm_suites: 3/3" in out
+    assert "nomes dos arquivos batem com o manifesto (28 arquivos)" in out
+    assert "hash SHA-256 de 28 arquivo(s) confere" in out
+    assert "data/slm_suites.zip: hash confere" in out
+
+
+def test_no_slm_run_yet_is_only_a_warning(check, tmp_path, capsys):
+    build(tmp_path, slm=False)
+    code, out = run(check, tmp_path, "--deep", capsys=capsys)
+    assert code == 0 and "[AVISO] a pasta data/suites/slm/problems ainda não existe" in out
+
+
+def test_a_run_in_progress_is_a_warning_even_with_deep(check, repo, capsys):
+    """Before `package` (no manifest) missing folders and suites are the run in progress."""
+    unpackaged(repo)
+    shutil.rmtree(slm_folder(repo, "2_A"))
+    shutil.rmtree(slm_folder(repo, "1005_C", "hybrid"))
+    (slm_folder(repo, "1000_B", "white_box") / "suite.json").unlink()
+    code, out = run(check, repo, "--deep", capsys=capsys)
+    assert code == 0
+    assert "[AVISO] black_box, white_box e hybrid: 1/2" in out
+    assert "[AVISO] suite.json em cada cenário: 4/5" in out
+    assert "[AVISO] todo problema de dataset tem pasta em slm_suites: 2/3" in out
+
+
+@pytest.mark.parametrize("deep", [False, True])
+def test_after_package_everything_must_be_there(check, repo, capsys, deep):
+    (slm_folder(repo, "1000_B", "white_box") / "suite.json").unlink()
+    shutil.rmtree(slm_folder(repo, "2_A"))
+    code, out = run(check, repo, *(["--deep"] if deep else []), capsys=capsys)
+    assert code == 1
+    assert "[FALHA] suite.json em cada cenário: 5/6" in out
+    assert "[FALHA] todo problema de dataset tem pasta em slm_suites: 2/3" in out
+
+
+def test_a_missing_scenario_after_package_is_a_failure(check, repo, capsys):
+    shutil.rmtree(slm_folder(repo, "1005_C", "hybrid"))
+    code, out = run(check, repo, capsys=capsys)
+    assert code == 1 and "[FALHA] black_box, white_box e hybrid: 2/3" in out and "1005_C" in out
+
+
+def test_an_slm_folder_without_a_problem_is_a_failure(check, repo, capsys):
+    unpackaged(repo)
+    (slm_folder(repo, "9_Z") / "black_box").mkdir(parents=True)
+    code, out = run(check, repo, capsys=capsys)
+    assert code == 1 and "nenhuma pasta de slm_suites sem problema em dataset: 1 sobrando" in out
+
+
+def _seven_attempts(folder):
+    for n in range(2, 8):
+        (folder / f"attempt_{n}.generation.json").write_text("x")
+
+
+@pytest.mark.parametrize(
+    "make",
+    [
+        lambda f: (f / "attempt_3.generation.json").write_text("x"),
+        lambda f: (f / "attempt_2.execution.json").write_text("x"),
+        _seven_attempts,
+    ],
+    ids=["gap", "execution_without_generation", "seven_attempts"],
+)
+def test_attempts_with_a_gap_or_beyond_six_are_a_failure(check, repo, capsys, make):
+    unpackaged(repo)
+    make(slm_folder(repo, "1000_B", "black_box"))
+    code, out = run(check, repo, capsys=capsys)
+    assert code == 1
+    assert "[FALHA] tentativas numeradas sem buraco, no máximo 6: 8/9" in out
+    assert "1000_B/black_box" in out
+
+
+def test_an_unknown_file_in_a_scenario_is_a_failure(check, repo, capsys):
+    unpackaged(repo)
+    (slm_folder(repo, "2_A", "hybrid") / "notes.txt").write_text("x")
+    code, out = run(check, repo, capsys=capsys)
+    assert code == 1 and "2_A/hybrid: notes.txt" in out
+
+
+def test_deep_finds_a_changed_byte_in_an_slm_file(check, repo, capsys):
+    path = slm_folder(repo, "2_A", "hybrid") / "suite.json"
+    path.write_text(path.read_text(encoding="utf-8").upper(), encoding="utf-8")
+    assert run(check, repo, capsys=capsys)[0] == 0  # names still match
+    code, out = run(check, repo, "--deep", capsys=capsys)
+    assert code == 1 and "1 arquivo(s) com conteúdo diferente do manifesto" in out
+
+
+def test_no_slm_manifest_yet_is_a_warning(check, repo, capsys):
+    unpackaged(repo)
+    code, out = run(check, repo, "--deep", capsys=capsys)
+    assert code == 0
+    assert "manifests/slm_suites.manifest.json ainda não existe (pacote não gerado)" in out
+
+
+def test_a_packaged_run_must_be_extracted(check, repo, capsys):
+    shutil.rmtree(repo / "data/suites")
+    code, out = run(check, repo, capsys=capsys)
+    assert code == 1 and "[FALHA] a pasta data/suites/slm/problems não existe" in out
+
+
+def test_only_slm_suites(check, repo, capsys):
+    shutil.rmtree(repo / "data/mutants")
+    code, out = run(check, repo, "--only", "dataset,slm_suites", capsys=capsys)
+    assert code == 0 and "Mutant_" not in out and "slm_suites" in out

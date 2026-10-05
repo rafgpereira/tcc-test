@@ -29,6 +29,7 @@ def test_a_well_formed_answer():
     assert result.inputs == ["1\n", "5\n1 2 3 4 5\n"]
     assert result.reference_py == "import sys\nprint(sys.stdin.read())\n"
     assert result.extraneous_chars == 0 and result.duplicate_inputs == 0
+    assert result.empty_inputs == 0 and result.markdown_fence_removed is False
 
 
 def test_text_outside_the_blocks_is_ignored_and_counted():
@@ -76,9 +77,15 @@ def test_inputs_without_any_input():
 
 
 @pytest.mark.parametrize("body", ["", "   ", "\n\n", " \n \t\n"])
-def test_an_empty_input(body):
-    raw = ANALYSIS + f"<inputs>\n<input>1</input><input>{body}</input>\n</inputs>\n" + CODE
-    assert error(raw) == "empty_input"
+def test_an_empty_input_is_dropped_alone_and_counted(body):
+    inputs = f"<inputs>\n<input>1</input><input>{body}</input><input>2</input>\n</inputs>\n"
+    result = ok(ANALYSIS + inputs + CODE)
+    assert result.inputs == ["1\n", "2\n"] and result.empty_inputs == 1
+
+
+def test_only_empty_inputs_fail_the_answer():
+    raw = ANALYSIS + "<inputs>\n<input></input>\n<input>\n \n</input>\n</inputs>\n" + CODE
+    assert error(raw) == "only_empty_inputs"
 
 
 def test_text_between_inputs():
@@ -119,9 +126,33 @@ def test_an_input_on_one_line_gets_its_final_newline():
     assert ok(raw).inputs == ["7\n"]
 
 
-def test_a_markdown_fence_inside_the_code_is_kept():
-    code = "<reference_py>\n```python\nprint(1)\n```\n</reference_py>\n"
-    assert ok(ANALYSIS + INPUTS + code).reference_py == "```python\nprint(1)\n```\n"
+@pytest.mark.parametrize("opening", ["```python", "```py", "```", "```python  "])
+def test_a_markdown_fence_around_the_whole_code_is_removed_and_recorded(opening):
+    code = f"<reference_py>\n\n{opening}\nimport sys\n\nprint(1)\n```\n\n</reference_py>\n"
+    result = ok(ANALYSIS + INPUTS + code)
+    assert result.reference_py == "import sys\n\nprint(1)\n"
+    assert result.markdown_fence_removed is True
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "```python\nprint(1)\n",  # not closed
+        "print(1)\n```\n",  # not opened
+        "x = 1\n```python\nprint(1)\n```\n",  # not on the first line
+        "```python\nprint(1)\n```\nprint(2)\n",  # not on the last line
+        "```cpp\nprint(1)\n```\n",  # another language
+        "  ```python\nprint(1)\n  ```\n",  # indented
+    ],
+)
+def test_any_other_markdown_fence_is_kept(body):
+    result = ok(ANALYSIS + INPUTS + f"<reference_py>\n{body}</reference_py>\n")
+    assert result.reference_py == body and result.markdown_fence_removed is False
+
+
+def test_a_fence_around_nothing_leaves_an_empty_code_block():
+    code = "<reference_py>\n```python\n\n```\n</reference_py>\n"
+    assert error(ANALYSIS + INPUTS + code) == "empty_block:reference_py"
 
 
 def test_repeated_inputs_are_kept_and_counted():

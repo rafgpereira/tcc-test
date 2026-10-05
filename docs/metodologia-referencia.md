@@ -1095,9 +1095,10 @@ geradas, a tentativa inteira é descartada e uma nova tentativa é gerada (seed 
 número da tentativa), até 6 tentativas — depois disso, a suíte daquele problema ×
 cenário é descartada por completo, registrada, e continua contando no N = 200 das
 métricas (a taxa de descarte é reportada à parte). Falha de infraestrutura na chamada
-ao Ollama (serviço fora do ar, timeout de conexão) não consome tentativa — só as 3
+ao Ollama (serviço fora do ar, timeout de conexão) não consome tentativa — só as
 razões de conteúdo (resposta não interpretável, falha em teste público, falha — erro de
-execução e/ou timeout, em qualquer combinação — em 100% das entradas geradas) consomem
+execução e/ou timeout, em qualquer combinação — em 100% das entradas geradas e, desde
+2026-10-04, falha do próprio modelo na chamada, `repetition`) consomem
 (a clarificação de 2026-09-29 juntou "erro em todas" e "timeout em todas" numa razão só;
 corrigido aqui em 2026-09-30, no `/speckit.plan`). Limitação a registrar: nos cenários com código
 (caixa-branca e híbrido), o SLM pode traduzir o `AC_ref` para Python em vez de
@@ -1126,6 +1127,12 @@ template confirmados por Milena no mesmo dia]**:
   caracteres** (híbrido, `61_B`; caixa-preta 6.896, `61_B`; caixa-branca 5.674, `893_C`), 600
   chamadas previstas; ≈ 3.250 *tokens* + 4.096 de saída ≈ 7.350, ainda abaixo de 8.192 — a
   decisão não muda.
+  **Revisto depois do piloto 1 (2026-10-04, `research.md` R13)**: o piloto mediu no mínimo 3,32
+  caracteres por *token* (maior `prompt_eval_count` observado: 2.044, híbrido de `1000_B`) e 3
+  respostas cortadas por `num_predict` (`done_reason = "length"`: 2 no híbrido, 1 na caixa-branca).
+  **`num_predict` passa a 5.120**: com o template novo o maior prompt tem 8.074 caracteres (híbrido,
+  `61_B`), ≈ 2.430 *tokens*; os 3.072 *tokens* que sobram para o prompt cobrem até 2,63 caracteres
+  por *token*. A guarda continua valendo.
 - **Amostragem [DECIDIDO, 2026-09-30 — item 27 da seção 6]**: `temperature 0.7`, `top_p 0.8`, `top_k 20`,
   `repeat_penalty 1.05` (configuração de geração publicada pelo fabricante do
   Qwen2.5-Coder-7B-Instruct), todos enviados explicitamente; **seed base 42**, seed da tentativa
@@ -1135,20 +1142,41 @@ template confirmados por Milena no mesmo dia]**:
   `<reference_solution_cpp>`), e o híbrido é a união literal dos outros dois; fora dele, o prompt
   dos 3 cenários de um problema é idêntico byte a byte (R5).
 - **Interpretação**: cada tag de topo abre e fecha exatamente uma vez, na ordem fixa; texto fora
-  dos blocos é ignorado e contado (não corrigido); cerca Markdown dentro do código Python não é
-  removida (vira erro de execução); entradas repetidas são mantidas e contadas, por inflarem o
-  tamanho da suíte (R6).
+  dos blocos é ignorado e contado (não corrigido); entradas repetidas são mantidas e contadas, por
+  inflarem o tamanho da suíte (R6). **Revisto depois do piloto 1 (2026-10-04, R13)**: uma cerca
+  Markdown que envolve o código Python inteiro (primeira linha ```` ```python ````, ```` ```py ````
+  ou ```` ``` ````; última ```` ``` ````) é removida e registrada por tentativa — no piloto 1 ela foi
+  a causa de todas as 6 reprovações por erro de execução do híbrido —, e qualquer outra cerca fica
+  como veio (vira erro de execução); um `<input>` vazio é descartado sozinho e contado, sem invalidar
+  a tentativa (antes invalidava; 3 tentativas do piloto 1 caíram assim), e só "todas vazias" é
+  resposta não interpretável. Cercas removidas, entradas vazias e respostas cortadas são somadas
+  por cenário no relatório.
 - **Execução do Python**: CPython 3.11 base da imagem, só biblioteca padrão (`-I -S -B -X utf8`),
   no mesmo `execute` do motor (uid por slot, sem rede, rlimits), workdir novo por execução;
   **tempo = limite do problema × 10** e **memória = limite do problema × 4** (os 7 problemas de
   61 MiB tornariam a memória do próprio interpretador um risco com fator 1; a confirmar no piloto)
   (R7). O `expected_output` gravado é a saída crua da execução; a comparação futura usa a regra
   única do motor (`outputs_equal`).
+  **Implementado (2026-10-01, `python -m ai_clients execute`)**: todo veredito vem do
+  `judge_test` do motor com os limites multiplicados; nos testes públicos vale a comparação
+  completa (AC/WA/TLE/MLE/RE), nas entradas geradas só TLE (→ descarte `timeout`) e MLE/RE (→
+  descarte `runtime_error`) importam, porque a saída ainda não existe — é ela que se está
+  medindo. O `execute` lê só `metadata.json` e `testes.json` do problema (o `AC_ref.cpp` nem é
+  lido nesta fase). Um caractere UTF-16 avulso (*surrogate*) no código ou numa entrada gerada é
+  repassado como está e o interpretador o rejeita: conta como erro de execução, nunca derruba o
+  comando. Os testes de integração (serviço `sandbox`, motor real) confirmam: só biblioteca
+  padrão, sem rede, uid do slot (não root), pasta vazia a cada execução, laço infinito vira TLE.
 - **Persistência e retomada**: cada tentativa gera arquivos imutáveis (geração; execução) e o
   `suite.json` terminal é função pura deles; falha de interpretação encadeia a próxima tentativa
   já na fase de geração (não há nada a executar); `--resume` explícito recusa continuar se a
   configuração (modelo, opções, template, dataset) mudou (R8). O `digest` do modelo é gravado
   também em cada tentativa, para que cada resultado se identifique sozinho.
+  **Implementado (2026-10-01)**: interromper em qualquer um dos quatro pontos de gravação e rodar
+  de novo dá a mesma árvore final de uma execução sem interrupção (verificado com cliente e
+  executor falsos); antes de agir sobre uma combinação, o comando confere todos os arquivos dela
+  (sequência das tentativas, seed, `digest`, e `suite.json` igual byte a byte ao recalculado) e
+  uma combinação que não bate é apontada como danificada, nunca consertada. A validação real
+  (`Ctrl+C` com o Ollama de verdade) fica para depois do piloto.
 - **Falha de infraestrutura [DECIDIDO, 2026-09-30 — `research.md` R9, R12]**: nunca consome
   tentativa — a mesma chamada é refeita com a **mesma seed**. As repetições consecutivas têm um
   teto e a espera por uma resposta tem um *timeout* de leitura, ambos configuráveis pelo operador
@@ -1157,10 +1185,30 @@ template confirmados por Milena no mesmo dia]**:
   *timeout* fixo curto demais para um Ollama em CPU faria a mesma chamada se repetir para sempre,
   sem nunca gravar nada. Nenhum dos dois valores muda o conteúdo das respostas, por isso não entram
   na identidade da execução. O tempo máximo real por chamada é medido no piloto.
+  **Revisto no piloto (2026-10-01)**: com o Ollama atrás de um túnel do ngrok, a queda do túnel
+  responde HTTP 404 com `ERR_NGROK_3200` e era tratada como erro de configuração (o comando parava).
+  Passa a ser falha de infraestrutura (espera e repete a mesma chamada, mesma seed); o 4xx do
+  próprio Ollama continua sendo configuração. Nada foi gravado na ocorrência.
+  **Revisto depois do piloto 1 (2026-10-04, R13)**: o HTTP 500 `token repeat limit reached` (o
+  Ollama interrompe o modelo preso num laço de repetição) era tratado como queda e repetia a mesma
+  seed até o teto de 30. É falha do próprio modelo — com a mesma seed o laço se repetiria —, então
+  passa a consumir a tentativa com a razão nova `repetition` (gravada, sem resposta) e a próxima
+  seed é chamada.
 - **Casos de teste da suíte**: gravados no contrato já existente `TestCase` (`input`, `output`) de
   `testes.json`; o módulo de avaliação, quando especificado, deve adotá-lo ou mudar o schema de
   propósito (decidido em 2026-09-30, item 29 da seção 6); a mesma forma vale para as suítes dos
   dois modelos comerciais.
+- **Relatório, pacote e conferência [IMPLEMENTADO, 2026-10-01 — `research.md` R10]**:
+  `python -m ai_clients report` grava `manifests/slm_generation_report.json` a qualquer momento (a
+  taxa de descarte é sempre sobre todo problema × cenário do dataset; quartis por interpolação
+  linear; entradas descartadas contadas em todas as tentativas executadas, duplicatas só nas
+  suítes aceitas); `package` só empacota a execução inteira, sem dano, em `data/slm_suites.zip`
+  determinístico com manifesto; `python -m cli check` ganhou a camada `slm_suites`. **Divergência
+  em relação ao plano**: na camada nova, o que ainda falta (árvore, problema, cenário,
+  `suite.json`) é só aviso enquanto o pacote não existe, mesmo com `--deep`, porque o piloto e a
+  execução completa começam, ambos, por `cli check --deep` com saída `0` e a árvore ainda vazia ou
+  pela metade; depois do `package`, é falha. Estrutura impossível (buraco nas tentativas, mais de
+  6, arquivo estranho, pasta sem problema) é falha desde o início.
 - **Leitura do problema**: composta localmente no módulo `ai_clients` a partir dos leitores já
   existentes do dataset (`Metadata`, `Testes`) e da leitura direta de `enunciado.md`/`AC_ref.cpp`;
   nenhum leitor novo no módulo `dataset` (decidido em 2026-09-30).
@@ -1169,6 +1217,10 @@ template confirmados por Milena no mesmo dia]**:
   consegue escrever por inteiro, com todo valor dentro das restrições; a RULE 3 ganha a frase
   "Every value in every input MUST respect the constraints stated in the context." Motivo: uma
   entrada do tamanho máximo estoura `num_predict` e a resposta sai truncada.
+  **Revisto depois do piloto 1 (2026-10-04, R13)**: o item dos casos grandes passa a dizer "Use
+  values up to the maximum allowed by the constraints, but keep the NUMBER of elements in each input
+  small enough to write out fully (e.g., at most ~100 elements).", e o item do menor caso perde
+  "(including empty input if allowed)".
 
 **Template de prompt**: estrutura única em inglês, com marcação XML (`<system_rules>`,
 `<context_data>`, `<few_shot_example>`, `<task>`), combinando Few-Shot Prompting +
@@ -1402,6 +1454,7 @@ e `specs/003-slm-test-generation/spec.md`, decisões de 2026-09-29 (itens 26–2
 | 27 | Exemplo do `<few_shot_example>` é o primeiro teste público do próprio problema sendo perguntado (não um exemplo fixo entre chamadas); mesma regra a adotar pelos módulos futuros de GPT-5.4-mini e Gemini 3.5 Flash | 3 |
 | 28 | Suítes SLM seguem a mesma exceção de versionamento dos mutantes (Constitution, Princípio II, emenda 1.6.0): pacote + manifesto SHA-256 ao final da execução completa, sem exigir nova emenda; falha de infraestrutura na chamada ao Ollama não consome uma das 6 tentativas por problema × cenário (só as 3 razões de conteúdo consomem) | 3 |
 | 29 | Parametrização técnica do SLM fixada no plano (2026-09-30): `/api/chat` com uma única mensagem; `num_ctx 8192` / `num_predict 4096` a partir do maior prompt medido (7.870 caracteres no plano; 8.118 com o prompt real, dry-run de 2026-09-30); seeds 43 a 48; Python com tempo × 10 e memória × 4 do limite do problema, só biblioteca padrão; amostragem `temperature 0.7` / `top_p 0.8` / `top_k 20` / `repeat_penalty 1.05` (não `temperature 0`, que anularia as retentativas); casos no contrato `TestCase`; template ajustado para respeitar restrições e não pedir entradas do tamanho máximo | 3 |
+| 30 | Revisão depois do piloto 1 do SLM (2026-10-04): cerca Markdown que envolve todo o código Python é removida e registrada (as outras ficam); `<input>` vazio descartado sozinho (só "todas vazias" invalida a resposta); `token repeat limit reached` do Ollama é falha do modelo (razão `repetition`, próxima seed), não de infraestrutura; RULE 2 pede valores até o máximo das restrições com no máximo ~100 elementos por entrada; `num_predict` 4096 → 5120; relatório conta por cenário respostas cortadas, cercas removidas e entradas vazias | 3 |
 
 ---
 
@@ -1414,6 +1467,11 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-10-04 | **Revisão depois do piloto 1 do SLM (`research.md` R13)**: piloto com 4 problemas × 3 cenários (`1000_B`, `1005_C`, `1008_B`, `1_B`): 5 suítes aceitas e 7 descartadas, 57 chamadas, maior `prompt_eval_count` 2.044, chamada mais longa 166 s; 31 reprovações em teste público por WA e 14 por RE (6 delas causadas por cerca Markdown, todas no híbrido); 3 respostas cortadas por `num_predict` e 3 tentativas perdidas por um único `<input>` vazio. Decidido: remover só a cerca que envolve o código inteiro (registrada); descartar `<input>` vazio sozinho; `token repeat limit reached` vira a razão de falha `repetition` (próxima seed); RULE 2 com no máximo ~100 elementos por entrada e sem "including empty input"; `num_predict` 5120 (razão mínima medida de 3,32 caracteres por *token*); relatório por cenário; o `next:` do `execute` repete o `--problem`/`--scenario` usado. O piloto 2 começa uma execução nova | 3, 7 |
+| 2026-10-01 | **Piloto do SLM, achado de infraestrutura**: a queda do túnel do ngrok (HTTP 404 com `ERR_NGROK_3200`) parava o `generate` como erro de configuração; passa a ser falha de infraestrutura, que espera e repete a mesma chamada com a mesma seed, sem gastar tentativa. Nada foi gravado na ocorrência | 3 |
+| 2026-10-01 | **Relatório, pacote e camada `slm_suites` do `cli check` implementados (módulo `003-slm-test-generation`, testes com dados sintéticos)**: relatório versionável com as somas de controle validadas (estados somam o total do escopo, N nunca reduzido; funil soma as tentativas falhas); pacote determinístico só da execução completa; na camada nova do `cli check`, o que ainda falta é aviso até o pacote existir (divergência do plano, que pedia falha com `--deep` e tornaria impossível o primeiro passo do piloto e da execução completa). Nenhum dado medido | 0.1, 3 |
+| 2026-10-01 | **Retomada e detecção de dano do módulo `003-slm-test-generation` implementadas (testes com cliente e executor falsos)**: interrupção em qualquer ponto de gravação seguida de nova execução reproduz a árvore de uma execução sem interrupção; `--resume` recusa diferença em qualquer campo do `run.json` exceto `created_at` (etiqueta de hardware e esperas do `.env` ficam de fora, como decidido); combinação cujos arquivos não batem (tentativa faltando, seed ou `digest` divergente, `suite.json` diferente do recalculado) é reportada e nunca consertada (código 1). Nenhum dado medido | 3 |
+| 2026-10-01 | **Fase de execução do módulo `003-slm-test-generation` implementada (`python -m ai_clients execute`, testes com executor Python falso e 11 testes de integração no motor real)**: a solução Python do modelo passa pelos testes públicos (curto-circuito no primeiro não-AC) e depois roda em cada entrada gerada; vereditos sempre pelo `judge_test` do motor com tempo × 10 e memória × 4; nas entradas geradas só TLE e MLE/RE descartam (a saída não tem com o que ser comparada); o `execute` não lê o `AC_ref.cpp`; *surrogate* avulso na resposta do modelo vira erro de execução, não falha do comando. Nenhum número medido ainda: o piloto com o Ollama real vem a seguir | 3 |
 | 2026-09-30 | **Primeira execução real de `python -m ai_clients generate --dry-run` (módulo `003-slm-test-generation`, fase de geração implementada com cliente Ollama falso nos testes)**: 600 chamadas previstas; maior prompt montado pelo código 8.118 caracteres (híbrido, `61_B`), acima dos 7.870 medidos no plano por causa da redação final do template e dos sub-rótulos do `<context_data>`; `num_ctx 8192` / `num_predict 4096` continuam suficientes (≈ 7.350 *tokens* no pior caso, estimativa pessimista) | 3 |
 | 2026-09-30 | **Revisão de consistência dos artefatos de `003-slm-test-generation` (`/speckit.analyze`)**: falha de infraestrutura na chamada ao Ollama continua sem consumir tentativa (mesma seed), agora com teto de repetições consecutivas e *timeout* de leitura configuráveis no `.env` (padrões 30 e 900 s), porque um *timeout* fixo curto para Ollama em CPU viraria repetição infinita; `digest` do modelo gravado também em cada tentativa; `python -m cli check --deep` passa a ser o primeiro passo obrigatório do piloto e da execução completa; registrada na spec a terceira pergunta de esclarecimento (falha de infraestrutura mantém a seed), que tinha ficado de fora | 3 |
 | 2026-09-30 | **Decisões pendentes do plano de `003-slm-test-generation` fechadas (Milena)**: amostragem do SLM `temperature 0.7`, `top_p 0.8`, `top_k 20`, `repeat_penalty 1.05` (item 27); template do prompt ajustado para FR-007 — maior caso escrito por inteiro, todo valor dentro das restrições (item 28); casos das suítes no contrato `TestCase` (`input`, `output`), a adotar também pela avaliação e pelos modelos comerciais (item 29); leitura do problema composta no módulo `ai_clients`, sem leitor novo no `dataset` | 3, 6, 7 |

@@ -16,10 +16,10 @@ Restate the critical rules in your own words in "edge_cases_analysis".
 RULE 2 - Generate NEW inputs, do not copy the example.
 Do NOT reuse the example shown in <few_shot_example>. Create additional inputs
 that specifically target:
-  - the smallest/trivial case (including empty input if allowed)
-  - the largest case you can write out IN FULL (every value within the constraints
-    stated in the context; keep each input short enough to be written completely -
-    never truncate or abbreviate)
+  - the smallest/trivial case
+  - large cases: Use values up to the maximum allowed by the constraints, but keep
+    the NUMBER of elements in each input small enough to write out fully (e.g., at
+    most ~100 elements).
   - values exactly AT each decision boundary (e.g. if a rule changes at 3, 4, 6,
     generate cases that land exactly on 3, on 4, on 5, on 6)
   - inputs that look valid but are invalid according to the definitions

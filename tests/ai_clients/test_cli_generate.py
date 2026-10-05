@@ -51,7 +51,8 @@ def test_a_first_run_creates_run_json_and_records_every_combination(fake, repo, 
     assert fake.made == {"base_url": "http://ollama.test:11434", "timeout_s": 900}
     assert len(fake.requests) == 6
     assert capsys.readouterr().out.splitlines()[-1] == (
-        "done: 6 calls, 6 parsed, 0 unparseable, 0 discarded suites; 6 pending execution"
+        "done: 6 calls, 6 parsed, 0 unparseable, 0 repetition, 0 discarded suites; "
+        "6 pending execution"
     )
 
 
