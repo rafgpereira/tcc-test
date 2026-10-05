@@ -240,7 +240,7 @@ heurística vetada pela spec (só a cerca que envolve o bloco inteiro sai, R13).
 
 - **Interpretador**: o CPython 3.11 base da imagem (`Path(sys.base_prefix)/"bin"/"python3.11"`,
   instalado pelo `uv` em `/opt/python`), **não** o do `venv`: só a biblioteca padrão fica
-  disponível. Flags `-I` (isolado: ignora `PYTHON*` e o diretório do usuário), `-S` (sem `site`),
+  disponível. Flags `-I` (isolado: ignora `PYTHON*` e o diretório do usuário), sem `-S` desde 2026-10-05 (o `site` define `exit()`, R15),
   `-B` (sem `.pyc`), `-X utf8` (E/S em UTF-8, já que `-I` ignora `PYTHONIOENCODING`). `env={}`.
 - **Isolamento**: `sandbox.runner.execute(..., rlimits=isolation.run_rlimits(limits),
   measured_by_launcher=True)` — o mesmo uid por slot, sem rede (serviço `sandbox`), sem
@@ -629,3 +629,60 @@ Decisões (Milena, 2026-10-05):
    regra só baixaria a taxa de acerto. O viés da tradução continua registrado como limitação na
    metodologia. (b) Uma regra no parser que descarta entradas com "...". Em problemas de grade, `.`
    é um caractere válido (por exemplo `#...#`), então a regra descartaria entradas boas.
+
+---
+
+## R15 — Piloto 3 (parcial), bug do `exit()` e piloto com outro modelo (2026-10-05)
+
+**Piloto 3 (2026-10-05, `data/suites/slm/`, template `336634f7…` de R14, `qwen2.5-coder:7b`,
+mesmos 5 problemas)**: interrompido pelos autores depois de 37 tentativas, com 5 combinações
+terminais (todas aceitas: `1005_C` caixa-preta e híbrido, `61_B` nos 3 cenários) e as outras 10
+com 3 de 6 tentativas, todas falhas. Comparado com o piloto 2 (R14):
+
+| | Piloto 2 | Piloto 3 (parcial) |
+|---|---|---|
+| Tentativas aceitas | 8/74 (11%) | 5/37 (14%) |
+| Caixa-preta, tentativas aceitas | 1/30 (3%) | 2/11 (18%) |
+| Não interpretadas / cortadas (`length`) | 3 / 2 | 0 / 0 |
+| Entradas por resposta | 5 a 43 | 10 a 20 |
+| *Tokens* de saída (mediana; máximo) | 667; 5.120 | 1.001; 2.098 |
+| Tempo por chamada (mediana; máximo) | 29 s; 233 s | 29 s; 131 s |
+
+O formato da resposta ficou resolvido; as 32 falhas são todas da solução Python nos testes
+públicos (17 WA, 15 RE). Com o diagnóstico novo (R14, decisão 4), os RE são: 7 `ValueError` (em
+`1_B`, por exemplo, `int("23C55")` e `int("BC")`), 4 `NameError`, 2 `IndexError`, 1
+`UnboundLocalError` e 1 `KeyError`. Nenhum chegou perto do limite de memória. `1_B` (61 MiB) errou
+as 9 tentativas, e `1000_B` e `1008_B` não tiveram nenhuma aceita. A amostra é representativa em
+dificuldade: *rating* mediano de 1.300 nos 5 problemas, contra 1.400 nos 200.
+
+**Bug nosso, corrigido**: 3 dos 4 `NameError` eram `name 'exit' is not defined` (`1008_B`
+caixa-branca e híbrido). A solução era executada com `-S`, que não carrega o módulo `site`, e é ele
+que define `exit()` e `quit()`. O `-S` saiu (`-I -B -X utf8`); o `site` do CPython base só expõe
+`pip` e `setuptools` (conferido na imagem), e continua valendo "só biblioteca padrão" para o que
+importa (o teste `import pydantic` continua falhando). Teste de integração novo
+(`test_exit_and_quit_exist_as_in_a_normal_python`). Não dá para saber se essas 3 soluções estavam
+certas no resto; o piloto seguinte já roda sem o bug.
+
+**Projeção** com ≈ 14% de acerto por tentativa: P(suíte em até 6) = 1 − 0,86⁶ ≈ 60%, ou seja,
+**≈ 40% das 600 combinações sem suíte**, ≈ 4,3 tentativas por combinação, ≈ 2.550 chamadas × 29 s
+≈ 20 h no T4. Os descartes se concentram nos problemas difíceis, então as métricas sairiam
+calculadas sobre conjuntos de problemas diferentes em cada cenário.
+
+Decisões (Milena, 2026-10-05):
+
+1. **Piloto 3 encerrado** neste ponto e guardado como `data/suites/slm-piloto3/`. Já mostrou o
+   efeito do prompt, e o bug do `exit()` faria a segunda metade usar uma regra de execução
+   diferente da primeira.
+2. **Piloto 4 com `qwen2.5-coder:14b`** (mesma família, Q4_K_M, ≈ 9 GB, cabe no T4 de 16 GB), mesmo
+   template, mesmos 5 problemas, já sem o `-S`. Serve para medir se um modelo maior reduz os
+   descartes o bastante. O tempo por chamada do 14B não foi medido.
+3. **`OLLAMA_MODEL` no `.env`** (opcional, padrão `qwen2.5-coder:7b`): troca o modelo sem mexer no
+   código. O modelo vai para o `run.json` e o `--resume` recusa outro, então uma execução nunca
+   mistura dois modelos. **Alternativa rejeitada**: mudar a constante `MODEL` para o piloto e voltar
+   depois (fácil de esquecer, e o modelo do desenho ainda não mudou).
+4. **Ainda não decidido** (Milena e Rafael, talvez com a orientação, depois do piloto 4): manter o
+   7B e assumir a taxa de descarte, trocar o modelo do experimento para o 14B, ou fazer o SLM prever
+   as saídas como o GPT-5.4-mini e o Gemini 3.5 Flash (uma chamada por combinação, sem descarte; as
+   saídas erradas viram falsos positivos na TFP; acaba a assimetria de método entre o SLM e os dois
+   comerciais, mas muda a metodologia). Critério sugerido: se o 14B deixar mais de ≈ 20% das
+   combinações sem suíte, discutir a terceira opção.

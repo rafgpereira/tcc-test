@@ -64,9 +64,10 @@ def _encode(text: str) -> bytes:
 def run_python(code: str, stdin: bytes, limits: ExecutionLimits, slot: int) -> RunResult:
     """Run ``code`` on ``stdin`` in a fresh workdir of ``slot``, as the slot uid.
 
-    ``-I`` ignores every ``PYTHON*`` variable and the user directory, ``-S`` skips ``site``, ``-B``
-    writes no ``.pyc``, and ``-X utf8`` makes the standard streams UTF-8 (``-I`` also ignores
-    ``PYTHONIOENCODING``).
+    ``-I`` ignores every ``PYTHON*`` variable and the user directory, ``-B`` writes no ``.pyc``,
+    and ``-X utf8`` makes the standard streams UTF-8 (``-I`` also ignores ``PYTHONIOENCODING``).
+    ``site`` is loaded (no ``-S``): it defines ``exit()``/``quit()``, which solutions call; the only
+    packages it exposes in the base interpreter are ``pip`` and ``setuptools``.
     """
     workdir = isolation.prepare_slot_workdir(slot)
     source = workdir / SOURCE_NAME
@@ -76,7 +77,7 @@ def run_python(code: str, stdin: bytes, limits: ExecutionLimits, slot: int) -> R
         raise InfraError(f"cannot write {source}: {exc}") from exc
     isolation.give_to_slot(source, slot)
     return engine.execute(
-        [str(interpreter_path()), "-I", "-S", "-B", "-X", "utf8", SOURCE_NAME],
+        [str(interpreter_path()), "-I", "-B", "-X", "utf8", SOURCE_NAME],
         stdin=stdin,
         slot=slot,
         rlimits=isolation.run_rlimits(limits),

@@ -179,6 +179,11 @@ def http_timeout_s() -> int:
     return _env_positive_int(config.ENV_HTTP_TIMEOUT_S, config.DEFAULT_HTTP_TIMEOUT_S)
 
 
+def model_name() -> str:
+    """The model to call: ``OLLAMA_MODEL`` if set (a pilot comparing models), else the design's."""
+    return os.environ.get(config.ENV_MODEL, "").strip() or config.MODEL
+
+
 def max_infra_retries() -> int:
     """Consecutive retries of one call before stopping (``OLLAMA_MAX_INFRA_RETRIES``, default 30)."""
     return _env_positive_int(config.ENV_MAX_INFRA_RETRIES, config.DEFAULT_MAX_INFRA_RETRIES)
@@ -267,7 +272,13 @@ def _run_generate(args: argparse.Namespace) -> int:
 
     with store.exclusive_run(root):
         current = generation.current_run_config(
-            client, template, root, clock=clock, max_infra_retries=retries, echo=echo
+            client,
+            template,
+            root,
+            clock=clock,
+            max_infra_retries=retries,
+            echo=echo,
+            model=model_name(),
         )
         if args.resume:
             run = store.read_run(root)

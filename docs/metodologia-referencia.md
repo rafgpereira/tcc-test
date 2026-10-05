@@ -1151,7 +1151,7 @@ template confirmados por Milena no mesmo dia]**:
   a tentativa (antes invalidava; 3 tentativas do piloto 1 caíram assim), e só "todas vazias" é
   resposta não interpretável. Cercas removidas, entradas vazias e respostas cortadas são somadas
   por cenário no relatório.
-- **Execução do Python**: CPython 3.11 base da imagem, só biblioteca padrão (`-I -S -B -X utf8`),
+- **Execução do Python**: CPython 3.11 base da imagem, só biblioteca padrão (`-I -B -X utf8`; sem `-S` desde 2026-10-05, R15),
   no mesmo `execute` do motor (uid por slot, sem rede, rlimits), workdir novo por execução;
   **tempo = limite do problema × 10** e **memória = limite do problema × 4** (os 7 problemas de
   61 MiB tornariam a memória do próprio interpretador um risco com fator 1; a confirmar no piloto)
@@ -1253,6 +1253,16 @@ template confirmados por Milena no mesmo dia]**:
   mandar não traduzir o C++ na caixa-branca (quebraria a igualdade do texto entre cenários e só
   baixaria a taxa de acerto) e descartar no parser entradas com "..." (em problemas de grade, `.` é
   um caractere válido).
+- **Piloto 3 e piloto com outro modelo [MEDIDO E DECIDIDO, 2026-10-05 — `research.md` R15]**: com
+  o template revisto, o piloto 3 (interrompido em 37 tentativas) zerou as respostas não
+  interpretadas e cortadas, manteve as entradas entre 10 e 20 e subiu a taxa de acerto por tentativa
+  de 11% para 14% (caixa-preta de 3% para 18%). As 32 falhas continuam sendo a solução Python errando
+  os testes públicos (17 WA, 15 RE, nenhum por memória). Projeção: ≈ 40% das 600 combinações sem
+  suíte e ≈ 20 h de chamadas. **Achado de infraestrutura**: 3 RE eram `NameError: name 'exit' is not
+  defined`, porque o Python rodava com `-S` (sem `site`, que define `exit()`); o `-S` saiu. Decidido:
+  encerrar o piloto 3 e rodar um piloto 4 com `qwen2.5-coder:14b` (mesmo template e mesmos 5
+  problemas), escolhido pela variável opcional `OLLAMA_MODEL` do `.env` (o modelo vai para o
+  `run.json`). O modelo e o método do experimento ficam pendentes (seção 6, item 30).
 
 **Template de prompt**: estrutura única em inglês, com marcação XML (`<system_rules>`,
 `<context_data>`, `<few_shot_example>`, `<task>`), combinando Few-Shot Prompting +
@@ -1416,6 +1426,13 @@ diretamente ao objetivo específico de mapear desempenho por categoria algorítm
 29. ~~**[PENDENTE]** Forma dos casos de teste consumida pela avaliação~~ — **RESOLVIDO** em
     2026-09-30 (Milena): contrato existente `TestCase` (`input`, `output`), a adotar também pelo
     módulo de avaliação e pelas suítes dos modelos comerciais (ver 3).
+30. **[PENDENTE]** Modelo e método do SLM depois dos pilotos (2026-10-05, `research.md` R15): com
+    o Qwen2.5-Coder-7B, ≈ 40% das combinações ficariam sem suíte, porque a solução Python erra os
+    exemplos. As opções são manter o 7B e reportar a taxa de descarte, trocar o modelo do
+    experimento para o `qwen2.5-coder:14b`, ou fazer o SLM prever as saídas como os dois modelos
+    comerciais. A decisão é de Milena e Rafael (talvez com a orientação), depois do piloto 4 (14B,
+    mesmos 5 problemas). Critério sugerido: se o 14B deixar mais de ≈ 20% sem suíte, discutir a
+    terceira opção.
 4. ~~**[PROPOSTA]** Extrair dos três splits combinados~~ — **RESOLVIDO** (ver 1.1).
 5. ~~**[PROPOSTA]** Adicionar `is_description_translated == false` como critério de
    elegibilidade~~ — **RESOLVIDO** (ver 1.2).
@@ -1499,6 +1516,7 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-10-05 | **Piloto 3 do SLM (parcial) e piloto com outro modelo (`research.md` R15)**: com o template revisto, nenhuma resposta não interpretada ou cortada, de 10 a 20 entradas por resposta, acerto por tentativa de 11% para 14% (caixa-preta de 3% para 18%); as falhas continuam sendo a solução Python nos testes públicos (17 WA, 15 RE), com projeção de ≈ 40% das combinações sem suíte e ≈ 20 h. Bug corrigido: o Python rodava com `-S`, e `exit()` não existia (3 RE). Decidido: encerrar o piloto 3 e rodar o piloto 4 com `qwen2.5-coder:14b` via `OLLAMA_MODEL` (opcional no `.env`); modelo e método do experimento pendentes (item 30) | 3, 6 |
 | 2026-10-05 | **Piloto 2 do SLM registrado e decisões (`research.md` R14)**: 5 problemas × 3 cenários, 74 tentativas; suítes aceitas 1/5 (caixa-preta), 3/5 (caixa-branca), 4/5 (híbrido); as 7 descartadas caíram todas porque a solução Python errou um teste público (33 WA, 29 RE, 1 TLE no total), nenhuma por causa das entradas; maior `prompt_eval_count` 2.170, mediana de 29 s por chamada, a mais longa 233 s; `1_B` (61 MiB) reprovou nas 18 tentativas. Decidido: o `AC_ref` nunca gera saídas esperadas; cada tentativa continua independente (sem reaproveitar entradas); orçamento mantido em 6; o `execute` passa a gravar o início do `stdout`, o final do `stderr`, o tempo e a memória do teste público que reprova. **Template revisto** (R14, item 6): planejar e simular à mão no exemplo antes do código, de 10 a 20 entradas distintas escritas por extenso, sem pedido de entradas inválidas nem menção a entrada vazia, dicas de Python; maior prompt 8.993 caracteres, `num_ctx`/`num_predict` sem mudança. Próximo: piloto 3 (execução nova, mesmos 5 problemas) | 3 |
 | 2026-10-04 | **Revisão depois do piloto 1 do SLM (`research.md` R13)**: piloto com 4 problemas × 3 cenários (`1000_B`, `1005_C`, `1008_B`, `1_B`): 5 suítes aceitas e 7 descartadas, 57 chamadas, maior `prompt_eval_count` 2.044, chamada mais longa 166 s; 31 reprovações em teste público por WA e 14 por RE (6 delas causadas por cerca Markdown, todas no híbrido); 3 respostas cortadas por `num_predict` e 3 tentativas perdidas por um único `<input>` vazio. Decidido: remover só a cerca que envolve o código inteiro (registrada); descartar `<input>` vazio sozinho; `token repeat limit reached` vira a razão de falha `repetition` (próxima seed); RULE 2 com no máximo ~100 elementos por entrada e sem "including empty input"; `num_predict` 5120 (razão mínima medida de 3,32 caracteres por *token*); relatório por cenário; o `next:` do `execute` repete o `--problem`/`--scenario` usado. O piloto 2 começa uma execução nova | 3, 7 |
 | 2026-10-01 | **Piloto do SLM, achado de infraestrutura**: a queda do túnel do ngrok (HTTP 404 com `ERR_NGROK_3200`) parava o `generate` como erro de configuração; passa a ser falha de infraestrutura, que espera e repete a mesma chamada com a mesma seed, sem gastar tentativa. Nada foi gravado na ocorrência | 3 |

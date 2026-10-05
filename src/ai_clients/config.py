@@ -1,9 +1,9 @@
 """Fixed configuration of the SLM test-suite generation (docs/metodologia-referencia.md, section 3).
 
 Every constant here is part of the experiment design. The only values the operator sets are the
-address of the Ollama server, the hardware label and, optionally, how long to wait for an answer
-and how many consecutive infrastructure failures to tolerate; they come from ``.env`` (names
-below), never from this file. The time and memory limits of the Python reference solution are
+address of the Ollama server, the hardware label and, optionally, how long to wait for an answer,
+how many consecutive infrastructure failures to tolerate and another model for a pilot; they come
+from ``.env`` (names below), never from this file. The time and memory limits of the Python reference solution are
 NEVER absolute: they are the limits of the problem (``metadata.json``) times the factors below.
 """
 
@@ -12,6 +12,8 @@ from pathlib import Path
 # Model and sampling. Every option is sent explicitly, so a default of the Modelfile or of an
 # Ollama version never changes the experiment silently. `temperature` must stay above 0: with
 # greedy decoding the seed has no effect and the 6 attempts would repeat the same answer.
+# MODEL is the model of the design; `OLLAMA_MODEL` in `.env` replaces it, for the pilots that
+# compare models. The model in use is recorded in run.json, so a run never mixes two models.
 MODEL = "qwen2.5-coder:7b"
 TEMPERATURE = 0.7
 TOP_P = 0.8
@@ -49,6 +51,7 @@ ENV_BASE_URL = "OLLAMA_BASE_URL"
 ENV_HARDWARE_LABEL = "OLLAMA_HARDWARE_LABEL"
 ENV_HTTP_TIMEOUT_S = "OLLAMA_HTTP_TIMEOUT_S"
 ENV_MAX_INFRA_RETRIES = "OLLAMA_MAX_INFRA_RETRIES"
+ENV_MODEL = "OLLAMA_MODEL"
 
 # Layout under the repository root. Nothing under `data/suites/` is ever versioned; only the
 # packaged result of the final run is.

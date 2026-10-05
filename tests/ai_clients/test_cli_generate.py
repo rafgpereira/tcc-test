@@ -19,6 +19,7 @@ def env(monkeypatch):
     monkeypatch.setenv(config.ENV_HARDWARE_LABEL, "RTX 3060 12GB")
     monkeypatch.delenv(config.ENV_HTTP_TIMEOUT_S, raising=False)
     monkeypatch.delenv(config.ENV_MAX_INFRA_RETRIES, raising=False)
+    monkeypatch.delenv(config.ENV_MODEL, raising=False)
 
 
 @pytest.fixture()
@@ -91,6 +92,23 @@ def test_the_timeout_comes_from_the_environment(fake, monkeypatch):
     monkeypatch.setenv(config.ENV_HTTP_TIMEOUT_S, "1800")
     cli.main(["generate", "--limit", "1"])
     assert fake.made["timeout_s"] == 1800
+
+
+def test_another_model_comes_from_the_environment_and_is_recorded(fake, monkeypatch, repo):
+    monkeypatch.setenv(config.ENV_MODEL, " qwen2.5-coder:14b ")
+    assert cli.main(["generate", "--problem", "1_A", "--scenario", "black_box"]) == cli.EXIT_OK
+    assert store.read_run(repo).model == "qwen2.5-coder:14b"
+    assert {request["model"] for request in fake.requests} == {"qwen2.5-coder:14b"}
+
+
+def test_resume_refuses_a_model_other_than_the_recorded_one(fake, monkeypatch, capsys):
+    assert cli.main(["generate", "--problem", "1_A", "--scenario", "black_box"]) == cli.EXIT_OK
+    monkeypatch.setenv(config.ENV_MODEL, "qwen2.5-coder:14b")
+    assert cli.main(["generate", "--resume"]) == cli.EXIT_USAGE
+    assert "model: recorded 'qwen2.5-coder:7b', current 'qwen2.5-coder:14b'" in (
+        capsys.readouterr().err
+    )
+    assert len(fake.requests) == 1
 
 
 def test_the_retry_ceiling_exits_with_3(fake, monkeypatch, repo, capsys):

@@ -76,6 +76,11 @@ WA/mutantes e cálculo das métricas."
   pedir de 10 a 20 entradas distintas, todas escritas por extenso; tirar o pedido de entradas
   inválidas e a menção a entrada vazia; dicas de leitura e de recursão em Python. O texto continua
   igual nos 3 cenários (FR-004, FR-006, FR-007). Abre o piloto 3.
+- Q: O piloto 3 ainda deixaria ≈ 40% das combinações sem suíte. Trocar de modelo? → A: Primeiro um
+  piloto 4 com `qwen2.5-coder:14b`, nos mesmos 5 problemas, escolhido pela variável opcional
+  `OLLAMA_MODEL` (o modelo do desenho continua o 7B até a decisão). Depois, Milena e Rafael decidem
+  entre manter o 7B, trocar para o 14B ou fazer o SLM prever as saídas (`research.md` R15). O
+  Python passa a rodar sem `-S`, que deixava `exit()` indefinido.
 
 ## User Scenarios & Testing *(mandatory)*
 

@@ -67,9 +67,16 @@ def test_only_the_standard_library_is_available():
     assert run("import json, math, collections, heapq\nprint('ok')\n").stdout == b"ok\n"
 
 
+def test_exit_and_quit_exist_as_in_a_normal_python():
+    # the 3rd pilot: solutions calling exit() failed with NameError while `site` was skipped (-S)
+    result = run("print('a')\nexit()\nprint('b')\n")
+    assert result.status is RunStatus.OK and result.stdout == b"a\n"
+    assert run("quit(0)\n").status is RunStatus.OK
+
+
 def test_the_interpreter_is_isolated_and_utf8():
     code = "import sys\nprint(sys.flags.isolated, sys.flags.no_site, sys.prefix == sys.base_prefix)\nprint('é')\n"
-    assert run(code).stdout == "1 1 True\né\n".encode()
+    assert run(code).stdout == "1 0 True\né\n".encode()  # isolated, `site` loaded, no venv
 
 
 def test_there_is_no_network():

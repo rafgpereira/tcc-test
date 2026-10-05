@@ -61,6 +61,9 @@ faz na hora a tentativa `n + 1`; se `n = 6`, grava `suite.json` com `status: dis
 Variáveis de ambiente (`.env`, research R12): `OLLAMA_BASE_URL` e `OLLAMA_HARDWARE_LABEL`,
 obrigatórias fora do `--dry-run` (código 2 se faltarem); `OLLAMA_HTTP_TIMEOUT_S` (padrão 900) e
 `OLLAMA_MAX_INFRA_RETRIES` (padrão 30), opcionais — valor que não é inteiro positivo → código 2.
+`OLLAMA_MODEL`, opcional (desde 2026-10-05, R15): outro modelo do Ollama para um piloto que compara
+modelos (padrão `qwen2.5-coder:7b`); vai para o `run.json`, e o `--resume` recusa um modelo
+diferente do gravado (código 2).
 
 Falha de infraestrutura (Ollama inacessível, *timeout*, HTTP 5xx, túnel do ngrok fora do ar — HTTP de erro com `ERR_NGROK_` no corpo): imprime
 `ollama unavailable (<motivo>); retrying the same call (seed S) in T s (retry k of N)` e repete a

@@ -77,7 +77,7 @@ PythonRunner = Callable[[str, bytes, ExecutionLimits, int], RunResult]   # (cód
 
 def run_python(code: str, stdin: bytes, limits: ExecutionLimits, slot: int) -> RunResult: ...
     # prepare_slot_workdir -> main.py -> give_to_slot -> sandbox.runner.execute(
-    #   [python3.11, "-I", "-S", "-B", "-X", "utf8", "main.py"], env={},
+    #   [python3.11, "-I", "-B", "-X", "utf8", "main.py"], env={},
     #   rlimits=isolation.run_rlimits(limits), measured_by_launcher=True, ...)
 
 def python_limits(metadata: Metadata) -> ExecutionLimits: ...    # tl × 10, ml × 4

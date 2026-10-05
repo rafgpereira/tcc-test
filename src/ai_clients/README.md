@@ -47,7 +47,10 @@ com `ollama pull qwen2.5-coder:7b`. No `.env` (o arquivo de configuração na ra
 
 Opcionais: `OLLAMA_HTTP_TIMEOUT_S` (quanto esperar por uma resposta, padrão 900 segundos; aumente
 se o Ollama roda sem placa de vídeo) e `OLLAMA_MAX_INFRA_RETRIES` (quantas vezes seguidas a mesma
-chamada é repetida se o Ollama não responder, padrão 30).
+chamada é repetida se o Ollama não responder, padrão 30). `OLLAMA_MODEL` troca o modelo
+(padrão `qwen2.5-coder:7b`, o do experimento), só para um piloto que compara modelos; o modelo
+precisa estar instalado no Ollama (`ollama pull <modelo>`), e trocar de modelo exige uma execução
+nova (mover `data/suites/slm` para outro nome antes do `generate`).
 
 **1. Conferir o que seria enviado, sem chamar o modelo:**
 
@@ -197,7 +200,7 @@ ou de configuração do Ollama, `130` interrompido.
 | `data/dataset/problems/<id>/enunciado.md`, `AC_ref.cpp`, `testes.json`, `metadata.json` | texto, C++ e JSON | dataset descompactado ([`dataset`](../dataset/README.md)); `metadata.json` traz os limites de tempo e memória, `testes.json` os testes públicos |
 | `manifests/dataset.manifest.json` | JSON | versionado; conferido antes de qualquer trabalho |
 | `src/prompt_templates/slm_prompt.txt` | texto (inglês) | versionado; o texto-base do pedido enviado ao modelo, igual nos três cenários exceto pelo bloco de contexto |
-| `OLLAMA_BASE_URL`, `OLLAMA_HARDWARE_LABEL` (e, opcionais, `OLLAMA_HTTP_TIMEOUT_S`, `OLLAMA_MAX_INFRA_RETRIES`) | variáveis do `.env` | preenchidas pelo operador (ver `.env.example`) |
+| `OLLAMA_BASE_URL`, `OLLAMA_HARDWARE_LABEL` (e, opcionais, `OLLAMA_HTTP_TIMEOUT_S`, `OLLAMA_MAX_INFRA_RETRIES`, `OLLAMA_MODEL`) | variáveis do `.env` | preenchidas pelo operador (ver `.env.example`) |
 
 ## (d) Saídas produzidas
 

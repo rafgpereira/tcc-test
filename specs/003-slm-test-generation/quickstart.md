@@ -21,7 +21,7 @@ Roteiro de aceite, do mais barato ao mais caro. Os comandos só existem depois d
 docker compose run --rm sandbox pytest tests/ai_clients/test_oracle_integration.py -k interpreter
 ```
 
-Esperado: o CPython base (`/opt/python/.../python3.11`) executa como uid de slot com `-I -S -B -X
+Esperado: o CPython base (`/opt/python/.../python3.11`) executa como uid de slot com `-I -B -X
 utf8`, sem `venv` no caminho (`import pydantic` falha dentro do programa de teste), confirmando
 permissões de leitura/execução do `/opt/python` e o limite de memória com os fatores de R7.
 

@@ -100,10 +100,15 @@ def current_run_config(
     clock: Clock,
     max_infra_retries: int,
     echo: Callable[[str], None],
+    model: str | None = None,
 ) -> RunConfig:
-    """The identity of a run with this model, these options, this template and this dataset."""
+    """The identity of a run with this model, these options, this template and this dataset.
+
+    ``model`` defaults to ``config.MODEL``, the model of the design.
+    """
+    model = model or config.MODEL
     info = _with_retries(
-        lambda: client.model_info(config.MODEL),
+        lambda: client.model_info(model),
         what="the model information",
         seed=None,
         max_retries=max_infra_retries,
@@ -111,7 +116,7 @@ def current_run_config(
         echo=echo,
     )
     return RunConfig(
-        model=config.MODEL,
+        model=model,
         model_digest=info.digest,
         model_quantization=info.quantization_level,
         ollama_version=info.ollama_version,
