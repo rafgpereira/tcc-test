@@ -40,6 +40,7 @@ PythonRunner = Callable[
 ]  # (code, stdin, limits, slot)
 
 SOURCE_NAME = "main.py"
+FAILED_OUTPUT_HEAD_BYTES = 2048  # how much of the stdout of a failing public test is recorded
 
 
 def interpreter_path() -> Path:
@@ -120,6 +121,19 @@ def _input_outcome(index: int, run: RunResult, limits: ExecutionLimits) -> Input
     )
 
 
+def _diagnosis(run: RunResult) -> dict:
+    # What the failing public test printed, for reading why the solution failed: the start of the
+    # stdout (a WA shows itself in its first lines) and the stderr tail the engine keeps.
+    return {
+        "failed_output_head": run.stdout[:FAILED_OUTPUT_HEAD_BYTES].decode(
+            "utf-8", errors="replace"
+        ),
+        "failed_stderr_tail": run.stderr_tail.decode("utf-8", errors="replace"),
+        "failed_cpu_time_s": run.cpu_time_s,
+        "failed_peak_rss_bytes": run.peak_rss_bytes,
+    }
+
+
 def evaluate_attempt(
     generation: GenerationRecord,
     problem: JudgeInput | ProblemInput,
@@ -133,12 +147,12 @@ def evaluate_attempt(
     code = generation.parse.reference_py
     limits = python_limits(problem.metadata)
     public = problem.testes.public_tests
-    failed_index, failed_verdict = None, None
+    failed_index, failed_verdict, failed_run = None, None, None
     for index, test in enumerate(public):
         run = runner(code, _encode(test.input), limits, slot)
         verdict = judge_test(run, test.output, limits)
         if verdict is not Verdict.AC:
-            failed_index, failed_verdict = index, verdict
+            failed_index, failed_verdict, failed_run = index, verdict, run
             break
     inputs = []
     if failed_index is None:
@@ -167,6 +181,7 @@ def evaluate_attempt(
             passed=len(public) if failed_index is None else failed_index,
             failed_index=failed_index,
             failed_verdict=failed_verdict,
+            **({} if failed_run is None else _diagnosis(failed_run)),
         ),
         inputs=inputs,
         outcome=outcome,

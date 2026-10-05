@@ -1166,6 +1166,10 @@ template confirmados por Milena no mesmo dia]**:
   repassado como está e o interpretador o rejeita: conta como erro de execução, nunca derruba o
   comando. Os testes de integração (serviço `sandbox`, motor real) confirmam: só biblioteca
   padrão, sem rede, uid do slot (não root), pasta vazia a cada execução, laço infinito vira TLE.
+  **Revisto depois do piloto 2 (2026-10-05, `research.md` R14)**: o teste público que reprova
+  passa a ficar registrado na tentativa (início do `stdout`, até 2.048 bytes; final do `stderr`;
+  tempo de CPU; pico de memória). Motivo: no piloto 2 não deu para saber se algum RE de `1_B` foi
+  falta de memória, porque um `MemoryError` do Python aparece como RE e nada disso era gravado.
 - **Persistência e retomada**: cada tentativa gera arquivos imutáveis (geração; execução) e o
   `suite.json` terminal é função pura deles; falha de interpretação encadeia a próxima tentativa
   já na fase de geração (não há nada a executar); `--resume` explícito recusa continuar se a
@@ -1221,6 +1225,22 @@ template confirmados por Milena no mesmo dia]**:
   values up to the maximum allowed by the constraints, but keep the NUMBER of elements in each input
   small enough to write out fully (e.g., at most ~100 elements).", e o item do menor caso perde
   "(including empty input if allowed)".
+- **Piloto 2 [MEDIDO E DECIDIDO, 2026-10-05 — `research.md` R14]**: 5 problemas (`1000_B`,
+  `1005_C`, `1008_B`, `1_B`, `61_B`) × 3 cenários, 74 tentativas, GPU T4 do Google Colab. Suítes
+  aceitas: caixa-preta 1/5, caixa-branca 3/5, híbrido 4/5 (8/15); tentativas aceitas 1/30, 3/26 e
+  4/18. **As 7 suítes descartadas caíram todas porque a solução Python do modelo errou um teste
+  público** (no total, 33 WA, 29 RE e 1 TLE em 63 reprovações), nunca por causa das entradas; 3
+  respostas não foram interpretadas (2 cortadas por `num_predict`, 1 `repetition`). O problema de 61
+  MiB do piloto (`1_B`) reprovou nas 18 tentativas. Maior `prompt_eval_count` 2.170 (guarda de
+  `num_ctx` sem disparar); mediana de 29 s por chamada, a mais longa 233 s (limite 900 s); cerca
+  Markdown removida 4 vezes (híbrido), 1 entrada vazia; suítes aceitas de 4 a 25 casos. Nos 4
+  problemas comuns aos dois pilotos, 5 de 12 suítes aceitas nos dois. Projeção para as 600
+  combinações, com as taxas do piloto: ≈ 280 sem suíte e ≈ 24 h de chamadas. Decidido: **o `AC_ref`
+  nunca gera nem confere saídas esperadas** (na vida real não existe uma implementação de referência
+  correta para isso); **cada tentativa continua independente** (as entradas saem junto com a solução
+  reprovada; reaproveitá-las entre tentativas foi rejeitado); **orçamento mantido em 6 tentativas**;
+  o teste público que reprova passa a ficar registrado; a revisão do prompt abre o piloto 3, com os
+  mesmos 5 problemas.
 
 **Template de prompt**: estrutura única em inglês, com marcação XML (`<system_rules>`,
 `<context_data>`, `<few_shot_example>`, `<task>`), combinando Few-Shot Prompting +
@@ -1467,6 +1487,7 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-10-05 | **Piloto 2 do SLM registrado e decisões (`research.md` R14)**: 5 problemas × 3 cenários, 74 tentativas; suítes aceitas 1/5 (caixa-preta), 3/5 (caixa-branca), 4/5 (híbrido); as 7 descartadas caíram todas porque a solução Python errou um teste público (33 WA, 29 RE, 1 TLE no total), nenhuma por causa das entradas; maior `prompt_eval_count` 2.170, mediana de 29 s por chamada, a mais longa 233 s; `1_B` (61 MiB) reprovou nas 18 tentativas. Decidido: o `AC_ref` nunca gera saídas esperadas; cada tentativa continua independente (sem reaproveitar entradas); orçamento mantido em 6; o `execute` passa a gravar o início do `stdout`, o final do `stderr`, o tempo e a memória do teste público que reprova. Próximo: revisão do prompt (piloto 3) | 3 |
 | 2026-10-04 | **Revisão depois do piloto 1 do SLM (`research.md` R13)**: piloto com 4 problemas × 3 cenários (`1000_B`, `1005_C`, `1008_B`, `1_B`): 5 suítes aceitas e 7 descartadas, 57 chamadas, maior `prompt_eval_count` 2.044, chamada mais longa 166 s; 31 reprovações em teste público por WA e 14 por RE (6 delas causadas por cerca Markdown, todas no híbrido); 3 respostas cortadas por `num_predict` e 3 tentativas perdidas por um único `<input>` vazio. Decidido: remover só a cerca que envolve o código inteiro (registrada); descartar `<input>` vazio sozinho; `token repeat limit reached` vira a razão de falha `repetition` (próxima seed); RULE 2 com no máximo ~100 elementos por entrada e sem "including empty input"; `num_predict` 5120 (razão mínima medida de 3,32 caracteres por *token*); relatório por cenário; o `next:` do `execute` repete o `--problem`/`--scenario` usado. O piloto 2 começa uma execução nova | 3, 7 |
 | 2026-10-01 | **Piloto do SLM, achado de infraestrutura**: a queda do túnel do ngrok (HTTP 404 com `ERR_NGROK_3200`) parava o `generate` como erro de configuração; passa a ser falha de infraestrutura, que espera e repete a mesma chamada com a mesma seed, sem gastar tentativa. Nada foi gravado na ocorrência | 3 |
 | 2026-10-01 | **Relatório, pacote e camada `slm_suites` do `cli check` implementados (módulo `003-slm-test-generation`, testes com dados sintéticos)**: relatório versionável com as somas de controle validadas (estados somam o total do escopo, N nunca reduzido; funil soma as tentativas falhas); pacote determinístico só da execução completa; na camada nova do `cli check`, o que ainda falta é aviso até o pacote existir (divergência do plano, que pedia falha com `--deep` e tornaria impossível o primeiro passo do piloto e da execução completa). Nenhum dado medido | 0.1, 3 |

@@ -61,6 +61,10 @@ def test_all_public_tests_pass_and_every_input_keeps_its_real_stdout(judged):
         "passed": 2,
         "failed_index": None,
         "failed_verdict": None,
+        "failed_output_head": None,
+        "failed_stderr_tail": None,
+        "failed_cpu_time_s": None,
+        "failed_peak_rss_bytes": None,
     }
     assert [i.output for i in record.inputs] == ["10\n", "  20  \n\n", "30\n"]
     assert all(i.kept and i.discard is None and i.stderr_tail == "" for i in record.inputs)
@@ -97,6 +101,32 @@ def test_the_first_failing_public_test_stops_everything(judged, answer, verdict)
     assert record.public_tests.passed == 1
     assert record.inputs == []
     assert [stdin for _, stdin, _, _ in fake.calls] == [b"1\n", b"2\n"]  # no input ran
+
+
+def test_a_failing_public_test_keeps_what_the_solution_printed(judged):
+    crash = run_result(
+        b"partial\n",
+        status=RunStatus.NONZERO_EXIT,
+        exit_code=1,
+        cpu_time_s=0.5,
+        peak_rss_bytes=12345,
+        stderr_tail=b"ValueError: invalid literal for int() with base 10: '23C55'\n",
+    )
+    record = oracle.evaluate_attempt(attempt(), judged, runner=runner({(ECHO_PY, b"1\n"): crash}))
+    tests = record.public_tests
+    assert (tests.failed_index, tests.failed_verdict) == (0, Verdict.RE)
+    assert tests.failed_output_head == "partial\n"
+    assert tests.failed_stderr_tail.startswith("ValueError: invalid literal")
+    assert (tests.failed_cpu_time_s, tests.failed_peak_rss_bytes) == (0.5, 12345)
+
+
+def test_only_the_start_of_a_long_wrong_output_is_kept(judged):
+    long = b"9" * (oracle.FAILED_OUTPUT_HEAD_BYTES + 1000)
+    fake = runner({(ECHO_PY, b"2\n"): run_result(long)})
+    record = oracle.evaluate_attempt(attempt(), judged, runner=fake)
+    assert record.public_tests.failed_verdict is Verdict.WA
+    assert record.public_tests.failed_output_head == "9" * oracle.FAILED_OUTPUT_HEAD_BYTES
+    assert record.public_tests.failed_stderr_tail == ""
 
 
 @pytest.mark.parametrize(

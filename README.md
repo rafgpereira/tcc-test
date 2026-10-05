@@ -10,7 +10,7 @@ teste unitários em C++.
 > "Módulos e estado", abaixo); este documento é o ponto de partida e o índice, não o detalhe de
 > cada módulo.
 >
-> **Estado atual (2026-10-04)**: os módulos `dataset` (extração, validação e empacotamento do
+> **Estado atual (2026-10-05)**: os módulos `dataset` (extração, validação e empacotamento do
 > dataset), `sandbox` (motor de execução isolada de C++) e `mutation` (100 mutantes por problema)
 > estão **implementados**, e os dois primeiros artefatos do experimento já foram gerados de verdade
 > e estão neste repositório: o dataset (`data/dataset.zip`, 200 problemas) e os mutantes
@@ -19,9 +19,11 @@ teste unitários em C++.
 > `python -m cli check`, confere se dataset, mutantes e suítes estão completos e 1:1. A geração de suítes
 > de teste pelo modelo local (Qwen2.5-Coder-7B, módulo `ai_clients`) está em implementação:
 > todos os comandos (geração, execução das soluções Python, relatório, pacote e verificação)
-> existem e são testados com um modelo simulado; um primeiro piloto real com 4 problemas foi feito e
-> ajustou a leitura das respostas, o texto do pedido e o tamanho máximo da resposta, e um segundo
-> piloto vem antes da execução completa, que ainda não foi feita; os demais módulos (chamadas aos dois modelos comerciais, avaliação, métricas,
+> existem e são testados com um modelo simulado; dois pilotos reais foram feitos (4 e 5 problemas):
+> o primeiro ajustou a leitura das respostas, o texto do pedido e o tamanho máximo da resposta; o
+> segundo mostrou que quase metade das combinações fica sem suíte porque a solução Python do modelo
+> erra os exemplos do enunciado, e um terceiro piloto, com o pedido revisto, vem antes da execução
+> completa, que ainda não foi feita; os demais módulos (chamadas aos dois modelos comerciais, avaliação, métricas,
 > orquestrador) ainda não têm especificação nem código; a tabela "Módulos e estado" marca isso.
 
 ## O que o experimento responde

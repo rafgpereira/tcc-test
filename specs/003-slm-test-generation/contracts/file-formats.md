@@ -82,7 +82,9 @@ Falha de interpretação: `"parse": {"ok": false, "error": "missing_block:refere
              "problem_time_limit_seconds": 1.0, "time_limit_seconds": 10.0},
   "outcome": "accepted",
   "problem_id": "1000_B",
-  "public_tests": {"failed_index": null, "failed_verdict": null, "passed": 2, "total": 2},
+  "public_tests": {"failed_cpu_time_s": null, "failed_index": null, "failed_output_head": null,
+                   "failed_peak_rss_bytes": null, "failed_stderr_tail": null,
+                   "failed_verdict": null, "passed": 2, "total": 2},
   "scenario": "black_box",
   "schema_version": 1
 }

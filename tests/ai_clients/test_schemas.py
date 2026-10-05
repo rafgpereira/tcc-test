@@ -305,6 +305,20 @@ def test_a_public_test_failure_runs_no_input():
         )
 
 
+def test_only_a_failing_public_test_has_a_diagnosis():
+    passed = dict(total=2, passed=2, failed_index=None, failed_verdict=None)
+    with pytest.raises(ValidationError):
+        ExecutionRecord.model_validate(
+            execution(public_tests={**passed, "failed_stderr_tail": "Traceback"})
+        )
+    failed = dict(total=2, passed=0, failed_index=0, failed_verdict="RE")
+    # {}: a record of the 2nd pilot, written before the diagnosis existed
+    for diagnosis in ({}, {"failed_output_head": "", "failed_stderr_tail": "Traceback"}):
+        ExecutionRecord.model_validate(
+            execution(public_tests={**failed, **diagnosis}, inputs=[], outcome="public_test_failed")
+        )
+
+
 def test_public_test_failed_if_and_only_if_there_is_a_failed_index():
     with pytest.raises(ValidationError):  # outcome says failed, but no public test failed
         ExecutionRecord.model_validate(execution(inputs=[], outcome="public_test_failed"))

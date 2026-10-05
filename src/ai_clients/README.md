@@ -102,7 +102,8 @@ outras ficam.
 
 Grava `attempt_<n>.execution.json` ao lado da resposta e imprime uma linha por tentativa:
 `accepted (<k> kept, <d> discarded)`, `public_test_failed (test <i>: <veredito>)` (a solução errou
-um teste público; nenhuma entrada chega a rodar) ou `all_inputs_failed (<t> timeout, <r>
+um teste público; nenhuma entrada chega a rodar, e o arquivo guarda o começo do que ela imprimiu,
+o final das mensagens de erro, o tempo e a memória daquele teste) ou `all_inputs_failed (<t> timeout, <r>
 runtime_error)` (nenhuma entrada sobrou). Se aceitou, grava `suite.json` com os testes da suíte
 (`input` e `output`); se falhou na 6ª tentativa, grava `suite.json` com `status: discarded`. No
 fim: `done: N executed, N accepted, N failed (N need a new generation), N discarded suites`.

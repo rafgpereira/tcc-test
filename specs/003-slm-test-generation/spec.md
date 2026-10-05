@@ -59,6 +59,19 @@ WA/mutantes e cálculo das métricas."
   é falha do próprio modelo (com a mesma seed ele repetiria o laço): consome a tentativa com a
   razão `repetition`, registrada, e a próxima seed é chamada (FR-018(d)).
 
+### Session 2026-10-05 (piloto 2, `research.md` R14)
+
+- Q: No piloto 2 as 7 suítes descartadas caíram todas pela solução Python errando um teste público.
+  Usar o `AC_ref` para calcular as saídas? → A: Não. O TCC avalia a IA como apoio à escrita de
+  testes unitários, e na vida real não existe uma implementação de referência correta para isso. O
+  `AC_ref` continua sem papel na execução (FR-017).
+- Q: Reaproveitar as entradas de uma tentativa cuja solução errou? → A: Não. Cada tentativa continua
+  independente e pede entradas e solução de novo; as entradas de uma tentativa reprovada saem com ela
+  (FR-018).
+- Q: Mudar o orçamento de 6 tentativas? → A: Não; continua 6 (mediana medida de 29 s por chamada).
+- Q: O que registrar de um teste público reprovado? → A: O início do `stdout` (até 2.048 bytes), o
+  final do `stderr`, o tempo de CPU e o pico de memória, no registro de execução da tentativa.
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--

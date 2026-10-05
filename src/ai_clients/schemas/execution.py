@@ -27,11 +27,25 @@ class PublicTestsSummary(Schema):
     passed: NonNegative
     failed_index: NonNegative | None  # the first public test that was not AC (short-circuit)
     failed_verdict: Verdict | None
+    # Diagnosis of the failing run only (the expected output is the one of `testes.json` at
+    # `failed_index`). Null without a failure, and in records written before they existed.
+    failed_output_head: str | None = None  # start of the real stdout, never normalized
+    failed_stderr_tail: str | None = None
+    failed_cpu_time_s: float | None = Field(default=None, ge=0)
+    failed_peak_rss_bytes: NonNegative | None = None
 
     @model_validator(mode="after")
     def _coherent(self) -> "PublicTestsSummary":
         if (self.failed_index is None) != (self.failed_verdict is None):
             raise ValueError("failed_index and failed_verdict are both set or both null")
+        diagnosis = (
+            self.failed_output_head,
+            self.failed_stderr_tail,
+            self.failed_cpu_time_s,
+            self.failed_peak_rss_bytes,
+        )
+        if self.failed_index is None and any(item is not None for item in diagnosis):
+            raise ValueError("only a failing public test has a diagnosis")
         if self.failed_verdict is Verdict.AC:
             raise ValueError("an AC is not a failure")
         if self.failed_index is None and self.passed != self.total:

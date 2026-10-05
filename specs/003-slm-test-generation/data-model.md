@@ -91,7 +91,7 @@ Só existe para tentativas com `parse.ok = true` (FR-013b). Imutável.
 | `problem_id`, `scenario`, `attempt` | | iguais aos da geração correspondente |
 | `limits` | objeto | `time_limit_seconds`, `memory_limit_bytes` efetivos (problema × fatores) e os do problema, para auditoria |
 | `interpreter` | str | caminho e versão do CPython usado |
-| `public_tests` | objeto | `total`, `passed`, `failed_index: int \| null`, `failed_verdict: Verdict \| null` |
+| `public_tests` | objeto | `total`, `passed`, `failed_index: int \| null`, `failed_verdict: Verdict \| null`; do teste que reprovou (nulos sem falha e nos registros gravados antes de 2026-10-05, R14): `failed_output_head: str \| null` (primeiros 2.048 bytes do `stdout`, sem normalização), `failed_stderr_tail: str \| null`, `failed_cpu_time_s: float \| null`, `failed_peak_rss_bytes: int \| null` |
 | `inputs` | list[`InputOutcome`] | um por entrada da geração, na mesma ordem |
 | `outcome` | `accepted` \| `AttemptFailure` | `public_test_failed` se `failed_index` não nulo; senão `all_inputs_failed` se nenhuma entrada sobreviveu; senão `accepted` |
 

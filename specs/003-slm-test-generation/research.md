@@ -527,3 +527,73 @@ Decisões (Milena, 2026-10-04), todas antes do piloto 2, que começa uma execuç
 6. **`next:` do `execute` repete a seleção**: a linha agora traz os mesmos `--problem`/`--scenario` com
    que o `execute` foi chamado (antes sugeria o `generate --resume` sem nenhum, e copiar essa linha
    no meio de um piloto roda as 600 combinações).
+
+---
+
+## R14 — Piloto 2 e decisões de 2026-10-05
+
+**Piloto 2 (2026-10-04, `data/suites/slm/`; o piloto 1 foi guardado em `data/suites/slm-piloto1/`)**:
+execução nova com as decisões de R13 (template `061b7427…`, `num_predict 5120`, Ollama 0.35.0,
+`qwen2.5-coder:7b` Q4_K_M, hardware "GPU T4 - Google Colab, 16GB RAM"). 5 problemas (`1000_B`,
+`1005_C`, `1008_B`, `1_B`, `61_B`) × 3 cenários = 15 combinações, todas terminais. Números contados
+nos arquivos de tentativa:
+
+| | Caixa-preta | Caixa-branca | Híbrido | Total |
+|---|---|---|---|---|
+| Suítes aceitas | 1/5 | 3/5 | 4/5 | 8/15 |
+| Tentativas | 30 | 26 | 18 | 74 |
+| Tentativas aceitas | 1 (3%) | 3 (12%) | 4 (22%) | 8 (11%) |
+
+- **Por que as tentativas falharam**: 63 reprovaram num teste público (33 WA, 29 RE, 1 TLE, 0 MLE)
+  e 3 não foram interpretadas (2 `unclosed_block:inputs`, ambas com `done_reason = "length"`:
+  `1005_C` caixa-preta e `61_B` caixa-branca; 1 `repetition`, `61_B` caixa-preta). Nenhuma caiu por
+  `all_inputs_failed`: **as 7 suítes descartadas caíram todas porque a solução Python errou um teste
+  público**, nunca por causa das entradas. Lendo o código, são erros de raciocínio do modelo (em
+  `1008_B` ele ordena os retângulos ou ignora a rotação; em `1_B` ele faz `int("23C55")`).
+- **Problema de 61 MiB**: `1_B` (64.000.000 bytes) reprovou nas 18 tentativas, nos 3 cenários. Não
+  dá para afirmar se algum RE foi falta de memória: um `MemoryError` do Python sob o `RLIMIT_AS`
+  aparece como RE, não como MLE, e a execução não gravava o `stderr` do teste público (decisão 4).
+- **Janela e tempo**: maior `prompt_eval_count` 2.170 (`61_B` híbrido), dentro dos 3.072 de folga;
+  a guarda de `num_ctx` não disparou. Mediana de 29 s por chamada (p10 18 s, p90 40 s); a mais longa
+  levou 233 s (`61_B` caixa-branca, uma das cortadas), longe dos 900 s de `OLLAMA_HTTP_TIMEOUT_S`. As
+  esperas de infraestrutura não ficam gravadas; não há número.
+- **Parser**: cerca Markdown removida 4 vezes, todas no híbrido (1 dessas tentativas foi aceita; nas
+  outras 3 a solução tinha outros erros); 1 `<input>` vazio descartado sozinho; entradas repetidas
+  em 8 tentativas (a maior: 10 em `1000_B` híbrido).
+- **Tamanho das suítes aceitas**: 4, 4, 5, 6, 6, 13, 20, 25. Varia muito (seção 6, item 26).
+- **Comparação com o piloto 1**: nos 4 problemas comuns, 5 de 12 suítes aceitas nos dois pilotos.
+  Tirar a cerca não mudou o total: ela escondia outros erros da solução.
+- **Achados para o prompt (piloto 3)**: o modelo abrevia entradas grandes (`1005_C`: `100000 100000
+  ... 100000 (120000 times)`); a RULE 2 pede "inputs that look valid but are invalid" enquanto a RULE
+  3 exige que todo valor respeite as restrições; a RULE 1 ainda cita "what happens with empty input".
+- **Projeção**, se as taxas do piloto se mantiverem nas 600 combinações: cerca de 280 sem suíte
+  (≈ 80% da caixa-preta) e ≈ 4,9 tentativas por combinação, ou seja, ≈ 2.960 chamadas × 29 s ≈ 24 h
+  de chamadas no mesmo hardware. Com 5 problemas a margem de erro dessas taxas é grande.
+- **Falta no piloto**: `python -m cli check --deep` antes do piloto (não há registro de que tenha
+  rodado), `python -m ai_clients report` sobre o piloto 2 (o `manifests/slm_generation_report.json`
+  no disco é do piloto 1) e a validação real da retomada (T045).
+
+Decisões (Milena, 2026-10-05):
+
+1. **O `AC_ref` nunca gera nem confere as saídas esperadas** (confirma o desenho). Proposta
+   rejeitada: usar o `AC_ref` como oráculo das entradas do modelo. **Motivo**: o TCC avalia a IA como
+   apoio à escrita de testes unitários, e na vida real não existe uma implementação de referência
+   correta para calcular as saídas.
+2. **Cada tentativa continua independente** (como hoje). Quando a solução erra um teste público, as
+   entradas daquela tentativa saem junto com ela, e a próxima tentativa pede de novo entradas e
+   solução. Propostas rejeitadas: (a) guardar as entradas da 1ª resposta interpretável e usar como
+   oráculo a primeira solução que passar nos testes públicos; (b) pedir só a solução nas tentativas
+   seguintes. Somar as entradas de todas as tentativas foi descartado logo de início: quem erra mais
+   ficaria com a suíte maior, o que vicia a TDF e o MS.
+3. **O orçamento continua em 6 tentativas.** O custo medido é de 29 s por chamada (mediana); o que
+   tem de subir é a taxa de acerto por tentativa, e isso fica para a revisão do prompt.
+4. **O teste público que reprova fica registrado no `attempt_<n>.execution.json`**. Em
+   `public_tests` entram `failed_output_head` (os primeiros 2.048 bytes do `stdout`, sem
+   normalização), `failed_stderr_tail` (o mesmo final de `stderr` que o motor guarda para as entradas
+   descartadas), `failed_cpu_time_s` e `failed_peak_rss_bytes`. A saída esperada não é copiada (é a
+   do `testes.json` no `failed_index`). Os quatro campos são nulos sem falha e nos registros do
+   piloto 2, gravados antes de eles existirem; por isso o `schema_version` continua 1. Isso responde
+   o que a T037 pede (se alguma solução certa caiu por memória ou tempo) e permite diagnosticar os
+   descartes sem ler o código à mão.
+5. **O próximo passo é revisar o prompt**, o que abre uma execução nova (piloto 3), com os mesmos 5
+   problemas para dar para comparar.
