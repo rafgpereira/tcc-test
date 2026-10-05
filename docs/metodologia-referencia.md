@@ -1241,6 +1241,18 @@ template confirmados por Milena no mesmo dia]**:
   reprovada; reaproveitá-las entre tentativas foi rejeitado); **orçamento mantido em 6 tentativas**;
   o teste público que reprova passa a ficar registrado; a revisão do prompt abre o piloto 3, com os
   mesmos 5 problemas.
+- **Template revisto depois do piloto 2 [DECIDIDO, 2026-10-05 — `research.md` R14, item 6]**: o
+  modelo é avisado de que a solução roda primeiro no exemplo; a RULE 1 pede o algoritmo passo a
+  passo e uma simulação à mão no exemplo antes do código; a RULE 2 pede de 10 a 20 entradas
+  distintas e troca "entradas que parecem válidas mas são inválidas" (contradizia a RULE 3) por
+  entradas "quase quebrando uma regra, mas válidas"; a RULE 3 proíbe abreviações ("...", "(repeated
+  N times)"); a RULE 4 dá dicas de Python (só biblioteca padrão, ler a entrada de uma vez, evitar
+  recursão funda, imprimir no formato do exemplo); sai a última menção a entrada vazia. O texto
+  continua igual nos 3 cenários. Maior prompt: 8.993 caracteres (híbrido, `61_B`), ≈ 2.420 *tokens*
+  pela razão medida no piloto 2, dentro da folga; `num_ctx`/`num_predict` não mudam. Rejeitados:
+  mandar não traduzir o C++ na caixa-branca (quebraria a igualdade do texto entre cenários e só
+  baixaria a taxa de acerto) e descartar no parser entradas com "..." (em problemas de grade, `.` é
+  um caractere válido).
 
 **Template de prompt**: estrutura única em inglês, com marcação XML (`<system_rules>`,
 `<context_data>`, `<few_shot_example>`, `<task>`), combinando Few-Shot Prompting +
@@ -1487,7 +1499,7 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 
 | Data | O que mudou | Seções |
 |---|---|---|
-| 2026-10-05 | **Piloto 2 do SLM registrado e decisões (`research.md` R14)**: 5 problemas × 3 cenários, 74 tentativas; suítes aceitas 1/5 (caixa-preta), 3/5 (caixa-branca), 4/5 (híbrido); as 7 descartadas caíram todas porque a solução Python errou um teste público (33 WA, 29 RE, 1 TLE no total), nenhuma por causa das entradas; maior `prompt_eval_count` 2.170, mediana de 29 s por chamada, a mais longa 233 s; `1_B` (61 MiB) reprovou nas 18 tentativas. Decidido: o `AC_ref` nunca gera saídas esperadas; cada tentativa continua independente (sem reaproveitar entradas); orçamento mantido em 6; o `execute` passa a gravar o início do `stdout`, o final do `stderr`, o tempo e a memória do teste público que reprova. Próximo: revisão do prompt (piloto 3) | 3 |
+| 2026-10-05 | **Piloto 2 do SLM registrado e decisões (`research.md` R14)**: 5 problemas × 3 cenários, 74 tentativas; suítes aceitas 1/5 (caixa-preta), 3/5 (caixa-branca), 4/5 (híbrido); as 7 descartadas caíram todas porque a solução Python errou um teste público (33 WA, 29 RE, 1 TLE no total), nenhuma por causa das entradas; maior `prompt_eval_count` 2.170, mediana de 29 s por chamada, a mais longa 233 s; `1_B` (61 MiB) reprovou nas 18 tentativas. Decidido: o `AC_ref` nunca gera saídas esperadas; cada tentativa continua independente (sem reaproveitar entradas); orçamento mantido em 6; o `execute` passa a gravar o início do `stdout`, o final do `stderr`, o tempo e a memória do teste público que reprova. **Template revisto** (R14, item 6): planejar e simular à mão no exemplo antes do código, de 10 a 20 entradas distintas escritas por extenso, sem pedido de entradas inválidas nem menção a entrada vazia, dicas de Python; maior prompt 8.993 caracteres, `num_ctx`/`num_predict` sem mudança. Próximo: piloto 3 (execução nova, mesmos 5 problemas) | 3 |
 | 2026-10-04 | **Revisão depois do piloto 1 do SLM (`research.md` R13)**: piloto com 4 problemas × 3 cenários (`1000_B`, `1005_C`, `1008_B`, `1_B`): 5 suítes aceitas e 7 descartadas, 57 chamadas, maior `prompt_eval_count` 2.044, chamada mais longa 166 s; 31 reprovações em teste público por WA e 14 por RE (6 delas causadas por cerca Markdown, todas no híbrido); 3 respostas cortadas por `num_predict` e 3 tentativas perdidas por um único `<input>` vazio. Decidido: remover só a cerca que envolve o código inteiro (registrada); descartar `<input>` vazio sozinho; `token repeat limit reached` vira a razão de falha `repetition` (próxima seed); RULE 2 com no máximo ~100 elementos por entrada e sem "including empty input"; `num_predict` 5120 (razão mínima medida de 3,32 caracteres por *token*); relatório por cenário; o `next:` do `execute` repete o `--problem`/`--scenario` usado. O piloto 2 começa uma execução nova | 3, 7 |
 | 2026-10-01 | **Piloto do SLM, achado de infraestrutura**: a queda do túnel do ngrok (HTTP 404 com `ERR_NGROK_3200`) parava o `generate` como erro de configuração; passa a ser falha de infraestrutura, que espera e repete a mesma chamada com a mesma seed, sem gastar tentativa. Nada foi gravado na ocorrência | 3 |
 | 2026-10-01 | **Relatório, pacote e camada `slm_suites` do `cli check` implementados (módulo `003-slm-test-generation`, testes com dados sintéticos)**: relatório versionável com as somas de controle validadas (estados somam o total do escopo, N nunca reduzido; funil soma as tentativas falhas); pacote determinístico só da execução completa; na camada nova do `cli check`, o que ainda falta é aviso até o pacote existir (divergência do plano, que pedia falha com `--deep` e tornaria impossível o primeiro passo do piloto e da execução completa). Nenhum dado medido | 0.1, 3 |

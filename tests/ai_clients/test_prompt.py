@@ -139,3 +139,14 @@ def test_the_real_template_loads_and_keeps_the_fr007_wording():
     assert "the maximum size allowed by the constraints" not in text
     assert "the largest case you can write out IN FULL" not in text
     assert "including empty input" not in text
+
+
+def test_the_real_template_keeps_the_wording_of_the_second_pilot_review():
+    text = " ".join(load_template().text.split())
+    assert "simulate it by hand on the example in <few_shot_example>" in text
+    assert "Generate between 10 and 20 inputs, all different from each other" in text
+    assert 'never abbreviate with "...", ranges, or notes such as "(repeated N times)"' in text
+    assert "data = sys.stdin.read().split()" in text
+    # removed: they contradict RULE 3 (every value respects the constraints)
+    assert "look valid but are invalid" not in text
+    assert "empty input" not in text

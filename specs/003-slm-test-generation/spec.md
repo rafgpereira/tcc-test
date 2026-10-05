@@ -71,6 +71,11 @@ WA/mutantes e cálculo das métricas."
 - Q: Mudar o orçamento de 6 tentativas? → A: Não; continua 6 (mediana medida de 29 s por chamada).
 - Q: O que registrar de um teste público reprovado? → A: O início do `stdout` (até 2.048 bytes), o
   final do `stderr`, o tempo de CPU e o pico de memória, no registro de execução da tentativa.
+- Q: Como revisar o prompt para a solução Python errar menos? → A: Planejar o algoritmo e simulá-lo
+  à mão no exemplo antes de escrever o código; avisar que a solução roda primeiro no exemplo;
+  pedir de 10 a 20 entradas distintas, todas escritas por extenso; tirar o pedido de entradas
+  inválidas e a menção a entrada vazia; dicas de leitura e de recursão em Python. O texto continua
+  igual nos 3 cenários (FR-004, FR-006, FR-007). Abre o piloto 3.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -295,6 +300,8 @@ tentativas por razão) somam corretamente.
 - **FR-007**: O prompt MUST instruir o modelo a respeitar as restrições declaradas no enunciado
   ao gerar cada entrada (valores até o máximo das restrições) e a limitar a quantidade de
   elementos por entrada a um tamanho que o modelo consiga escrever por completo, sem truncar.
+  **Revisado em 2026-10-05** (`research.md` R14, depois do piloto 2): também a escrever todo valor
+  por extenso, sem abreviações como "..." ou "(repeated N times)".
 - **FR-008**: A janela de contexto (`num_ctx`) MUST ser grande o suficiente para o maior prompt
   entre os 200 problemas, com folga; o valor exato MUST ser medido e fixado no planejamento
   técnico da feature (fora do escopo desta especificação).

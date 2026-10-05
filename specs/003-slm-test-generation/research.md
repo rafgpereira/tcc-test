@@ -597,3 +597,35 @@ Decisões (Milena, 2026-10-05):
    descartes sem ler o código à mão.
 5. **O próximo passo é revisar o prompt**, o que abre uma execução nova (piloto 3), com os mesmos 5
    problemas para dar para comparar.
+6. **Template revisto** (`src/prompt_templates/slm_prompt.txt`; o texto continua igual nos 3
+   cenários fora do `<context_data>`, R5):
+   - o primeiro parágrafo avisa que a solução roda primeiro no exemplo e tem de imprimir exatamente
+     a saída esperada, senão a resposta inteira é descartada;
+   - a RULE 1 pede, no `<edge_cases_analysis>`, o algoritmo passo a passo e uma simulação à mão no
+     exemplo, conferindo a saída esperada antes de escrever o código (ataca os WA de raciocínio); e
+     perde "what happens with empty input" e "what exactly counts as valid vs invalid";
+   - a RULE 2 pede **de 10 a 20 entradas, todas distintas** (estabiliza o tamanho da suíte, que
+     variou de 4 a 25, e reduz duplicatas e respostas cortadas), e troca "inputs that look valid but
+     are invalid" por "tricky inputs that are close to breaking a rule of the definitions but are
+     still valid" (a versão antiga contradizia a RULE 3);
+   - a RULE 3 proíbe abreviar ("...", intervalos, "(repeated N times)") e manda diminuir a entrada
+     que não couber;
+   - a RULE 4 manda seguir o algoritmo do `<edge_cases_analysis>`, usar só a biblioteca padrão, ler
+     a entrada de uma vez (`sys.stdin.read().split()`, salvo quando os espaços de uma linha
+     importam), evitar recursão funda (ou chamar `sys.setrecursionlimit`) e imprimir no formato do
+     exemplo (ataca parte dos RE);
+   - os itens do `<task>` acompanham.
+
+   **Medido** (template novo sobre os 200 problemas): o template passa de 3.065 para 3.984
+   caracteres; o maior prompt passa de 8.074 para **8.993** (híbrido, `61_B`; caixa-preta 7.771,
+   `61_B`; caixa-branca 6.549, `893_C`). No piloto 2 o híbrido de `61_B` deu 3,72 caracteres por
+   *token*, o que dá ≈ 2.420 *tokens* para o prompt novo, dentro dos 3.072 de folga; mesmo na razão
+   mínima medida (3,32, piloto 1) seriam ≈ 2.710. `num_ctx` e `num_predict` não mudam, e a guarda
+   de R3 continua. A saída tende a crescer (análise mais longa e até 20 entradas); o piloto 3 mede
+   as respostas cortadas.
+
+   **Rejeitado**: (a) dizer na caixa-branca para não traduzir o C++. Fora do `<context_data>` o
+   prompt tem de ser igual nos 3 cenários, e na caixa-branca o código é o único contexto, então a
+   regra só baixaria a taxa de acerto. O viés da tradução continua registrado como limitação na
+   metodologia. (b) Uma regra no parser que descarta entradas com "...". Em problemas de grade, `.`
+   é um caractere válido (por exemplo `#...#`), então a regra descartaria entradas boas.

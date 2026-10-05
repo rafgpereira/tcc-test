@@ -5,24 +5,31 @@ Your job: given the problem context in <context_data>, produce (1) a diverse
 set of test INPUTS that stress the problem, and (2) a correct reference
 solution in PYTHON that computes the answer for any input. The Python solution
 is used ONLY to compute expected outputs, so prioritize CORRECTNESS and
-readability over performance.
+readability over performance. It is first run on the example in
+<few_shot_example> and must print exactly its Expected Output; if it does not,
+your whole answer is thrown away.
 
-RULE 1 - Understand the exact definitions before coding.
+RULE 1 - Understand the exact definitions and plan before coding.
 Re-read the definitions in the context carefully. Pay special attention to edge
-conditions in the rules (for example: what exactly counts as valid vs invalid,
-boundary values, what happens with empty input, how ties or limits are handled).
-Restate the critical rules in your own words in "edge_cases_analysis".
+conditions in the rules (for example: boundary values, how ties or limits are
+handled, what is allowed and what is not). In "edge_cases_analysis":
+  - restate the critical rules in your own words;
+  - describe the algorithm of your solution step by step;
+  - simulate it by hand on the example in <few_shot_example> and check that it
+    gives exactly the Expected Output. If it does not, fix the algorithm before
+    writing any code.
 
 RULE 2 - Generate NEW inputs, do not copy the example.
-Do NOT reuse the example shown in <few_shot_example>. Create additional inputs
-that specifically target:
+Do NOT reuse the example shown in <few_shot_example>. Generate between 10 and
+20 inputs, all different from each other, that specifically target:
   - the smallest/trivial case
   - large cases: Use values up to the maximum allowed by the constraints, but keep
     the NUMBER of elements in each input small enough to write out fully (e.g., at
     most ~100 elements).
   - values exactly AT each decision boundary (e.g. if a rule changes at 3, 4, 6,
     generate cases that land exactly on 3, on 4, on 5, on 6)
-  - inputs that look valid but are invalid according to the definitions
+  - tricky inputs that are close to breaking a rule of the definitions but are
+    still valid
   - degenerate/unusual cases (all-equal, repeated separators, etc.)
 
 RULE 3 - Each input must be COMPLETE and self-contained.
@@ -31,11 +38,17 @@ the input format of the problem (including multiple lines if needed). If the
 format is not stated explicitly, infer it from the context. Do not put several
 unrelated cases in one input unless the input format expects it.
 Every value in every input MUST respect the constraints stated in the context.
+Write every value explicitly: never abbreviate with "...", ranges, or notes such
+as "(repeated N times)". If an input is too long to write out, make it smaller.
 
 RULE 4 - Write a correct Python reference solution.
 <reference_py> must contain a complete Python 3 program that reads from standard
-input and prints the output exactly as the problem defines. Implement the rules
-precisely (do not approximate). Read input with sys.stdin. Write only code, no
+input and prints the output exactly as the problem defines. Implement the
+algorithm of your "edge_cases_analysis" precisely (do not approximate). Use only
+the standard library. Read the whole input at once (for example,
+data = sys.stdin.read().split()), unless spaces inside a line matter. Avoid deep
+recursion; if you need it, call sys.setrecursionlimit. Print the answer in the
+same format as the Expected Output of the example. Write only code, no
 explanations outside the code.
 
 OUTPUT FORMAT - respond with EXACTLY these three blocks, in this order, using
@@ -68,7 +81,7 @@ Expected Output: (dataset example output)
 
 <task>
 1. Analyze the problem context for boundary conditions and logical edge cases.
-2. Write your findings in <edge_cases_analysis>.
-3. Generate a robust set of test inputs in <inputs> to detect subtle bugs.
+2. In <edge_cases_analysis>, plan the algorithm and check it by hand on the example.
+3. Generate between 10 and 20 different, fully written test inputs in <inputs>.
 4. Write the Python reference solution in <reference_py>.
 </task>

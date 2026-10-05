@@ -161,8 +161,8 @@ descartada.
 - [ ] T037 [US2] 📌 PROPAGAR — Piloto real (quickstart, Nível 4) com Ollama de verdade, incluindo ao menos um dos 7 problemas de 61 MiB (`--problem`). **Primeiro passo, obrigatório (Constitution, Princípio II)**: `docker compose run --rm app python -m cli check --deep` sai `0` — se não sair, parar e resolver antes de qualquer chamada ao modelo. Depois: `generate --limit 9`, `execute`, `generate --resume --limit 9`, `execute`. Registrar em `research.md` (R3, R6, R7) e na metodologia (seção 3 + linha na seção 8): maior `prompt_eval_count` real (a guarda de `num_ctx` disparou?), taxa de `unparseable_response` por código de erro, de `done_reason = "length"`, de `public_test_failed`, de cerca Markdown no código, tamanho das suítes, tempo por chamada no hardware registrado (máximo real frente ao padrão de `OLLAMA_HTTP_TIMEOUT_S = 900`; se chegar perto, rever o padrão), quantas esperas de infraestrutura ocorreram, e se alguma solução correta falhou por limite de memória/tempo (se sim: rever `PY_MEMORY_FACTOR`/`PY_TIME_FACTOR` com os autores antes de seguir). Carimbar `generate` e `execute` no README. **Não avançar para T055 sem esta tarefa propagada**
   *(2026-10-05: pilotos 1 e 2 feitos e registrados — R13, R14 e metodologia, seção 3 e seção 8.
   O piloto 2 deixou 7 das 15 combinações sem suíte; decidido manter o desenho e o orçamento de 6, e o
-  `execute` passou a gravar o diagnóstico do teste público reprovado. Falta para fechar: revisar o
-  prompt e rodar o piloto 3 (execução nova, mesmos 5 problemas) começando por `cli check --deep`,
+  `execute` passou a gravar o diagnóstico do teste público reprovado. Template revisto (R14, item 6).
+  Falta para fechar: rodar o piloto 3 (execução nova, mesmos 5 problemas) começando por `cli check --deep`,
   com `report` no fim; responder com o diagnóstico novo se algum RE foi falta de memória; carimbar
   `generate`/`execute` no README)*
 
