@@ -34,6 +34,7 @@ __all__ = [
     "DamagedCombination",
     "ExecutionRecord",
     "GenerationRecord",
+    "IncompatibleRunError",
     "State",
     "attempt_files",
     "awaiting_manual",
@@ -160,8 +161,23 @@ def write_run(root: Path, run: RunConfig) -> Path:
     return _write_once(run_path(root), run)
 
 
+class IncompatibleRunError(Exception):
+    """``run.json`` was written by an older version of the module (another attempt policy)."""
+
+
+INCOMPATIBLE_RUN = (
+    "data/suites/slm holds a run of an older version of python -m ai_clients (it cannot be "
+    "resumed nor read); move it away first: mv data/suites/slm data/suites/slm-<name>"
+)
+
+
 def read_run(root: Path) -> RunConfig:
-    return RunConfig.model_validate_json(run_path(root).read_text(encoding="utf-8"))
+    """``run.json``; ``IncompatibleRunError`` if it is not a run of this version (schema 2)."""
+    raw = run_path(root).read_bytes()
+    try:
+        return RunConfig.model_validate_json(raw)
+    except ValueError as exc:  # also invalid JSON: never read a run half-way
+        raise IncompatibleRunError(INCOMPATIBLE_RUN) from exc
 
 
 # ------------------------------------------------------------------------------ state machine
@@ -253,7 +269,7 @@ def _load(root: Path, problem_id: str, scenario: str, run: RunConfig | None) -> 
         if not 1 <= attempt <= config.MAX_ATTEMPTS:
             problems.append(f"inconsistent: {name}: there are only {config.MAX_ATTEMPTS} attempts")
             continue
-        if kind == "execution" and config.attempt_kind(attempt) == "prediction":
+        if kind == "execution" and attempt > config.SOLUTION_ATTEMPTS:
             problems.append(f"inconsistent: {name}: a prediction attempt is never executed")
             continue
         schema = GenerationRecord if kind == "generation" else ExecutionRecord
@@ -266,6 +282,19 @@ def _load(root: Path, problem_id: str, scenario: str, run: RunConfig | None) -> 
         if n not in generations:
             problems.append(f"missing: {config.generation_file_name(n)}")
     for n, record in sorted(generations.items()):
+        # The row of the attempt: run.json's when there is one, else the policy of the code.
+        spec = run.spec(n) if run is not None and n <= len(run.attempt_policy) else None
+        expected = (
+            (spec.phase, spec.seed, spec.temperature, spec.template.value)
+            if spec is not None
+            else tuple(config.attempt_spec(n))[1:]
+        )
+        recorded = (record.phase, record.seed, record.temperature, record.template.value)
+        if recorded != expected:
+            problems.append(
+                f"inconsistent: {config.generation_file_name(n)}: phase, seed, temperature and "
+                f"template {recorded}, but attempt {n} is {expected} in the attempt policy"
+            )
         if run is not None and record.model_digest != run.model_digest:
             problems.append(
                 f"inconsistent: {config.generation_file_name(n)}: model_digest "
@@ -277,13 +306,17 @@ def _load(root: Path, problem_id: str, scenario: str, run: RunConfig | None) -> 
                 problems.append(
                     f"inconsistent: {config.execution_file_name(n)}: attempt {n} was not parsed"
                 )
-        elif execution is not None and len(execution.inputs) != len(record.parse.inputs):
+        elif (
+            execution is not None
+            and (execution.inputs or execution.public_tests.failed_index is None)  # none after RE
+            and len(execution.inputs) != len(record.parse.inputs)
+        ):
             problems.append(
                 f"inconsistent: {config.execution_file_name(n)}: {len(execution.inputs)} "
                 f"inputs, the generation has {len(record.parse.inputs)}"
             )
         if n < last and record.parse.ok:  # a later attempt exists: this one must have failed
-            if config.attempt_kind(n) == "prediction" or (
+            if record.template.value == "prediction" or (
                 execution is not None and execution.outcome == "accepted"
             ):
                 problems.append(
@@ -307,51 +340,33 @@ def _load(root: Path, problem_id: str, scenario: str, run: RunConfig | None) -> 
 
 
 def _early_suite(generations: dict, executions: dict, last: int) -> list[str]:
-    """An attempt made although an earlier one could already be the suite (config.py)."""
-    name = config.generation_file_name(last)
-    solutions = range(1, min(last, config.SOLUTION_ATTEMPTS + 1))
-    if last > config.STRICT_ATTEMPTS:
-        for n in solutions:
-            if n < last and n in executions and _can_be_fallback(generations[n], executions[n]):
-                return [f"inconsistent: {name}: attempt {n} could already be the fallback suite"]
-    if last > config.SOLUTION_ATTEMPTS:
-        for n in solutions:
-            if n in executions and _can_be_low_confidence(generations[n], executions[n]):
-                return [
-                    f"inconsistent: {name}: attempt {n} could already be the low-confidence suite"
-                ]
+    """A prediction made although one of the 12 solutions could be the fallback (config.py)."""
+    if last <= config.SOLUTION_ATTEMPTS:
+        return []
+    for n in range(1, config.SOLUTION_ATTEMPTS + 1):
+        if n in executions and _can_be_fallback(generations[n], executions[n]):
+            name = config.generation_file_name(last)
+            return [f"inconsistent: {name}: attempt {n} could already be the fallback suite"]
     return []
-
-
-def _kept_some(execution: ExecutionRecord | None) -> bool:
-    return execution is not None and any(item.kept for item in execution.inputs)
 
 
 def _can_be_fallback(generation: GenerationRecord, execution: ExecutionRecord | None) -> bool:
     """A parsed attempt whose solution failed a public test by WA and kept some generated input."""
     return (
         generation.parse.ok
-        and _kept_some(execution)
+        and execution is not None
         and execution.public_tests.failed_verdict is Verdict.WA
-    )
-
-
-def _can_be_low_confidence(generation: GenerationRecord, execution: ExecutionRecord | None) -> bool:
-    """A parsed attempt whose solution failed a public test by RE, TLE or MLE and kept an input."""
-    return (
-        generation.parse.ok
-        and _kept_some(execution)
-        and execution.public_tests.failed_verdict not in (None, Verdict.WA)
+        and any(item.kept for item in execution.inputs)
     )
 
 
 def _fallback(files: AttemptFiles) -> int | None:
-    """The attempt a fallback suite comes from, once the strict attempts are over; else ``None``.
+    """The attempt a fallback suite comes from, once the 12 solutions failed; else ``None``.
 
     The one that passed the most public tests, then kept the most generated inputs, then the
-    earliest. After the strict attempts only the last one can be a candidate (``_load``).
+    earliest.
     """
-    if len(files.generations) < config.STRICT_ATTEMPTS:
+    if len(files.generations) != config.SOLUTION_ATTEMPTS:
         return None
     candidates = [
         (g.attempt, files.executions[g.attempt])
@@ -367,24 +382,14 @@ def _fallback(files: AttemptFiles) -> int | None:
     return best[0]
 
 
-def _low_confidence(files: AttemptFiles) -> int | None:
-    """The first attempt that can be a low-confidence suite, once the solutions are over."""
-    if len(files.generations) != config.SOLUTION_ATTEMPTS:
-        return None
-    for g in files.generations:
-        if _can_be_low_confidence(g, files.executions.get(g.attempt)):
-            return g.attempt
-    return None
-
-
 def _state_of_attempts(files: AttemptFiles) -> State:
     if not files.generations:
         return State("pending_generation", 1)
     last = files.generations[-1]
     n = last.attempt
-    if config.attempt_kind(n) == "prediction":
+    if last.template.value == "prediction":
         if last.parse.ok:
-            return State("finalizable", n)
+            return State("finalizable", n)  # accepted_predicted (phase 4)
         if n < config.MAX_ATTEMPTS:
             return State("pending_generation", n + 1)
         return State("finalizable" if files.manual_close else "awaiting_manual", n)
@@ -393,10 +398,10 @@ def _state_of_attempts(files: AttemptFiles) -> State:
         if execution is None:
             return State("pending_execution", n)
         if execution.outcome == "accepted":
-            return State("finalizable", n)
-    if _fallback(files) is not None or _low_confidence(files) is not None:
-        return State("finalizable", n)
-    return State("pending_generation", n + 1)  # after the 20th: the first prediction
+            return State("finalizable", n)  # accepted (phase 1 or 2)
+    if _fallback(files) is not None:
+        return State("finalizable", n)  # accepted_fallback (phase 3)
+    return State("pending_generation", n + 1)  # the next row; after the 12th, the prediction
 
 
 def combination_state(
@@ -433,21 +438,19 @@ def read_suite(root: Path, problem_id: str, scenario: str) -> SlmSuite | None:
 
 
 def _summary(generation: GenerationRecord, execution: ExecutionRecord | None) -> AttemptSummary:
-    kept = 0 if execution is None else sum(item.kept for item in execution.inputs)
     if generation.model_failure is not None:
         failure, detail = generation.model_failure.reason, generation.model_failure.detail
     elif not generation.parse.ok:
         failure, detail = "unparseable_response", generation.parse.error
-    elif config.attempt_kind(generation.attempt) == "prediction":
-        tests = generation.parse.tests
-        failure, detail = None, f"{len(tests)} tests predicted"
+    elif generation.template.value == "prediction":
+        failure, detail = None, f"{len(generation.parse.tests)} tests predicted"
     elif execution.outcome == "public_test_failed":
         tests = execution.public_tests
         failure = "public_test_failed"
-        detail = (
-            f"test {tests.failed_index}: {tests.failed_verdict.value}; "
-            f"{kept} kept, {len(execution.inputs) - kept} discarded"
-        )
+        detail = f"test {tests.failed_index}: {tests.failed_verdict.value}"
+        if execution.inputs:  # a WA: the generated inputs also ran
+            kept = sum(item.kept for item in execution.inputs)
+            detail += f"; {kept} kept, {len(execution.inputs) - kept} discarded"
     else:
         reasons = Counter(item.discard.value for item in execution.inputs if not item.kept)
         if execution.outcome == "all_inputs_failed":
@@ -455,16 +458,18 @@ def _summary(generation: GenerationRecord, execution: ExecutionRecord | None) ->
             detail = ", ".join(f"{count} {reason}" for reason, count in sorted(reasons.items()))
         else:
             failure = None
+            kept = sum(item.kept for item in execution.inputs)
             detail = f"{kept} kept, {len(execution.inputs) - kept} discarded"
     return AttemptSummary(
         attempt=generation.attempt,
+        phase=generation.phase,
         seed=generation.seed,
-        kind=config.attempt_kind(generation.attempt),
+        temperature=generation.temperature,
+        template=generation.template,
         hardware_label=generation.hardware_label,
         failure=failure,
         detail=detail,
         fallback_eligible=_can_be_fallback(generation, execution),
-        low_confidence_eligible=_can_be_low_confidence(generation, execution),
     )
 
 
@@ -473,15 +478,17 @@ def _build_suite(files: AttemptFiles, problem_id: str, scenario: str, run: RunCo
     generations = files.generations
     executions = [files.executions.get(g.attempt) for g in generations]
     attempts = [_summary(g, e) for g, e in zip(generations, executions, strict=True)]
-    last = generations[-1].attempt
+    last = generations[-1]
+    phase = None
     if attempts[-1].failure is None:
-        chosen = last
-        status = "accepted" if config.attempt_kind(last) == "solution" else "accepted_predicted"
+        chosen = last.attempt
+        if last.template.value == "solution":
+            status, phase = "accepted", last.phase
+        else:
+            status, phase = "accepted_predicted", last.phase
     elif (chosen := _fallback(files)) is not None:
-        status = "accepted_fallback"
-    elif (chosen := _low_confidence(files)) is not None:
-        status = "accepted_low_confidence"
-    else:  # the 23rd was not parsed and the authors closed it (manual_close.json)
+        status, phase = "accepted_fallback", config.FALLBACK_PHASE
+    else:  # the 15th was not parsed and the authors closed it (manual_close.json)
         status = "discarded_manual"
     tests, discarded, duplicates = [], [], 0
     if chosen is not None:
@@ -504,6 +511,7 @@ def _build_suite(files: AttemptFiles, problem_id: str, scenario: str, run: RunCo
         model=run.model,
         model_digest=run.model_digest,
         status=status,
+        accepted_phase=phase,
         attempts=attempts,
         accepted_attempt=chosen,
         tests=tests,

@@ -1322,6 +1322,47 @@ template confirmados por Milena no mesmo dia]**:
   da combinação. O relatório troca as taxas de descarte e de reserva por uma proporção por status.
   Custo não medido: as entradas passam a rodar depois de TLE num teste público, cada uma podendo
   levar até 10 vezes o limite de tempo do problema.
+- **Piloto 5, modelo do experimento e piloto 6 [MEDIDO E DECIDIDO, 2026-10-06 — `research.md`
+  R20]**: com o 14B, os templates novos e a regra de R18, as 15 combinações terminaram com
+  suíte (13 `accepted`; `1000_B` e `1008_B` caixa-preta como `accepted_fallback`, os mesmos 2
+  que o piloto 4 descartou), 13 de 49 tentativas aceitas (26,5%), 36 falhas todas em teste
+  público (29 WA, 7 RE), nenhuma resposta não interpretada, mediana de 48 s por chamada (máximo
+  179 s), ≈ 44 min de modelo. Nenhuma combinação chegou à baixa confiança, à predição ou ao
+  tratamento manual. Decidido: o modelo do experimento passa a ser o **14B** (seção 6, item 30;
+  seção 7, item 30); as suítes `accepted_fallback` entram nas métricas como as `accepted`, as
+  de baixa confiança e por predição ficam separadas (item 31); antes da execução completa, um
+  **piloto 6** escolhe a temperatura: 0,2 a 0,6 (passo 0,1) com seed base 42, mais o piloto 5
+  como 0,7; depois a melhor e a 0,7 com as seeds base 1042 e 2042; vence a configuração com mais
+  `accepted` entre as 15, depois maior acerto por tentativa, depois menor tempo. Para isso a
+  temperatura e a seed base podem vir do `.env` (`OLLAMA_TEMPERATURE`, `OLLAMA_SEED_BASE`),
+  gravadas no `run.json`. Custo do piloto 6 estimado, não medido: ≈ 7 h de modelo.
+  *(O piloto de temperaturas foi substituído no mesmo dia pela política de 5 fases, abaixo;
+  as duas variáveis do `.env` saem.)*
+- **Política de 5 fases [DECIDIDO E IMPLEMENTADO, 2026-10-06 — `research.md` R21 e R22;
+  testado só com modelo e execução simulados]**: substitui a ordem de tentativas anterior (8 estritas, extras até a 20ª e
+  `accepted_low_confidence`) e é a política do experimento, validada antes num piloto 6 com os
+  mesmos 5 problemas. **Fase 1**: tentativas 1 a 6, temperatura 0,7 e seeds 42 a 47; **fase
+  2**: tentativas 7 a 12, seed 48 e temperatura 0,7; 0,6; 0,5; 0,4; 0,3; 0,2 — as duas param
+  na primeira solução que passa em todos os testes públicos (`accepted`); **fase 3**: a reserva
+  `accepted_fallback` entre as 12, sem chamada nova; **fase 4**: predição nas tentativas 13 a
+  15, seeds 49 a 51, temperatura 0,7 (`accepted_predicted`); **fase 5**: tratamento manual
+  (`close`, `discarded_manual`). Nenhum par (seed, temperatura) se repete; a tabela fica numa
+  configuração única no código, gravada no `run.json`, e cada tentativa registra seed,
+  temperatura e fase. As entradas geradas voltam a rodar só quando a solução passa em tudo ou
+  o primeiro erro é WA. Saem `OLLAMA_TEMPERATURE` e `OLLAMA_SEED_BASE`. No máximo 15
+  chamadas por combinação (eram 23). O efeito da temperatura baixa na fase 2 não foi medido.
+- **Desenho técnico da política de 5 fases [IMPLEMENTADO, 2026-10-06 — `research.md` R22]**: **motivo, pelos pilotos 4 e 5** (14B): as falhas foram quase todas WA em
+  teste público, repetidas em várias seeds a 0,7 (`1000_B` e `1008_B` caixa-preta erraram 8 de 8
+  no piloto 5), e as tentativas extras e a baixa confiança nunca foram exercitadas com o modelo
+  real; a fase 2 testa outra alavanca (temperatura mais baixa com seed fixa) num orçamento menor.
+  A tabela tentativa → fase, seed, temperatura, template fica escrita por extenso no código
+  (`ATTEMPT_POLICY`), vai inteira para o `run.json` e o `--resume` recusa qualquer mudança nela;
+  cada tentativa grava fase, seed, temperatura e template, conferidos contra o `run.json`. Todos
+  os arquivos do módulo passam a `schema_version` 2: uma execução anterior (pilotos 1 a 5) é
+  recusada com a instrução de mover `data/suites/slm`, o que precisa ser feito antes do piloto 6.
+  Na resposta por predição, uma cerca Markdown que envolve um `<input>` ou `<output>` inteiro é
+  removida e contada, como a do código. O relatório passa a mostrar, por cenário, em que fase e
+  tentativa cada combinação ficou com a suíte e as chamadas, *tokens* e tempo de cada fase.
 
 **Template de prompt**: estrutura única em inglês, com marcação XML (`<system_rules>`,
 `<context_data>`, `<few_shot_example>`, `<task>`), combinando Few-Shot Prompting +
@@ -1485,22 +1526,18 @@ diretamente ao objetivo específico de mapear desempenho por categoria algorítm
 29. ~~**[PENDENTE]** Forma dos casos de teste consumida pela avaliação~~ — **RESOLVIDO** em
     2026-09-30 (Milena): contrato existente `TestCase` (`input`, `output`), a adotar também pelo
     módulo de avaliação e pelas suítes dos modelos comerciais (ver 3).
-30. **[PENDENTE]** Modelo e método do SLM depois dos pilotos (2026-10-05, `research.md` R15): com
-    o Qwen2.5-Coder-7B, ≈ 40% das combinações ficariam sem suíte, porque a solução Python erra os
-    exemplos. As opções são manter o 7B e reportar a taxa de descarte, trocar o modelo do
-    experimento para o `qwen2.5-coder:14b`, ou fazer o SLM prever as saídas como os dois modelos
-    comerciais. A decisão é de Milena e Rafael (talvez com a orientação), depois do piloto 4 (14B,
-    mesmos 5 problemas). Critério sugerido: se o 14B deixar mais de ≈ 20% sem suíte, discutir a
-    terceira opção. **Piloto 4 medido (2026-10-05, R16)**: o 14B deixou 2 de 15 sem suíte
-    (13%) com a regra de 6 tentativas; a partir dele vale a suíte de reserva (seção 3, piloto 4), e
-    a escolha do modelo continua pendente.
-31. **[DECIDIDO EM PARTE, 2026-10-06 — `research.md` R18]** Tratamento nas métricas das suítes
-    que não vêm de uma solução aprovada nos testes públicos (`accepted_fallback`, 2026-10-05,
-    R16; `accepted_low_confidence` e `accepted_predicted`, 2026-10-06, R18): as saídas esperadas
-    delas podem estar erradas, então parte dos testes pode reprovar o `AC_ref` (TFP) e matar
-    mutantes pela saída errada (MS, TDF). **Decidido**: relatório e métricas separados por status,
-    nunca misturados em silêncio. **Pendente** (módulo de métricas): se, além dos números por
-    status, haverá um número agregado e com quais status.
+30. **[DECIDIDO, 2026-10-06 — `research.md` R20]** Modelo do SLM: **`qwen2.5-coder:14b`**
+    (Q4_K_M), escolhido pelos autores depois dos pilotos 4 e 5 (com a regra de R18, as 15
+    combinações do piloto 5 terminaram com suíte: 13 `accepted`, 2 `accepted_fallback`). Antes:
+    Qwen2.5-Coder-7B, com ≈ 40% das combinações sem suíte projetado no piloto 3. Diverge do texto
+    do TCC (seção 7, item 30).
+31. **[DECIDIDO, 2026-10-06 — `research.md` R18 e R20]** Tratamento nas métricas das suítes
+    que não vêm de uma solução aprovada nos testes públicos: as **`accepted_fallback`** (solução
+    que errou um exemplo por WA) **entram como as `accepted`**; as `accepted_low_confidence`
+    (solução que quebrou num exemplo) e `accepted_predicted` (saídas escritas pelo modelo, sem
+    conferência) ficam **separadas por status**, nunca misturadas em silêncio. *(A baixa
+    confiança deixou de existir na política de 5 fases, R21.)* O relatório da geração
+    já conta cada status à parte.
 4. ~~**[PROPOSTA]** Extrair dos três splits combinados~~ — **RESOLVIDO** (ver 1.1).
 5. ~~**[PROPOSTA]** Adicionar `is_description_translated == false` como critério de
    elegibilidade~~ — **RESOLVIDO** (ver 1.2).
@@ -1571,6 +1608,7 @@ e `specs/003-slm-test-generation/spec.md`, decisões de 2026-09-29 (itens 26–2
 | 27 | Exemplo do `<few_shot_example>` é o primeiro teste público do próprio problema sendo perguntado (não um exemplo fixo entre chamadas); mesma regra a adotar pelos módulos futuros de GPT-5.4-mini e Gemini 3.5 Flash | 3 |
 | 28 | Suítes SLM seguem a mesma exceção de versionamento dos mutantes (Constitution, Princípio II, emenda 1.6.0): pacote + manifesto SHA-256 ao final da execução completa, sem exigir nova emenda; falha de infraestrutura na chamada ao Ollama não consome uma das 6 tentativas por problema × cenário (só as 3 razões de conteúdo consomem) | 3 |
 | 29 | Parametrização técnica do SLM fixada no plano (2026-09-30): `/api/chat` com uma única mensagem; `num_ctx 8192` / `num_predict 4096` a partir do maior prompt medido (7.870 caracteres no plano; 8.118 com o prompt real, dry-run de 2026-09-30); seeds 43 a 48; Python com tempo × 10 e memória × 4 do limite do problema, só biblioteca padrão; amostragem `temperature 0.7` / `top_p 0.8` / `top_k 20` / `repeat_penalty 1.05` (não `temperature 0`, que anularia as retentativas); casos no contrato `TestCase`; template ajustado para respeitar restrições e não pedir entradas do tamanho máximo | 3 |
+| 30 | Modelo local **`qwen2.5-coder:14b`** em vez do Qwen2.5-Coder-7B citado no TCC (2026-10-06, `research.md` R20): com o 7B a solução Python errava os exemplos em ≈ 86% das tentativas (piloto 3); com o 14B e a regra de R18 as 15 combinações do piloto 5 terminaram com suíte | 3, 6 |
 | 30 | Revisão depois do piloto 1 do SLM (2026-10-04): cerca Markdown que envolve todo o código Python é removida e registrada (as outras ficam); `<input>` vazio descartado sozinho (só "todas vazias" invalida a resposta); `token repeat limit reached` do Ollama é falha do modelo (razão `repetition`, próxima seed), não de infraestrutura; RULE 2 pede valores até o máximo das restrições com no máximo ~100 elementos por entrada; `num_predict` 4096 → 5120; relatório conta por cenário respostas cortadas, cercas removidas e entradas vazias | 3 |
 
 ---
@@ -1584,6 +1622,10 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-10-06 | **Política de 5 fases implementada (`research.md` R22)**: tabela `ATTEMPT_POLICY` por extenso no código (seeds 42–47 a 0,7; seed 48 de 0,7 a 0,2; predição 49–51 a 0,7), gravada no `run.json` e conferida em cada tentativa; `schema_version` 2 e recusa das execuções anteriores com código 2; reserva só depois da 12ª; entradas só depois de WA; cerca removida em `<input>`/`<output>` da predição; relatório com `acceptance` e `per_phase`; saem `OLLAMA_TEMPERATURE`, `OLLAMA_SEED_BASE` e `accepted_low_confidence`. Testado com modelo e execução simulados; nenhum número medido com o modelo real | 3 |
+| 2026-10-06 | **Desenho técnico da política de 5 fases (`research.md` R22, ainda não implementado)**: motivo, pelos pilotos 4 e 5: as falhas foram quase todas WA repetidas em várias seeds a 0,7, e as tentativas extras e a baixa confiança nunca foram exercitadas; tabela `ATTEMPT_POLICY` por extenso no código e no `run.json`, conferida em cada tentativa; `schema_version` 2 e recusa das execuções anteriores (mover `data/suites/slm` antes do piloto 6); cerca removida em `<input>`/`<output>` da predição; relatório com a fase e a tentativa de aceitação por cenário e chamadas, *tokens* e tempo por fase | 3 |
+| 2026-10-06 | **Política de 5 fases do SLM (`research.md` R21, ainda não implementada)**: fase 1, tentativas 1–6 com seeds 42–47 e temperatura 0,7; fase 2, tentativas 7–12 com seed 48 e temperatura de 0,7 a 0,2; fase 3, reserva entre as 12; fase 4, predição nas tentativas 13–15 (seeds 49–51, 0,7); fase 5, tratamento manual. Substitui as tentativas extras, a baixa confiança e o piloto de temperaturas; saem `OLLAMA_TEMPERATURE`/`OLLAMA_SEED_BASE`; entradas rodam só depois de WA; é a política do experimento, validada no piloto 6 | 3, 6 |
+| 2026-10-06 | **Piloto 5 do SLM, modelo 14B e desenho do piloto 6 (`research.md` R20)**: com o 14B e a regra nova, 15 de 15 combinações com suíte (13 `accepted`, 2 `accepted_fallback`), 13/49 tentativas aceitas, 36 falhas todas em teste público (29 WA, 7 RE), mediana de 48 s por chamada, ≈ 44 min; baixa confiança, predição e tratamento manual não foram exercitados. Decidido: modelo do experimento `qwen2.5-coder:14b` (itens 30 da seção 6 e da seção 7); `accepted_fallback` entra nas métricas como `accepted`, baixa confiança e predição separadas (item 31); piloto 6 de temperatura (0,2 a 0,7) e seeds antes da execução completa, com `OLLAMA_TEMPERATURE` e `OLLAMA_SEED_BASE` opcionais no `.env` | 3, 6, 7 |
 | 2026-10-06 | **Regra "nenhuma combinação sem suíte" implementada (`research.md` R19)**: tentativas 1 a 23 (21 a 23 por predição, com `slm_predict_prompt.txt`, 2.333 caracteres), entradas rodando depois de qualquer reprovação em teste público, status `accepted_low_confidence`, `accepted_predicted` e `discarded_manual` (sai `discarded`), código de saída 4 e comando `close`, relatório por status, `cli check` até 23 tentativas. Testado com modelo e execução simulados (1.401 testes do projeto passando); nenhum número medido com o modelo real | 3 |
 | 2026-10-06 | **Plano técnico da regra "nenhuma combinação sem suíte" (`research.md` R19, ainda não implementado)**: tentativas 1 a 23 num único contador (21 a 23 por predição, seeds 63 a 65); `<test>` com entrada ou saída vazia descartado sozinho; segundo template no `run.json`; código de saída 4 para combinação aguardando tratamento manual; comando `close` com motivo e data gravados; relatório com proporção por status. Custo da execução das entradas depois de TLE não medido | 3 |
 | 2026-10-06 | **Nenhuma combinação do SLM sem suíte (`research.md` R18, ainda não implementado)**: tentativas 1 a 8 (`accepted`), reserva `accepted_fallback`, tentativas 9 a 20, depois `accepted_low_confidence` (primeira das 20 que manteve uma entrada, mesmo com RE/TLE/MLE num teste público), depois até 3 tentativas por predição com um segundo template (`accepted_predicted`, entradas e saídas escritas pelo modelo, sem validação); sem resposta interpretável, a combinação aguarda tratamento manual e só fecha como `discarded_manual` com motivo, por comando dos autores. Relatório e métricas separados por status; item 31 decidido em parte | 3, 6 |

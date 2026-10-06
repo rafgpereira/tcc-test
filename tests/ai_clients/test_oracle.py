@@ -92,19 +92,15 @@ def test_the_record_keeps_the_effective_and_the_problem_limits(judged):
         (run_result(status=RunStatus.NONZERO_EXIT, exit_code=1), Verdict.RE),
     ],
 )
-def test_a_failing_public_test_other_than_wa_still_runs_every_generated_input(
-    judged, answer, verdict
-):
-    """The attempt fails, but can still become a low-confidence suite (config.py)."""
+def test_a_failing_public_test_other_than_wa_stops_everything(judged, answer, verdict):
+    """RE, TLE or MLE: the attempt can be neither accepted nor the fallback; no input runs."""
     fake = runner({(ECHO_PY, b"2\n"): answer})
-    generation = attempt()
-    record = oracle.evaluate_attempt(generation, judged, runner=fake)
+    record = oracle.evaluate_attempt(attempt(), judged, runner=fake)
     assert record.outcome == "public_test_failed"
     assert (record.public_tests.failed_index, record.public_tests.failed_verdict) == (1, verdict)
     assert record.public_tests.passed == 1
-    assert len(record.inputs) == len(generation.parse.inputs)
-    assert [stdin for _, stdin, _, _ in fake.calls][:2] == [b"1\n", b"2\n"]  # then the inputs
-    assert len(fake.calls) == 2 + len(generation.parse.inputs)
+    assert record.inputs == []
+    assert [stdin for _, stdin, _, _ in fake.calls] == [b"1\n", b"2\n"]  # no input ran
 
 
 def test_a_wa_on_a_public_test_still_runs_every_generated_input(judged):

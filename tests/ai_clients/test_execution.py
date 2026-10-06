@@ -58,7 +58,7 @@ def test_an_accepted_attempt_records_the_execution_and_the_suite(repo, run):
     assert suite.suite_size == 3 and suite.discarded_inputs == []
     assert (suite.model, suite.model_digest) == (run.model, run.model_digest)
     assert [(a.attempt, a.seed, a.hardware_label, a.failure) for a in suite.attempts] == [
-        (1, 43, "RTX 3060 12GB", None)
+        (1, 42, "RTX 3060 12GB", None)
     ]
     assert lines == ["1_A black_box attempt 1: accepted (3 kept, 0 discarded)"]
     assert (result.executed, result.accepted, result.failed) == (1, 1, 0)
@@ -80,7 +80,7 @@ def test_the_suite_lists_the_discarded_inputs_of_the_accepted_attempt(repo, run)
     assert lines == ["1_A black_box attempt 1: accepted (1 kept, 1 discarded)"]
 
 
-def test_a_failure_before_the_8th_attempt_asks_for_a_new_generation(repo, run):
+def test_a_failed_attempt_asks_for_a_new_generation(repo, run):
     record_generation(repo, code=WRONG_PY)
     result, lines = execute(repo, run, [("1_A", "black_box")], wrong_runner())
     assert names(repo) == ["attempt_1.execution.json", "attempt_1.generation.json"]
@@ -117,51 +117,26 @@ def crash_runner():
     )
 
 
-LOW_PY = "import sys\nsys.stdout.write(sys.stdin.read())\n# crashes on the examples\n"
+def test_after_re_on_a_public_test_no_input_runs(repo, run):
+    record_generation(repo, code=WRONG_PY, inputs=["5\n", "6\n"])
+    runner = crash_runner()
+    _, lines = execute(repo, run, [("1_A", "black_box")], runner)
+    assert [stdin for _, stdin, _, _ in runner.calls] == [b"1\n"]  # the first public test only
+    assert store.read_execution(repo, "1_A", "black_box", 1).inputs == []
+    assert lines == ["1_A black_box attempt 1: public_test_failed (test 0: RE)"]
 
 
-def low_confidence_runner():
-    """Like ``crash_runner``; ``LOW_PY`` crashes on the public tests but echoes the inputs."""
-    public = {b"1\n", b"2\n"}  # the public tests of the echo problems
-    crash = run_result(status=RunStatus.NONZERO_EXIT, exit_code=1)
-    return FakePythonRunner(
-        default=lambda code, stdin: (
-            crash if code == WRONG_PY or (code == LOW_PY and stdin in public) else run_result(stdin)
-        )
-    )
-
-
-def twenty_failures(repo, run, eligible=()):
-    """Attempts 1..20: odd ones unparseable, even ones crash on a public test and on every
-    input (never a fallback nor low confidence), except the ``eligible`` ones (``LOW_PY``)."""
-    result = None
-    for n in range(1, 21):
-        code = LOW_PY if n in eligible else WRONG_PY
-        parsed = n % 2 == 0 or n in eligible
-        record_generation(repo, attempt=n, parsed=parsed, code=code, inputs=["5\n"])
+def test_twelve_failures_without_a_fallback_go_straight_to_the_prediction(repo, run):
+    """Phases 1 and 2 over, no WA among them: phase 3 has nothing, so phase 4 (attempt 13)."""
+    for n in range(1, config.SOLUTION_ATTEMPTS + 1):
+        parsed = n % 2 == 0  # odd ones unparseable, even ones crash on a public test (RE)
+        record_generation(repo, attempt=n, parsed=parsed, code=WRONG_PY)
         if parsed:
-            result, _ = execute(repo, run, [("1_A", "black_box")], low_confidence_runner())
-    return result
-
-
-def test_twenty_failures_without_an_eligible_one_go_to_the_prediction(repo, run):
-    result = twenty_failures(repo, run)
+            result, _ = execute(repo, run, [("1_A", "black_box")], crash_runner())
     assert store.read_suite(repo, "1_A", "black_box") is None
     state = store.combination_state(repo, "1_A", "black_box", run)
-    assert (state.kind, state.attempt) == ("pending_generation", 21)
+    assert (state.kind, state.attempt) == ("pending_generation", 13)
     assert (result.failed, result.need_generation, sum(result.suites.values())) == (1, 1, 0)
-
-
-def test_the_20th_failure_gives_the_first_low_confidence_suite(repo, run):
-    result = twenty_failures(repo, run, eligible=(3, 7))
-    suite = store.read_suite(repo, "1_A", "black_box")
-    assert suite.status == "accepted_low_confidence" and suite.accepted_attempt == 3
-    assert [t.model_dump() for t in suite.tests] == [{"input": "5\n", "output": "5\n"}]
-    assert [a.attempt for a in suite.attempts if a.low_confidence_eligible] == [3, 7]
-    assert suite.attempts[2].detail == "test 0: RE; 1 kept, 0 discarded"
-    assert [(a.attempt, a.seed) for a in suite.attempts] == [(n, 42 + n) for n in range(1, 21)]
-    assert not any(a.fallback_eligible for a in suite.attempts)
-    assert (result.suites["accepted_low_confidence"], result.need_generation) == (1, 0)
 
 
 def test_a_finalizable_combination_only_gets_its_suite(repo, run, monkeypatch):
@@ -262,24 +237,26 @@ def fail_attempts(repo, run, numbers, *, runner, code=WRONG_PY, inputs=("1\n", "
         execute(repo, run, [("1_A", "black_box")], runner)
 
 
-def test_eight_failures_with_a_wa_accept_the_best_attempt_as_a_fallback(repo, run):
-    # attempts 1-8 all fail; 3 and 6 pass the first public test (test 1: WA), the others fail
+def test_twelve_failures_with_a_wa_accept_the_best_attempt_as_a_fallback(repo, run):
+    # attempts 1-12 all fail; 3 and 6 pass the first public test (test 1: WA), the others fail
     # test 0; 6 kept more inputs than 3, so 6 is the fallback; 7 is unparseable
     best = {3: wrong(30), 6: wrong(60)}
     runner = fallback_runner(passes_first=set(best.values()))
-    for n in range(1, 8):
+    for n in range(1, config.SOLUTION_ATTEMPTS):
         if n == 7:
             record_generation(repo, attempt=n, parsed=False)
             continue
         inputs = ("4\n", "5\n", "6\n") if n == 6 else ("4\n", "5\n")
         record_generation(repo, attempt=n, code=best.get(n, wrong(100 + n)), inputs=inputs)
         execute(repo, run, [("1_A", "black_box")], runner)
-    record_generation(repo, attempt=8, code=wrong(108), inputs=("4\n",))
+    record_generation(repo, attempt=12, code=wrong(112), inputs=("4\n",))
     result, lines = execute(repo, run, [("1_A", "black_box")], runner)
     suite = store.read_suite(repo, "1_A", "black_box")
     assert suite.status == "accepted_fallback" and suite.accepted_attempt == 6
-    assert len(suite.attempts) == 8 and all(a.failure is not None for a in suite.attempts)
-    assert [a.attempt for a in suite.attempts if a.fallback_eligible] == [1, 2, 3, 4, 5, 6, 8]
+    assert suite.accepted_phase == 3
+    assert len(suite.attempts) == 12 and all(a.failure is not None for a in suite.attempts)
+    eligible = [a.attempt for a in suite.attempts if a.fallback_eligible]
+    assert eligible == [n for n in range(1, 13) if n != 7]
     assert suite.attempts[5].detail == "test 1: WA; 3 kept, 0 discarded"
     # the expected outputs are what the wrong solution printed
     assert [t.model_dump() for t in suite.tests] == [
@@ -290,14 +267,17 @@ def test_eight_failures_with_a_wa_accept_the_best_attempt_as_a_fallback(repo, ru
 
 
 def test_between_equal_fallbacks_the_earliest_wins(repo, run):
-    fail_attempts(repo, run, range(1, 9), runner=wrong_runner())
+    fail_attempts(repo, run, range(1, 13), runner=wrong_runner())
     suite = store.read_suite(repo, "1_A", "black_box")
     assert suite.status == "accepted_fallback" and suite.accepted_attempt == 1
 
 
-def test_a_wa_before_the_8th_attempt_still_asks_for_a_new_generation(repo, run):
-    fail_attempts(repo, run, range(1, 8), runner=wrong_runner())
-    assert store.combination_state(repo, "1_A", "black_box") == store.State("pending_generation", 8)
+@pytest.mark.parametrize("failed", [6, 9, 11])
+def test_a_wa_before_the_12th_attempt_still_asks_for_a_new_generation(repo, run, failed):
+    """The fallback is only chosen once phases 1 and 2 are over (after the 6th: phase 2)."""
+    fail_attempts(repo, run, range(1, failed + 1), runner=wrong_runner())
+    state = store.combination_state(repo, "1_A", "black_box")
+    assert state == store.State("pending_generation", failed + 1)
     assert store.read_suite(repo, "1_A", "black_box") is None
 
 
@@ -313,26 +293,24 @@ def test_a_wa_whose_inputs_all_failed_is_not_a_fallback(repo, run):
             )
         )
     )
-    fail_attempts(repo, run, range(1, 9), runner=runner, inputs=("5\n",))
-    suite = store.read_suite(repo, "1_A", "black_box")
-    assert suite is None
-    assert store.combination_state(repo, "1_A", "black_box") == store.State("pending_generation", 9)
+    fail_attempts(repo, run, range(1, 13), runner=runner, inputs=("5\n",))
+    assert store.read_suite(repo, "1_A", "black_box") is None
+    state = store.combination_state(repo, "1_A", "black_box")
+    assert state == store.State("pending_generation", 13)
 
 
-def test_without_a_fallback_in_8_the_first_possible_one_after_ends_the_attempts(repo, run):
-    fail_attempts(repo, run, range(1, 10), runner=crash_runner())  # RE: never a fallback
-    assert store.combination_state(repo, "1_A", "black_box") == store.State(
-        "pending_generation", 10
-    )
-    fail_attempts(repo, run, [10], runner=wrong_runner())  # a WA with kept inputs
-    suite = store.read_suite(repo, "1_A", "black_box")
-    assert suite.status == "accepted_fallback" and suite.accepted_attempt == 10
-    assert len(suite.attempts) == 10
-
-
-def test_a_full_pass_after_the_8th_is_an_ordinary_accepted_suite(repo, run):
+def test_a_full_pass_in_phase_2_is_an_ordinary_accepted_suite(repo, run):
     fail_attempts(repo, run, range(1, 9), runner=crash_runner())
     record_generation(repo, attempt=9)
     execute(repo, run, [("1_A", "black_box")])
     suite = store.read_suite(repo, "1_A", "black_box")
     assert suite.status == "accepted" and suite.accepted_attempt == 9
+    assert suite.accepted_phase == 2 and suite.attempts[-1].temperature == 0.5
+
+
+def test_a_full_pass_in_phase_1_stops_there(repo, run):
+    fail_attempts(repo, run, range(1, 3), runner=crash_runner())
+    record_generation(repo, attempt=3)
+    execute(repo, run, [("1_A", "black_box")])
+    suite = store.read_suite(repo, "1_A", "black_box")
+    assert (suite.status, suite.accepted_attempt, suite.accepted_phase) == ("accepted", 3, 1)

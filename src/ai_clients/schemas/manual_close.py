@@ -6,12 +6,12 @@ ends without a suite (``discarded_manual``); ``suite.json`` copies ``reason`` an
 
 from pydantic import Field, field_validator
 
-from ai_clients.schemas.common import Scenario
-from dataset.schemas.common import PROBLEM_ID_PATTERN, Schema, SchemaVersion
+from ai_clients.schemas.common import Scenario, SchemaVersion
+from dataset.schemas.common import PROBLEM_ID_PATTERN, Schema
 
 
 class ManualClose(Schema):
-    schema_version: SchemaVersion = 1
+    schema_version: SchemaVersion = 2
     problem_id: str = Field(pattern=PROBLEM_ID_PATTERN)
     scenario: Scenario
     reason: str

@@ -13,13 +13,18 @@ from ai_clients.problem import list_problem_ids
 from ai_clients.schemas.common import AttemptFailure, InputDiscard
 from ai_clients.schemas.generation import PredictionParse
 from ai_clients.schemas.report import (
+    ATTEMPT_NUMBERS,
+    CALL_PHASES,
     GROUPS,
     STATES,
     STATUSES,
+    SUITE_PHASES,
     TOTAL,
     WITH_TESTS,
+    Acceptance,
     AttemptCounts,
     CombinationCounts,
+    PhaseCounts,
     SizeStats,
     SlmGenerationReport,
     TokenCounts,
@@ -70,6 +75,9 @@ def build_report(root: Path) -> SlmGenerationReport:
     seeds: dict[str, list[int]] = {}
     damaged: list[store.DamagedCombination] = []
     length, fences, empty, empty_tests = Counter(), Counter(), Counter(), Counter()
+    by_phase = {group: Counter() for group in GROUPS}
+    by_attempt = {group: Counter() for group in GROUPS}
+    phases = {phase: Counter() for phase in CALL_PHASES}
     calls = failed = duplicates = prompt_total = eval_total = prompt_max = 0
     duration_ns = 0
     for problem_id in list_problem_ids(root):
@@ -86,6 +94,8 @@ def build_report(root: Path) -> SlmGenerationReport:
             if kind in WITH_TESTS:
                 for group in (TOTAL, scenario):
                     sizes[kind][group].append(suite.suite_size)
+                    by_phase[group][str(suite.accepted_phase)] += 1
+                    by_attempt[group][str(suite.accepted_attempt)] += 1
                 duplicates += suite.duplicate_inputs
             for group in (TOTAL, scenario):
                 counts[group][kind] += 1
@@ -94,16 +104,22 @@ def build_report(root: Path) -> SlmGenerationReport:
                 hardware[generation.hardware_label] += 1
                 seeds.setdefault(f"{problem_id}/{scenario}", []).append(generation.seed)
                 meta = generation.ollama
+                phase = phases[str(generation.phase)]
+                phase["calls"] += 1
                 if meta is not None:  # None: the model failed the call, nothing was answered
                     prompt_total += meta.prompt_eval_count
                     eval_total += meta.eval_count
                     prompt_max = max(prompt_max, meta.prompt_eval_count)
                     duration_ns += meta.total_duration_ns
+                    phase["prompt_tokens"] += meta.prompt_eval_count
+                    phase["eval_tokens"] += meta.eval_count
+                    phase["duration_ns"] += meta.total_duration_ns
                 parse = generation.parse
                 for group in (TOTAL, scenario):
                     length[group] += meta is not None and meta.done_reason == "length"
                     if isinstance(parse, PredictionParse):
                         empty_tests[group] += parse.empty_tests
+                        fences[group] += parse.markdown_fences_removed
                     elif parse.ok:
                         fences[group] += parse.markdown_fence_removed
                         empty[group] += parse.empty_inputs
@@ -120,6 +136,7 @@ def build_report(root: Path) -> SlmGenerationReport:
                     discards.update(item.discard for item in execution.inputs if not item.kept)
                 if reason is not None:
                     failed += 1
+                    phase["failed"] += 1
                     failures[reason][str(generation.attempt)] += 1
     if damaged:
         raise DamagedTreeError(damaged)
@@ -130,13 +147,12 @@ def build_report(root: Path) -> SlmGenerationReport:
         )
         for group in GROUPS
     }
-    numbers = [str(n) for n in range(1, config.MAX_ATTEMPTS + 1)]
     return SlmGenerationReport(
         model=run.model,
         model_digest=run.model_digest,
         ollama_version=run.ollama_version,
         options=run.options,
-        seed_base=run.seed_base,
+        attempt_policy=run.attempt_policy,
         prompt_template_sha256=run.prompt_template_sha256,
         predict_template_sha256=run.predict_template_sha256,
         dataset_manifest_sha256=run.dataset_manifest_sha256,
@@ -148,13 +164,30 @@ def build_report(root: Path) -> SlmGenerationReport:
             }
             for status in STATUSES
         },
+        acceptance={
+            group: Acceptance(
+                by_phase={p: by_phase[group][p] for p in SUITE_PHASES},
+                by_attempt={n: by_attempt[group][n] for n in ATTEMPT_NUMBERS},
+            )
+            for group in GROUPS
+        },
         suite_size={
             status: {group: size_stats(sizes[status][group]) for group in GROUPS}
             for status in WITH_TESTS
         },
         attempts=AttemptCounts(total=calls, failed=failed),
+        per_phase={
+            p: PhaseCounts(
+                calls=phases[p]["calls"],
+                failed=phases[p]["failed"],
+                prompt_tokens=phases[p]["prompt_tokens"],
+                eval_tokens=phases[p]["eval_tokens"],
+                duration_s=phases[p]["duration_ns"] / 1e9,
+            )
+            for p in CALL_PHASES
+        },
         attempt_failures={
-            reason: {n: failures[reason][n] for n in numbers} for reason in AttemptFailure
+            reason: {n: failures[reason][n] for n in ATTEMPT_NUMBERS} for reason in AttemptFailure
         },
         input_discards={reason: discards[reason] for reason in InputDiscard},
         duplicate_inputs=duplicates,

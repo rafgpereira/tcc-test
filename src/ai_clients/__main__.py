@@ -180,7 +180,8 @@ def finish(damaged: list[store.DamagedCombination], awaiting: list[tuple[str, st
     code = report_damage(damaged)
     for problem_id, scenario in awaiting:
         print(
-            f"manual: {problem_id} {scenario}: {config.PREDICT_ATTEMPTS} prediction attempts "
+            f"manual: {problem_id} {scenario}: {config.MAX_ATTEMPTS - config.SOLUTION_ATTEMPTS} "
+            "prediction attempts "
             f"unparseable; close it with: {close_command(problem_id, scenario)}",
             file=sys.stderr,
         )
@@ -257,11 +258,12 @@ def _dry_run_generate(root: Path, combinations, templates: dict, limit: int | No
             break
         if problem_id not in problems:
             problems[problem_id] = problem.load_problem(root, problem_id)
-        template = templates[config.attempt_kind(state.attempt)]
+        spec = config.attempt_spec(state.attempt) if run is None else run.spec(state.attempt)
+        template = templates[getattr(spec.template, "value", spec.template)]
         size = len(prompt.build_prompt(template, problems[problem_id], scenario))
         print(
             f"{problem_id} {scenario} attempt {state.attempt} seed "
-            f"{config.seed_for(state.attempt)}: prompt {size} chars"
+            f"{spec.seed} temperature {spec.temperature}: prompt {size} chars"
         )
         planned += 1
         if size > largest.get(scenario, (0, ""))[0]:
@@ -346,8 +348,7 @@ def _run_generate(args: argparse.Namespace) -> int:
     print(
         f"done: {result.calls} calls, {result.parsed} parsed, {result.unparseable} unparseable, "
         f"{result.repetition} repetition; suites: {suites['accepted_fallback']} "
-        f"accepted_fallback, {suites['accepted_low_confidence']} accepted_low_confidence, "
-        f"{suites['accepted_predicted']} accepted_predicted; "
+        f"accepted_fallback, {suites['accepted_predicted']} accepted_predicted; "
         f"{result.pending_execution} pending execution, {len(result.awaiting_manual)} awaiting "
         "manual handling"
     )
@@ -431,8 +432,7 @@ def _run_execute(args: argparse.Namespace) -> int:
     print(
         f"done: {result.executed} executed, {result.accepted} accepted, {result.failed} failed "
         f"({result.need_generation} need a new generation); suites: "
-        f"{suites['accepted_fallback']} accepted_fallback, "
-        f"{suites['accepted_low_confidence']} accepted_low_confidence; "
+        f"{suites['accepted_fallback']} accepted_fallback; "
         f"{len(result.awaiting_manual)} awaiting manual handling"
     )
     if result.pending_generation:
@@ -652,6 +652,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("interrupted; it is safe to run the command again", file=sys.stderr)
         return EXIT_INTERRUPTED
     except UsageError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    except store.IncompatibleRunError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_USAGE
     except store.AlreadyRunningError as exc:

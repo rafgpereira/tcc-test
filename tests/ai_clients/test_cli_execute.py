@@ -38,7 +38,7 @@ def test_it_executes_what_is_pending_and_prints_the_summary(fake, repo, capsys):
     ]
     assert out[2] == (
         "done: 2 executed, 2 accepted, 0 failed (0 need a new generation); suites: "
-        "0 accepted_fallback, 0 accepted_low_confidence; 0 awaiting manual handling"
+        "0 accepted_fallback; 0 awaiting manual handling"
     )
     # 4 combinations were never generated
     assert out[3] == "next: docker compose run --rm app python -m ai_clients generate --resume"

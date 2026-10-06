@@ -33,18 +33,18 @@ docker compose run --rm sandbox pytest tests/ai_clients
 
 Esperado: tudo passa, cobrindo (Princípio VI): parser (tabela de casos do contrato); montagem do
 prompt (3 cenários só diferem em `<context_data>`, few-shot = primeiro teste público); cliente sem
-estado (uma mensagem por requisição, sem `context`); seeds 43–65; falha de interpretação encadeando
-a próxima tentativa no mesmo `generate`; falha de infraestrutura repetindo a mesma seed sem consumir
-tentativa (relógio falso); guarda de `num_ctx`; descarte de entrada isolada vs. tentativa inteira;
-nunca suíte de tamanho zero; entradas rodando depois de RE, TLE e MLE num teste público; 8 falhas
-com um WA → `accepted_fallback` da melhor tentativa; tentativas 9 a 20 parando na primeira reserva;
-20 falhas com uma solução que manteve entradas → `accepted_low_confidence` da primeira; 20 falhas
-sem nenhuma → predição com o segundo template (seed 63) → `accepted_predicted`; 3 predições não
-interpretáveis → `awaiting_manual`, linhas `manual:` e código 4, inclusive com outras combinações
-concluídas no mesmo comando; `close` → `discarded_manual` (e código 2 fora desse estado); `package`
-recusando enquanto houver combinação aguardando; parser da predição (tabela do contrato);
-`--resume` recusando configuração alterada (inclusive o template de predição);
-retomada depois de interrupção simulada em cada ponto de escrita (mesmos bytes finais que a execução
+estado (uma mensagem por requisição, sem `context`); a tabela de tentativas exata (seeds 42 a 47 a
+0,7; seed 48 de 0,7 a 0,2; predição 49 a 51 a 0,7), sem par (seed, temperatura) repetido, enviada
+em cada pedido; falha de interpretação encadeando a próxima tentativa no mesmo `generate`; falha de
+infraestrutura repetindo a mesma seed sem consumir tentativa (relógio falso); guarda de `num_ctx`;
+descarte de entrada isolada vs. tentativa inteira; nunca suíte de tamanho zero; entradas rodando só
+depois de WA; parada na primeira `accepted` na fase 1 e na fase 2; 12 falhas com um WA →
+`accepted_fallback` da melhor (fase 3); 12 falhas sem reserva → predição direto (tentativa 13) →
+`accepted_predicted`; 3 predições não interpretáveis → `awaiting_manual`, linhas `manual:` e código
+4; `close` → `discarded_manual`; `package` recusando enquanto houver combinação aguardando; parser
+da predição (com a cerca em `<input>`/`<output>`); `run.json` de versão anterior recusado com
+código 2; `--resume` recusando configuração alterada (inclusive o template de predição);
+retomada depois de interrupção simulada em cada ponto de escrita e no meio de cada fase (mesmos bytes finais que a execução
 ininterrupta, SC-004); `--dry-run` não grava nada; `--limit`; relatório somando certo; pacote
 determinístico e `verify` (byte alterado, arquivo removido, arquivo extra); camada `slm_suites` do
 `cli check`.
@@ -63,7 +63,7 @@ docker compose run --rm app black --check .
 docker compose run --rm app python -m ai_clients generate --dry-run
 ```
 
-Esperado: 600 chamadas previstas (tentativa 1, seeds 43), maior prompt por cenário igual à medição de
+Esperado: 600 chamadas previstas (tentativa 1, seed 42), maior prompt por cenário igual à medição de
 research R3 com o prompt real (8.118 caracteres no híbrido, `61_B`, medido em 2026-09-30); nada gravado em `data/suites/`.
 
 ## Nível 4 — Piloto real pequeno (Ollama de verdade)

@@ -29,15 +29,19 @@ PREDICTED = completion(predicted_response([("7\n", "7\n")]))
 
 def table():
     """Every combination: accepted at attempt 1, except 1_A black_box (unparseable, then a wrong
-    solution, then accepted at attempt 3) and 2_B hybrid (20 unparseable answers, an unparseable
-    prediction, then a parsed one at attempt 22: accepted_predicted)."""
-    answers = {(pid, s, 43): GOOD for pid, s in COMBOS}
-    answers[("1_A", "black_box", 43)] = BAD
-    answers[("1_A", "black_box", 44)] = WRONG
-    answers[("1_A", "black_box", 45)] = GOOD
-    for seed in range(43, 43 + config.SOLUTION_ATTEMPTS + 1):
-        answers[("2_B", "hybrid", seed)] = BAD
-    answers[("2_B", "hybrid", 42 + config.SOLUTION_ATTEMPTS + 2)] = PREDICTED
+    solution, then accepted at attempt 3), 2_B black_box (failures through phase 1 into phase
+    2, accepted at attempt 9) and 2_B hybrid (12 unparseable answers, an unparseable prediction,
+    then a parsed one at attempt 14: accepted_predicted)."""
+    answers = {(pid, s, 1): GOOD for pid, s in COMBOS}
+    answers[("1_A", "black_box", 1)] = BAD
+    answers[("1_A", "black_box", 2)] = WRONG
+    answers[("1_A", "black_box", 3)] = GOOD
+    for n in range(1, 9):
+        answers[("2_B", "black_box", n)] = BAD if n % 2 else WRONG
+    answers[("2_B", "black_box", 9)] = GOOD
+    for n in range(1, config.SOLUTION_ATTEMPTS + 2):
+        answers[("2_B", "hybrid", n)] = BAD
+    answers[("2_B", "hybrid", config.SOLUTION_ATTEMPTS + 2)] = PREDICTED
     return answers
 
 
@@ -124,7 +128,7 @@ def test_an_interruption_during_a_call_redoes_that_call_with_the_same_seed(world
 
     def interrupted(model, prompt, options):
         result = complete(model, prompt, options)
-        once(client.requests[-1]["key"] == ("1_A", "white_box", 43))  # answer lost in flight
+        once(client.requests[-1]["key"] == ("1_A", "white_box", 1))  # answer lost in flight
         return result
 
     client.complete = interrupted
@@ -132,11 +136,16 @@ def test_an_interruption_during_a_call_redoes_that_call_with_the_same_seed(world
     assert cli.EXIT_INTERRUPTED in codes
     assert tree(broken) == expected and leftovers(broken) == []
     calls = keys(client)
-    assert calls.count(("1_A", "white_box", 43)) == 2  # the same seed again
+    assert calls.count(("1_A", "white_box", 1)) == 2  # the same seed again
     assert len(calls) == len(set(calls)) + 1  # no other call was repeated
 
 
-def test_an_interruption_after_a_generation_record(world, monkeypatch):
+@pytest.mark.parametrize(
+    "where",
+    [("1_A", "black_box", 3), ("2_B", "black_box", 9), ("2_B", "hybrid", 14)],
+    ids=["phase_1", "phase_2", "phase_4_prediction"],
+)
+def test_an_interruption_after_a_generation_record_in_each_phase(world, monkeypatch, where):
     straight, broken = world
     expected = straight_tree(straight, monkeypatch)
     client = FakeSLMClient(table(), PROBLEMS)
@@ -144,7 +153,7 @@ def test_an_interruption_after_a_generation_record(world, monkeypatch):
 
     def interrupted(root, record):
         path = write(root, record)
-        once((record.problem_id, record.scenario, record.attempt) == ("2_B", "hybrid", 3))
+        once((record.problem_id, record.scenario, record.attempt) == where)
         return path
 
     monkeypatch.setattr(store, "write_generation", interrupted)

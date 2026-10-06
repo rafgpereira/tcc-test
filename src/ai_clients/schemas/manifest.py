@@ -9,7 +9,8 @@ import re
 from pydantic import model_validator
 
 from ai_clients import config
-from dataset.schemas.common import Schema, SchemaVersion
+from ai_clients.schemas.common import SchemaVersion
+from dataset.schemas.common import Schema
 from dataset.schemas.manifest import FileHash
 
 _ATTEMPT_NUMBERS = "|".join(str(n) for n in range(1, config.MAX_ATTEMPTS + 1))
@@ -23,7 +24,7 @@ __all__ = ["FileHash", "SlmSuitesManifest"]
 
 
 class SlmSuitesManifest(Schema):
-    schema_version: SchemaVersion = 1
+    schema_version: SchemaVersion = 2
     slm_suites_zip: FileHash
     files: list[FileHash]  # one per file inside the zip, `path` as inside the zip, sorted
 

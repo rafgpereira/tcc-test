@@ -1,12 +1,12 @@
 """The generation phase: one stateless call per attempt; nothing is executed here.
 
-For each problem × scenario pending a generation: build the prompt, make ONE call with the seed of
-the attempt (``42 + n``), and record the raw answer and how it was read. An answer that cannot be
-read is a failed attempt and the next seed is called at once (there is nothing to execute), unless
-the combination got a suite without one (``config.py``: a fallback after the 8th, a low-confidence
-suite after the 20th) or awaits manual handling (the 23rd). Attempts 21 to 23 ask for a prediction
-with the second template; a parsed one is the suite at once (``accepted_predicted``), since there
-is no solution to execute. A call the model itself fails (Ollama's ``token repeat
+For each problem × scenario pending a generation: build the prompt, make ONE call with the seed and
+the temperature of the attempt (its row in the attempt policy of run.json, ``config.py``), and
+record the raw answer, how it was read and the row used. An answer that cannot be read is a failed
+attempt and the next attempt is called at once (there is nothing to execute), unless the
+combination got a fallback suite (the 12th) or awaits manual handling (the 15th). Attempts 13 to 15
+ask for a prediction with the second template; a parsed one is the suite at once
+(``accepted_predicted``), since there is no solution to execute. A call the model itself fails (Ollama's ``token repeat
 limit reached``) is recorded the same way, with the reason ``repetition``: the same seed would
 loop again, so it is never repeated. An outage never consumes an attempt: the same call, with the
 same seed, is repeated after a wait that doubles from 5 s up to 60 s, until the retry ceiling (then
@@ -40,7 +40,7 @@ from ai_clients.schemas.generation import (
     OllamaMeta,
     UnparsedResponse,
 )
-from ai_clients.schemas.run import RunConfig, SamplingOptions
+from ai_clients.schemas.run import RunConfig, SamplingOptions, policy_rows
 from mutation import dataset_gate
 
 
@@ -58,8 +58,8 @@ def utc_now() -> str:
 
 
 def sampling_options() -> SamplingOptions:
+    """The options of the design that are the same for every attempt."""
     return SamplingOptions(
-        temperature=config.TEMPERATURE,
         top_p=config.TOP_P,
         top_k=config.TOP_K,
         repeat_penalty=config.REPEAT_PENALTY,
@@ -69,7 +69,11 @@ def sampling_options() -> SamplingOptions:
 
 
 def generation_options(run: RunConfig, attempt: int) -> GenerationOptions:
-    return GenerationOptions(**run.options.model_dump(), seed=run.seed_base + attempt)
+    """The options of ``attempt``: the seed and the temperature of its row in run.json."""
+    spec = run.spec(attempt)
+    return GenerationOptions(
+        **run.options.model_dump(), temperature=spec.temperature, seed=spec.seed
+    )
 
 
 def _with_retries(call: Callable, *, what: str, seed: int | None, max_retries, clock, echo):
@@ -128,11 +132,7 @@ def current_run_config(
         model_quantization=info.quantization_level,
         ollama_version=info.ollama_version,
         options=sampling_options(),
-        seed_base=config.SEED_BASE,
-        strict_attempts=config.STRICT_ATTEMPTS,
-        solution_attempts=config.SOLUTION_ATTEMPTS,
-        predict_attempts=config.PREDICT_ATTEMPTS,
-        max_attempts=config.MAX_ATTEMPTS,
+        attempt_policy=policy_rows(),
         prompt_template_sha256=template.sha256,
         predict_template_sha256=predict_template.sha256,
         dataset_manifest_sha256=dataset_gate.dataset_manifest_sha256(root),
@@ -149,7 +149,7 @@ class GenerateResult:
     unparseable: int = 0
     repetition: int = 0  # calls the model failed itself (token repeat limit reached)
     # suites this run recorded without an execution, by status (accepted_fallback,
-    # accepted_low_confidence after an interruption, accepted_predicted)
+    # accepted_predicted)
     suites: Counter = field(default_factory=Counter)
     pending_execution: int = 0  # combinations of the selection waiting for `execute` at the end
     awaiting_manual: list[tuple[str, str]] = field(default_factory=list)  # selection, at the end
@@ -237,7 +237,8 @@ def generate(
         attempt = state.attempt
         while True:
             what = f"{problem_id} {scenario} attempt {attempt}"
-            kind = config.attempt_kind(attempt)
+            spec = run.spec(attempt)
+            kind = spec.template.value
             chosen, parse_answer = templates[kind]
             prompt = build_prompt(chosen, problems[problem_id], scenario)
             options = generation_options(run, attempt)
@@ -262,7 +263,10 @@ def generate(
                 problem_id=problem_id,
                 scenario=scenario,
                 attempt=attempt,
-                seed=options.seed,
+                phase=spec.phase,
+                seed=spec.seed,
+                temperature=spec.temperature,
+                template=spec.template,
                 model_digest=run.model_digest,
                 prompt_sha256=prompt_sha256(prompt),
                 raw_response="" if completion is None else completion.content,
@@ -297,7 +301,7 @@ def generate(
             if parse.ok and kind == "solution":
                 break  # the solution runs in `execute`
             state = store.combination_state(root, problem_id, scenario, run)
-            if state.kind == "finalizable":  # a prediction, a fallback or a low-confidence suite
+            if state.kind == "finalizable":  # a prediction or, after the 12th, a fallback
                 _record_suite(root, problem_id, scenario, run, result, echo)
                 break
             if state.kind == "awaiting_manual":

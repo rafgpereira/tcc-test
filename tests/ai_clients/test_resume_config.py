@@ -21,7 +21,7 @@ def started(monkeypatch, repo):
     monkeypatch.delenv(config.ENV_HTTP_TIMEOUT_S, raising=False)
     monkeypatch.delenv(config.ENV_MAX_INFRA_RETRIES, raising=False)
     table = {
-        (pid, s, 42 + n): GOOD
+        (pid, s, n): GOOD
         for pid in ("1_A", "2_B")
         for s in config.SCENARIOS
         for n in range(1, config.MAX_ATTEMPTS + 1)
@@ -48,10 +48,13 @@ def change_config(name, value):
     return apply
 
 
-def change_configs(**values):
+def change_policy_row(attempt, **fields):
+    """The attempt policy of the code with one row changed (it stays coherent)."""
+
     def apply(monkeypatch, client):
-        for name, value in values.items():
-            monkeypatch.setattr(config, name, value)
+        rows = list(config.ATTEMPT_POLICY)
+        rows[attempt - 1] = rows[attempt - 1]._replace(**fields)
+        monkeypatch.setattr(config, "ATTEMPT_POLICY", tuple(rows))
 
     return apply
 
@@ -78,21 +81,17 @@ def change_dataset_manifest(monkeypatch, client):
 
 
 CHANGES = {
-    "model": change_config("MODEL", "qwen2.5-coder:14b"),
+    "model": change_config("MODEL", "qwen2.5-coder:7b"),
     "model_digest": change_info("digest", "sha256:" + "f" * 64),
     "model_quantization": change_info("quantization_level", "Q8_0"),
     "ollama_version": change_info("ollama_version", "0.13.0"),
-    "options.temperature": change_config("TEMPERATURE", 0.2),
     "options.top_p": change_config("TOP_P", 0.9),
     "options.top_k": change_config("TOP_K", 40),
     "options.repeat_penalty": change_config("REPEAT_PENALTY", 1.1),
     "options.num_ctx": change_config("NUM_CTX", 16384),
     "options.num_predict": change_config("NUM_PREDICT", 2048),
-    "seed_base": change_config("SEED_BASE", 100),
-    "strict_attempts": change_config("STRICT_ATTEMPTS", 6),
-    "solution_attempts": change_configs(SOLUTION_ATTEMPTS=18, MAX_ATTEMPTS=21),
-    "predict_attempts": change_configs(PREDICT_ATTEMPTS=2, MAX_ATTEMPTS=22),
-    "max_attempts": change_configs(SOLUTION_ATTEMPTS=12, MAX_ATTEMPTS=15),
+    "attempt_policy[9].temperature": change_policy_row(9, temperature=0.45),
+    "attempt_policy[3].seed": change_policy_row(3, seed=144),
     "prompt_template_sha256": change_template_at(config.PROMPT_TEMPLATE_PATH),
     "predict_template_sha256": change_template_at(config.PREDICT_TEMPLATE_PATH),
     "dataset_manifest_sha256": change_dataset_manifest,
@@ -118,6 +117,9 @@ def test_every_field_but_created_at_is_compared():
 
     compared = {f for f in RunConfig.model_fields if f not in ("created_at", "schema_version")}
     compared = (compared - {"options"}) | {f"options.{f}" for f in SamplingOptions.model_fields}
+    compared = (compared - {"attempt_policy"}) | {
+        key for key in CHANGES if key.startswith("attempt_policy[")
+    }
     assert compared == set(CHANGES)
 
 

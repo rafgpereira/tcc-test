@@ -14,27 +14,30 @@ from ai_clients.schemas.common import (
     Attempt,
     AttemptFailure,
     AttemptKind,
+    AttemptPhase,
     InputDiscard,
     NonNegative,
     Scenario,
+    SchemaVersion,
+    SuitePhase,
     SuiteStatus,
 )
-from dataset.schemas.common import PROBLEM_ID_PATTERN, Schema, SchemaVersion
+from dataset.schemas.common import PROBLEM_ID_PATTERN, Schema
 from dataset.schemas.testes import TestCase
 from sandbox.types import Verdict
 
 
 class AttemptSummary(Schema):
     attempt: Attempt
+    phase: AttemptPhase
     seed: int
-    kind: AttemptKind
+    temperature: float
+    template: AttemptKind
     hardware_label: str = Field(min_length=1)
-    failure: AttemptFailure | None  # null only for an attempt that passed or a parsed prediction
+    failure: AttemptFailure | None  # null only for an accepted solution or a parsed prediction
     detail: str  # parser code, failing public test and verdict, and/or kept/discarded counts
-    # Only for a solution that failed a public test and kept some generated input: by WA it could
-    # be the fallback suite, by RE/TLE/MLE the low-confidence one (config.py).
+    # Only for a solution that failed a public test by WA and kept some generated input.
     fallback_eligible: bool = False
-    low_confidence_eligible: bool = False
 
 
 class DiscardedInput(Schema):
@@ -51,12 +54,13 @@ class ManualCloseInfo(Schema):
 
 
 class SlmSuite(Schema):
-    schema_version: SchemaVersion = 1
+    schema_version: SchemaVersion = 2
     problem_id: str = Field(pattern=PROBLEM_ID_PATTERN)
     scenario: Scenario
     model: str = Field(min_length=1)
     model_digest: str = Field(min_length=1)
     status: SuiteStatus
+    accepted_phase: SuitePhase | None  # 1 or 2 (accepted), 3 (fallback), 4 (predicted)
     attempts: list[AttemptSummary] = Field(min_length=1, max_length=config.MAX_ATTEMPTS)
     accepted_attempt: Attempt | None
     tests: list[TestCase]
@@ -67,22 +71,20 @@ class SlmSuite(Schema):
 
     @model_validator(mode="after")
     def _terminal_state(self) -> "SlmSuite":
-        strict, solution = config.STRICT_ATTEMPTS, config.SOLUTION_ATTEMPTS
+        solutions = config.SOLUTION_ATTEMPTS
         numbers = [a.attempt for a in self.attempts]
         if numbers != list(range(1, len(numbers) + 1)):
             raise ValueError("attempts are numbered from 1 without gaps")
         for a in self.attempts:
-            if a.seed != config.seed_for(a.attempt):
-                raise ValueError(f"attempt {a.attempt} must use seed {config.seed_for(a.attempt)}")
-            if a.kind.value != config.attempt_kind(a.attempt):
-                raise ValueError(f"attempt {a.attempt} is a {config.attempt_kind(a.attempt)}")
-            if (a.fallback_eligible or a.low_confidence_eligible) and (
-                a.kind is not AttemptKind.SOLUTION
+            spec = config.attempt_spec(a.attempt)
+            row = (a.phase, a.seed, a.temperature, a.template.value)
+            if row != (spec.phase, spec.seed, spec.temperature, spec.template):
+                raise ValueError(f"attempt {a.attempt} is not the row of the attempt policy")
+            if a.fallback_eligible and (
+                a.template is not AttemptKind.SOLUTION
                 or a.failure is not AttemptFailure.PUBLIC_TEST_FAILED
             ):
                 raise ValueError("only a solution that failed a public test can be a fallback")
-            if a.fallback_eligible and a.low_confidence_eligible:
-                raise ValueError("an attempt is a possible fallback or low confidence, not both")
         if self.suite_size != len(self.tests):
             raise ValueError("suite_size is the number of tests")
         *earlier, last = self.attempts
@@ -90,13 +92,8 @@ class SlmSuite(Schema):
             raise ValueError("only the last attempt can have succeeded")
         n = len(self.attempts)
         fallback = [a.attempt for a in self.attempts if a.fallback_eligible]
-        low = [a.attempt for a in self.attempts if a.low_confidence_eligible]
-        if n > strict and set(fallback) - {last.attempt}:
-            raise ValueError(
-                f"a possible fallback before attempt {last.attempt} would have ended the attempts"
-            )
-        if n > solution and (fallback or low):
-            raise ValueError("a prediction comes only when no solution could be the suite")
+        if n > solutions and fallback:
+            raise ValueError("a prediction comes only when no solution can be the fallback")
         status = self.status
         if (status is SuiteStatus.DISCARDED_MANUAL) != (self.manual_close is not None):
             raise ValueError("only a suite closed by the authors has manual_close")
@@ -107,6 +104,8 @@ class SlmSuite(Schema):
                 )
             if self.accepted_attempt is not None or self.tests or self.discarded_inputs:
                 raise ValueError("a suite closed by the authors has no tests")
+            if self.accepted_phase is not None:
+                raise ValueError("a suite closed by the authors has no accepted phase")
             return self
         if not self.tests or self.accepted_attempt is None:
             raise ValueError("a suite is never empty and always has the attempt it comes from")
@@ -114,27 +113,23 @@ class SlmSuite(Schema):
             status in (SuiteStatus.ACCEPTED, SuiteStatus.ACCEPTED_PREDICTED)
         ):
             raise ValueError(f"the last attempt of an {status.value} suite has the wrong outcome")
-        if status in (SuiteStatus.ACCEPTED, SuiteStatus.ACCEPTED_PREDICTED):
-            kind = (
-                AttemptKind.SOLUTION if status is SuiteStatus.ACCEPTED else AttemptKind.PREDICTION
-            )
-            if last.kind is not kind or self.accepted_attempt != last.attempt:
-                raise ValueError(f"an {status.value} suite comes from its last attempt")
-            if status is SuiteStatus.ACCEPTED_PREDICTED and self.discarded_inputs:
+        if status is SuiteStatus.ACCEPTED:
+            if last.template is not AttemptKind.SOLUTION or self.accepted_attempt != last.attempt:
+                raise ValueError("an accepted suite comes from its last attempt, a solution")
+            phase = last.phase
+        elif status is SuiteStatus.ACCEPTED_PREDICTED:
+            if last.template is not AttemptKind.PREDICTION or self.accepted_attempt != last.attempt:
+                raise ValueError("a predicted suite comes from its last attempt, a prediction")
+            if self.discarded_inputs:
                 raise ValueError("nothing of a predicted suite was run, so nothing was discarded")
-        elif status is SuiteStatus.ACCEPTED_FALLBACK:
-            if self.accepted_attempt not in fallback:
-                raise ValueError("a fallback suite comes from an attempt that can be a fallback")
-            if not (n == strict or (strict < n <= solution and fallback == [last.attempt])):
+            phase = 4
+        else:  # ACCEPTED_FALLBACK
+            if n != solutions or self.accepted_attempt not in fallback:
                 raise ValueError(
-                    f"a fallback suite has {strict} attempts, or more and then it comes from the "
-                    "last one, the only one that can be a fallback"
+                    f"a fallback suite comes after {solutions} failed solutions, from one of them "
+                    "that can be a fallback"
                 )
-        else:  # ACCEPTED_LOW_CONFIDENCE
-            if n != solution or fallback:
-                raise ValueError(
-                    f"a low-confidence suite comes after {solution} attempts without a fallback"
-                )
-            if not low or self.accepted_attempt != low[0]:
-                raise ValueError("a low-confidence suite comes from the first eligible attempt")
+            phase = config.FALLBACK_PHASE
+        if self.accepted_phase != phase:
+            raise ValueError(f"an {status.value} suite has accepted_phase {phase}")
         return self

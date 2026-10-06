@@ -33,7 +33,7 @@ def test_close_records_the_decision_and_the_discarded_manual_suite(repo, run):
     assert store.combination_state(repo, "1_A", "hybrid", run).kind == "terminal"
 
 
-@pytest.mark.parametrize("attempts", [0, 3, 22])
+@pytest.mark.parametrize("attempts", [0, 3, 14])
 def test_close_refuses_a_combination_that_does_not_await_manual_handling(repo, run, attempts):
     for n in range(1, attempts + 1):
         record_generation(repo, "1_A", "hybrid", n, parsed=False)

@@ -59,13 +59,13 @@ def _span(text: str, tag: str) -> tuple[int, int, int, int]:
     return start, start + len(opening), end, end + len(closing)
 
 
-def _strip_fence(code: str) -> tuple[str, bool]:
-    """Remove a Markdown fence that wraps the whole (normalized) code block, and only that one."""
-    lines = code.split("\n")[:-1]  # a normalized block ends with exactly one "\n"
-    opened = len(lines) >= 2 and lines[0].rstrip() in FENCE_OPENINGS
+def _strip_fence(block: str, openings: tuple[str, ...] = FENCE_OPENINGS) -> tuple[str, bool]:
+    """Remove a Markdown fence that wraps the whole (normalized) block, and only that one."""
+    lines = block.split("\n")[:-1]  # a normalized block ends with exactly one "\n"
+    opened = len(lines) >= 2 and lines[0].rstrip() in openings
     if opened and lines[-1].rstrip() == FENCE_CLOSING:
         return _normalize_block("\n".join(lines[1:-1])), True
-    return code, False
+    return block, False
 
 
 def _inputs(body: str) -> tuple[list[str], int]:
@@ -145,12 +145,16 @@ def parse_response(raw: str) -> ParsedResponse | UnparsedResponse:
 # The answer of a prediction attempt (research R19, item 4): ``<edge_cases_analysis>`` and
 # ``<tests>``, with the same rules 1, 2 and 4 as above; inside ``<tests>``, one or more ``<test>``
 # with only whitespace between them, each holding exactly one ``<input>`` followed by one
-# ``<output>`` and nothing else but whitespace. A test with an empty input or output is dropped
-# alone and counted (``empty_tests``); only when every test is dropped does the answer fail. The
-# predicted output is kept as written (only rule 4), never checked: there is no program to run.
+# ``<output>`` and nothing else but whitespace. Rule 5 applies to each ``<input>`` and ``<output>``
+# with the fences of data (```` ``` ````, ```` ```text ````, ```` ```txt ````, ```` ```plaintext
+# ````): one wrapping the whole block is removed and counted (``markdown_fences_removed``), any
+# other stays. A test with an empty input or output is dropped alone and counted (``empty_tests``);
+# only when every test is dropped does the answer fail. The predicted output is kept as written
+# (only rules 4 and 5), never checked: there is no program to run.
 
 PREDICTION_TAGS = ("edge_cases_analysis", "tests")
 _TEST_PARTS = ("input", "output")
+DATA_FENCE_OPENINGS = ("```", "```text", "```txt", "```plaintext")
 
 
 def _test(content: str) -> tuple[str, str]:
@@ -171,9 +175,10 @@ def _test(content: str) -> tuple[str, str]:
     return parts[0], parts[1]
 
 
-def _tests(body: str) -> tuple[list[TestCase], int]:
-    """The tests with a non-empty input and output, in order, and how many were dropped."""
-    tests, empty, position = [], 0, 0
+def _tests(body: str) -> tuple[list[TestCase], int, int]:
+    """The tests with a non-empty input and output, in order, how many were dropped and how many
+    fences were removed."""
+    tests, empty, fences, position = [], 0, 0, 0
     while True:
         start = body.find("<test>", position)
         gap = body[position:] if start < 0 else body[position:start]
@@ -188,7 +193,12 @@ def _tests(body: str) -> tuple[list[TestCase], int]:
         content = body[content_start:end]
         if "<test>" in content:
             raise _Unparseable("nested_test")
-        given, expected = (_normalize_block(part) for part in _test(content))
+        parts = []
+        for part in _test(content):
+            text, removed = _strip_fence(_normalize_block(part), DATA_FENCE_OPENINGS)
+            fences += removed
+            parts.append(text)
+        given, expected = parts
         if given and expected:
             tests.append(TestCase(input=given, output=expected))
         else:
@@ -196,7 +206,7 @@ def _tests(body: str) -> tuple[list[TestCase], int]:
         position = end + len("</test>")
     if not tests:
         raise _Unparseable("only_empty_tests" if empty else "no_tests")
-    return tests, empty
+    return tests, empty, fences
 
 
 def _parse_prediction(raw: str) -> PredictionParse:
@@ -204,7 +214,7 @@ def _parse_prediction(raw: str) -> PredictionParse:
     analysis = _normalize_block(blocks["edge_cases_analysis"])
     if not analysis:
         raise _Unparseable("empty_block:edge_cases_analysis")
-    tests, empty = _tests(blocks["tests"])
+    tests, empty, fences = _tests(blocks["tests"])
     inputs = [test.input for test in tests]
     return PredictionParse(
         ok=True,
@@ -213,6 +223,7 @@ def _parse_prediction(raw: str) -> PredictionParse:
         extraneous_chars=extraneous,
         duplicate_inputs=len(inputs) - len(set(inputs)),
         empty_tests=empty,
+        markdown_fences_removed=fences,
     )
 
 

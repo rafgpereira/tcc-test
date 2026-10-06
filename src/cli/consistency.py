@@ -116,8 +116,8 @@ MUTANTS_LAYER = Layer(
 )
 
 SLM_SCENARIOS = ("black_box", "white_box", "hybrid")
-SLM_MAX_ATTEMPTS = 23  # ai_clients.config.MAX_ATTEMPTS
-SLM_SOLUTION_ATTEMPTS = 20  # ai_clients.config.SOLUTION_ATTEMPTS: later ones are never executed
+SLM_MAX_ATTEMPTS = 15  # ai_clients.config.MAX_ATTEMPTS
+SLM_SOLUTION_ATTEMPTS = 12  # ai_clients.config.SOLUTION_ATTEMPTS: later ones are never executed
 SLM_ATTEMPT_FILE = re.compile(r"^attempt_(\d+)\.(generation|execution)\.json$")
 SLM_OTHER_FILES = {"suite.json", "manual_close.json"}
 
@@ -126,7 +126,7 @@ def _slm_attempt_lines(
     root: Path, layer: Layer, problems: dict[str, set[str]], in_progress: bool
 ) -> list[Line]:
     """Inside each scenario: only ``suite.json``, ``manual_close.json`` and attempt files,
-    numbered 1..k with k <= 23, executions only up to the 20th."""
+    numbered 1..k with k <= 15, executions only up to the 12th."""
     base = root / layer.root
     scenarios = gaps = without_suite = 0
     broken, suites_missing, strange = [], [], []

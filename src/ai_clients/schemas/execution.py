@@ -2,17 +2,24 @@
 
 Exists only for a solution attempt whose answer was parsed (never for a prediction). Written once by
 ``execute``, never changed. ``AC_ref.cpp`` plays no part in it: the solution is judged by the public
-tests of the problem only. The generated inputs always run, even after a public test failed: by WA
-the attempt can still become a fallback suite, by RE, TLE or MLE a low-confidence one
-(``config.py``).
+tests of the problem only. The generated inputs run when every public test passes, and also when
+the first failure is a WA: that attempt can still become the fallback suite (``config.py``); after
+any other failure none runs.
 """
 
 from typing import Literal
 
 from pydantic import Field, model_validator
 
-from ai_clients.schemas.common import Attempt, AttemptFailure, InputDiscard, NonNegative, Scenario
-from dataset.schemas.common import PROBLEM_ID_PATTERN, Schema, SchemaVersion
+from ai_clients.schemas.common import (
+    Attempt,
+    AttemptFailure,
+    InputDiscard,
+    NonNegative,
+    Scenario,
+    SchemaVersion,
+)
+from dataset.schemas.common import PROBLEM_ID_PATTERN, Schema
 from sandbox.types import Verdict
 
 
@@ -80,7 +87,7 @@ class InputOutcome(Schema):
 
 
 class ExecutionRecord(Schema):
-    schema_version: SchemaVersion = 1
+    schema_version: SchemaVersion = 2
     problem_id: str = Field(pattern=PROBLEM_ID_PATTERN)
     scenario: Scenario
     attempt: Attempt
@@ -94,10 +101,14 @@ class ExecutionRecord(Schema):
     def _outcome_follows_from_the_runs(self) -> "ExecutionRecord":
         if [item.index for item in self.inputs] != list(range(len(self.inputs))):
             raise ValueError("inputs are listed in the order of the generation, one per input")
-        if not self.inputs:
-            raise ValueError("every generated input has an outcome, even after a public failure")
         if self.public_tests.failed_index is not None:
+            if self.public_tests.failed_verdict is Verdict.WA and not self.inputs:
+                raise ValueError("after a WA on a public test every generated input runs")
+            if self.public_tests.failed_verdict is not Verdict.WA and self.inputs:
+                raise ValueError("after a public test failure other than WA no input runs")
             expected = AttemptFailure.PUBLIC_TEST_FAILED
+        elif not self.inputs:
+            raise ValueError("every generated input has an outcome")
         elif not any(item.kept for item in self.inputs):
             expected = AttemptFailure.ALL_INPUTS_FAILED
         else:

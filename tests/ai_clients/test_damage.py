@@ -126,7 +126,7 @@ def test_generate_reports_the_damage_too(setup, repo, monkeypatch, capsys):
     monkeypatch.setenv(config.ENV_BASE_URL, "http://ollama.test:11434")
     monkeypatch.setenv(config.ENV_HARDWARE_LABEL, "RTX 3060 12GB")
     good = completion(well_formed_response(["1\n"]))
-    table = {("1_A", "white_box", 43): good, ("2_B", "white_box", 43): good}
+    table = {("1_A", "white_box", 1): good, ("2_B", "white_box", 1): good}
     client = FakeSLMClient(table, problem_ids=["1_A", "2_B"])
     monkeypatch.setattr(cli, "make_client", lambda base_url, *, timeout_s: client)
     monkeypatch.setattr(cli, "make_clock", FakeClock)
@@ -152,8 +152,8 @@ def test_generate_reports_the_damage_too(setup, repo, monkeypatch, capsys):
     err = capsys.readouterr().err
     assert f"damaged: 1_A black_box: {reason}" in err
     assert [r["key"] for r in client.requests] == [
-        ("1_A", "white_box", 43),
-        ("2_B", "white_box", 43),
+        ("1_A", "white_box", 1),
+        ("2_B", "white_box", 1),
     ]
 
 
@@ -175,25 +175,36 @@ def test_a_leftover_temporary_file_is_not_damage(setup, repo):
 def test_an_execution_of_a_prediction_attempt_is_damage(setup, repo):
     for n in range(1, config.SOLUTION_ATTEMPTS + 2):
         record_generation(repo, "1_A", "hybrid", n, parsed=False)
-    (folder(repo, scenario="hybrid") / "attempt_21.execution.json").write_text("{}")
+    (folder(repo, scenario="hybrid") / "attempt_13.execution.json").write_text("{}")
     with pytest.raises(store.DamagedCombination, match="a prediction attempt is never executed"):
         store.combination_state(repo, "1_A", "hybrid", setup)
 
 
-def test_a_prediction_after_a_possible_low_confidence_suite_is_damage(setup, repo):
-    crash_on_public = "import sys\nsys.stdout.write(sys.stdin.read())\n# crashes on examples\n"
+def test_a_prediction_after_a_possible_fallback_is_damage(setup, repo):
+    """A WA among the 12 is the fallback: a 13th attempt (a prediction) should not exist."""
 
     def runner(code, stdin, limits, slot):
-        from sandbox.types import RunStatus
         from tests.ai_clients.fakes import run_result
 
-        if code == crash_on_public and stdin in (b"1\n", b"2\n"):
-            return run_result(status=RunStatus.NONZERO_EXIT, exit_code=1)
-        return run_result(stdin)
+        return run_result(b"0\n" if code == "print(0)\n" else stdin)  # print(0): WA, inputs kept
 
-    record_generation(repo, "1_A", "hybrid", 1, code=crash_on_public, inputs=["5\n"])
+    record_generation(repo, "1_A", "hybrid", 1, code="print(0)\n", inputs=["5\n"])
     execution.execute(repo, [("1_A", "hybrid")], run=setup, runner=runner, echo=print)
-    for n in range(2, config.SOLUTION_ATTEMPTS + 2):  # 2..20, then a 21st it should not have
+    for n in range(2, config.SOLUTION_ATTEMPTS + 2):  # 2..12, then a 13th it should not have
         record_generation(repo, "1_A", "hybrid", n, parsed=False)
-    with pytest.raises(store.DamagedCombination, match="could already be the low-confidence"):
+    with pytest.raises(store.DamagedCombination, match="could already be the fallback"):
         store.combination_state(repo, "1_A", "hybrid", setup)
+
+
+@pytest.mark.parametrize(
+    "field_name, value",
+    [("seed", 43), ("temperature", 0.6), ("phase", 2), ("template", "prediction")],
+)
+def test_an_attempt_that_is_not_its_row_of_the_policy_is_damage(setup, repo, field_name, value):
+    path = folder(repo) / "attempt_1.generation.json"
+    if field_name == "template":
+        edit_json(path, template=value, parse={"ok": False, "error": "x"})
+    else:
+        edit_json(path, **{field_name: value})
+    with pytest.raises(store.DamagedCombination, match="but attempt 1 is"):
+        store.combination_state(repo, "1_A", "black_box", setup)

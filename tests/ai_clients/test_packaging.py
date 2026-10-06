@@ -53,14 +53,14 @@ def test_package_writes_the_zip_the_manifest_and_the_report(finished, repo, caps
     assert cli.main(["package"]) == cli.EXIT_OK
     out = capsys.readouterr().out
     assert (
-        "packaged 6 combinations (5 accepted, 0 accepted_fallback, 0 accepted_low_confidence, "
-        "0 accepted_predicted, 1 discarded_manual)"
+        "packaged 6 combinations (5 accepted, 0 accepted_fallback, 0 accepted_predicted, "
+        "1 discarded_manual)"
     ) in out
     with zipfile.ZipFile(repo / config.ZIP_PATH) as archive:
         names = archive.namelist()
     assert "suites/slm/run.json" in names
     assert "suites/slm/problems/1_A/black_box/suite.json" in names
-    assert "suites/slm/problems/2_B/hybrid/attempt_23.generation.json" in names
+    assert "suites/slm/problems/2_B/hybrid/attempt_15.generation.json" in names
     assert "suites/slm/problems/2_B/hybrid/manual_close.json" in names
     assert not any(name.endswith(config.LOCK_FILE) for name in names)
     assert names == sorted(names)

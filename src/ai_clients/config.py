@@ -3,19 +3,20 @@
 Every constant here is part of the experiment design. The only values the operator sets are the
 address of the Ollama server, the hardware label and, optionally, how long to wait for an answer,
 how many consecutive infrastructure failures to tolerate and another model for a pilot; they come
-from ``.env`` (names below), never from this file. The time and memory limits of the Python reference solution are
-NEVER absolute: they are the limits of the problem (``metadata.json``) times the factors below.
+from ``.env`` (names below), never from this file. The time and memory limits of the Python
+reference solution are NEVER absolute: they are the limits of the problem (``metadata.json``) times
+the factors below.
 """
 
 from pathlib import Path
+from typing import NamedTuple
 
 # Model and sampling. Every option is sent explicitly, so a default of the Modelfile or of an
-# Ollama version never changes the experiment silently. `temperature` must stay above 0: with
-# greedy decoding the seed has no effect and the attempts would repeat the same answer.
-# MODEL is the model of the design; `OLLAMA_MODEL` in `.env` replaces it, for the pilots that
+# Ollama version never changes the experiment silently. The temperature and the seed of each
+# attempt come from ATTEMPT_POLICY (below), never from here. MODEL is the model of the design (the
+# 14B since 2026-10-06; it was the 7B); `OLLAMA_MODEL` in `.env` replaces it, for the pilots that
 # compare models. The model in use is recorded in run.json, so a run never mixes two models.
-MODEL = "qwen2.5-coder:7b"
-TEMPERATURE = 0.7
+MODEL = "qwen2.5-coder:14b"
 TOP_P = 0.8
 TOP_K = 20
 REPEAT_PENALTY = 1.05
@@ -28,24 +29,69 @@ REPEAT_PENALTY = 1.05
 NUM_CTX = 8192
 NUM_PREDICT = 5120
 
-# Attempts: attempt n (1..MAX_ATTEMPTS) uses the seed SEED_BASE + n, i.e. 43..65; no problem ×
-# scenario ends without a suite. In the first STRICT_ATTEMPTS only an attempt whose solution
-# passes every public test is accepted. If none of them is, the best of them whose solution failed
-# a public test only by WA, and kept some generated input, is accepted as a fallback (status
-# `accepted_fallback`: its expected outputs come from a solution known to be wrong on some input).
-# If none of the 8 can be a fallback either, attempts 9..SOLUTION_ATTEMPTS accept the first one
-# that passes or can be a fallback. After the 20th without either, the first of the 20 whose
-# solution kept some generated input is accepted with low confidence (`accepted_low_confidence`:
-# it failed a public test by RE, TLE or MLE). Without one, attempts SOLUTION_ATTEMPTS+1..
-# MAX_ATTEMPTS ask for a prediction (the second template: inputs AND expected outputs, no
-# solution, nothing run) and the first one parsed is the suite (`accepted_predicted`). If none of
-# them is parsed, the combination awaits manual handling: the authors close it with
-# `python -m ai_clients close` (`discarded_manual`).
-SEED_BASE = 42
-STRICT_ATTEMPTS = 8
-SOLUTION_ATTEMPTS = 20
-PREDICT_ATTEMPTS = 3
-MAX_ATTEMPTS = SOLUTION_ATTEMPTS + PREDICT_ATTEMPTS
+
+class AttemptSpec(NamedTuple):
+    """One row of the attempt policy: what attempt ``attempt`` asks for, and how."""
+
+    attempt: int
+    phase: int  # 1 (seed varies), 2 (temperature falls) or 4 (prediction)
+    seed: int
+    temperature: float  # above 0: with greedy decoding the seed would have no effect
+    template: str  # "solution" (slm_prompt.txt) or "prediction" (slm_predict_prompt.txt)
+
+
+# The attempt policy of the experiment (the 5 phases of 2026-10-06), the ONLY source of the phase,
+# seed, temperature and template of an attempt; written out row by row, recorded whole in run.json
+# (a run never mixes two policies). Phases 1 and 2 stop at the first solution that passes every
+# public test (`accepted`). Phase 3 makes no call: if none of the 12 passed, the best of them that
+# failed a public test only by WA, and kept some generated input, is the suite (`accepted_fallback`;
+# its expected outputs come from a solution known to be wrong on some input). Phase 4, only without
+# a fallback, asks for a prediction (inputs AND expected outputs, no solution, nothing run); the
+# first one parsed is the suite (`accepted_predicted`). Phase 5 makes no call either: without a
+# parsed prediction the combination awaits the authors (`python -m ai_clients close`).
+ATTEMPT_POLICY = (
+    AttemptSpec(1, 1, 42, 0.7, "solution"),
+    AttemptSpec(2, 1, 43, 0.7, "solution"),
+    AttemptSpec(3, 1, 44, 0.7, "solution"),
+    AttemptSpec(4, 1, 45, 0.7, "solution"),
+    AttemptSpec(5, 1, 46, 0.7, "solution"),
+    AttemptSpec(6, 1, 47, 0.7, "solution"),
+    AttemptSpec(7, 2, 48, 0.7, "solution"),
+    AttemptSpec(8, 2, 48, 0.6, "solution"),
+    AttemptSpec(9, 2, 48, 0.5, "solution"),
+    AttemptSpec(10, 2, 48, 0.4, "solution"),
+    AttemptSpec(11, 2, 48, 0.3, "solution"),
+    AttemptSpec(12, 2, 48, 0.2, "solution"),
+    AttemptSpec(13, 4, 49, 0.7, "prediction"),
+    AttemptSpec(14, 4, 50, 0.7, "prediction"),
+    AttemptSpec(15, 4, 51, 0.7, "prediction"),
+)
+PHASE_TEMPLATE = {1: "solution", 2: "solution", 4: "prediction"}
+FALLBACK_PHASE = 3  # the phase recorded for an accepted_fallback suite
+
+
+def check_policy(policy: tuple[AttemptSpec, ...]) -> tuple[AttemptSpec, ...]:
+    """``ValueError`` unless ``policy`` is a coherent table: 1..n without a gap, no (seed,
+    temperature) pair twice, temperatures above 0, phases in order and with their template, and
+    every solution attempt before every prediction."""
+    if [spec.attempt for spec in policy] != list(range(1, len(policy) + 1)):
+        raise ValueError("the attempts are numbered from 1 without a gap")
+    pairs = [(spec.seed, spec.temperature) for spec in policy]
+    if len(pairs) != len(set(pairs)):
+        raise ValueError("a (seed, temperature) pair repeats: an attempt would repeat another")
+    if any(spec.temperature <= 0 for spec in policy):
+        raise ValueError("every temperature is above 0")
+    phases = [spec.phase for spec in policy]
+    if phases != sorted(phases) or any(spec.phase not in PHASE_TEMPLATE for spec in policy):
+        raise ValueError("the phases are 1, 2 and 4, in this order")
+    if any(spec.template != PHASE_TEMPLATE[spec.phase] for spec in policy):
+        raise ValueError("phases 1 and 2 ask for a solution, phase 4 for a prediction")
+    return policy
+
+
+check_policy(ATTEMPT_POLICY)
+SOLUTION_ATTEMPTS = sum(spec.template == "solution" for spec in ATTEMPT_POLICY)  # 12
+MAX_ATTEMPTS = len(ATTEMPT_POLICY)  # 15
 
 # Limits of the Python reference solution = limits of the problem times these factors.
 PY_TIME_FACTOR = 10
@@ -88,20 +134,19 @@ ZIP_ROOT = "suites/slm"  # `unzip data/slm_suites.zip -d data/` lands on SUITES_
 
 PROMPT_TEMPLATE_PATH = Path(__file__).resolve().parents[1] / "prompt_templates" / "slm_prompt.txt"
 PREDICT_TEMPLATE_PATH = PROMPT_TEMPLATE_PATH.with_name("slm_predict_prompt.txt")
+TEMPLATE_FILES = {"solution": PROMPT_TEMPLATE_PATH.name, "prediction": PREDICT_TEMPLATE_PATH.name}
+
+
+def attempt_spec(attempt: int) -> AttemptSpec:
+    """The row of ``attempt`` (1 to MAX_ATTEMPTS) in ATTEMPT_POLICY."""
+    if not 1 <= attempt <= MAX_ATTEMPTS:
+        raise ValueError(f"attempt must be in [1, {MAX_ATTEMPTS}], got {attempt}")
+    return ATTEMPT_POLICY[attempt - 1]
 
 
 def attempt_kind(attempt: int) -> str:
-    """``solution`` for attempts 1..SOLUTION_ATTEMPTS, ``prediction`` for the last ones."""
-    if not 1 <= attempt <= MAX_ATTEMPTS:
-        raise ValueError(f"attempt must be in [1, {MAX_ATTEMPTS}], got {attempt}")
-    return "solution" if attempt <= SOLUTION_ATTEMPTS else "prediction"
-
-
-def seed_for(attempt: int) -> int:
-    """The seed of attempt ``attempt`` (1 to MAX_ATTEMPTS): ``SEED_BASE + attempt``."""
-    if not 1 <= attempt <= MAX_ATTEMPTS:
-        raise ValueError(f"attempt must be in [1, {MAX_ATTEMPTS}], got {attempt}")
-    return SEED_BASE + attempt
+    """``solution`` or ``prediction``: the template of ``attempt``."""
+    return attempt_spec(attempt).template
 
 
 def generation_file_name(attempt: int) -> str:

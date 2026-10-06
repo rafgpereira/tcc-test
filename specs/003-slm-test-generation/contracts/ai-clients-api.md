@@ -113,9 +113,16 @@ lugar que grava `suite.json`.
 
 ```python
 # ai_clients.config
-STRICT_ATTEMPTS = 8; SOLUTION_ATTEMPTS = 20; PREDICT_ATTEMPTS = 3; MAX_ATTEMPTS = 23
+@dataclass(frozen=True)
+class AttemptSpec:  # R22: phase 1, 2 or 4; template "solution" or "prediction"
+    attempt: int; phase: int; seed: int; temperature: float; template: str
+ATTEMPT_POLICY: tuple[AttemptSpec, ...]   # the 15 rows of data-model §2, written out
+def attempt_spec(attempt: int) -> AttemptSpec: ...
+SOLUTION_ATTEMPTS = 12; MAX_ATTEMPTS = 15   # derived from ATTEMPT_POLICY
 PREDICT_TEMPLATE_PATH = .../prompt_templates/slm_predict_prompt.txt
-def attempt_kind(attempt: int) -> Literal["solution", "prediction"]: ...   # 1..20 / 21..23
+def attempt_kind(attempt: int) -> str: ...   # the template of the row: solution / prediction
+# the old STRICT_ATTEMPTS, PREDICT_ATTEMPTS, SEED_BASE, seed_for and the
+# OLLAMA_TEMPERATURE / OLLAMA_SEED_BASE overrides are removed (R22, item 11)
 MANUAL_CLOSE_FILE = "manual_close.json"
 
 # ai_clients.parser
@@ -146,3 +153,24 @@ texto entre `<test>`s; `<test>` sem `<input>` ou sem `<output>`, com os dois tro
 `<input>`, com texto solto dentro; `<test>` aninhado; entrada vazia e saída vazia (descartadas
 sozinhas e contadas); todos vazios; entradas repetidas (mantidas e contadas); `\r\n`; `<` e `&`
 dentro da saída.
+
+## Desde 2026-10-06, política de 5 fases (research R22)
+
+```python
+# ai_clients.store
+class IncompatibleRunError(Exception): ...   # run.json that is not schema_version 2 (code 2)
+def read_run(root: Path) -> RunConfig: ...   # raises IncompatibleRunError for an older run
+
+# ai_clients.generation
+def generation_options(run: RunConfig, attempt: int) -> GenerationOptions: ...
+    # seed and temperature of run.attempt_policy[attempt - 1]
+```
+
+Testes pedidos (R21) e onde ficam: `tests/ai_clients/test_config.py` (novo: a tabela exata, nenhum
+par (seed, temperatura) repetido, as validações ao importar); `test_generation.py` /
+`test_execution.py` (parada na primeira `accepted` na fase 1 e na fase 2, passagem para a reserva,
+passagem direta para a predição, `awaiting_manual`, seed e temperatura enviadas em cada pedido);
+`test_resume.py` (interrupção nas tentativas 3, 9 e 14); `test_resume_config.py` (uma linha da
+tabela alterada recusa o `--resume`); `test_cli_*` (`run.json` de versão 1 recusado com código
+2); `test_damage.py` (fase, seed, temperatura ou template divergentes); `test_parser_prediction.py`
+(cerca em `<input>`/`<output>`); `test_report.py` (`acceptance` e `per_phase`).

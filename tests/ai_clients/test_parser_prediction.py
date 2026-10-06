@@ -125,3 +125,35 @@ def test_the_parser_is_deterministic_and_never_raises():
     assert parse_prediction(GOOD) == parse_prediction(GOOD)
     for raw in ["", "<", "</tests><tests>", "<test></test>" * 3, "\x00\udcff", GOOD[:60]]:
         assert isinstance(parse_prediction(raw), PredictionParse | UnparsedResponse)
+
+
+@pytest.mark.parametrize("opening", ["```", "```text", "```txt", "```plaintext", "```text  "])
+def test_a_fence_around_a_whole_input_or_output_is_removed_and_counted(opening):
+    test = (
+        f"<test>\n<input>\n{opening}\n3\n1 2 3\n```\n</input>\n"
+        f"<output>\n{opening}\nYES\n```\n</output>\n</test>\n"
+    )
+    result = ok(ANALYSIS + block_of(test, TEST_1))
+    assert result.tests[0].model_dump() == {"input": "3\n1 2 3\n", "output": "YES\n"}
+    assert result.markdown_fences_removed == 2
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "```python\n3\n```\n",  # another language
+        "```\n3\n",  # not closed
+        "x\n```\n3\n```\n",  # not on the first line
+        "  ```\n3\n  ```\n",  # indented
+    ],
+)
+def test_any_other_fence_stays_as_data(body):
+    test = f"<test>\n<input>\n{body}</input>\n<output>\nYES\n</output>\n</test>\n"
+    result = ok(ANALYSIS + block_of(test))
+    assert result.tests[0].input == body and result.markdown_fences_removed == 0
+
+
+def test_a_fence_around_nothing_leaves_an_empty_test_that_is_dropped():
+    test = "<test>\n<input>\n```\n```\n</input>\n<output>\nYES\n</output>\n</test>\n"
+    result = ok(ANALYSIS + block_of(test, TEST_1))
+    assert len(result.tests) == 1 and result.empty_tests == 1

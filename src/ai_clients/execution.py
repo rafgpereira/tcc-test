@@ -28,7 +28,7 @@ class ExecuteResult:
     failed: int = 0
     need_generation: int = 0  # failed attempts that leave the combination for `generate --resume`
     # suites this run recorded after a failed attempt, by status (accepted_fallback,
-    # accepted_low_confidence; accepted_predicted only after an interrupted generate)
+    # accepted_predicted only after an interrupted generate)
     suites: Counter = field(default_factory=Counter)
     pending_generation: int = 0  # combinations of the selection waiting for `generate` at the end
     awaiting_manual: list[tuple[str, str]] = field(default_factory=list)  # selection, at the end
@@ -42,11 +42,11 @@ def describe(record: ExecutionRecord) -> str:
         return f"accepted ({kept} kept, {len(record.inputs) - kept} discarded)"
     if record.outcome == "public_test_failed":
         tests = record.public_tests
-        kept = sum(item.kept for item in record.inputs)  # the generated inputs also ran
-        return (
-            f"public_test_failed (test {tests.failed_index}: {tests.failed_verdict.value}; "
-            f"{kept} kept, {len(record.inputs) - kept} discarded)"
-        )
+        text = f"public_test_failed (test {tests.failed_index}: {tests.failed_verdict.value}"
+        if record.inputs:  # a WA: the generated inputs also ran
+            kept = sum(item.kept for item in record.inputs)
+            text += f"; {kept} kept, {len(record.inputs) - kept} discarded"
+        return text + ")"
     reasons = Counter(item.discard.value for item in record.inputs)
     counts = [f"{reasons['timeout']} timeout", f"{reasons['runtime_error']} runtime_error"]
     if reasons["non_utf8_output"]:

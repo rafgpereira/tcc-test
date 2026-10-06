@@ -3,7 +3,7 @@
 **Feature**: `003-slm-test-generation` | Schemas: [data-model.md](../data-model.md).
 
 Todo JSON: UTF-8, chaves ordenadas, indentação 2, `\n` final, escrita atômica
-(`dataset.persistence.store.atomic_write_json`), `schema_version: 1`. Nada em `data/suites/` é
+(`dataset.persistence.store.atomic_write_json`), `schema_version: 2` (desde 2026-10-06, R22; era 1 — um `run.json` de versão 1 é recusado e a pasta precisa ser movida). Nada em `data/suites/` é
 versionado; só o pacote da execução final (`data/slm_suites.zip`) e os arquivos de `manifests/`.
 
 ## 1. Árvore
@@ -15,8 +15,8 @@ data/suites/slm/
 └── problems/<problem_id>/<scenario>/      # scenario ∈ black_box | white_box | hybrid
     ├── attempt_1.generation.json          # GenerationRecord
     ├── attempt_1.execution.json           # ExecutionRecord (só se a geração interpretou)
-    ├── …                                  # até attempt_20.* (solução Python)
-    ├── attempt_21.generation.json         # 21 a 23: predição, nunca com execution (desde 2026-10-06)
+    ├── …                                  # até attempt_12.* (fases 1 e 2: solução Python)
+    ├── attempt_13.generation.json         # 13 a 15: predição (fase 4), nunca com execution
     ├── manual_close.json                  # ManualClose — só depois do comando close
     └── suite.json                         # SlmSuite — estado terminal
 manifests/slm_generation_report.json       # SlmGenerationReport (versionado)
@@ -39,7 +39,7 @@ serviço `sandbox` roda como root e nada pode ficar com dono root no `./data` mo
     "eval_count": 812,
     "eval_duration_ns": 20400000000,
     "load_duration_ns": 31000000,
-    "model": "qwen2.5-coder:7b",
+    "model": "qwen2.5-coder:14b",
     "prompt_eval_count": 1570,
     "prompt_eval_duration_ns": 900000000,
     "total_duration_ns": 21500000000
@@ -56,19 +56,24 @@ serviço `sandbox` roda como root e nada pode ficar com dono root no `./data` mo
     "reference_py": "import sys\n…"
   },
   "model_digest": "sha256:…",
+  "phase": 1,
   "problem_id": "1000_B",
   "prompt_sha256": "…",
   "raw_response": "<edge_cases_analysis>\n…</inputs>",
   "requested_at": "2026-10-01T12:00:00Z",
   "scenario": "black_box",
-  "schema_version": 1,
-  "seed": 43
+  "schema_version": 2,
+  "seed": 42,
+  "temperature": 0.7,
+  "template": "solution"
 }
 ```
 
 Falha de interpretação: `"parse": {"ok": false, "error": "missing_block:reference_py"}`.
 
-Tentativa por predição interpretada (21 a 23, desde 2026-10-06; research R19 items 4 e 5):
+`phase`, `seed`, `temperature` e `template` são a linha da tentativa no `attempt_policy` do
+`run.json` (data-model §2). Tentativa por predição interpretada (13 a 15; research R19 item 4, R22
+item 7):
 
 ```json
 "parse": {
@@ -76,6 +81,7 @@ Tentativa por predição interpretada (21 a 23, desde 2026-10-06; research R19 i
   "edge_cases_analysis": "…",
   "empty_tests": 0,
   "extraneous_chars": 0,
+  "markdown_fences_removed": 0,
   "ok": true,
   "tests": [{"input": "1\n", "output": "YES\n"}]
 }
@@ -101,7 +107,7 @@ Tentativa por predição interpretada (21 a 23, desde 2026-10-06; research R19 i
                    "failed_peak_rss_bytes": null, "failed_stderr_tail": null,
                    "failed_verdict": null, "passed": 2, "total": 2},
   "scenario": "black_box",
-  "schema_version": 1
+  "schema_version": 2
 }
 ```
 
@@ -110,19 +116,23 @@ Tentativa por predição interpretada (21 a 23, desde 2026-10-06; research R19 i
 ```json
 {
   "accepted_attempt": 2,
+  "accepted_phase": 1,
   "attempts": [
-    {"attempt": 1, "detail": "test 0: WA; 7 kept, 0 discarded", "fallback_eligible": true,
-     "failure": "public_test_failed", "hardware_label": "RTX 3060 12GB", "seed": 43},
-    {"attempt": 2, "detail": "9 kept, 1 discarded", "fallback_eligible": false,
-     "failure": null, "hardware_label": "RTX 3060 12GB", "seed": 44}
+    {"attempt": 1, "detail": "test 0: WA; 7 kept, 0 discarded", "failure": "public_test_failed",
+     "fallback_eligible": true, "hardware_label": "RTX 3060 12GB", "phase": 1, "seed": 42,
+     "temperature": 0.7, "template": "solution"},
+    {"attempt": 2, "detail": "9 kept, 1 discarded", "failure": null, "fallback_eligible": false,
+     "hardware_label": "RTX 3060 12GB", "phase": 1, "seed": 43, "temperature": 0.7,
+     "template": "solution"}
   ],
   "discarded_inputs": [{"discard": "timeout", "index": 4, "verdict": "TLE"}],
   "duplicate_inputs": 0,
-  "model": "qwen2.5-coder:7b",
+  "manual_close": null,
+  "model": "qwen2.5-coder:14b",
   "model_digest": "sha256:…",
   "problem_id": "1000_B",
   "scenario": "black_box",
-  "schema_version": 1,
+  "schema_version": 2,
   "status": "accepted",
   "suite_size": 9,
   "tests": [{"input": "1\n", "output": "1\n"}]
@@ -130,60 +140,48 @@ Tentativa por predição interpretada (21 a 23, desde 2026-10-06; research R19 i
 ```
 
 `tests[*]` tem **exatamente** a forma de `dataset.schemas.testes.TestCase` (`input`, `output`), o
-único contrato de caso de teste existente no projeto (research R0; decisão S2 de 2026-09-30): o consumidor
-converte cada item em `sandbox.types.Test(input, output)` sem renomear campos. A resposta crua, a
-solução Python e os metadados de cada tentativa ficam nos arquivos `attempt_*` ao lado (e vão juntos
-no pacote), não repetidos aqui.
+único contrato de caso de teste existente no projeto (research R0; decisão S2 de 2026-09-30): o
+consumidor converte cada item em `sandbox.types.Test(input, output)` sem renomear campos. A resposta
+crua, a solução Python e os metadados de cada tentativa ficam nos arquivos `attempt_*` ao lado.
 
-Suíte de reserva (FR-022a, desde 2026-10-05): `"status": "accepted_fallback"`, todos os itens de
-`attempts` com `failure` não nulo, `accepted_attempt` = a tentativa escolhida (com
-`"fallback_eligible": true`; não necessariamente a última), e `tests`, `discarded_inputs` e
-`duplicate_inputs` dessa tentativa; as saídas vêm de uma solução que reprovou um teste público.
+Por status (desde 2026-10-06, R21/R22):
 
-Desde 2026-10-06 (research R19), todo item de `attempts` tem também `"kind"` (`solution` ou
-`prediction`) e `"low_confidence_eligible"`, e a suíte tem `"manual_close"` (`null` fora de
-`discarded_manual`).
+- `accepted`: `accepted_phase` 1 ou 2 (a fase da tentativa aceita, a última).
+- `accepted_fallback` (fase 3): 12 itens em `attempts`, todos com falha; `accepted_attempt` = a
+  escolhida entre as que têm `"fallback_eligible": true` (não necessariamente a última);
+  `accepted_phase` 3; as saídas vêm de uma solução que reprovou um teste público por WA.
+- `accepted_predicted` (fase 4): de 13 a 15 itens; a última é `"template": "prediction"`, sem falha,
+  e é a `accepted_attempt`; `accepted_phase` 4; `tests` são os pares escritos pelo modelo;
+  `discarded_inputs` vazio.
+- `discarded_manual` (fase 5): 15 itens, todos com falha; `accepted_attempt` e `accepted_phase`
+  `null`, `tests` vazio e `"manual_close": {"closed_at": "…", "reason": "…"}`, copiado de
+  `manual_close.json`.
 
-Suíte de baixa confiança (FR-022b): `"status": "accepted_low_confidence"`, 20 itens em `attempts`,
-todos com falha e nenhum com `fallback_eligible`; `accepted_attempt` = a primeira com
-`"low_confidence_eligible": true`; `tests` com as entradas mantidas e as saídas reais dessa
-solução, que reprovou um teste público por RE, TLE ou MLE.
-
-Suíte por predição (FR-022c): `"status": "accepted_predicted"`, de 21 a 23 itens em `attempts`; a
-última é `"kind": "prediction"` com `failure: null` e é a `accepted_attempt`; `tests` são os pares
-escritos pelo modelo; `discarded_inputs` vazio.
-
-Fechada pelos autores (FR-022d): `"status": "discarded_manual"`, `"accepted_attempt": null`,
-`"tests": []`, `"suite_size": 0`, 23 itens em `attempts`, todos com falha, e
-`"manual_close": {"closed_at": "2026-10-07T12:00:00Z", "reason": "…"}`, copiado de
-`manual_close.json` (mesmos campos, mais `problem_id`, `scenario` e `schema_version`). Até
-2026-10-06 existia o status `discarded` (12 tentativas sem reserva).
+`accepted_low_confidence` (R19) e `discarded` (até R18) não existem mais.
 
 ## 5. Relatório
 
-`manifests/slm_generation_report.json` — chaves de topo: `schema_version`, `model`, `model_digest`,
-`ollama_version`, `options`, `seed_base`, `prompt_template_sha256`, `dataset_manifest_sha256`,
-`predict_template_sha256` (desde 2026-10-06),
-`combinations` (`total`, os cinco status de `SuiteStatus`, `awaiting_manual`, `pending_generation`,
-`pending_execution`, por cenário e no total; até 2026-10-06 `accepted`, `accepted_fallback`,
-`discarded`), `status_rate` (status → cenário e total → proporção sobre `total`; substitui
-`discard_rate` e `fallback_rate`), `suite_size` por status
-(`count`, `min`, `p25`, `median`, `p75`, `max`, `histogram` por cenário e no total),
-`attempts` (`total` de chamadas respondidas, `failed` das que consumiram tentativa),
-`attempt_failures` (por razão × número da tentativa, razões de `AttemptFailure`, inclusive
-`repetition`), `input_discards` (por razão), `duplicate_inputs`, `done_reason_length`,
-`markdown_fences_removed`, `empty_inputs` e `empty_tests` (por cenário e no total; os três primeiros desde 2026-10-04, `empty_tests` desde 2026-10-06;
-antes `done_reason_length` era um número só), `tokens` (`prompt_total`, `eval_total`, `prompt_max`), `duration_s_total`,
-`hardware` (etiqueta → nº de chamadas), `seeds` (`<id>/<scenario>` → lista de seeds usadas).
+`manifests/slm_generation_report.json` (`schema_version` 2) — chaves de topo: `schema_version`,
+`model`, `model_digest`, `ollama_version`, `options`, `attempt_policy` (a tabela do `run.json`),
+`prompt_template_sha256`, `predict_template_sha256`, `dataset_manifest_sha256`,
+`combinations` (`total`, `accepted`, `accepted_fallback`, `accepted_predicted`, `discarded_manual`,
+`awaiting_manual`, `pending_generation`, `pending_execution`, por cenário e no total),
+`status_rate` (status → cenário e total → proporção sobre `total`),
+**`acceptance`** (novo: por cenário e no total, `by_phase` — fase 1 a 4 → combinações que ficaram
+com a suíte nela — e `by_attempt` — tentativa 1 a 15 → combinações cuja `accepted_attempt` é ela),
+`suite_size` por status com testes (`count`, `min`, `p25`, `median`, `p75`, `max`, `histogram`, por
+cenário e no total), `attempts` (`total` de chamadas respondidas, `failed`), **`per_phase`** (novo:
+fase 1, 2 e 4 → `calls`, `failed`, `prompt_tokens`, `eval_tokens`, `duration_s`),
+`attempt_failures` (razão × tentativa 1 a 15), `input_discards`, `duplicate_inputs`,
+`done_reason_length`, `markdown_fences_removed` (solução e predição somadas), `empty_inputs`,
+`empty_tests`, `tokens`, `duration_s_total`, `hardware`, `seeds`.
 
 Regras fixadas na implementação (2026-10-01): o escopo é sempre todo problema do dataset × os 3
-cenários; quartis e mediana por interpolação linear entre as posições vizinhas (a regra padrão do
-numpy), `null` quando não há suíte aceita; `histogram` com o tamanho como texto (chave JSON);
-`input_discards` conta as entradas descartadas de **todas** as tentativas executadas (inclusive as
-de tentativas que falharam por `all_inputs_failed`); `duplicate_inputs` soma só as das suítes
-aceitas (são as que inflam o tamanho de uma suíte usada); uma combinação `finalizable` entra pelo
-`suite.json` que os arquivos dão; `duration_s_total` é a soma de `total_duration_ns` relatada pelo
-Ollama, sem tempo de espera de infraestrutura. Nenhuma data no arquivo: a mesma árvore dá os
+cenários; quartis e mediana por interpolação linear (a regra padrão do numpy), `null` sem suíte;
+`histogram` com o tamanho como texto; `input_discards` conta as entradas descartadas de todas as
+tentativas executadas; `duplicate_inputs` soma as das suítes com testes; uma combinação
+`finalizable` entra pelo `suite.json` que os arquivos dão; os tempos são os `total_duration_ns`
+do Ollama, sem tempo de espera de infraestrutura. Nenhuma data no arquivo: a mesma árvore dá os
 mesmos bytes. Combinação danificada → o relatório não é gravado (código 1).
 
 ## 6. Camada `slm_suites` do `cli check`
@@ -192,9 +190,9 @@ Acrescentada a `cli.consistency.LAYERS` e a `docs/verificacao-consistencia.md`:
 
 - toda pasta de problema do dataset tem `data/suites/slm/problems/<id>/` com as 3 pastas de cenário,
   e nenhuma pasta sobra (1:1 nos dois sentidos, como a dos mutantes);
-- cada cenário tem `suite.json` e `attempt_1..k.generation.json` sem buraco, com `k ≤ 23` (era 6,
-  depois 12), nenhuma execução sem a geração correspondente, nenhuma execução de tentativa `> 20`,
-  e nenhum outro arquivo além de `manual_close.json` (desde 2026-10-06);
+- cada cenário tem `suite.json` e `attempt_1..k.generation.json` sem buraco, com `k ≤ 15` (era 6,
+  depois 12 e 23), nenhuma execução sem a geração correspondente, nenhuma execução de tentativa
+  `> 12`, e nenhum outro arquivo além de `manual_close.json`;
 - `--deep`: SHA-256 de cada arquivo (todos os de `data/suites/slm/`, inclusive `run.json`, fora
   `.lock`) e do zip contra `manifests/slm_suites.manifest.json`; sem manifesto, aviso (como os
   mutantes antes do `package`).
@@ -204,7 +202,7 @@ Acrescentada a `cli.consistency.LAYERS` e a `docs/verificacao-consistencia.md`:
 obrigatório do piloto e da execução completa (`cli check --deep` com saída `0`), em que a árvore
 ainda não existe ou está pela metade. Regra implementada: **enquanto o manifesto não existe**,
 pasta inteira ausente, problema sem pasta, cenário faltando e `suite.json` faltando são `[AVISO]`,
-com ou sem `--deep` (execução em andamento); buraco nas tentativas, mais de 23 (eram 6, depois 12), arquivo estranho e
+com ou sem `--deep` (execução em andamento); buraco nas tentativas, mais de 15, arquivo estranho e
 pasta sem problema no dataset são `[FALHA]` sempre. **Depois do `package`** (manifesto presente),
 tudo o que falta é `[FALHA]`, inclusive a pasta não descompactada.
 

@@ -70,7 +70,7 @@ manifesto de mutantes (só existe depois do `package`), e as suítes do modelo l
 | `[FALHA] N problema(s) pela metade em data/mutants/building` | rode `mutation generate` de novo até terminar |
 | `[FALHA] todo problema de dataset tem pasta em mutants: K/200` | faltam mutantes para os problemas listados: `mutation generate` |
 | `[FALHA] nenhuma pasta de mutants sem problema em dataset` | há pasta de mutantes de um problema que não está no dataset: apague-a |
-| `[FALHA] tentativas numeradas sem buraco, no máximo 23 (execuções até a 20ª)` ou `arquivo(s) estranho(s) num cenário` | arquivos das suítes do modelo local foram apagados ou acrescentados à mão nos cenários listados: avise os autores |
+| `[FALHA] tentativas numeradas sem buraco, no máximo 15 (execuções até a 12ª)` ou `arquivo(s) estranho(s) num cenário` | arquivos das suítes do modelo local foram apagados ou acrescentados à mão nos cenários listados: avise os autores |
 | `[FALHA] a pasta data/suites/slm/problems não existe` (com `manifests/slm_suites.manifest.json` presente) | descompacte as suítes: `unzip data/slm_suites.zip -d data/` |
 | `error: manifest not found: manifests/dataset.manifest.json` (`2`) | rode a partir da pasta do repositório, com o `git pull` feito |
 

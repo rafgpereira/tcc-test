@@ -1,7 +1,8 @@
 """Test doubles of the ai_clients tests: a fake Ollama client, a fake Python runner, a fake clock.
 
 Nothing here talks to a network or starts a process. The fake client answers from a table keyed by
-``(problem_id, scenario, seed)``: the problem is found by its id inside the prompt (the synthetic
+``(problem_id, scenario, attempt)`` (the attempt found from the seed and temperature of the request,
+a pair that is unique in ``config.ATTEMPT_POLICY``): the problem is found by its id inside the prompt (the synthetic
 problems of ``conftest.py`` carry it both in the statement and in a comment of ``AC_ref.cpp``) and
 the scenario by the sub-labels of ``<context_data>``.
 """
@@ -12,7 +13,11 @@ from dataclasses import dataclass, field
 
 import pytest
 
+from ai_clients import config
 from sandbox.types import RunResult, RunStatus
+
+# (seed, temperature) -> attempt: unique by construction of the attempt policy
+ATTEMPT_OF = {(spec.seed, spec.temperature): spec.attempt for spec in config.ATTEMPT_POLICY}
 
 STATEMENT_TAG = "<problem_statement>"
 CODE_TAG = "<reference_solution_cpp>"
@@ -93,7 +98,7 @@ class FakeModelInfo:
 
 @dataclass
 class FakeSLMClient:
-    """Answers ``complete`` from ``table[(problem_id, scenario, seed)]``.
+    """Answers ``complete`` from ``table[(problem_id, scenario, attempt)]``.
 
     A value is a completion, an exception instance (raised), or a list of those consumed one per
     call (the last one repeats). Every call is recorded in ``requests``; an unexpected key fails
@@ -115,7 +120,8 @@ class FakeSLMClient:
         return found[0]
 
     def complete(self, model: str, prompt: str, options):
-        key = (self._problem_of(prompt), scenario_of(prompt), options.seed)
+        attempt = ATTEMPT_OF[(options.seed, options.temperature)]
+        key = (self._problem_of(prompt), scenario_of(prompt), attempt)
         self.requests.append(
             {"key": key, "model": model, "prompt": prompt, "options": dataclasses.asdict(options)}
         )
@@ -233,7 +239,6 @@ def record_generation(
             problem_id=problem_id,
             scenario=scenario,
             attempt=attempt,
-            seed=42 + attempt,
             model_digest=run.model_digest,
             hardware_label=hardware_label,
             parse=parse,

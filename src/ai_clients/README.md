@@ -4,7 +4,7 @@
 
 ## (a) Propósito
 
-Gera, para cada problema do dataset e cada um dos três cenários de contexto, uma suíte de casos de teste com o modelo local Qwen2.5-Coder-7B (via Ollama), cuja saída esperada é calculada executando de verdade uma solução em Python escrita pelo próprio modelo, para alimentar a etapa de avaliação.
+Gera, para cada problema do dataset e cada um dos três cenários de contexto, uma suíte de casos de teste com o modelo local Qwen2.5-Coder-14B (`qwen2.5-coder:14b`, via Ollama), cuja saída esperada é calculada executando de verdade uma solução em Python escrita pelo próprio modelo, para alimentar a etapa de avaliação.
 
 ## (b) Como executar
 
@@ -13,9 +13,9 @@ Gera, para cada problema do dataset e cada um dos três cenários de contexto, u
 e tenha o dataset descompactado em `data/dataset/`
 ([README do módulo `dataset`](../dataset/README.md), Cenário B).
 
-**Este módulo ainda está em implementação.** Todos os comandos existem, mas a execução real com
-o modelo ainda não foi feita: nenhum número medido do modelo aparece aqui ainda, e o pacote
-`data/slm_suites.zip` ainda não existe.
+**Este módulo ainda está em implementação.** Todos os comandos existem; `generate`, `execute` e
+`report` já rodaram com o modelo de verdade em pilotos de 5 problemas, mas a execução completa dos
+200 problemas ainda não foi feita, e o pacote `data/slm_suites.zip` ainda não existe.
 
 Para cada problema e cada cenário — **caixa-preta** (o modelo vê só o enunciado), **caixa-branca**
 (só a solução de referência em C++) e **híbrido** (os dois) — o modelo recebe um único pedido, sem
@@ -23,10 +23,10 @@ memória de pedidos anteriores, e responde com duas coisas: **entradas de teste*
 difíceis e uma **solução do problema em Python**. O modelo nunca diz qual é a saída certa: ela é
 obtida rodando essa solução Python sobre cada entrada, isolada, sem internet. A solução Python só é
 aceita se acertar os testes públicos do problema; se errar, ou se a resposta do modelo não puder
-ser lida, é feito um novo pedido. **Nenhum problema e cenário fica sem suíte**: depois de 8 pedidos
-sem acerto entram, nesta ordem, uma suíte de **reserva**, mais pedidos até 20, uma suíte de **baixa
-confiança** e, por último, até 3 pedidos em que o próprio modelo escreve as saídas (**predição**);
-se nem isso funcionar, os autores fecham o caso à mão (passo 3). Detalhes da decisão:
+ser lida, é feito um novo pedido, com outra seed ou outra temperatura, até 12. **Nenhum problema
+e cenário fica sem suíte**: sem acerto nos 12, entram, nesta ordem, uma suíte de **reserva** e até 3
+pedidos em que o próprio modelo escreve as saídas (**predição**); se nem isso funcionar, os autores
+fecham o caso à mão (passo 3). Detalhes da decisão:
 [`docs/metodologia-referencia.md`](../../docs/metodologia-referencia.md), seção 3.
 
 O trabalho tem duas etapas, cada uma num serviço do Docker Compose:
@@ -39,7 +39,7 @@ O trabalho tem duas etapas, cada uma num serviço do Docker Compose:
 ### Cenário A — Rodar do zero
 
 **Preparar o Ollama e o `.env`.** Num servidor Ollama (nesta máquina ou em outra), baixe o modelo
-com `ollama pull qwen2.5-coder:7b`. No `.env` (o arquivo de configuração na raiz do projeto, ver
+com `ollama pull qwen2.5-coder:14b`. No `.env` (o arquivo de configuração na raiz do projeto, ver
 `.env.example`), preencha:
 
 - `OLLAMA_BASE_URL` — o endereço do Ollama: `http://host.docker.internal:11434` se ele roda nesta
@@ -50,10 +50,15 @@ com `ollama pull qwen2.5-coder:7b`. No `.env` (o arquivo de configuração na ra
 
 Opcionais: `OLLAMA_HTTP_TIMEOUT_S` (quanto esperar por uma resposta, padrão 900 segundos; aumente
 se o Ollama roda sem placa de vídeo) e `OLLAMA_MAX_INFRA_RETRIES` (quantas vezes seguidas a mesma
-chamada é repetida se o Ollama não responder, padrão 30). `OLLAMA_MODEL` troca o modelo
-(padrão `qwen2.5-coder:7b`, o do experimento), só para um piloto que compara modelos; o modelo
-precisa estar instalado no Ollama (`ollama pull <modelo>`), e trocar de modelo exige uma execução
-nova (mover `data/suites/slm` para outro nome antes do `generate`).
+chamada é repetida se o Ollama não responder, padrão 30). `OLLAMA_MODEL` troca o modelo (padrão
+`qwen2.5-coder:14b`, o do experimento), só para um piloto que compara modelos; ele precisa estar
+instalado no Ollama (`ollama pull <modelo>`), e trocar de modelo exige uma execução nova. A seed e a
+temperatura de cada pedido não se configuram: vêm da tabela do passo 3.
+
+**Uma execução nova sempre começa numa pasta vazia.** Se `data/suites/slm/` já tem uma execução
+terminada ou de uma versão anterior deste módulo, mova-a antes do primeiro `generate`:
+`mv data/suites/slm data/suites/slm-<nome>`. Uma execução de versão anterior é recusada por todos
+os comandos, com código `2` e essa mesma instrução.
 
 **1. Conferir o que seria enviado, sem chamar o modelo:**
 
@@ -62,11 +67,11 @@ docker compose run --rm app python -m ai_clients generate --dry-run
 ```
 
 Não grava nada nem precisa do Ollama. Imprime uma linha por pedido previsto
-(`<id> <cenário> attempt 1 seed 43: prompt <N> chars`) e, no fim, `dry run: 600 calls planned` e o
+(`<id> <cenário> attempt 1 seed 42 temperature 0.7: prompt <N> chars`) e, no fim, `dry run: 600 calls planned` e o
 maior pedido de cada cenário. Medido em 2026-10-04 sobre os 200 problemas, com o texto do pedido
-daquela data: 600 pedidos; o maior tinha 8.074 caracteres (híbrido de `61_B`). O texto do pedido
-mudou depois disso e o tamanho com o texto atual ainda não foi medido. Antes de listar, o comando confere o dataset inteiro contra o
-manifesto, o que pode levar alguns minutos.
+daquela data: 600 pedidos; o maior tinha 8.074 caracteres (híbrido de `61_B`). Com o texto atual,
+medido em 2026-10-06 nos 5 problemas do piloto, o maior tem 8.370 caracteres (o mesmo `61_B`). Antes
+de listar, o comando confere o dataset inteiro contra o manifesto, o que pode levar alguns minutos.
 
 **2. Gerar:**
 
@@ -75,23 +80,24 @@ docker compose run --rm app python -m ai_clients generate
 ```
 
 A primeira execução cria `data/suites/slm/run.json` (qual modelo, com quais parâmetros, sobre qual
-dataset). Para cada problema e cenário, grava em `data/suites/slm/problems/<id>/<cenário>/` um
-arquivo `attempt_<n>.generation.json` com a resposta do modelo e o que foi lido dela, e imprime uma
-linha por pedido, como `1000_B black_box attempt 1 seed 43: parsed (7 inputs) — 1570+812 tokens,
+dataset e a tabela de seeds e temperaturas). Para cada problema e cenário, grava em
+`data/suites/slm/problems/<id>/<cenário>/` um arquivo `attempt_<n>.generation.json` com a resposta
+do modelo, o que foi lido dela e a fase, a seed e a temperatura usadas, e imprime uma linha por
+pedido, como `1000_B black_box attempt 1 seed 42: parsed (7 inputs) — 1570+812 tokens,
 stop, 21.5 s` (exemplo ilustrativo, não medido). Duas correções fixas na leitura, contadas no
 relatório: se o modelo embrulhar o código Python inteiro numa cerca Markdown (```` ```python ````
 … ```` ``` ````), ela é tirada; uma entrada vazia é descartada sozinha. Se a resposta não puder ser
-lida (`unparseable (...)`), o pedido seguinte, com a próxima seed, é feito na hora. O mesmo vale
-quando o próprio modelo trava repetindo texto e o Ollama interrompe o pedido (`model failure
-(repetition) — ... token repeat limit reached`): conta como tentativa perdida e segue para a
-próxima seed, sem esperar. Se a tentativa perdida der à combinação uma suíte de reserva ou de
-baixa confiança (ver o passo 3), ela termina na hora e grava `suite.json` (`<id> <cenário>: suite
-recorded (accepted_fallback)`, por exemplo). Os pedidos 21 a 23 usam um segundo texto,
-`src/prompt_templates/slm_predict_prompt.txt`, que pede entradas **e** saídas esperadas, sem
-solução Python (`parsed (<k> tests)`); a primeira resposta lida já vira a suíte
-(`accepted_predicted`), sem passar pelo `execute`. Se as 3 não puderem ser lidas, a combinação fica
-aguardando os autores (`<id> <cenário>: awaiting manual handling`). No fim: `done: N calls, N
-parsed, N unparseable, N repetition; suites: N accepted_fallback, N accepted_low_confidence, N
+lida (`unparseable (...)`), o pedido seguinte da tabela é feito na hora. O mesmo vale quando o
+próprio modelo trava repetindo texto e o Ollama interrompe o pedido (`model failure (repetition) —
+... token repeat limit reached`): conta como tentativa perdida e segue para o pedido seguinte, sem
+esperar. Se a tentativa perdida for a 12ª e uma das 12 puder ser reserva (passo 3), a combinação
+termina na hora e grava `suite.json` (`<id> <cenário>: suite recorded (accepted_fallback)`). Os
+pedidos 13 a 15 usam um segundo texto, `src/prompt_templates/slm_predict_prompt.txt`, que pede
+entradas **e** saídas esperadas, sem solução Python (`parsed (<k> tests)`); a primeira resposta
+lida já vira a suíte (`accepted_predicted`), sem passar pelo `execute`. Nessas respostas, uma cerca
+Markdown em volta de uma entrada ou saída inteira também é tirada e contada. Se as 3 não puderem
+ser lidas, a combinação fica aguardando os autores (`<id> <cenário>: awaiting manual handling`).
+No fim: `done: N calls, N parsed, N unparseable, N repetition; suites: N accepted_fallback, N
 accepted_predicted; N pending execution, N awaiting manual handling`, seguido de uma linha
 `manual: ...` por combinação que aguarda os autores, com o comando `close` a usar, e saída com
 código `4` (os demais problemas e cenários foram tratados normalmente).
@@ -107,8 +113,8 @@ docker compose run --rm sandbox python -m ai_clients execute
 
 Roda no serviço `sandbox`, sem internet. Para cada resposta lida e ainda não executada, roda a
 solução Python do modelo primeiro sobre os testes públicos do problema (na ordem do `testes.json`,
-parando no primeiro erro) e depois sobre cada entrada gerada, mesmo que tenha errado um teste
-público (para a tentativa poder virar reserva ou baixa confiança); a saída de cada execução é a
+parando no primeiro erro) e, se acertar todos ou se o primeiro erro for uma resposta errada (WA,
+para a tentativa poder virar reserva), sobre cada entrada gerada; a saída de cada execução é a
 saída esperada daquele teste. Cada execução começa numa pasta vazia, sem rede, como um usuário sem privilégios, e
 só com a biblioteca padrão do Python. Os limites vêm do próprio problema (`metadata.json`), com
 folga para o Python ser mais lento e gastar mais memória que o C++: **10 vezes** o limite de tempo
@@ -117,32 +123,39 @@ estoura o tempo, termina com erro ou escreve algo que não é texto UTF-8 é des
 outras ficam.
 
 Grava `attempt_<n>.execution.json` ao lado da resposta e imprime uma linha por tentativa:
-`accepted (<k> kept, <d> discarded)`, `public_test_failed (test <i>: <veredito>; <k> kept, <d>
-discarded)` (a solução errou um teste público; o arquivo guarda o começo do que ela imprimiu, o
-final das mensagens de erro, o tempo e a memória daquele teste) ou `all_inputs_failed (<t> timeout,
+`accepted (<k> kept, <d> discarded)`, `public_test_failed (test <i>: <veredito>)` (a solução errou
+um teste público; o arquivo guarda o começo do que ela imprimiu, o final das mensagens de erro, o
+tempo e a memória daquele teste; num WA a linha termina em `; <k> kept, <d> discarded)`, porque as
+entradas rodaram) ou `all_inputs_failed (<t> timeout,
 <r> runtime_error)` (nenhuma entrada sobrou). Se aceitou, grava `suite.json` com os testes da
 suíte (`input` e `output`) e `status: accepted`.
 
-**De onde vem a suíte de cada problema e cenário**, nesta ordem (o `status` do `suite.json` diz
-qual foi; `accepted_attempt`, de qual tentativa vieram os testes):
+**De onde vem a suíte de cada problema e cenário.** Cada pedido tem a seed e a temperatura de uma
+tabela fixa, gravada no `run.json` (nenhum par se repete):
 
-| Ordem | Quando | `status` | As saídas esperadas vêm de |
+| Pedidos | Fase | Seed | Temperatura | O que se pede |
+|---|---|---|---|---|
+| 1 a 6 | 1 | 42, 43, 44, 45, 46, 47 | 0.7 | entradas e solução Python |
+| 7 a 12 | 2 | 48 | 0.7, 0.6, 0.5, 0.4, 0.3, 0.2 | entradas e solução Python |
+| 13 a 15 | 4 | 49, 50, 51 | 0.7 | entradas e saídas (predição) |
+
+E a suíte sai do primeiro destes casos que acontecer (o `status` e o `accepted_phase` do
+`suite.json` dizem qual; `accepted_attempt`, de qual pedido vieram os testes):
+
+| Fase | Quando | `status` | As saídas esperadas vêm de |
 |---|---|---|---|
-| 1 | uma das tentativas 1 a 8 acerta todos os testes públicos | `accepted` | uma solução que acertou os exemplos |
-| 2 | nenhuma das 8 acertou; a melhor das que erraram um teste público **só por WA** e mantiveram alguma entrada (mais testes públicos certos, depois mais entradas, depois a de menor número), sem novo pedido | `accepted_fallback` | uma solução que **sabidamente erra** em algum caso |
-| 3 | nenhuma das 8 serve nem como reserva: tentativas 9 a 20, parando na primeira que acertar tudo (`accepted`) ou puder ser reserva | `accepted` ou `accepted_fallback` | como acima |
-| 4 | depois da 20ª: a **primeira** das 20 cuja solução rodou em ao menos uma entrada, mesmo tendo quebrado (erro, tempo ou memória) num teste público | `accepted_low_confidence` | uma solução que quebra em algum exemplo |
-| 5 | nenhuma das 20 rodou em entrada alguma: até 3 pedidos de predição (passo 2), o primeiro lido vira a suíte | `accepted_predicted` | o próprio modelo, **sem nenhuma execução nem conferência** |
-| 6 | nem as 3 predições puderam ser lidas: a combinação aguarda os autores, que a fecham com `close` (abaixo) | `discarded_manual` | — (sem testes; o motivo fica gravado) |
+| 1 ou 2 | um dos pedidos 1 a 12 traz uma solução que acerta todos os testes públicos (os pedidos param aí) | `accepted` | uma solução que acertou os exemplos |
+| 3 | nenhum dos 12 acertou: a melhor das soluções que erraram um teste público **só por WA** e mantiveram alguma entrada (mais testes públicos certos, depois mais entradas, depois o menor número), sem novo pedido | `accepted_fallback` | uma solução que **sabidamente erra** em algum caso |
+| 4 | nenhum dos 12 serve nem como reserva: até 3 pedidos de predição (passo 2), o primeiro lido vira a suíte | `accepted_predicted` | o próprio modelo, **sem nenhuma execução nem conferência** |
+| 5 | nem as 3 predições puderam ser lidas: a combinação aguarda os autores, que a fecham com `close` (abaixo) | `discarded_manual` | — (sem testes; o motivo fica gravado) |
 
-Cada tentativa do `suite.json` diz se podia ser reserva (`fallback_eligible`) ou baixa confiança
-(`low_confidence_eligible`) e se pediu solução ou predição (`kind`). No fim: `done: N executed, N
-accepted, N failed (N need a new generation); suites: N accepted_fallback, N
-accepted_low_confidence; N awaiting manual handling`, com as linhas `manual: ...` e o código `4`
-como no `generate`.
+Cada pedido do `suite.json` traz a fase, a seed, a temperatura, o texto usado (`template`) e se
+podia ser reserva (`fallback_eligible`). No fim: `done: N executed, N accepted, N failed (N need a
+new generation); suites: N accepted_fallback; N awaiting manual handling`, com as linhas
+`manual: ...` e o código `4` como no `generate`.
 
 **4. Alternar até acabar.** Uma tentativa que falhou na execução precisa de um novo pedido ao
-modelo, com a próxima seed, e isso é a etapa de geração. Enquanto o `execute` terminar com a linha
+modelo, com a linha seguinte da tabela, e isso é a etapa de geração. Enquanto o `execute` terminar com a linha
 `next: docker compose run --rm app python -m ai_clients generate --resume ...`, rode esse comando
 e depois o `execute` de novo. A linha repete os mesmos `--problem` e `--scenario` com que o
 `execute` foi chamado, então num piloto basta copiá-la. Quando o `execute` não imprimir mais
@@ -207,7 +220,7 @@ o dataset: `docker compose run --rm app python -m cli check --deep`.
 
 | Comando | Serviço | O que faz / variações |
 |---|---|---|
-| `python -m ai_clients generate` | `app` | pede ao modelo as entradas e a solução Python de cada problema e cenário ainda pendente e grava as respostas. `--resume` é obrigatório quando já existe `data/suites/slm/run.json` (continua a mesma execução; sem ele o comando recusa com código `2`) e recusa, também com `2`, se algo que muda as respostas mudou desde o início da execução — o modelo (ou a versão baixada dele), a versão do Ollama, os parâmetros de geração, os dois textos-base do pedido (solução e predição), o número de tentativas, o dataset ou as folgas de tempo e memória —, listando o que mudou; trocar a máquina do Ollama, o `OLLAMA_HARDWARE_LABEL` ou as esperas do `.env` é permitido. `--dry-run` só lista os pedidos previstos e o tamanho de cada um, sem Ollama e sem gravar nada. `--limit N` trata no máximo N combinações de problema e cenário (na ordem: problema em ordem alfabética, depois caixa-preta, caixa-branca, híbrido). `--problem ID` e `--scenario black_box`, `white_box` ou `hybrid` (repetíveis) restringem. Se o Ollama não responde, a mesma chamada é repetida (espera de 5 s dobrando até 60 s) sem gastar tentativa, até `OLLAMA_MAX_INFRA_RETRIES` vezes seguidas; aí o comando para com código `3` sem gravar nada daquela tentativa. Já o `token repeat limit reached` do Ollama (o modelo travou repetindo texto) é tentativa perdida (`repetition`) e segue direto para a próxima seed. Os pedidos 21 a 23 são de predição (segundo texto-base) e a primeira resposta lida vira a suíte na hora. Se algum problema e cenário da seleção aguarda os autores, imprime uma linha `manual: ...` por combinação, com o comando `close`, e sai com `4` depois de tratar todos os outros. Interrompido (Ctrl+C, `docker stop`), sai com `130`; rodar de novo com `--resume` refaz só a chamada que estava em andamento, com a mesma seed |
+| `python -m ai_clients generate` | `app` | pede ao modelo as entradas e a solução Python de cada problema e cenário ainda pendente e grava as respostas. `--resume` é obrigatório quando já existe `data/suites/slm/run.json` (continua a mesma execução; sem ele o comando recusa com código `2`) e recusa, também com `2`, se algo que muda as respostas mudou desde o início da execução — o modelo (ou a versão baixada dele), a versão do Ollama, os parâmetros de geração, os dois textos-base do pedido (solução e predição), o número de tentativas, o dataset ou as folgas de tempo e memória —, listando o que mudou; trocar a máquina do Ollama, o `OLLAMA_HARDWARE_LABEL` ou as esperas do `.env` é permitido. `--dry-run` só lista os pedidos previstos e o tamanho de cada um, sem Ollama e sem gravar nada. `--limit N` trata no máximo N combinações de problema e cenário (na ordem: problema em ordem alfabética, depois caixa-preta, caixa-branca, híbrido). `--problem ID` e `--scenario black_box`, `white_box` ou `hybrid` (repetíveis) restringem. Se o Ollama não responde, a mesma chamada é repetida (espera de 5 s dobrando até 60 s) sem gastar tentativa, até `OLLAMA_MAX_INFRA_RETRIES` vezes seguidas; aí o comando para com código `3` sem gravar nada daquela tentativa. Já o `token repeat limit reached` do Ollama (o modelo travou repetindo texto) é tentativa perdida (`repetition`) e segue direto para o pedido seguinte. Os pedidos 13 a 15 são de predição (segundo texto-base) e a primeira resposta lida vira a suíte na hora. Se algum problema e cenário da seleção aguarda os autores, imprime uma linha `manual: ...` por combinação, com o comando `close`, e sai com `4` depois de tratar todos os outros. Interrompido (Ctrl+C, `docker stop`), sai com `130`; rodar de novo com `--resume` refaz só a chamada que estava em andamento, com a mesma seed |
 | `python -m ai_clients execute` | `sandbox` | roda a solução Python de cada resposta lida e ainda não executada, sobre os testes públicos e as entradas geradas, e grava as saídas esperadas e, quando a combinação termina, o `suite.json`. Exige `data/suites/slm/run.json` (rode o `generate` antes; sem ele, código `2`); não tem `--resume`, porque sempre continua de onde parou. `--dry-run` só lista as tentativas a executar (número de entradas, de testes públicos e os limites efetivos), sem executar nem gravar nada. `--limit N`, `--problem ID` e `--scenario S` como no `generate`. Termina com `next: ...generate --resume` (com os mesmos `--problem` e `--scenario` usados no `execute`) se ainda há problema e cenário esperando um novo pedido ao modelo; as linhas `manual: ...` e o código `4` como no `generate`. Uma falha do ambiente de execução (por exemplo, rodar no serviço `app`) para com código `3` sem gravar nada daquela tentativa. Interrompido (Ctrl+C, `docker stop`), sai com `130`; rodar de novo refaz só a tentativa que estava em andamento |
 | `python -m ai_clients close --problem ID --scenario S --reason "TEXTO"` | `app` | fecha à mão **um** problema e cenário que aguarda os autores: grava `manual_close.json` (motivo e data) e o `suite.json` com `status: discarded_manual`. As três opções são obrigatórias; motivo vazio, combinação em outro estado ou problema fora do dataset → `2`, sem gravar nada. `--dry-run` só mostra o que seria gravado. Exige o `run.json` (código `2` sem ele) |
 | `python -m ai_clients report` | `app` | grava `manifests/slm_generation_report.json` com os números da execução, lendo só `data/suites/slm/`; pode rodar a qualquer momento. Exige o `run.json` (código `2` sem ele); combinação danificada → `1`, sem gravar o relatório |
@@ -228,11 +241,12 @@ ou de configuração do Ollama, `4` terminou, mas algum problema e cenário agua
 | `error: a run already exists in data/suites/slm; use --resume to continue it` (`2`) | rode com `--resume`; para começar do zero, apague `data/suites/slm` |
 | `ollama unavailable (...); retrying the same call ...` | o Ollama não respondeu (ou o túnel do ngrok caiu: `ERR_NGROK_3200`); o comando espera e tenta de novo sozinho. Confira se o Ollama e o túnel estão no ar e se o endereço do `.env` está certo; se o túnel voltar com outro endereço, interrompa (Ctrl+C), troque o `OLLAMA_BASE_URL` e rode `generate --resume` |
 | `infrastructure failure: ollama unavailable after N consecutive retries ...` (`3`) | coloque o Ollama no ar e rode `generate --resume`; nada foi perdido |
-| `configuration error: model qwen2.5-coder:7b is not installed ...` (`3`) | `ollama pull qwen2.5-coder:7b` no servidor do Ollama |
+| `configuration error: model qwen2.5-coder:14b is not installed ...` (`3`) | `ollama pull qwen2.5-coder:14b` no servidor do Ollama |
+| `error: data/suites/slm holds a run of an older version of python -m ai_clients ...` (`2`) | a pasta tem uma execução de uma versão anterior (outra tabela de pedidos), que não pode ser continuada nem lida: `mv data/suites/slm data/suites/slm-<nome>` e comece uma execução nova |
 | `configuration error: ... the prompt may have been truncated ...` (`3`) | o pedido não coube na janela de contexto do modelo; avise os autores (é um parâmetro do experimento); nada foi gravado |
 | `error: data/suites/slm/run.json does not exist; run generate first` (`2`, no `execute`, `report` ou `package`) | rode o `generate` antes |
 | `error: N of 600 combinations have no suite.json ...` (`1`, no `package`) | termine a execução (alternar `generate --resume` e `execute`) antes de empacotar |
-| `manual: <id> <cenário>: 3 prediction attempts unparseable; close it with: ...` (`4`, no `generate` ou no `execute`) | nenhum dos 23 pedidos deu uma suíte; os demais problemas e cenários seguiram normalmente. Os autores decidem o que fazer e rodam o comando `close` impresso, com o motivo |
+| `manual: <id> <cenário>: 3 prediction attempts unparseable; close it with: ...` (`4`, no `generate` ou no `execute`) | nenhum dos 15 pedidos deu uma suíte; os demais problemas e cenários seguiram normalmente. Os autores decidem o que fazer e rodam o comando `close` impresso, com o motivo |
 | `error: <id> <cenário> is <estado>, not awaiting manual handling; nothing was recorded` (`2`, no `close`) | só se fecha à mão um problema e cenário que aguarda os autores; confira o `--problem` e o `--scenario` |
 | `FAIL` no `verify` | algum arquivo foi alterado, apagado ou acrescentado depois do pacote: apague `data/suites/slm` e descompacte de novo |
 | `infrastructure failure: cannot prepare the workdir ...` ou `cannot start ...` (`3`, no `execute`) | o `execute` foi rodado fora do serviço `sandbox`: use `docker compose run --rm sandbox ...`; nada foi gravado |
@@ -246,8 +260,8 @@ ou de configuração do Ollama, `4` terminou, mas algum problema e cenário agua
 |---|---|---|
 | `data/dataset/problems/<id>/enunciado.md`, `AC_ref.cpp`, `testes.json`, `metadata.json` | texto, C++ e JSON | dataset descompactado ([`dataset`](../dataset/README.md)); `metadata.json` traz os limites de tempo e memória, `testes.json` os testes públicos |
 | `manifests/dataset.manifest.json` | JSON | versionado; conferido antes de qualquer trabalho |
-| `src/prompt_templates/slm_prompt.txt` | texto (inglês) | versionado; o texto-base dos pedidos 1 a 20 (entradas e solução Python), igual nos três cenários exceto pelo bloco de contexto |
-| `src/prompt_templates/slm_predict_prompt.txt` | texto (inglês) | versionado; o texto-base dos pedidos 21 a 23 (entradas e saídas esperadas, sem solução), com o mesmo bloco de contexto |
+| `src/prompt_templates/slm_prompt.txt` | texto (inglês) | versionado; o texto-base dos pedidos 1 a 12 (entradas e solução Python), igual nos três cenários exceto pelo bloco de contexto |
+| `src/prompt_templates/slm_predict_prompt.txt` | texto (inglês) | versionado; o texto-base dos pedidos 13 a 15 (entradas e saídas esperadas, sem solução), com o mesmo bloco de contexto |
 | `OLLAMA_BASE_URL`, `OLLAMA_HARDWARE_LABEL` (e, opcionais, `OLLAMA_HTTP_TIMEOUT_S`, `OLLAMA_MAX_INFRA_RETRIES`, `OLLAMA_MODEL`) | variáveis do `.env` | preenchidas pelo operador (ver `.env.example`) |
 
 ## (d) Saídas produzidas
@@ -262,8 +276,8 @@ ou de configuração do Ollama, `4` terminou, mas algum problema e cenário agua
 
 - Python 3.11 da imagem (`docker compose build`); nenhuma dependência além das já fixadas no
   `uv.lock`.
-- Um servidor Ollama acessível, na própria máquina ou remoto, com o modelo `qwen2.5-coder:7b`
-  baixado (`ollama pull qwen2.5-coder:7b`), e as variáveis do `.env` preenchidas.
+- Um servidor Ollama acessível, na própria máquina ou remoto, com o modelo `qwen2.5-coder:14b`
+  baixado (`ollama pull qwen2.5-coder:14b`), e as variáveis do `.env` preenchidas.
 - Serviço `app` para a geração e `sandbox` para a execução (motor do módulo
   [`sandbox`](../sandbox/README.md), sem alteração).
 - Dataset descompactado em `data/dataset/` e íntegro.
@@ -272,12 +286,10 @@ ou de configuração do Ollama, `4` terminou, mas algum problema e cenário agua
 
 - A solução Python do modelo só é validada pelos testes públicos do problema; se ela estiver
   errada numa entrada que nenhum teste público cobre, a saída esperada daquela entrada fica errada.
-- As suítes `accepted_fallback` e `accepted_low_confidence` vêm de soluções que erraram um exemplo,
-  e as `accepted_predicted` têm saídas escritas pelo modelo sem nenhuma conferência: parte das
-  saídas esperadas delas pode estar errada. O relatório separa as suítes por `status` para que a
-  análise nunca as misture com as `accepted` sem saber.
-- Uma solução que estoura o tempo num teste público ainda roda todas as entradas geradas, e cada
-  uma pode levar até 10 vezes o limite de tempo do problema; o custo disso não foi medido.
+- As suítes `accepted_fallback` vêm de soluções que erraram um exemplo, e as `accepted_predicted`
+  têm saídas escritas pelo modelo sem nenhuma conferência: parte das saídas esperadas delas pode
+  estar errada. O relatório separa as suítes por `status` para que a análise nunca as misture com
+  as `accepted` sem saber.
 - Nos cenários com código, o modelo pode só traduzir a solução C++ para Python, em vez de resolver
   o problema de forma independente.
 - Não há verificação de que a solução Python é determinística nem de que cada entrada gerada
@@ -293,9 +305,9 @@ ou de configuração do Ollama, `4` terminou, mas algum problema e cenário agua
 | Comando | Verificado em | Revisão |
 |---|---|---|
 | `generate --dry-run` (200 problemas) | 2026-09-30 | 2e679ae+dirty |
-| `generate` | pendente | — |
-| `execute` | pendente | — |
+| `generate` | 2026-10-06 | 7535dee |
+| `execute` | 2026-10-06 | 7535dee |
 | `close` | pendente | — |
-| `report` | pendente | — |
+| `report` | 2026-10-06 | 7535dee |
 | `package` | pendente | — |
 | `verify` | pendente | — |

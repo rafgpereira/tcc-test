@@ -31,6 +31,14 @@ motor) · `4` (desde 2026-10-06, research R19 item 7) o comando terminou, mas h�
 seleção aguardando tratamento manual · `130` interrompido (`Ctrl+C`, `docker stop`; é seguro rodar
 de novo). Precedência: `130`, `3` e `1` vencem o `4`; as linhas `manual:` saem mesmo assim.
 
+## Execução de uma versão anterior (desde 2026-10-06, R22 item 4)
+
+Se `data/suites/slm/run.json` existe mas não é de `schema_version` 2 (os pilotos 1 a 5),
+`generate`, `execute`, `close`, `report` e `package` saem com código 2, sem ler nem gravar nada:
+`error: data/suites/slm holds a run of an older version of python -m ai_clients (it cannot be
+resumed nor read); move it away first: mv data/suites/slm data/suites/slm-<name>`. Antes do
+piloto 6, `data/suites/slm` (o piloto 5) precisa ser movida.
+
 ## Opções comuns a `generate` e `execute`
 
 | Opção | Padrão | Efeito |
@@ -52,9 +60,10 @@ segundo comando se recusa com código 1 (`another python -m ai_clients command i
 ## `generate` (serviço `app`)
 
 Para cada combinação em `pending_generation(n)` ([data-model.md §4](../data-model.md#4-máquina-de-estados-de-uma-combinação)):
-monta o prompt — com o template principal nas tentativas 1 a 20 e com o de predição
-(`src/prompt_templates/slm_predict_prompt.txt`) nas 21 a 23 —, faz **uma** chamada sem estado ao
-Ollama com a seed `42 + n`, grava `attempt_<n>.generation.json` (resposta crua + interpretação).
+monta o prompt com o template da linha `n` do `attempt_policy` do `run.json` (o principal nas
+tentativas 1 a 12, o de predição, `src/prompt_templates/slm_predict_prompt.txt`, nas 13 a 15), faz
+**uma** chamada sem estado ao Ollama com a seed e a temperatura dessa linha (data-model §2) e grava
+`attempt_<n>.generation.json` (resposta crua, interpretação, fase, seed, temperatura, template).
 Se a interpretação falhar, faz na hora a tentativa `n + 1`, a menos que a combinação tenha ficado
 `finalizable` ou `awaiting_manual` (data-model §4). Uma tentativa por predição interpretada vira
 `suite.json` (`accepted_predicted`) na hora, sem passar pelo `execute`. Toda vez que grava um
@@ -88,7 +97,7 @@ Saída por chamada: `<id> <scenario> attempt <n> seed <s>: parsed (<k> inputs) |
 `<id> <scenario> attempt <n> seed <s>: model failure (repetition) — <erro do Ollama>`; numa
 tentativa por predição, `parsed (<k> tests)` no lugar de `parsed (<k> inputs)`. Resumo final
 (desde 2026-10-06): `done: N calls, N parsed, N unparseable, N repetition; suites: N
-accepted_fallback, N accepted_low_confidence, N accepted_predicted; N pending execution, N awaiting
+accepted_fallback, N accepted_predicted; N pending execution, N awaiting
 manual handling`.
 
 Combinações aguardando tratamento manual (desde 2026-10-06): depois do resumo, uma linha em
@@ -99,13 +108,13 @@ run --rm app python -m ai_clients close --problem <id> --scenario <scenario> --r
 
 ## `execute` (serviço `sandbox`)
 
-Para cada combinação em `pending_execution(n)` (só tentativas 1 a 20): roda o `reference_py` nos
-testes públicos (até o primeiro não-AC) e depois em cada entrada gerada, qualquer que tenha sido o
-resultado dos testes públicos (research R7, R19 item 2); grava `attempt_<n>.execution.json`; se
-`accepted`, grava `suite.json` (`accepted`); se falhou e a combinação ficou `finalizable`
-(data-model §4), grava `suite.json` (`accepted_fallback` ou `accepted_low_confidence`) e imprime
-`<id> <scenario>: suite recorded (<status>)`. Depois da 20ª sem suíte, a combinação volta para o
-`generate` (predição).
+Para cada combinação em `pending_execution(n)` (só tentativas 1 a 12): roda o `reference_py` nos
+testes públicos (até o primeiro não-AC) e, se passar em todos ou se o primeiro erro for WA, em cada
+entrada gerada (research R7, R22 item 6); grava `attempt_<n>.execution.json`; se `accepted`, grava
+`suite.json` (`accepted`); se a 12ª falhou e alguma das 12 pode ser reserva, grava `suite.json`
+(`accepted_fallback`) e imprime `<id> <scenario>: suite recorded (<status>)`. Sem reserva depois
+da 12ª, a combinação volta para o `generate` (predição, tentativa 13). As suítes por predição não
+passam por aqui: o `generate` as grava direto da resposta.
 Também grava o `suite.json` de toda combinação `finalizable` que encontrar. Não tem `--resume`: não
 inicia execução nova (sem `run.json` → código 2, `run generate first`) e só processa pendências.
 
@@ -133,8 +142,9 @@ combinação — cada problema começa com `missing:` (arquivo de tentativa que 
 (JSON inválido, schema violado — inclusive seed que não bate —, arquivo que fala de outra
 combinação, `model_digest` diferente do `run.json`, execução de tentativa não interpretada, número
 de entradas diferente do da geração, tentativa depois de uma aceita, tentativa além da 23ª,
-tentativa além da 8ª com uma reserva possível antes dela, tentativa além da 20ª com uma reserva ou
-baixa confiança possível, execução de uma tentativa por predição, `manual_close.json` numa
+fase, seed, temperatura ou template diferentes da linha da tentativa no `attempt_policy`,
+tentativa além da 15ª, tentativa 13 ou mais com uma reserva possível entre as 12, execução de uma
+tentativa por predição, entradas executadas depois de RE/TLE/MLE, `manual_close.json` numa
 combinação que não aguarda tratamento manual, arquivo estranho na pasta) — e sai com código 1. Temporários de escrita atômica deixados por um
 `kill -9` (`.<nome>.<sufixo>.tmp`) são ignorados, nunca lidos.
 
@@ -143,7 +153,7 @@ data/suites/slm/run.json, and a run never mixes configurations:` seguida de uma 
 `  <campo>: recorded <valor gravado>, current <valor atual>` por campo (os de `options` como
 `options.<nome>`).
 Resumo final (desde 2026-10-06): `done: N executed, N accepted, N failed (N need a new
-generation); suites: N accepted_fallback, N accepted_low_confidence; N awaiting manual handling`,
+generation); suites: N accepted_fallback; N awaiting manual handling`,
 seguido das linhas `manual:` e do código 4 nas mesmas condições do `generate`.
 Se sobrou combinação que precisa de nova geração, a última linha diz o comando seguinte, com a
 mesma seleção (`--problem`, ordenados e sem repetição, e `--scenario`, na ordem canônica) com que o

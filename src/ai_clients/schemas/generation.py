@@ -10,9 +10,16 @@ from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
 
-from ai_clients import config
-from ai_clients.schemas.common import Attempt, NonNegative, Scenario, Sha256Hex
-from dataset.schemas.common import PROBLEM_ID_PATTERN, Schema, SchemaVersion
+from ai_clients.schemas.common import (
+    Attempt,
+    AttemptKind,
+    AttemptPhase,
+    NonNegative,
+    Scenario,
+    SchemaVersion,
+    Sha256Hex,
+)
+from dataset.schemas.common import PROBLEM_ID_PATTERN, Schema
 from dataset.schemas.testes import TestCase
 
 
@@ -69,7 +76,7 @@ def _complete_text(text: str, what: str) -> str:
 
 
 class PredictionParse(Schema):
-    """The two blocks of a well-formed prediction (attempts after config.SOLUTION_ATTEMPTS)."""
+    """The two blocks of a well-formed prediction (the attempts of phase 4)."""
 
     ok: Literal[True]
     edge_cases_analysis: str
@@ -77,6 +84,7 @@ class PredictionParse(Schema):
     extraneous_chars: NonNegative  # text outside the two blocks, ignored (never corrected)
     duplicate_inputs: NonNegative  # tests whose input equals an earlier one (kept)
     empty_tests: NonNegative = 0  # <test> blocks with an empty input or output, dropped alone
+    markdown_fences_removed: NonNegative = 0  # fences wrapping a whole <input> or <output>
 
     @field_validator("edge_cases_analysis")
     @classmethod
@@ -109,40 +117,34 @@ class ModelFailure(Schema):
 
 
 class GenerationRecord(Schema):
-    schema_version: SchemaVersion = 1
+    schema_version: SchemaVersion = 2
     problem_id: str = Field(pattern=PROBLEM_ID_PATTERN)
     scenario: Scenario
     attempt: Attempt
-    seed: int
+    # The row of the attempt in the attempt_policy of run.json (checked by the store).
+    phase: AttemptPhase
+    seed: int = Field(ge=0)
+    temperature: float = Field(gt=0)
+    template: AttemptKind
     model_digest: str = Field(min_length=1)  # of the model that answered (also in run.json)
     prompt_sha256: Sha256Hex
     raw_response: str
     ollama: OllamaMeta | None  # null only with `model_failure` (there was no answer)
     hardware_label: str = Field(min_length=1)
     requested_at: str
-    # Two shapes have ok: true; `extra="forbid"` tells them apart, and the attempt number decides
-    # which one is allowed (_parse_of_the_attempt).
+    # Two shapes have ok: true; `extra="forbid"` tells them apart, and the template of the attempt
+    # decides which one is allowed (_parse_of_the_attempt).
     parse: ParsedResponse | PredictionParse | UnparsedResponse
     model_failure: ModelFailure | None = None
 
     @model_validator(mode="after")
     def _parse_of_the_attempt(self) -> "GenerationRecord":
-        expected = (
-            ParsedResponse if config.attempt_kind(self.attempt) == "solution" else PredictionParse
-        )
+        solution = self.template is AttemptKind.SOLUTION
+        expected = ParsedResponse if solution else PredictionParse
         if self.parse.ok and not isinstance(self.parse, expected):
             raise ValueError(
-                f"attempt {self.attempt} is a {config.attempt_kind(self.attempt)}: its parsed "
-                f"answer is a {expected.__name__}"
-            )
-        return self
-
-    @model_validator(mode="after")
-    def _seed_of_the_attempt(self) -> "GenerationRecord":
-        if self.seed != config.seed_for(self.attempt):
-            raise ValueError(
-                f"attempt {self.attempt} must use seed {config.seed_for(self.attempt)}, "
-                f"got {self.seed}"
+                f"attempt {self.attempt} asks for a {self.template.value}: its parsed answer is a "
+                f"{expected.__name__}"
             )
         return self
 

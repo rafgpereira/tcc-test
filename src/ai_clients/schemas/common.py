@@ -1,15 +1,20 @@
 """Enumerations and field types shared by the SLM suite schemas (data-model.md, section 2)."""
 
 from enum import Enum
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import Field
 
 from ai_clients import config
 
+# Every file of this module is at version 2 since the 5-phase policy (2026-10-06, research
+# R22); a file of version 1 (the pilots 1 to 5) is never read. The dataset stays at 1.
+SchemaVersion = Literal[2]
 Sha256Hex = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 Attempt = Annotated[int, Field(ge=1, le=config.MAX_ATTEMPTS)]
 NonNegative = Annotated[int, Field(ge=0)]
+AttemptPhase = Literal[1, 2, 4]  # the phases that make calls (config.ATTEMPT_POLICY)
+SuitePhase = Literal[1, 2, 3, 4]  # 3: the fallback, chosen among the 12 without a call
 
 
 class Scenario(str, Enum):
@@ -42,13 +47,12 @@ class SuiteStatus(str, Enum):
 
     ACCEPTED = "accepted"  # its solution passed every public test
     ACCEPTED_FALLBACK = "accepted_fallback"  # its solution failed a public test by WA
-    ACCEPTED_LOW_CONFIDENCE = "accepted_low_confidence"  # ... by RE, TLE or MLE
     ACCEPTED_PREDICTED = "accepted_predicted"  # outputs written by the model, nothing run
     DISCARDED_MANUAL = "discarded_manual"  # closed by the authors, with a reason (no suite)
 
 
 class AttemptKind(str, Enum):
-    """What an attempt asks for; it follows from its number (``config.attempt_kind``)."""
+    """What an attempt asks for: the ``template`` of its row in ``config.ATTEMPT_POLICY``."""
 
     SOLUTION = "solution"  # inputs and a Python solution (the main template)
     PREDICTION = "prediction"  # inputs and expected outputs (the prediction template)

@@ -418,7 +418,7 @@ def test_a_finished_slm_run_passes_with_its_counts(check, repo, capsys):
     code, out = run(check, repo, "--deep", capsys=capsys)
     assert code == 0
     assert "black_box, white_box e hybrid: 3/3" in out
-    assert "tentativas numeradas sem buraco, no máximo 23 (execuções até a 20ª): 9/9" in out
+    assert "tentativas numeradas sem buraco, no máximo 15 (execuções até a 12ª): 9/9" in out
     assert "suite.json em cada cenário: 9/9" in out
     assert "todo problema de dataset tem pasta em slm_suites: 3/3" in out
     assert "nomes dos arquivos batem com o manifesto (28 arquivos)" in out
@@ -468,15 +468,15 @@ def test_an_slm_folder_without_a_problem_is_a_failure(check, repo, capsys):
     assert code == 1 and "nenhuma pasta de slm_suites sem problema em dataset: 1 sobrando" in out
 
 
-def _twenty_four_attempts(folder):
-    for n in range(2, 25):
+def _sixteen_attempts(folder):
+    for n in range(2, 17):
         (folder / f"attempt_{n}.generation.json").write_text("x")
 
 
 def _execution_of_a_prediction(folder):
-    for n in range(2, 22):
+    for n in range(2, 14):
         (folder / f"attempt_{n}.generation.json").write_text("x")
-    (folder / "attempt_21.execution.json").write_text("x")
+    (folder / "attempt_13.execution.json").write_text("x")
 
 
 @pytest.mark.parametrize(
@@ -484,22 +484,22 @@ def _execution_of_a_prediction(folder):
     [
         lambda f: (f / "attempt_3.generation.json").write_text("x"),
         lambda f: (f / "attempt_2.execution.json").write_text("x"),
-        _twenty_four_attempts,
+        _sixteen_attempts,
         _execution_of_a_prediction,
     ],
     ids=[
         "gap",
         "execution_without_generation",
-        "twenty_four_attempts",
+        "sixteen_attempts",
         "execution_of_a_prediction",
     ],
 )
-def test_attempts_with_a_gap_or_beyond_23_are_a_failure(check, repo, capsys, make):
+def test_attempts_with_a_gap_or_beyond_15_are_a_failure(check, repo, capsys, make):
     unpackaged(repo)
     make(slm_folder(repo, "1000_B", "black_box"))
     code, out = run(check, repo, capsys=capsys)
     assert code == 1
-    assert "[FALHA] tentativas numeradas sem buraco, no máximo 23 (execuções até a 20ª): 8/9" in out
+    assert "[FALHA] tentativas numeradas sem buraco, no máximo 15 (execuções até a 12ª): 8/9" in out
     assert "1000_B/black_box" in out
 
 

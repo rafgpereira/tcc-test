@@ -46,7 +46,7 @@ def tree(repo, monkeypatch):
 
     1_A black_box  accepted at attempt 1 (inputs 5, 6, 5: one duplicate)
     1_A white_box  accepted at attempt 2 (attempt 1 failed a public test; input 9 timed out)
-    1_A hybrid     awaiting manual handling (23 unparseable answers, the 3rd and 4th on another
+    1_A hybrid     awaiting manual handling (15 unparseable answers, the 3rd and 4th on another
                    machine)
     2_B black_box  pending execution
     2_B white_box  pending generation 2 (attempt 1 unparseable)
@@ -76,7 +76,6 @@ def counts(**nonzero):
     states = (
         "accepted",
         "accepted_fallback",
-        "accepted_low_confidence",
         "accepted_predicted",
         "discarded_manual",
         "awaiting_manual",
@@ -103,7 +102,7 @@ def test_the_share_of_each_status_is_over_every_combination_never_a_reduced_n(bu
         "white_box": 0.5,
         "hybrid": 0.0,
     }
-    for status in ("accepted_fallback", "accepted_low_confidence", "accepted_predicted"):
+    for status in ("accepted_fallback", "accepted_predicted"):
         assert set(built.status_rate[status].values()) == {0.0}
     assert set(built.status_rate["discarded_manual"].values()) == {0.0}
 
@@ -130,10 +129,32 @@ def test_the_suite_size_is_per_status(built):
 
 def test_the_attempt_funnel_by_reason_and_attempt_number(built):
     failures = built.attempt_failures
-    assert failures["unparseable_response"] == {"1": 2} | {str(n): 1 for n in range(2, 24)}
+    assert failures["unparseable_response"] == {"1": 2} | {str(n): 1 for n in range(2, 16)}
     assert failures["public_test_failed"]["1"] == 1
     assert sum(failures["all_inputs_failed"].values()) == 0
-    assert built.attempts.model_dump() == {"total": 28, "failed": 25}
+    assert built.attempts.model_dump() == {"total": 20, "failed": 17}
+
+
+def test_the_phase_and_attempt_where_each_combination_got_its_suite(built):
+    zero_phases = {"1": 0, "2": 0, "3": 0, "4": 0}
+    zero_attempts = {str(n): 0 for n in range(1, 16)}
+    assert built.acceptance["total"].model_dump() == {
+        "by_phase": zero_phases | {"1": 2},
+        "by_attempt": zero_attempts | {"1": 1, "2": 1},
+    }
+    assert built.acceptance["white_box"].by_attempt["2"] == 1
+    assert sum(built.acceptance["hybrid"].by_phase.values()) == 0
+
+
+def test_calls_tokens_and_time_per_phase(built):
+    phases = {phase: counts.model_dump() for phase, counts in built.per_phase.items()}
+    assert {p: (c["calls"], c["failed"]) for p, c in phases.items()} == {
+        "1": (11, 8),
+        "2": (6, 6),
+        "4": (3, 3),
+    }
+    assert phases["2"]["prompt_tokens"] == 6 * 1000 and phases["2"]["eval_tokens"] == 6 * 500
+    assert phases["4"]["duration_s"] == pytest.approx(3 * 1e-9)
 
 
 def test_inputs_duplicates_tokens_and_reasons(built):
@@ -143,17 +164,17 @@ def test_inputs_duplicates_tokens_and_reasons(built):
     assert built.done_reason_length == built.markdown_fences_removed == built.empty_inputs == zero
     assert built.empty_tests == zero
     assert built.tokens.model_dump() == {
-        "prompt_total": 28 * 1000,
-        "eval_total": 28 * 500,
+        "prompt_total": 20 * 1000,
+        "eval_total": 20 * 500,
         "prompt_max": 1000,
     }
-    assert built.duration_s_total == pytest.approx(28 * 1e-9)
+    assert built.duration_s_total == pytest.approx(20 * 1e-9)
 
 
 def test_hardware_and_seeds(built):
-    assert built.hardware == {"CPU only": 2, "RTX 3060 12GB": 26}
-    assert built.seeds["1_A/hybrid"] == list(range(43, 66))
-    assert built.seeds["1_A/white_box"] == [43, 44]
+    assert built.hardware == {"CPU only": 2, "RTX 3060 12GB": 18}
+    assert built.seeds["1_A/hybrid"] == [spec.seed for spec in config.ATTEMPT_POLICY]
+    assert built.seeds["1_A/white_box"] == [42, 43]
     assert "2_B/hybrid" not in built.seeds
 
 
@@ -163,7 +184,7 @@ def test_the_provenance_comes_from_run_json(built, tree):
         tree.model_digest,
         tree.ollama_version,
     )
-    assert built.options == tree.options and built.seed_base == 42
+    assert built.options == tree.options and built.attempt_policy == tree.attempt_policy
     assert built.prompt_template_sha256 == tree.prompt_template_sha256
     assert built.predict_template_sha256 == tree.predict_template_sha256
     assert built.dataset_manifest_sha256 == tree.dataset_manifest_sha256
@@ -175,7 +196,7 @@ def test_the_same_tree_gives_the_same_bytes(tree, repo, capsys):
     first = path.read_bytes()
     assert cli.main(["report"]) == cli.EXIT_OK
     assert path.read_bytes() == first
-    assert json.loads(first)["schema_version"] == 1
+    assert json.loads(first)["schema_version"] == 2
     assert f"report: {config.REPORT_PATH.as_posix()}" in capsys.readouterr().out
 
 
@@ -205,7 +226,7 @@ def test_the_control_sums_are_validated(built):
 
 
 def test_a_fallback_suite_is_counted_apart_with_its_own_sizes(tree, repo):
-    for n in range(1, config.STRICT_ATTEMPTS + 1):  # 2_B hybrid: 8 times a WA
+    for n in range(1, config.SOLUTION_ATTEMPTS + 1):  # 2_B hybrid: 12 times a WA
         record_generation(repo, "2_B", "hybrid", n, code=WRONG_PY, inputs=["4\n"])
         run_execute(repo, tree)
     assert store.read_suite(repo, "2_B", "hybrid").status == "accepted_fallback"
@@ -222,7 +243,9 @@ def test_a_fallback_suite_is_counted_apart_with_its_own_sizes(tree, repo):
     }
     assert built.suite_size["accepted"]["total"].count == 3
     assert built.suite_size["accepted_fallback"]["total"].count == 1
-    assert built.attempt_failures["public_test_failed"]["8"] == 1
+    assert built.attempt_failures["public_test_failed"]["12"] == 1
+    assert built.acceptance["hybrid"].by_phase["3"] == 1  # the fallback is phase 3
+    assert built.acceptance["hybrid"].by_attempt["1"] == 1  # the earliest of equal ones
 
 
 def test_a_full_scope_always_counts_every_problem_and_scenario(repo, monkeypatch):
@@ -260,9 +283,7 @@ def test_cut_answers_fences_empty_inputs_and_repetitions_per_scenario(repo, monk
     from tests.ai_clients.test_schemas import generation, ollama_meta, parsed
 
     def write(scenario, attempt, **fields):
-        record = generation(
-            scenario=scenario, attempt=attempt, seed=42 + attempt, model_digest=run.model_digest
-        )
+        record = generation(scenario=scenario, attempt=attempt, model_digest=run.model_digest)
         store.write_generation(repo, GenerationRecord(**(record | fields)))
 
     cut = ollama_meta() | {"done_reason": "length"}
@@ -304,14 +325,17 @@ def test_a_predicted_suite_and_its_dropped_tests_are_counted_apart(repo, monkeyp
     tests = [{"input": "3\n", "output": "3\n"}, {"input": "4\n", "output": "4\n"}]
     record = generation(
         scenario="white_box",
-        attempt=21,
-        seed=63,
+        attempt=13,
         model_digest=run.model_digest,
-        parse=prediction(tests=tests, empty_tests=1),
+        parse=prediction(tests=tests, empty_tests=1, markdown_fences_removed=2),
     )
     store.write_generation(repo, GenerationRecord(**record))
     built = report.build_report(repo)
     assert built.combinations["white_box"].accepted_predicted == 1
     assert built.suite_size["accepted_predicted"]["white_box"].histogram == {"2": 1}
     assert built.empty_tests == {"total": 1, "black_box": 0, "white_box": 1, "hybrid": 0}
-    assert built.attempts.model_dump() == {"total": 21, "failed": 20}
+    assert built.markdown_fences_removed["white_box"] == 2  # those of the prediction count too
+    assert built.attempts.model_dump() == {"total": 13, "failed": 12}
+    assert built.acceptance["white_box"].by_phase["4"] == 1
+    assert built.acceptance["white_box"].by_attempt["13"] == 1
+    assert built.per_phase["4"].calls == 1 and built.per_phase["4"].failed == 0

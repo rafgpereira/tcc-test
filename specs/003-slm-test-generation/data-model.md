@@ -1,9 +1,11 @@
 # Data Model: Geração de Suítes de Teste pelo SLM
 
-**Feature**: `003-slm-test-generation` | **Date**: 2026-09-30 | **Plan**: [plan.md](./plan.md)
+**Feature**: `003-slm-test-generation` | **Date**: 2026-09-30 (revisto em 2026-10-06 para a política
+de 5 fases, research R21/R22) | **Plan**: [plan.md](./plan.md)
 
 Todos os schemas são Pydantic em `src/ai_clients/schemas/`, herdam `dataset.schemas.common.Schema`
-(`extra="forbid"`) e têm `schema_version: Literal[1]` (Princípio IV). Todo JSON é gravado por
+(`extra="forbid"`) e têm **`schema_version: Literal[2]`** desde 2026-10-06 (R22, item 3; era 1 —
+`ai_clients.schemas.common.SchemaVersion`; o `dataset` continua em 1). Todo JSON é gravado por
 `dataset.persistence.store.atomic_write_json` (chaves ordenadas, indentação 2, `\n` final). O formato
 em disco está em [contracts/file-formats.md](./contracts/file-formats.md).
 
@@ -19,45 +21,65 @@ em disco está em [contracts/file-formats.md](./contracts/file-formats.md).
 `ProblemInput` (dataclass imutável em `ai_clients/problem.py`) agrupa esses quatro itens de um
 problema; é a composição sinalizada em research R0 (não um leitor novo do `dataset`).
 
-## 2. Enumerações
+## 2. Política de tentativas e enumerações
+
+**`config.ATTEMPT_POLICY`** (R22, item 1): a única fonte de fase, seed, temperatura e template de
+cada tentativa, escrita por extenso no código e validada ao importar (números 1 a 15 sem buraco,
+nenhum par (seed, temperatura) repetido, temperatura > 0, fases nas faixas abaixo).
+
+| Tentativa | `phase` | `seed` | `temperature` | `template` |
+|---|---|---|---|---|
+| 1 | 1 | 42 | 0.7 | `solution` |
+| 2 | 1 | 43 | 0.7 | `solution` |
+| 3 | 1 | 44 | 0.7 | `solution` |
+| 4 | 1 | 45 | 0.7 | `solution` |
+| 5 | 1 | 46 | 0.7 | `solution` |
+| 6 | 1 | 47 | 0.7 | `solution` |
+| 7 | 2 | 48 | 0.7 | `solution` |
+| 8 | 2 | 48 | 0.6 | `solution` |
+| 9 | 2 | 48 | 0.5 | `solution` |
+| 10 | 2 | 48 | 0.4 | `solution` |
+| 11 | 2 | 48 | 0.3 | `solution` |
+| 12 | 2 | 48 | 0.2 | `solution` |
+| 13 | 4 | 49 | 0.7 | `prediction` |
+| 14 | 4 | 50 | 0.7 | `prediction` |
+| 15 | 4 | 51 | 0.7 | `prediction` |
+
+`solution` = `src/prompt_templates/slm_prompt.txt` (entradas + solução Python); `prediction` =
+`src/prompt_templates/slm_predict_prompt.txt` (entradas + saídas). A fase 3 (reserva) e a fase 5
+(tratamento manual) não fazem chamada. Derivados: `SOLUTION_ATTEMPTS = 12`, `MAX_ATTEMPTS = 15`.
 
 - `Scenario`: `black_box` (só enunciado) · `white_box` (só `AC_ref.cpp`) · `hybrid` (os dois). Ordem
   canônica de processamento: esta.
 - `AttemptFailure` (as 4 razões de FR-018, as únicas que consomem orçamento):
-  `repetition` (desde 2026-10-04) · `unparseable_response` · `public_test_failed` ·
-  `all_inputs_failed`.
+  `repetition` · `unparseable_response` · `public_test_failed` · `all_inputs_failed`.
 - `InputDiscard` (FR-019): `timeout` (veredito `TLE`) · `runtime_error` (veredito `RE` ou `MLE`,
   guardado em `verdict`) · `non_utf8_output`.
-- `SuiteStatus` (desde 2026-10-06, research R19): `accepted` · `accepted_fallback` (reserva,
-  FR-022a) · `accepted_low_confidence` (FR-022b) · `accepted_predicted` (FR-022c) ·
-  `discarded_manual` (FR-022d, só por decisão dos autores). Até 2026-10-06 havia `discarded`.
-- `AttemptKind`: `solution` (tentativas 1 a 20, template principal) · `prediction` (21 a 23,
-  template de predição). Derivado do número da tentativa, nunca gravado à parte nos arquivos de
-  tentativa.
+- `SuiteStatus` (desde 2026-10-06, R21): `accepted` · `accepted_fallback` (fase 3, FR-022a) ·
+  `accepted_predicted` (fase 4, FR-022c) · `discarded_manual` (fase 5, FR-022d, só por decisão dos
+  autores). `accepted_low_confidence` existiu de R19 a R21; `discarded`, até R18.
+- `AttemptTemplate`: `solution` · `prediction` (coluna `template` da tabela).
 
 ## 3. Entidades persistidas
 
 ### 3.1 `RunConfig` — `data/suites/slm/run.json` (1 por execução)
 
 Identidade da execução; criado pelo primeiro `generate` (sem `--resume`) e comparado em todo
-`--resume` (research R8): **todos os campos abaixo exceto `created_at`** entram na comparação.
-Imutável. O *timeout* de leitura e o teto de repetições de infraestrutura (research R9, R12) não
-fazem parte dele — não mudam o conteúdo de nenhuma resposta.
+`--resume` (research R8): **todos os campos abaixo exceto `created_at`** entram na comparação, e
+`attempt_policy` linha a linha. Imutável. O *timeout* de leitura e o teto de repetições de
+infraestrutura (research R9, R12) não fazem parte dele. Um `run.json` que não valida como
+`schema_version: 2` (os pilotos 1 a 5) é recusado por todo comando com código 2 (R22, item 4).
 
 | Campo | Tipo | Regra |
 |---|---|---|
-| `model` | str | `"qwen2.5-coder:7b"` (constante) |
+| `model` | str | `config.MODEL` (`"qwen2.5-coder:14b"`) ou `OLLAMA_MODEL` |
 | `model_digest` | str | `digest` de `/api/tags`; mudou → recusa |
 | `model_quantization` | str | `details.quantization_level` de `/api/tags` |
 | `ollama_version` | str | `/api/version` |
-| `options` | objeto | `temperature`, `top_p`, `top_k`, `repeat_penalty`, `num_ctx`, `num_predict` |
-| `seed_base` | int | `42` |
-| `strict_attempts` | int | `8` (desde 2026-10-05; tentativas antes de valer a reserva, FR-022a) |
-| `solution_attempts` | int | `20` (desde 2026-10-06; tentativas com solução Python, FR-022a/b) |
-| `predict_attempts` | int | `3` (desde 2026-10-06; tentativas por predição, FR-022c) |
-| `max_attempts` | int | `23` = `solution_attempts + predict_attempts` (validado); era `6` até 2026-10-05 e `12` até 2026-10-06 |
+| `options` | objeto | `top_p`, `top_k`, `repeat_penalty`, `num_ctx`, `num_predict` (a temperatura saiu daqui: é por tentativa) |
+| `attempt_policy` | list[`AttemptSpec`] | a tabela da §2 inteira: `{attempt, phase, seed, temperature, template}` × 15 (substitui `seed_base`, `strict_attempts`, `solution_attempts`, `predict_attempts`, `max_attempts`) |
 | `prompt_template_sha256` | str (hex 64) | do `slm_prompt.txt` usado |
-| `predict_template_sha256` | str (hex 64) | do `slm_predict_prompt.txt` usado (desde 2026-10-06) |
+| `predict_template_sha256` | str (hex 64) | do `slm_predict_prompt.txt` usado |
 | `dataset_manifest_sha256` | str (hex 64) | liga a execução ao dataset versionado |
 | `py_time_factor`, `py_memory_factor` | int | `10`, `4` (research R7) |
 | `created_at` | str ISO-8601 UTC | informativo, **fora** da comparação do `--resume` |
@@ -68,149 +90,131 @@ Uma tentativa na fase de geração (FR-013a, FR-014, FR-024, FR-025). Imutável.
 
 | Campo | Tipo | Regra |
 |---|---|---|
-| `problem_id`, `scenario`, `attempt` | str, `Scenario`, int 1–23 | `attempt` sem buraco a partir de 1; 1–20 `solution`, 21–23 `prediction` |
-| `seed` | int | `== seed_base + attempt` (validado) |
-| `model_digest` | str | `digest` do modelo que respondeu (FR-003); `==` `run.json.model_digest`, senão a combinação é dano (§4) |
+| `problem_id`, `scenario`, `attempt` | str, `Scenario`, int 1–15 | `attempt` sem buraco a partir de 1 |
+| `phase`, `seed`, `temperature`, `template` | int, int, float, `AttemptTemplate` | **novos em 2026-10-06**: a linha `attempt` do `attempt_policy` do `run.json`; o `store` confere os quatro (divergência é dano) |
+| `model_digest` | str | `digest` do modelo que respondeu (FR-003); `==` `run.json.model_digest`, senão dano |
 | `prompt_sha256` | str | do prompt exato enviado (o texto se recompõe do template + dataset) |
-| `raw_response` | str | `message.content` **integral**, sem nenhuma alteração; `""` quando há `model_failure` |
-| `ollama` | objeto ou `null` | `model`, `created_at`, `done_reason`, `prompt_eval_count`, `eval_count`, `total_duration_ns`, `load_duration_ns`, `prompt_eval_duration_ns`, `eval_duration_ns`; `null` só quando há `model_failure` |
+| `raw_response` | str | `message.content` **integral**; `""` quando há `model_failure` |
+| `ollama` | objeto ou `null` | `model`, `created_at`, `done_reason`, `prompt_eval_count`, `eval_count`, `total_duration_ns`, `load_duration_ns`, `prompt_eval_duration_ns`, `eval_duration_ns`; `null` só com `model_failure` |
 | `hardware_label` | str | de `OLLAMA_HARDWARE_LABEL` no momento da chamada |
 | `requested_at` | str ISO-8601 UTC | informativo |
-| `parse` | `ParseResult` | ver abaixo |
-| `model_failure` | objeto ou `null` (padrão) | desde 2026-10-04: `{reason: "repetition", detail}` quando o Ollama interrompeu a geração com `token repeat limit reached` (HTTP 500); então `parse = {ok: false, error: "repetition"}` e a tentativa é a falha `repetition` |
+| `parse` | `ParseResult` | ver abaixo; o schema confere que tentativas `solution` só têm `ParsedResponse` ou `ok: false`, e `prediction` só `PredictionParse` ou `ok: false` |
+| `model_failure` | objeto ou `null` | `{reason: "repetition", detail}` (`token repeat limit reached`); então `parse = {ok: false, error: "repetition"}` |
 
-`ParseResult` (desde 2026-10-06, três formatos; o schema confere que tentativas 1–20 só têm os
-dois primeiros e 21–23 só `PredictionParse` ou `ok: false`):
+`ParseResult`:
 
-- `ok: true` → `edge_cases_analysis: str`, `inputs: list[str]` (≥ 1, cada uma não vazia e
-  terminada em um único `\n`), `reference_py: str` (não vazio), `extraneous_chars: int ≥ 0`,
-  `duplicate_inputs: int ≥ 0`, `empty_inputs: int ≥ 0` (`<input>` vazios descartados, fora de
-  `inputs`; padrão 0) e `markdown_fence_removed: bool` (a cerca que envolvia o código inteiro foi
-  removida; padrão `false`) — os dois desde 2026-10-04 (research R13).
-- `ok: false` → `error: str` (código do parser, ex. `missing_block:reference_py`,
-  `duplicated_block:inputs`, `wrong_order`, `only_empty_inputs`, `text_between_inputs`; até
-  2026-10-04 também `empty_input`; nas tentativas por predição, também `missing_block:tests`,
-  `no_tests`, `text_between_tests`, `malformed_test`, `only_empty_tests`, research R19 item 4). A
-  tentativa **é** a falha `unparseable_response` (ou `repetition`, quando há `model_failure`).
-- `PredictionParse` (`ok: true`, só tentativas 21–23) → `edge_cases_analysis: str`, `tests:
+- `ParsedResponse` (`ok: true`, tentativas `solution`) → `edge_cases_analysis`, `inputs: list[str]`
+  (≥ 1, cada uma não vazia e terminada em um único `\n`), `reference_py` (não vazio),
+  `extraneous_chars`, `duplicate_inputs`, `empty_inputs`, `markdown_fence_removed: bool`.
+- `PredictionParse` (`ok: true`, tentativas `prediction`) → `edge_cases_analysis`, `tests:
   list[TestCase]` (≥ 1; `input` e `output` não vazios, cada um terminado em um único `\n`),
-  `extraneous_chars: int ≥ 0`, `duplicate_inputs: int ≥ 0`, `empty_tests: int ≥ 0` (`<test>` com
-  entrada ou saída vazia, descartados sozinhos).
+  `extraneous_chars`, `duplicate_inputs`, `empty_tests` (testes com entrada ou saída vazia,
+  descartados sozinhos) e **`markdown_fences_removed: int`** (novo: cercas que envolviam um
+  `<input>` ou `<output>` inteiro, removidas; R22, item 7).
+- `UnparsedResponse` (`ok: false`) → `error` (código do parser: `missing_block:<tag>`,
+  `duplicated_block:<tag>`, `wrong_order`, `only_empty_inputs`, `text_between_inputs`,
+  `missing_block:tests`, `no_tests`, `text_between_tests`, `malformed_test`, `nested_test`,
+  `only_empty_tests`, …). A tentativa **é** a falha `unparseable_response` (ou `repetition`).
 
 ### 3.3 `ExecutionRecord` — `problems/<id>/<scenario>/attempt_<n>.execution.json`
 
-Só existe para tentativas 1–20 com `parse.ok = true` (FR-013b); nunca para uma tentativa por
-predição. Imutável.
+Só existe para tentativas `solution` (1 a 12) com `parse.ok = true` (FR-013b). Imutável.
 
 | Campo | Tipo | Regra |
 |---|---|---|
 | `problem_id`, `scenario`, `attempt` | | iguais aos da geração correspondente |
-| `limits` | objeto | `time_limit_seconds`, `memory_limit_bytes` efetivos (problema × fatores) e os do problema, para auditoria |
+| `limits` | objeto | `time_limit_seconds`, `memory_limit_bytes` efetivos (problema × fatores) e os do problema |
 | `interpreter` | str | caminho e versão do CPython usado |
-| `public_tests` | objeto | `total`, `passed`, `failed_index: int \| null`, `failed_verdict: Verdict \| null`; do teste que reprovou (nulos sem falha e nos registros gravados antes de 2026-10-05, R14): `failed_output_head: str \| null` (primeiros 2.048 bytes do `stdout`, sem normalização), `failed_stderr_tail: str \| null`, `failed_cpu_time_s: float \| null`, `failed_peak_rss_bytes: int \| null` |
-| `inputs` | list[`InputOutcome`] | um por entrada da geração, na mesma ordem |
+| `public_tests` | objeto | `total`, `passed`, `failed_index`, `failed_verdict` e, do teste que reprovou, `failed_output_head`, `failed_stderr_tail`, `failed_cpu_time_s`, `failed_peak_rss_bytes` |
+| `inputs` | list[`InputOutcome`] | um por entrada da geração, na mesma ordem — ou **vazio** depois de RE, TLE ou MLE num teste público |
 | `outcome` | `accepted` \| `AttemptFailure` | `public_test_failed` se `failed_index` não nulo; senão `all_inputs_failed` se nenhuma entrada sobreviveu; senão `accepted` |
 
-`InputOutcome`: `index: int` (0-based na lista da geração), `kept: bool`, `output: str | null`
-(só se `kept`), `discard: InputDiscard | null`, `verdict: Verdict | null`, `cpu_time_s: float`,
-`peak_rss_bytes: int`, `stderr_tail: str` (só nos descartes, para diagnóstico).
-
-Regra: os testes públicos param no primeiro não-AC (curto-circuito), mas as entradas geradas rodam
-**sempre**, qualquer que seja o veredito desse teste (desde 2026-10-06, research R19 item 2; até
-2026-10-05 nenhuma rodava depois de uma reprovação, e até 2026-10-06 só depois de WA): `inputs` tem
-um item por entrada da geração.
+Regra (restaurada em 2026-10-06, R22 item 6): os testes públicos param no primeiro não-AC; as
+entradas geradas rodam se todos passaram ou se o primeiro erro foi **WA** (a tentativa pode ser
+reserva); depois de RE, TLE ou MLE nenhuma roda.
 
 ### 3.4 `SlmSuite` — `problems/<id>/<scenario>/suite.json` (estado terminal)
 
-Função pura dos arquivos de tentativa (research R8). Formato "unificado" pedido pelo autor.
+Função pura dos arquivos da combinação e do `run.json` (research R8).
 
 | Campo | Tipo | Regra |
 |---|---|---|
 | `problem_id`, `scenario` | | |
-| `model`, `model_digest` | str | copiados do `run.json` (a suíte se identifica sozinha) |
+| `model`, `model_digest` | str | copiados do `run.json` |
 | `status` | `SuiteStatus` | |
-| `attempts` | list[`AttemptSummary`] | todas, em ordem: `attempt`, `seed`, `kind: AttemptKind`, `hardware_label`, `failure: AttemptFailure \| null`, `detail: str` (código do parser, índice/veredito do teste público, contagem de descartes e de entradas mantidas), `fallback_eligible: bool` (FR-022a), `low_confidence_eligible: bool` (FR-022b; desde 2026-10-06); os dois `false` por padrão |
-| `accepted_attempt` | int \| null | não nulo ⇔ `status` ≠ `discarded_manual`; numa reserva, a tentativa escolhida (não necessariamente a última); numa de baixa confiança, a primeira elegível |
-| `tests` | list[`TestCase`] | **`dataset.schemas.testes.TestCase` reaproveitado** (`input`, `output`); `output` é o `expected_output` da spec, obtido por execução real (SC-002) — exceto em `accepted_predicted`, em que é a saída escrita pelo modelo; vazio ⇔ `discarded_manual` |
-| `suite_size` | int | `== len(tests)`; `≥ 1` em todo status `accepted*` (nunca suíte de tamanho zero, FR-018c) |
-| `discarded_inputs` | list | `{index, discard, verdict}` da tentativa escolhida (FR-019); vazio em `accepted_predicted` e `discarded_manual` |
+| `accepted_phase` | int \| null | **novo**: 1 ou 2 (`accepted`, a fase da tentativa), 3 (`accepted_fallback`), 4 (`accepted_predicted`); `null` em `discarded_manual` |
+| `attempts` | list[`AttemptSummary`] | todas, em ordem: `attempt`, `phase`, `seed`, `temperature`, `template`, `hardware_label`, `failure`, `detail`, `fallback_eligible` |
+| `accepted_attempt` | int \| null | a tentativa de onde vêm os testes (numa reserva, a escolhida entre as 12); `null` ⇔ `discarded_manual` |
+| `tests` | list[`TestCase`] | `input`, `output`; `output` vem da execução real, exceto em `accepted_predicted` (escrito pelo modelo); vazio ⇔ `discarded_manual` |
+| `suite_size` | int | `== len(tests)` |
+| `discarded_inputs` | list | `{index, discard, verdict}` da tentativa escolhida; vazio em `accepted_predicted` e `discarded_manual` |
 | `duplicate_inputs` | int | da tentativa escolhida |
-| `manual_close` | objeto \| null | desde 2026-10-06: `{reason, closed_at}` copiado de `manual_close.json`; não nulo ⇔ `discarded_manual` |
+| `manual_close` | objeto \| null | `{reason, closed_at}` ⇔ `discarded_manual` |
 
-Validações (desde 2026-10-06; `S` = 8 estritas, `P` = 20 com solução, `M` = 23):
+Validações (`P` = 12, `M` = 15):
 
-- `accepted` ⇒ a última tentativa tem `failure = null`, é `solution` e é a `accepted_attempt`; todas
-  as anteriores têm falha.
-- `accepted_fallback` ⇒ todas falharam e a `accepted_attempt` tem `fallback_eligible`; com exatamente
-  `S` tentativas, qualquer uma delas (a melhor, conferido pelo `store`); com `S+1` a `P`, só a
-  última.
-- `accepted_low_confidence` ⇒ exatamente `P` tentativas, todas com falha, nenhuma com
-  `fallback_eligible`, e a `accepted_attempt` é a **primeira** com `low_confidence_eligible`.
-- `accepted_predicted` ⇒ de `P+1` a `M` tentativas; nenhuma das `P` primeiras com
-  `fallback_eligible` ou `low_confidence_eligible`; a última é `prediction`, sem falha, e é a
-  `accepted_attempt`; as anteriores por predição falharam (`unparseable_response` ou `repetition`).
-- `discarded_manual` ⇒ exatamente `M` tentativas, todas com falha, nenhuma elegível, e
-  `manual_close` presente.
-- Sempre: `kind` = `solution` ⇔ `attempt ≤ P`; `fallback_eligible` e `low_confidence_eligible` só
-  numa tentativa `solution` com `public_test_failed`; depois da `S`-ésima, nenhuma tentativa
-  anterior à última pode ser reserva.
+- Cada `AttemptSummary` é a linha da sua tentativa no `ATTEMPT_POLICY` (fase, seed, temperatura,
+  template); só a última tentativa pode não ter falha.
+- `fallback_eligible` só numa tentativa `solution` com `public_test_failed` por WA.
+- `accepted` ⇒ a última tentativa é `solution`, sem falha, é a `accepted_attempt`, e
+  `accepted_phase` é a fase dela (1 ou 2).
+- `accepted_fallback` ⇒ exatamente `P` tentativas, todas com falha, e a `accepted_attempt` tem
+  `fallback_eligible` (a melhor pelo desempate, conferido pelo `store`); `accepted_phase` = 3.
+- `accepted_predicted` ⇒ de `P+1` a `M` tentativas, nenhuma das `P` com `fallback_eligible`, a
+  última é `prediction` sem falha e é a `accepted_attempt`; `accepted_phase` = 4.
+- `discarded_manual` ⇒ exatamente `M` tentativas, todas com falha, nenhuma elegível, `manual_close`
+  presente, `accepted_phase` e `accepted_attempt` nulos.
 
-### 3.4a `ManualClose` — `problems/<id>/<scenario>/manual_close.json` (desde 2026-10-06)
+### 3.4a `ManualClose` — `problems/<id>/<scenario>/manual_close.json`
 
 Decisão dos autores sobre uma combinação em `awaiting_manual` (FR-022d), gravada pelo comando
-`close` (research R19 item 8). Imutável.
+`close`. Imutável.
 
 | Campo | Tipo | Regra |
 |---|---|---|
 | `problem_id`, `scenario` | | os da pasta |
-| `reason` | str | não vazio (depois de tirar espaços das pontas) |
+| `reason` | str | não vazio |
 | `closed_at` | str ISO-8601 UTC | quando o comando rodou |
 
 ### 3.5 `SlmGenerationReport` — `manifests/slm_generation_report.json`
 
-Campos em research R10 / [contracts/file-formats.md](./contracts/file-formats.md#5-relatório). Somas
-de controle validadas no schema: os cinco status de `SuiteStatus` + `awaiting_manual` +
-`pending_generation` + `pending_execution` `== total` em cada cenário e no total (desde 2026-10-06;
-antes `accepted + accepted_fallback + discarded + …`), com `status_rate` por status no lugar de
-`discard_rate` e `fallback_rate`; os cenários somam o total, o funil por razão (tentativas 1 a 23)
-soma `attempts.failed`, e as chamadas por etiqueta de hardware somam `attempts.total`.
+Campos em [contracts/file-formats.md](./contracts/file-formats.md#5-relatório). Somas de controle
+validadas no schema: `accepted + accepted_fallback + accepted_predicted + discarded_manual +
+awaiting_manual + pending_generation + pending_execution == total` em cada cenário e no total; os
+cenários somam o total; `acceptance` (fase e tentativa em que cada combinação ficou com a suíte)
+soma, em cada cenário, as combinações terminais com suíte; o funil por razão (tentativas 1 a 15)
+soma `attempts.failed`; `per_phase` soma `attempts.total` em chamadas; as chamadas por etiqueta de
+hardware somam `attempts.total`.
 
 ### 3.6 `SlmSuitesManifest` — `manifests/slm_suites.manifest.json`
 
-Mesma forma do manifesto dos mutantes, em `ai_clients/schemas/manifest.py`: `slm_suites_zip:
-{path, size, sha256}` (com `path` sempre `data/slm_suites.zip`, como o `mutants_zip` dos mutantes)
-e `files: [{path, size, sha256}]`, um por arquivo dentro do zip, `path` como dentro do zip
-(`suites/slm/...`), ordenado. *(2026-10-01: a forma `zip: {path, sha256, bytes}` escrita aqui no
-plano foi trocada pela do manifesto dos mutantes, que é o que "mesma forma" pedia.)*
+Mesma forma do manifesto dos mutantes: `slm_suites_zip: {path, size, sha256}` e `files: [{path,
+size, sha256}]`, ordenado; os caminhos aceitos são os de `run.json`, `suite.json`,
+`manual_close.json` e `attempt_<1..15>.(generation|execution).json`.
 
 ## 4. Máquina de estados de uma combinação
 
-Derivada só dos arquivos presentes (sem campo de estado gravado), com `n` = maior tentativa
-existente:
-
-Desde 2026-10-06 (research R19); `S` = 8, `P` = 20, `M` = 23. Uma linha vale quando nenhuma
-anterior vale:
+Derivada só dos arquivos presentes, com `n` = maior tentativa existente (`P` = 12, `M` = 15). Uma
+linha vale quando nenhuma anterior vale:
 
 | Arquivos presentes | Estado | Próximo passo (comando) |
 |---|---|---|
-| `suite.json` | **terminal** (um dos 5 status) | nenhum — nunca reprocessado |
-| nenhum | `pending_generation(1)` | `generate` chama com seed 43 |
+| `suite.json` | **terminal** | nenhum — nunca reprocessado |
+| nenhum | `pending_generation(1)` | `generate` (fase 1, seed 42, 0,7) |
 | `attempt_n.generation` (`n ≤ P`) com `parse.ok = true`, sem `attempt_n.execution` | `pending_execution(n)` | `execute` |
-| `attempt_n.execution` com `outcome = accepted` | `finalizable` | quem encontrar grava `suite.json(accepted)` |
-| `n = S`, a última falhou e alguma das `S` pode ser reserva | `finalizable` | `suite.json(accepted_fallback)` da melhor |
-| `S < n ≤ P`, a última falhou e pode ser reserva | `finalizable` | `suite.json(accepted_fallback)` da última |
-| `n < P`, a última falhou (qualquer razão) | `pending_generation(n+1)` | `generate` (na mesma execução se não interpretou, R8; senão `generate --resume`) |
-| `n = P`, a última falhou, alguma das `P` é `low_confidence_eligible` | `finalizable` | `suite.json(accepted_low_confidence)` da primeira |
-| `n = P`, a última falhou, nenhuma elegível | `pending_generation(P+1)` | `generate` (predição, seed 63) |
-| `attempt_n.generation` (`n > P`) com `parse.ok = true` | `finalizable` | `suite.json(accepted_predicted)`, gravado pelo próprio `generate` |
+| `attempt_n.execution` com `outcome = accepted` | `finalizable` | `suite.json(accepted)`, `accepted_phase` = fase de `n` |
+| `n < P`, a última falhou (qualquer razão) | `pending_generation(n+1)` | `generate` (na mesma execução se não interpretou; senão `generate --resume`); de 6 para 7 a fase passa de 1 para 2 |
+| `n = P`, a última falhou, alguma das `P` pode ser reserva | `finalizable` | `suite.json(accepted_fallback)` da melhor, fase 3 |
+| `n = P`, a última falhou, nenhuma pode ser reserva | `pending_generation(P+1)` | `generate` (fase 4, predição) |
+| `attempt_n.generation` (`n > P`) com `parse.ok = true` | `finalizable` | `suite.json(accepted_predicted)`, fase 4, gravado pelo próprio `generate` |
 | `P < n < M`, a última não interpretou | `pending_generation(n+1)` | `generate` (na mesma execução) |
-| `n = M`, a última não interpretou, sem `manual_close.json` | `awaiting_manual` | os autores rodam `close` (FR-022d); `generate`/`execute` saem com código 4 |
-| `n = M`, a última não interpretou, com `manual_close.json` | `finalizable` | `suite.json(discarded_manual)` |
+| `n = M`, sem `manual_close.json` | `awaiting_manual` | os autores rodam `close`; `generate`/`execute` saem com código 4 |
+| `n = M`, com `manual_close.json` | `finalizable` | `suite.json(discarded_manual)` |
 
-Inconsistências (ex.: `attempt_3` sem `attempt_2`, execução sem geração, `seed` que não bate,
-tentativa além da 23ª, `attempt_n.execution` com `n > P`, `PredictionParse` numa tentativa `≤ P` ou
-`ParsedResponse` numa `> P`, tentativa além da `S`-ésima com uma reserva possível antes dela,
-tentativa além da `P`-ésima com uma reserva ou baixa confiança possível, `manual_close.json` fora
-do estado `awaiting_manual`, `model_digest` de tentativa diferente do `run.json`, `suite.json` que
-não é a função dos arquivos) são **dano**: o comando não conserta, lista e sai com código 1, e
-`cli check` aponta o mesmo.
+Inconsistências (são **dano**: o comando não conserta, lista e sai com código 1, e `cli check`
+aponta o mesmo): `attempt_3` sem `attempt_2`; execução sem geração ou de uma tentativa
+`prediction`; fase, seed, temperatura ou template de uma tentativa diferente da linha dela no
+`attempt_policy` do `run.json`; tentativa além da 15ª; `PredictionParse` numa tentativa `solution`
+ou o contrário; tentativa depois de uma aceita; tentativa 13 ou mais com uma reserva possível entre
+as 12; entradas executadas depois de RE/TLE/MLE; `manual_close.json` fora de `awaiting_manual`;
+`model_digest` diferente do `run.json`; `suite.json` que não é a função dos arquivos.

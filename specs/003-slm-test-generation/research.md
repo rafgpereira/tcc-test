@@ -890,3 +890,186 @@ simulados; nenhum número medido com o modelo real.
 12. **`num_ctx`/`num_predict`.** **Decisão**: sem mudança; o template de predição tem 2.333
    caracteres (medido no texto enviado pela Milena; o principal tem 3.361) e a guarda de `num_ctx` vale para ele. **Não medido**: o
    tamanho das respostas por predição.
+
+## R20 — Piloto 5, modelo do experimento e desenho do piloto 6 (2026-10-06)
+
+**Piloto 5 (2026-10-06, `data/suites/slm/`, guardado como `slm-piloto5`; código `7535dee`,
+`qwen2.5-coder:14b`, templates de R17 e de predição, regra de R18/R19, temperatura 0,7, seed base
+42, mesmos 5 problemas × 3 cenários, "GPU T4 - Google Colab")**: as 15 combinações terminaram com
+suíte. Medido dos arquivos de tentativa:
+
+| | Piloto 4 (14B) | Piloto 5 (14B) |
+|---|---|---|
+| Suítes `accepted` | 13/15 | 13/15 |
+| As outras 2 (`1000_B` e `1008_B`, caixa-preta) | descartadas | `accepted_fallback` (tentativa 1 nas duas) |
+| Tentativas aceitas | 13/40 (32,5%) | 13/49 (26,5%) |
+| Falhas | 27 (16 WA, 11 RE) | 36, todas `public_test_failed` (29 WA, 7 RE) |
+| Não interpretadas / cortadas (`length`) | 0 / 0 | 0 / 0 |
+| Entradas por resposta | 10 a 21 | 3 a 16 |
+| *Tokens* de saída (mediana; máximo) | 1.082; 2.009 | 703; 1.022 |
+| Tempo por chamada (mediana; máximo) | 76 s; 252 s | 48 s; 179 s |
+
+Tamanho das suítes de 5 a 16; maior `prompt_eval_count` 2.262 (cabe em `num_ctx`); maior prompt
+8.370 caracteres (híbrido de `61_B`, igual ao calculado em R17); ≈ 44 min de modelo no total.
+Nenhuma combinação chegou à baixa confiança, à predição ou ao tratamento manual, e nenhuma solução
+estourou o tempo num teste público (o custo de rodar as entradas depois de TLE segue sem medida).
+`1008_B` caixa-preta errou por WA nas 8 tentativas, quase sempre no teste público 1 (espera `NO`;
+o prompt só mostra o teste 0, `YES`); `1000_B` caixa-preta, em 7 das 8, no teste 0.
+
+Decisões (Milena, 2026-10-06):
+
+1. **O modelo do experimento é o `qwen2.5-coder:14b`** (resolve a metodologia, seção 6, item 30).
+   `config.MODEL` passa a ser ele; `OLLAMA_MODEL` continua opcional. Diverge do texto do TCC, que
+   cita o Qwen2.5-Coder-7B (metodologia, seção 7).
+2. **Suítes `accepted_fallback` entram nas métricas como as `accepted`**; `accepted_low_confidence`
+   e `accepted_predicted` seguem separadas por status (resolve o item 31).
+3. **Piloto 6, antes da execução completa**: escolher a temperatura. *(Substituído no mesmo
+   dia pela política de 5 fases, R21.)* Mesmos 5 problemas × 3
+   cenários, 14B, uma execução completa nova por configuração:
+   - temperaturas 0,2; 0,3; 0,4; 0,5; 0,6 com seed base 42. A 0,7 com seed base 42 é o piloto 5
+     (mesmos templates e opções; o código posterior só muda onde a seed é conferida), que não é
+     refeito;
+   - depois, a melhor delas e a 0,7, cada uma com as seeds base 1042 e 2042, para ver se a
+     diferença entre as duas é maior que a variação causada só pelas seeds;
+   - **critério**: mais suítes `accepted` entre as 15; empate, maior taxa de acerto por
+     tentativa; depois, menor tempo total de modelo.
+   **Alternativas rejeitadas**: 3 temperaturas (menos resolução); 3 seeds em todas as temperaturas
+   (o triplo do tempo). **Custo estimado, não medido**: ≈ 45 min de modelo por configuração, como o
+   piloto 5, ou seja ≈ 4 h para as 5 temperaturas e ≈ 3 h para as 4 repetições de seed.
+4. *(Substituído no mesmo dia por R21: as duas variáveis saem.)* **Como variar sem editar o
+   código**: variáveis opcionais `OLLAMA_TEMPERATURE` (número maior que
+   0) e `OLLAMA_SEED_BASE` (inteiro ≥ 0) no `.env`, como a `OLLAMA_MODEL`; os valores vão para o
+   `run.json` e o `--resume` recusa outros. A seed de cada tentativa deixa de ser conferida contra a
+   constante 42 nos schemas e passa a ser conferida pelo `store` contra a `seed_base` do `run.json`
+   (e, na suíte, todas as tentativas com a mesma base). **Alternativa rejeitada**: editar
+   `config.py` a cada execução (fácil de esquecer de voltar, como em R15).
+
+## R21 — Política de 5 fases (seed e temperatura por tentativa) (2026-10-06)
+
+**Decisão (Milena, 2026-10-06, `/speckit-clarify`; spec FR-018, FR-020, FR-022 a FR-022d,
+FR-023)**: substitui a ordem de R16/R18 (8 estritas, extras até a 20ª, `accepted_low_confidence`)
+e o piloto de temperaturas de R20 (uma execução por temperatura, com repetição de seeds). É a
+política do experimento: o piloto 6 a valida nos mesmos 5 problemas × 3 cenários e, se der certo,
+ela roda na execução completa sem mudança.
+
+| Fase | Tentativas | Seed | Temperatura | Para quando |
+|---|---|---|---|---|
+| 1 — solução, seed varia | 1 a 6 | 42 a 47 (41 + n) | 0,7 | a solução passa em todos os testes públicos (`accepted`) |
+| 2 — solução, temperatura cai | 7 a 12 | 48 | 0,7; 0,6; 0,5; 0,4; 0,3; 0,2 | idem |
+| 3 — reserva | — (sem chamada) | — | — | melhor das 12 que reprovou um teste público só por WA e manteve entradas (`accepted_fallback`, desempate de R16) |
+| 4 — predição | 13 a 15 | 49, 50, 51 | 0,7 | a primeira resposta interpretada (`accepted_predicted`); nova tentativa só por resposta não interpretável |
+| 5 — tratamento manual | — | — | — | combinação aguardando os autores (`close`, `discarded_manual`), como em R19 |
+
+A seed 48 da fase 2 é diferente de todas as da fase 1, então nenhum par (seed, temperatura) se
+repete numa combinação. Os 3 esclarecimentos:
+
+1. **É a política do experimento**, não só do piloto (alternativa rejeitada: política só do
+   piloto, o que obrigaria o código a manter duas).
+2. **`OLLAMA_TEMPERATURE` e `OLLAMA_SEED_BASE` saem** (criadas em R20 e ainda não usadas em
+   nenhuma execução): a tabela no código, gravada no `run.json`, é a única fonte de seed e
+   temperatura. `OLLAMA_MODEL` continua. As tarefas T076 a T078 (piloto de temperaturas) são
+   substituídas por um piloto 6 único.
+3. **As entradas voltam a rodar só depois de WA** (ou quando a solução passa em tudo): a
+   execução depois de RE, TLE ou MLE existia só para a baixa confiança, que deixou de existir
+   (alternativa rejeitada: continuar rodando para guardar o dado, ao custo de até 10 vezes o
+   limite de tempo por entrada depois de um TLE).
+
+Pedidos para a implementação: a tabela tentativa → fase, seed, temperatura numa configuração única
+e explícita no código, gravada no `run.json`; cada `attempt_<n>.generation.json` registra seed,
+temperatura e fase; o relatório mostra, por cenário, em qual fase e tentativa cada combinação ficou
+com a suíte e quantas suítes há de cada status (`accepted`, `accepted_fallback`,
+`accepted_predicted`, pendentes); testes da sequência exata de seeds e temperaturas, de nenhum par
+(seed, temperatura) repetido, da parada na primeira `accepted` em cada fase, da passagem da fase 2
+para a reserva e da passagem direta para a predição quando não há reserva.
+
+**Ainda não planejado em detalhe nem implementado**: o código atual segue R19/R20. O orçamento
+por combinação cai de 23 chamadas para no máximo 15. O efeito de baixar a temperatura até 0,2 na
+fase 2 não foi medido.
+
+## R22 — Desenho técnico da política de 5 fases (2026-10-06)
+
+**Implementado em 2026-10-06** (tarefas T079 a T089), testado só com cliente e executor
+simulados. Desvio do desenho: `config.attempt_kind(n)` ficou (como atalho para o `template` da
+linha `n`), em vez de sair com as outras funções da política anterior.
+
+Plano de R21 (spec FR-018, FR-020, FR-022 a FR-022d, FR-023, FR-027). Nenhuma dependência nova;
+nada de `src/sandbox/` muda. **Motivo da mudança, pelos pilotos**: nos pilotos 4 e 5 (14B) as
+falhas foram quase todas WA em teste público, repetidas em várias seeds a 0,7 (`1008_B` e `1000_B`
+caixa-preta, 8 de 8); variar a seed a uma temperatura só não tirou o modelo da leitura errada, e
+as tentativas extras e a baixa confiança nunca foram exercitadas com o modelo real. A fase 2 testa
+outra alavanca (temperatura mais baixa, seed fixa) dentro do mesmo orçamento.
+
+1. **Tabela única da política.** **Decisão**: `config.ATTEMPT_POLICY`, uma tupla de
+   `AttemptSpec(attempt, phase, seed, temperature, template)` com as 15 linhas da tabela de R21
+   (`template` ∈ `solution`, `prediction`), escrita por extenso no código (não calculada), com
+   uma função `attempt_spec(n)`. Validada ao importar: números 1..15 sem buraco, nenhum par (seed,
+   temperatura) repetido, fases 1, 2 e 4 nas faixas certas, temperatura > 0. `config.STRICT_*`,
+   `SOLUTION_ATTEMPTS`, `PREDICT_ATTEMPTS` e `SEED_BASE` saem; ficam derivadas da tabela
+   (`SOLUTION_ATTEMPTS = 12`, `MAX_ATTEMPTS = 15`) para uso interno.
+2. **`run.json`.** **Decisão**: o campo `attempt_policy` (a tabela inteira, como lista) substitui
+   `seed_base`, `strict_attempts`, `solution_attempts`, `predict_attempts` e `max_attempts`, e a
+   temperatura sai de `options` (passa a ser por tentativa). `RunConfig.differences` compara a
+   tabela linha a linha (`attempt_policy[7].temperature: recorded 0.6, current 0.5`), então o
+   `--resume` recusa qualquer mudança nela. `generation_options(run, n)` envia ao Ollama a seed e
+   a temperatura da linha `n` do `run.json`.
+3. **`schema_version` 2.** **Decisão**: todos os arquivos do módulo (`run.json`, geração,
+   execução, `manual_close.json`, suíte, relatório, manifesto) passam a `schema_version: 2`
+   (`ai_clients.schemas.common.SchemaVersion = Literal[2]`; o `dataset` continua em 1). Por
+   tentativa, `attempt_<n>.generation.json` ganha `phase`, `temperature` e `template`
+   (`slm_prompt.txt` ou `slm_predict_prompt.txt`); o `store` confere seed, temperatura, fase e
+   template contra a linha `n` do `attempt_policy` do `run.json` (divergência é dano).
+   `AttemptSummary` ganha `phase` e `temperature`; `SlmSuite` ganha `accepted_phase` (1, 2, 3 para
+   a reserva, 4 para a predição, `null` em `discarded_manual`). `SuiteStatus` perde
+   `accepted_low_confidence`; `AttemptSummary` perde `low_confidence_eligible`.
+4. **Execuções antigas.** **Decisão**: toda leitura de `run.json` passa por `store.read_run`, que
+   transforma um `run.json` que não valida como `schema_version: 2` em `IncompatibleRunError`;
+   `generate`, `execute`, `close`, `report` e `package` saem com código 2 e a mensagem
+   `data/suites/slm holds a run of an older version of python -m ai_clients (it cannot be resumed
+   nor read); move it away first: mv data/suites/slm data/suites/slm-<name>`. Sem tentar ler as
+   tentativas antigas (alternativa rejeitada: migrar os pilotos — eles foram feitos sob outra
+   política e não podem ser continuados).
+5. **Máquina de estados** (data-model §4). **Decisão**: com `n` = última tentativa: solução não
+   executada → `pending_execution(n)`; aceita → `finalizable` (`accepted`, fase da tentativa);
+   falhou e `n < 12` → `pending_generation(n + 1)` (a passagem da fase 1 para a 2 é só a próxima
+   linha da tabela); `n = 12` e alguma das 12 pode ser reserva → `finalizable`
+   (`accepted_fallback`, fase 3, a melhor pelo desempate de R16); `n = 12` sem reserva →
+   `pending_generation(13)` (direto para a predição); predição interpretada → `finalizable`
+   (`accepted_predicted`, fase 4, gravada pelo próprio `generate`, sem `execute`: as saídas vêm da
+   resposta); predição não interpretada e `n < 15` → `pending_generation(n + 1)`; `n = 15` →
+   `awaiting_manual`, ou `finalizable` (`discarded_manual`) com `manual_close.json`. A reserva só é
+   considerada depois da 12ª (antes, depois da 8ª). Dano novo: tentativa 13 ou mais com uma reserva
+   possível entre as 12.
+6. **Entradas só depois de WA.** **Decisão**: `oracle.evaluate_attempt` volta à regra de R16 (as
+   entradas rodam se a solução passou em tudo ou se o primeiro erro foi WA) e o `ExecutionRecord`
+   volta a exigir `inputs` vazio depois de RE, TLE ou MLE.
+7. **Parser da predição.** **Decisão**: as mesmas duas regras fixas do parser principal,
+   aplicadas a cada `<input>` e `<output>`: uma cerca Markdown que envolve o bloco inteiro (primeira
+   linha exatamente ```` ``` ````, ```` ```text ````, ```` ```txt ```` ou ```` ```plaintext ````;
+   última ```` ``` ````) é removida e contada (`markdown_fences_removed`, por tentativa e no
+   relatório); um `<test>` com entrada ou saída vazia é descartado sozinho e contado
+   (`empty_tests`), e só todos vazios falham a resposta. Qualquer outra cerca fica (vira parte do
+   dado).
+8. **Código de saída 4, `report` e `package`.** Como em R19 (sem mudança): linhas `manual:`,
+   código 4, `report` conta `awaiting_manual`, `package` recusa listando o `close`.
+9. **Relatório** (`schema_version` 2). **Decisão**: `combinations` com `accepted`,
+   `accepted_fallback`, `accepted_predicted`, `discarded_manual`, `awaiting_manual`,
+   `pending_generation`, `pending_execution` (por cenário e total); `acceptance` — por cenário e no
+   total, quantas combinações ficaram com a suíte em cada fase (1 a 4) e em cada tentativa
+   (1 a 15); `per_phase` — por fase (1, 2, 4), chamadas, tentativas falhas, *tokens* de prompt e de
+   saída e tempo do modelo; `attempt_failures` de 1 a 15; o resto como antes.
+10. **`cli check`.** **Decisão**: até 15 tentativas, execução só até a 12ª, `manual_close.json`
+    permitido.
+11. **Remoções.** `OLLAMA_TEMPERATURE`, `OLLAMA_SEED_BASE` (de `__main__.py`, `.env.example`,
+    READMEs), as tentativas 13 a 20 com solução, `accepted_low_confidence` e tudo que só existia
+    para eles.
+
+**Testes pedidos (R21) e onde ficam**: sequência exata de seeds e temperaturas e nenhum par
+repetido (`test_config.py`, novo); parada na primeira `accepted` na fase 1 e na fase 2, passagem da
+fase 2 para a reserva, passagem direta para a predição sem reserva, aguardando tratamento manual
+(`test_generation.py`, `test_execution.py`); retomada no meio de cada fase (`test_resume.py`, com
+interrupção nas tentativas 3, 9 e 14); `run.json` antigo recusado (`test_cli_*`); seed,
+temperatura, fase e template de cada tentativa conferidos (`test_damage.py`); parser da predição
+com cerca (`test_parser_prediction.py`); relatório por fase (`test_report.py`).
+
+**Custo e efeito não medidos**: no máximo 15 chamadas por combinação (eram 23); o efeito da
+temperatura baixa só o piloto 6 mede.
