@@ -87,20 +87,36 @@ def test_the_record_keeps_the_effective_and_the_problem_limits(judged):
 @pytest.mark.parametrize(
     ("answer", "verdict"),
     [
-        (run_result(b"7\n"), Verdict.WA),
         (run_result(status=RunStatus.TIMEOUT, cpu_time_s=31.0), Verdict.TLE),
         (run_result(peak_rss_bytes=4 * MEMORY_LIMIT_BYTES), Verdict.MLE),
         (run_result(status=RunStatus.NONZERO_EXIT, exit_code=1), Verdict.RE),
     ],
 )
-def test_the_first_failing_public_test_stops_everything(judged, answer, verdict):
+def test_a_failing_public_test_other_than_wa_still_runs_every_generated_input(
+    judged, answer, verdict
+):
+    """The attempt fails, but can still become a low-confidence suite (config.py)."""
     fake = runner({(ECHO_PY, b"2\n"): answer})
-    record = oracle.evaluate_attempt(attempt(), judged, runner=fake)
+    generation = attempt()
+    record = oracle.evaluate_attempt(generation, judged, runner=fake)
     assert record.outcome == "public_test_failed"
     assert (record.public_tests.failed_index, record.public_tests.failed_verdict) == (1, verdict)
     assert record.public_tests.passed == 1
-    assert record.inputs == []
-    assert [stdin for _, stdin, _, _ in fake.calls] == [b"1\n", b"2\n"]  # no input ran
+    assert len(record.inputs) == len(generation.parse.inputs)
+    assert [stdin for _, stdin, _, _ in fake.calls][:2] == [b"1\n", b"2\n"]  # then the inputs
+    assert len(fake.calls) == 2 + len(generation.parse.inputs)
+
+
+def test_a_wa_on_a_public_test_still_runs_every_generated_input(judged):
+    """The attempt fails, but can still become a fallback suite: its inputs need outputs."""
+    fake = runner({(ECHO_PY, b"2\n"): run_result(b"7\n")})
+    generation = attempt()
+    record = oracle.evaluate_attempt(generation, judged, runner=fake)
+    assert record.outcome == "public_test_failed"
+    assert (record.public_tests.failed_index, record.public_tests.failed_verdict) == (1, Verdict.WA)
+    assert len(record.inputs) == len(generation.parse.inputs)
+    assert [stdin for _, stdin, _, _ in fake.calls][:2] == [b"1\n", b"2\n"]
+    assert len(fake.calls) == 2 + len(generation.parse.inputs)
 
 
 def test_a_failing_public_test_keeps_what_the_solution_printed(judged):

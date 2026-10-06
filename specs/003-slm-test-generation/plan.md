@@ -1,7 +1,7 @@
 # Implementation Plan: Geração de Suítes de Teste pelo SLM
 
 **Branch**: `003-slm-test-generation` (feature do spec-kit; o trabalho acontece na `main`, Princípio X)
-| **Date**: 2026-09-30 | **Spec**: [spec.md](./spec.md)
+| **Date**: 2026-09-30 (revisto em 2026-10-06: R18, R19) | **Spec**: [spec.md](./spec.md)
 
 **Input**: Feature specification from `/specs/003-slm-test-generation/spec.md`
 
@@ -12,7 +12,13 @@ Qwen2.5-Coder-7B (Ollama) **entradas** de teste e uma **solução Python** do pr
 chamada sem estado, e deriva o `expected_output` executando essa solução na sandbox — o modelo nunca
 prevê a saída. Duas fases, dois comandos, dois serviços: `generate` (serviço `app`, com rede) chama o
 modelo e grava a resposta crua e a interpretação; `execute` (serviço `sandbox`, sem rede) valida a
-solução nos testes públicos e calcula as saídas. Até 6 tentativas por combinação (seeds 43–48);
+solução nos testes públicos e calcula as saídas. Até 8 tentativas estritas por combinação (seeds
+43–50); depois delas, a melhor tentativa que errou um teste público só por WA vira a suíte de
+reserva (`accepted_fallback`) e, sem nenhuma, seguem tentativas até 20 (seeds 51–62); depois da 20ª,
+a primeira solução que manteve alguma entrada vira `accepted_low_confidence`; sem nenhuma, até 3
+tentativas por predição com um segundo template (seeds 63–65, `accepted_predicted`, a única exceção
+ao oráculo por execução); sem resposta interpretável, a combinação aguarda tratamento manual
+(código 4) até os autores a fecharem com `close` (`discarded_manual`) (S11, S12, R16, R18, R19);
 falha de infraestrutura não consome tentativa. Todo fato é um arquivo JSON imutável gravado
 atomicamente, o estado é derivado dos arquivos, e o resultado terminal é um `suite.json` por
 combinação.
@@ -48,6 +54,8 @@ foram decididos em 2026-09-30 (Milena, opção A em todas); S3 e S6 são informa
 | **S8** | Piloto 2 (2026-10-04, R14): 8 de 15 suítes aceitas (caixa-preta 1/5); as 7 descartadas caíram todas pela solução Python errando um teste público (33 WA, 29 RE, 1 TLE no total), nenhuma por causa das entradas; o registro de execução não guardava o `stdout`/`stderr` do teste público reprovado, então não dava para saber se algum RE foi falta de memória. | `AC_ref` continua fora da execução; cada tentativa continua independente; orçamento de 6 mantido; `public_tests` ganha `failed_output_head`, `failed_stderr_tail`, `failed_cpu_time_s` e `failed_peak_rss_bytes` (nulos sem falha e nos registros antigos, `schema_version` 1). | **Decidido em 2026-10-05 (Milena)**; a revisão do prompt abre o piloto 3. |
 | **S9** | Revisão do prompt depois do piloto 2 (R14): a RULE 2 pedia entradas inválidas e a RULE 3 exigia que todas respeitassem as restrições; a RULE 1 ainda citava entrada vazia; o modelo abreviava entradas grandes (`... (120000 times)`); a solução Python errava os exemplos por erro de raciocínio. | Template revisto (R14, item 6): planejar e simular à mão no exemplo, aviso de que a solução roda primeiro no exemplo, de 10 a 20 entradas distintas e por extenso, entradas "quase inválidas mas válidas", dicas de Python. Maior prompt 8.993 caracteres (híbrido, `61_B`); `num_ctx`/`num_predict` não mudam. | **Decidido em 2026-10-05 (Milena)**; o piloto 3 é uma execução nova. |
 | **S10** | Piloto 3 (parcial, R15): formato resolvido, mas 14% de acerto por tentativa (≈ 40% das combinações sem suíte, ≈ 20 h); 3 RE eram `exit()` indefinido porque o Python rodava com `-S`. | `-S` removido (`-I -B -X utf8`); `OLLAMA_MODEL` opcional no `.env` (padrão `qwen2.5-coder:7b`, gravado no `run.json`, `--resume` recusa outro); piloto 4 com `qwen2.5-coder:14b`. | **Decidido em 2026-10-05 (Milena)**; modelo e método do experimento pendentes (metodologia, seção 6, item 30). |
+| **S11** | Piloto 4 (`qwen2.5-coder:14b`, R16): 13 de 15 suítes aceitas; as 2 descartadas são de caixa-preta (`1000_B`, `1008_B`), as 6 tentativas de cada uma errando um teste público (11 de 12 por WA). Os autores decidiram que nenhuma combinação pode ficar sem suíte. | `STRICT_ATTEMPTS = 8`, `MAX_ATTEMPTS = 12` (`run.json` ganha `strict_attempts`); uma tentativa que reprova um teste público por WA roda as entradas geradas assim mesmo; depois de 8 falhas, a melhor delas que pode ser reserva (mais testes públicos aprovados, mais entradas mantidas, menor número) vira `suite.json` com `status: accepted_fallback`; sem nenhuma, as tentativas 9 a 12 terminam na primeira que passa ou pode ser reserva; relatório com `accepted_fallback` e `fallback_rate`. | **Decidido em 2026-10-05 (Milena)**; as árvores dos pilotos 1 a 4 não são lidas pelo código novo (`run.json` sem `strict_attempts`). |
+| **S12** | Os autores decidiram (2026-10-06, R18) que nenhuma combinação termina sem suíte: depois das 8 tentativas e da reserva, tentativas 9 a 20, depois `accepted_low_confidence`, depois até 3 tentativas por predição com um segundo template (`accepted_predicted`); sem resposta interpretável, a combinação aguarda tratamento manual e só fecha como `discarded_manual`. | **Planejado e implementado em 2026-10-06 (R19; T064 a T074)**: `MAX_ATTEMPTS = 23` (20 com solução, 3 por predição, tipo derivado do número); entradas rodando depois de qualquer reprovação em teste público; `parse_prediction` e `PredictionParse`; `predict_template_sha256`, `solution_attempts` e `predict_attempts` no `run.json`; estado `awaiting_manual`, código de saída 4 e linhas `manual:`; comando `close` gravando `manual_close.json`; `suite.json` com os 5 status, `kind`, `low_confidence_eligible` e `manual_close`; relatório por status (`status_rate`); `cli check` até 23 tentativas. | **Decidido em 2026-10-06 (Milena)**: spec FR-022 a FR-022d; desenho em R19 (data-model §3–4, contratos). As árvores dos pilotos não são lidas pelo código novo. |
 
 ## Technical Context
 
@@ -75,12 +83,14 @@ piloto (quickstart, Nível 4) — não se afirma tempo não medido.
 
 **Constraints**: `num_ctx = 8192`, `num_predict = 5120` (R3, medido; revisado no piloto 1, R13); limites do Python = limite do
 problema × `PY_TIME_FACTOR = 10` (tempo) e × `PY_MEMORY_FACTOR = 4` (memória), nunca constantes
-absolutas (R7); seed da tentativa `n` = `42 + n`; no máximo 6 tentativas; chamadas sequenciais;
+absolutas (R7); seed da tentativa `n` = `42 + n`; 8 tentativas estritas, reserva, até 20 com
+solução Python e até 3 por predição, 23 no total (R16, R19); chamadas sequenciais;
 *timeout* de leitura (`OLLAMA_HTTP_TIMEOUT_S`, padrão 900 s) e teto de repetições consecutivas por
 falha de infraestrutura (`OLLAMA_MAX_INFRA_RETRIES`, padrão 30) configuráveis no `.env` (R9, R12).
 
-**Scale/Scope**: 600 combinações; no máximo 3.600 chamadas ao modelo e 3.600 avaliações; 1 a 4
-testes públicos por problema.
+**Scale/Scope**: 600 combinações; no máximo 13.800 chamadas ao modelo (23 por combinação) e 12.000
+avaliações (20 por combinação); 1 a 4 testes públicos por problema. Os máximos não são estimativa
+de custo: o custo real depende das taxas medidas no piloto.
 
 ## Constitution Check
 
@@ -102,6 +112,16 @@ testes públicos por problema.
 
 **Reavaliação pós-Fase 1**: sem violação. Duas dependências entre módulos, justificadas abaixo.
 
+**Reavaliação de 2026-10-06 (R18, R19)**: sem violação nova. III — as tentativas por predição são
+chamadas sem estado como as outras (uma mensagem, sem `context`; o falso confere). V — a predição não
+executa nada; as entradas que passam a rodar depois de RE/TLE/MLE rodam no mesmo isolamento, com os
+mesmos limites derivados. II — o segundo template entra no `run.json` (`predict_template_sha256`) e
+no `--resume`. IV — schemas mudam sem trocar `schema_version` porque nenhum arquivo antigo é lido
+(execução nova, como em R16). VI — testes novos listados no quickstart, Nível 1. IX — nenhuma
+dependência; um módulo pequeno novo (`closing.py`). X — o fechamento manual é sempre um comando dos
+autores, com motivo gravado. XI — spec, research (R18, R19), data-model, contratos, quickstart e
+metodologia atualizados neste ciclo; o README do módulo muda junto com o código.
+
 ## Project Structure
 
 ### Documentation (this feature)
@@ -110,7 +130,7 @@ testes públicos por problema.
 specs/003-slm-test-generation/
 ├── spec.md
 ├── plan.md              # este arquivo
-├── research.md          # R0–R13
+├── research.md          # R0–R19
 ├── data-model.md
 ├── quickstart.md
 ├── sync-matrix.json     # D1–D3 da spec ↔ metodologia (check_docs_sync C5)
@@ -125,7 +145,8 @@ specs/003-slm-test-generation/
 ### Source Code (repository root)
 
 ```text
-src/prompt_templates/slm_prompt.txt   # do autor; RULE 2/3 ajustadas para FR-007 (S5, decidido)
+src/prompt_templates/slm_prompt.txt   # do autor; FR-007 cumprido (S5); texto revisto em R14 e R17
+src/prompt_templates/slm_predict_prompt.txt  # do autor (2026-10-06); tentativas 21 a 23 (R19)
 src/ai_clients/
 ├── __init__.py
 ├── __main__.py          # registro de subcomandos (padrão de mutation/__main__.py)
@@ -134,7 +155,8 @@ src/ai_clients/
 ├── problem.py           # ProblemInput (composição S1)
 ├── prompt.py            # template + context_data por cenário
 ├── ollama.py            # SLMClient, OllamaClient, exceções
-├── parser.py            # parse_response
+├── parser.py            # parse_response, parse_prediction (R19)
+├── closing.py           # close: manual_close.json + suite.json(discarded_manual) (R19)
 ├── oracle.py            # run_python, python_limits, evaluate_attempt
 ├── store.py             # estados, escrita, finalize, exclusive_run
 ├── generation.py        # laço do generate (tentativas, espera de infraestrutura)
@@ -149,7 +171,8 @@ tests/ai_clients/
 ├── conftest.py          # dataset sintético empacotado e com manifesto (como tests/mutation)
 ├── fakes.py             # FakeSLMClient, runner Python falso, relógio falso
 ├── test_schemas.py  test_problem.py  test_store.py
-├── test_prompt.py  test_parser.py  test_ollama.py  test_generation.py  test_cli_generate.py
+├── test_prompt.py  test_parser.py  test_parser_prediction.py  test_ollama.py
+├── test_generation.py  test_cli_generate.py  test_closing.py  test_cli_close.py
 ├── test_oracle.py  test_execution.py  test_cli_execute.py
 ├── test_resume.py  test_resume_config.py  test_damage.py
 ├── test_report.py  test_packaging.py
@@ -167,4 +190,5 @@ docker-compose.yml                  # + extra_hosts no app (S6)
 | Ponto | Por que é necessário | Alternativa mais simples rejeitada porque |
 |---|---|---|
 | `ai_clients` importa `mutation.dataset_gate.verify_dataset` | a spec exige a mesma recusa a dataset divergente que o `mutation` já faz | copiar a função duplicaria a regra; movê-la para `dataset` mexeria em dois módulos fechados sem ganho |
+| Código de saída `4`, que `mutation` não tem (R19 item 7) | "aguardando tratamento manual" é um estado esperado do fluxo, que o operador precisa distinguir de dano | reaproveitar o código 1 misturaria esse estado com dano nos arquivos |
 | `extra_hosts` no serviço `app` (S6) | o Ollama do host é inalcançável do contêiner no Linux sem ela | exigir sempre um servidor remoto contrariaria FR-003 ("máquina local ou servidor remoto") |

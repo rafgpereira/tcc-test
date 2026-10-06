@@ -123,3 +123,19 @@ def test_a_solution_that_fails_only_one_input_loses_only_that_input(repo):
         (True, "7\n", None),
     ]
     assert "unlucky" in result.inputs[1].stderr_tail
+
+
+def test_a_solution_that_crashes_on_a_public_test_still_runs_the_inputs(repo):
+    """By RE on a public test the attempt fails, but its inputs run (a low-confidence suite)."""
+    code = (
+        "import sys\n"
+        "n = int(sys.stdin.read())\n"
+        "if n == 1:\n"
+        "    raise ValueError('the first example')\n"
+        "print(n)\n"
+    )
+    record = GenerationRecord(**generation(parse=parsed(inputs=["5\n", "7\n"], reference_py=code)))
+    result = oracle.evaluate_attempt(record, problem.load_judge_input(repo, "1_A"), slot=SLOT)
+    assert result.outcome == "public_test_failed"
+    assert (result.public_tests.failed_index, result.public_tests.failed_verdict) == (0, Verdict.RE)
+    assert [(i.kept, i.output) for i in result.inputs] == [(True, "5\n"), (True, "7\n")]

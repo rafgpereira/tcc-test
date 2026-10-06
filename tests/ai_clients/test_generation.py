@@ -6,11 +6,18 @@ from ai_clients import config, generation, store
 from ai_clients.errors import InfrastructureError
 from ai_clients.ollama import ModelRepetition, OllamaConfigError, OllamaUnavailable
 from ai_clients.prompt import load_template
-from tests.ai_clients.fakes import FakeClock, FakeSLMClient, completion, well_formed_response
+from tests.ai_clients.fakes import (
+    FakeClock,
+    FakeSLMClient,
+    completion,
+    predicted_response,
+    well_formed_response,
+)
 
 NOW = "2026-10-01T12:00:00Z"
 GOOD = completion(well_formed_response(["1\n", "2\n"]))
 BAD = completion("I cannot help with that.")
+PREDICTED = completion(predicted_response([("3\n", "3\n"), ("4\n", "4\n")]))
 
 
 @pytest.fixture()
@@ -65,13 +72,17 @@ def test_the_run_config_identifies_model_options_template_and_dataset(repo, temp
         "num_ctx": 8192,
         "num_predict": config.NUM_PREDICT,
     }
-    assert (run.seed_base, run.max_attempts, run.py_time_factor, run.py_memory_factor) == (
-        42,
-        6,
-        10,
-        4,
-    )
+    assert (
+        run.seed_base,
+        run.strict_attempts,
+        run.solution_attempts,
+        run.predict_attempts,
+        run.max_attempts,
+        run.py_time_factor,
+        run.py_memory_factor,
+    ) == (42, 8, 20, 3, 23, 10, 4)
     assert run.prompt_template_sha256 == template.sha256
+    assert run.predict_template_sha256 == load_template(config.PREDICT_TEMPLATE_PATH).sha256
     assert len(run.dataset_manifest_sha256) == 64 and run.created_at == NOW
 
 
@@ -106,17 +117,61 @@ def test_an_unparseable_answer_chains_the_next_seed_at_once(repo, template):
     assert "unparseable (missing_block:edge_cases_analysis)" in lines[0]
 
 
-def test_six_unparseable_answers_discard_the_suite(repo, template):
-    client = make_client({("1_A", "black_box", 42 + n): BAD for n in range(1, 7)})
-    result, _ = generate(repo, client, template, [("1_A", "black_box")])
-    names = files(repo)
-    assert names == [f"attempt_{n}.generation.json" for n in range(1, 7)] + ["suite.json"]
+def bad_solutions(extra=None):
+    """Every solution attempt unparseable, plus ``extra``."""
+    table = {("1_A", "black_box", 42 + n): BAD for n in range(1, config.SOLUTION_ATTEMPTS + 1)}
+    return make_client(table | (extra or {}))
+
+
+def test_twenty_unparseable_answers_go_to_a_prediction_that_is_the_suite(repo, template):
+    client = bad_solutions({("1_A", "black_box", 63): PREDICTED})
+    result, lines = generate(repo, client, template, [("1_A", "black_box")])
+    assert files(repo) == sorted(
+        [f"attempt_{n}.generation.json" for n in range(1, 22)] + ["suite.json"]
+    )
     suite = store.read_suite(repo, "1_A", "black_box")
-    assert suite.status == "discarded" and suite.tests == [] and suite.accepted_attempt is None
-    assert [a.seed for a in suite.attempts] == [43, 44, 45, 46, 47, 48]
-    assert {a.failure for a in suite.attempts} == {"unparseable_response"}
-    assert [a.detail for a in suite.attempts] == ["missing_block:edge_cases_analysis"] * 6
-    assert result.discarded == 1 and result.pending_execution == 0
+    assert suite.status == "accepted_predicted" and suite.accepted_attempt == 21
+    assert [t.model_dump() for t in suite.tests] == [
+        {"input": "3\n", "output": "3\n"},
+        {"input": "4\n", "output": "4\n"},
+    ]
+    assert [a.kind for a in suite.attempts] == ["solution"] * 20 + ["prediction"]
+    assert [a.seed for a in suite.attempts] == list(range(43, 64))
+    assert suite.attempts[-1].detail == "2 tests predicted"
+    # the prediction is asked with the second template, the solutions with the main one
+    prompts = [r["prompt"] for r in client.requests]
+    assert all("<reference_py>" in prompt for prompt in prompts[:20])
+    assert "<tests>" in prompts[20] and "<reference_py>" not in prompts[20]
+    assert result.suites["accepted_predicted"] == 1 and result.pending_execution == 0
+    assert result.awaiting_manual == []
+    assert lines[-2].startswith("1_A black_box attempt 21 seed 63: parsed (2 tests)")
+    assert lines[-1] == "1_A black_box: suite recorded (accepted_predicted)"
+
+
+def test_an_unparseable_prediction_chains_the_next_seed(repo, template):
+    client = bad_solutions({("1_A", "black_box", 63): BAD, ("1_A", "black_box", 64): PREDICTED})
+    result, _ = generate(repo, client, template, [("1_A", "black_box")])
+    suite = store.read_suite(repo, "1_A", "black_box")
+    assert suite.status == "accepted_predicted" and suite.accepted_attempt == 22
+    assert suite.attempts[20].detail == "missing_block:edge_cases_analysis"
+    assert result.calls == 22
+
+
+def test_three_unparseable_predictions_await_manual_handling(repo, template):
+    client = make_client(
+        {("1_A", "black_box", 42 + n): BAD for n in range(1, config.MAX_ATTEMPTS + 1)}
+    )
+    result, lines = generate(repo, client, template, [("1_A", "black_box")])
+    assert files(repo) == sorted(f"attempt_{n}.generation.json" for n in range(1, 24))
+    state = store.combination_state(repo, "1_A", "black_box")
+    assert state.kind == "awaiting_manual"
+    assert result.awaiting_manual == [("1_A", "black_box")]
+    assert sum(result.suites.values()) == 0 and result.calls == config.MAX_ATTEMPTS
+    assert lines[-1] == "1_A black_box: awaiting manual handling"
+    # a second generate calls nothing for it, and still reports it
+    client = make_client({})
+    result, _ = generate(repo, client, template, [("1_A", "black_box")])
+    assert client.requests == [] and result.awaiting_manual == [("1_A", "black_box")]
 
 
 REPEAT = ModelRepetition('HTTP 500 from /api/chat: {"error":"token repeat limit reached"}')
@@ -138,12 +193,14 @@ def test_the_token_repeat_limit_fails_the_attempt_and_goes_to_the_next_seed(repo
     assert lines[0].startswith("1_A black_box attempt 1 seed 43: model failure (repetition)")
 
 
-def test_six_repetitions_discard_the_suite_with_that_reason(repo, template):
-    client = make_client({("1_A", "black_box", 42 + n): REPEAT for n in range(1, 7)})
+def test_23_repetitions_await_manual_handling_with_that_reason(repo, template):
+    client = make_client(
+        {("1_A", "black_box", 42 + n): REPEAT for n in range(1, config.MAX_ATTEMPTS + 1)}
+    )
     result, _ = generate(repo, client, template, [("1_A", "black_box")])
-    suite = store.read_suite(repo, "1_A", "black_box")
-    assert suite.status == "discarded" and {a.failure for a in suite.attempts} == {"repetition"}
-    assert result.discarded == 1 and result.repetition == 6
+    assert store.combination_state(repo, "1_A", "black_box").kind == "awaiting_manual"
+    assert result.repetition == config.MAX_ATTEMPTS
+    assert result.awaiting_manual == [("1_A", "black_box")]
 
 
 def test_an_outage_retries_the_same_call_without_consuming_an_attempt(repo, template):
@@ -244,8 +301,10 @@ def test_the_hardware_label_is_read_at_each_call(repo, template):
 def test_terminal_and_pending_execution_combinations_are_not_called(repo, template):
     client = make_client({("1_A", "black_box", 43): GOOD})
     generate(repo, client, template, [("1_A", "black_box")])  # now pending execution
-    client = make_client({("1_A", "white_box", 42 + n): BAD for n in range(1, 7)})
-    generate(repo, client, template, [("1_A", "white_box")])  # now terminal (discarded)
+    client = make_client(
+        {("1_A", "white_box", 42 + n): BAD for n in range(1, config.MAX_ATTEMPTS + 1)}
+    )
+    generate(repo, client, template, [("1_A", "white_box")])  # now awaiting manual handling
     client = make_client({})
     result, _ = generate(repo, client, template, [("1_A", "black_box"), ("1_A", "white_box")])
     assert client.requests == [] and result.calls == 0 and result.pending_execution == 1
@@ -263,3 +322,21 @@ def test_limit_counts_combinations_not_calls(repo, template):
     result, _ = generate(repo, client, template, combos, limit=2)
     assert result.calls == 3
     assert files(repo, scenario="hybrid") == []
+
+
+def test_an_unparseable_8th_answer_ends_the_attempts_with_a_fallback_among_the_8(repo, template):
+    from ai_clients import execution
+    from tests.ai_clients.fakes import FakePythonRunner, record_generation, run_result, start_run
+
+    run = start_run(repo)
+    wrong = FakePythonRunner(default=lambda code, stdin: run_result(b"0\n"))  # WA, inputs kept
+    for n in range(1, config.STRICT_ATTEMPTS):
+        record_generation(repo, attempt=n, code="print(0)\n")
+        execution.execute(repo, [("1_A", "black_box")], run=run, runner=wrong, echo=print)
+    client = make_client({("1_A", "black_box", 42 + config.STRICT_ATTEMPTS): BAD})
+    result, lines = generate(repo, client, template, [("1_A", "black_box")])
+    suite = store.read_suite(repo, "1_A", "black_box")
+    assert suite.status == "accepted_fallback" and suite.accepted_attempt == 1
+    assert len(client.requests) == 1  # never a 9th call
+    assert lines[-1] == "1_A black_box: suite recorded (accepted_fallback)"
+    assert result.suites == {"accepted_fallback": 1}

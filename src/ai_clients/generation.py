@@ -2,8 +2,11 @@
 
 For each problem × scenario pending a generation: build the prompt, make ONE call with the seed of
 the attempt (``42 + n``), and record the raw answer and how it was read. An answer that cannot be
-read is a failed attempt and the next seed is called at once (there is nothing to execute); after
-the 6th failure the suite is discarded. A call the model itself fails (Ollama's ``token repeat
+read is a failed attempt and the next seed is called at once (there is nothing to execute), unless
+the combination got a suite without one (``config.py``: a fallback after the 8th, a low-confidence
+suite after the 20th) or awaits manual handling (the 23rd). Attempts 21 to 23 ask for a prediction
+with the second template; a parsed one is the suite at once (``accepted_predicted``), since there
+is no solution to execute. A call the model itself fails (Ollama's ``token repeat
 limit reached``) is recorded the same way, with the reason ``repetition``: the same seed would
 loop again, so it is never repeated. An outage never consumes an attempt: the same call, with the
 same seed, is repeated after a wait that doubles from 5 s up to 60 s, until the retry ceiling (then
@@ -11,6 +14,7 @@ the command stops and nothing of that attempt is recorded).
 """
 
 import time
+from collections import Counter
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -27,9 +31,9 @@ from ai_clients.ollama import (
     OllamaUnavailable,
     SLMClient,
 )
-from ai_clients.parser import parse_response
+from ai_clients.parser import parse_prediction, parse_response
 from ai_clients.problem import ProblemInput, load_problem
-from ai_clients.prompt import PromptTemplate, build_prompt, prompt_sha256
+from ai_clients.prompt import PromptTemplate, build_prompt, load_template, prompt_sha256
 from ai_clients.schemas.generation import (
     GenerationRecord,
     ModelFailure,
@@ -101,12 +105,15 @@ def current_run_config(
     max_infra_retries: int,
     echo: Callable[[str], None],
     model: str | None = None,
+    predict_template: PromptTemplate | None = None,
 ) -> RunConfig:
-    """The identity of a run with this model, these options, this template and this dataset.
+    """The identity of a run with this model, these options, these templates and this dataset.
 
-    ``model`` defaults to ``config.MODEL``, the model of the design.
+    ``model`` defaults to ``config.MODEL``, the model of the design; ``predict_template`` to the
+    template of the prediction attempts (``config.PREDICT_TEMPLATE_PATH``).
     """
     model = model or config.MODEL
+    predict_template = predict_template or load_template(config.PREDICT_TEMPLATE_PATH)
     info = _with_retries(
         lambda: client.model_info(model),
         what="the model information",
@@ -122,8 +129,12 @@ def current_run_config(
         ollama_version=info.ollama_version,
         options=sampling_options(),
         seed_base=config.SEED_BASE,
+        strict_attempts=config.STRICT_ATTEMPTS,
+        solution_attempts=config.SOLUTION_ATTEMPTS,
+        predict_attempts=config.PREDICT_ATTEMPTS,
         max_attempts=config.MAX_ATTEMPTS,
         prompt_template_sha256=template.sha256,
+        predict_template_sha256=predict_template.sha256,
         dataset_manifest_sha256=dataset_gate.dataset_manifest_sha256(root),
         py_time_factor=config.PY_TIME_FACTOR,
         py_memory_factor=config.PY_MEMORY_FACTOR,
@@ -137,8 +148,11 @@ class GenerateResult:
     parsed: int = 0
     unparseable: int = 0
     repetition: int = 0  # calls the model failed itself (token repeat limit reached)
-    discarded: int = 0  # suites discarded by this run (6 failed attempts)
+    # suites this run recorded without an execution, by status (accepted_fallback,
+    # accepted_low_confidence after an interruption, accepted_predicted)
+    suites: Counter = field(default_factory=Counter)
     pending_execution: int = 0  # combinations of the selection waiting for `execute` at the end
+    awaiting_manual: list[tuple[str, str]] = field(default_factory=list)  # selection, at the end
     damaged: list[store.DamagedCombination] = field(default_factory=list)  # reported, not repaired
 
 
@@ -166,6 +180,13 @@ def _ollama_meta(completion: Completion) -> OllamaMeta:
     )
 
 
+def _record_suite(root, problem_id, scenario, run, result: GenerateResult, echo) -> None:
+    """Write the ``suite.json`` of a finalizable combination (no call is needed for it)."""
+    suite = store.finalize(root, problem_id, scenario, run)
+    echo(f"{problem_id} {scenario}: suite recorded ({suite.status.value})")
+    result.suites[suite.status.value] += 1
+
+
 def generate(
     root: Path,
     combinations: Sequence[tuple[str, str]],
@@ -179,8 +200,21 @@ def generate(
     echo: Callable[[str], None],
     limit: int | None = None,
     now: Callable[[], str] = utc_now,
+    predict_template: PromptTemplate | None = None,
 ) -> GenerateResult:
-    """Call the model for every combination pending a generation, in the order given."""
+    """Call the model for every combination pending a generation, in the order given.
+
+    Attempts 1..SOLUTION_ATTEMPTS use ``template`` and ask for a solution; the last ones use
+    ``predict_template`` (default: ``config.PREDICT_TEMPLATE_PATH``) and ask for a prediction,
+    whose parsed answer is the suite at once (nothing to execute).
+    """
+    templates = {
+        "solution": (template, parse_response),
+        "prediction": (
+            predict_template or load_template(config.PREDICT_TEMPLATE_PATH),
+            parse_prediction,
+        ),
+    }
     result = GenerateResult()
     problems: dict[str, ProblemInput] = {}
     handled = 0
@@ -191,8 +225,7 @@ def generate(
             result.damaged.append(exc)
             continue
         if state.kind == "finalizable":  # interrupted before its suite.json: no call needed
-            suite = store.finalize(root, problem_id, scenario, run)
-            result.discarded += suite.status == "discarded"
+            _record_suite(root, problem_id, scenario, run, result, echo)
             continue
         if state.kind != "pending_generation":
             continue
@@ -201,10 +234,12 @@ def generate(
         handled += 1
         if problem_id not in problems:
             problems[problem_id] = load_problem(root, problem_id)
-        prompt = build_prompt(template, problems[problem_id], scenario)
         attempt = state.attempt
         while True:
             what = f"{problem_id} {scenario} attempt {attempt}"
+            kind = config.attempt_kind(attempt)
+            chosen, parse_answer = templates[kind]
+            prompt = build_prompt(chosen, problems[problem_id], scenario)
             options = generation_options(run, attempt)
             try:
                 completion = _with_retries(
@@ -222,7 +257,7 @@ def generate(
                 parse = UnparsedResponse(ok=False, error=failure.reason)
             else:
                 _check_context_window(completion, run, what)
-                failure, parse = None, parse_response(completion.content)
+                failure, parse = None, parse_answer(completion.content)
             record = GenerationRecord(
                 problem_id=problem_id,
                 scenario=scenario,
@@ -242,11 +277,12 @@ def generate(
             if completion is None:
                 echo(f"{what} seed {options.seed}: model failure (repetition) — {failure.detail}")
             else:
-                outcome = (
-                    f"parsed ({len(parse.inputs)} inputs)"
-                    if parse.ok
-                    else f"unparseable ({parse.error})"
-                )
+                if not parse.ok:
+                    outcome = f"unparseable ({parse.error})"
+                elif kind == "prediction":
+                    outcome = f"parsed ({len(parse.tests)} tests)"
+                else:
+                    outcome = f"parsed ({len(parse.inputs)} inputs)"
                 echo(
                     f"{what} seed {options.seed}: {outcome} — {completion.prompt_eval_count}+"
                     f"{completion.eval_count} tokens, {completion.done_reason}, "
@@ -254,15 +290,20 @@ def generate(
                 )
             if parse.ok:
                 result.parsed += 1
-                break
-            if completion is None:
+            elif completion is None:
                 result.repetition += 1
             else:
                 result.unparseable += 1
-            if attempt == run.max_attempts:
-                store.finalize(root, problem_id, scenario, run)
-                result.discarded += 1
+            if parse.ok and kind == "solution":
+                break  # the solution runs in `execute`
+            state = store.combination_state(root, problem_id, scenario, run)
+            if state.kind == "finalizable":  # a prediction, a fallback or a low-confidence suite
+                _record_suite(root, problem_id, scenario, run, result, echo)
                 break
-            attempt += 1
+            if state.kind == "awaiting_manual":
+                echo(f"{problem_id} {scenario}: awaiting manual handling")
+                break
+            attempt = state.attempt
     result.pending_execution = store.count_in_state(root, combinations, "pending_execution", run)
+    result.awaiting_manual = store.awaiting_manual(root, combinations, run)
     return result

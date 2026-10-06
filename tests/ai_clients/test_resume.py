@@ -13,6 +13,7 @@ from tests.ai_clients.fakes import (
     FakePythonRunner,
     FakeSLMClient,
     completion,
+    predicted_response,
     run_result,
     well_formed_response,
 )
@@ -23,17 +24,20 @@ WRONG_PY = "print(0)\n"
 GOOD = completion(well_formed_response(["5\n", "6\n"], code=ECHO_PY))
 WRONG = completion(well_formed_response(["5\n"], code=WRONG_PY))
 BAD = completion("no blocks")
+PREDICTED = completion(predicted_response([("7\n", "7\n")]))
 
 
 def table():
     """Every combination: accepted at attempt 1, except 1_A black_box (unparseable, then a wrong
-    solution, then accepted at attempt 3) and 2_B hybrid (6 unparseable answers: discarded)."""
+    solution, then accepted at attempt 3) and 2_B hybrid (20 unparseable answers, an unparseable
+    prediction, then a parsed one at attempt 22: accepted_predicted)."""
     answers = {(pid, s, 43): GOOD for pid, s in COMBOS}
     answers[("1_A", "black_box", 43)] = BAD
     answers[("1_A", "black_box", 44)] = WRONG
     answers[("1_A", "black_box", 45)] = GOOD
-    for seed in range(43, 49):
+    for seed in range(43, 43 + config.SOLUTION_ATTEMPTS + 1):
         answers[("2_B", "hybrid", seed)] = BAD
+    answers[("2_B", "hybrid", 42 + config.SOLUTION_ATTEMPTS + 2)] = PREDICTED
     return answers
 
 

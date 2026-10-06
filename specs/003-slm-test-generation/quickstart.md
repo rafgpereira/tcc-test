@@ -33,10 +33,17 @@ docker compose run --rm sandbox pytest tests/ai_clients
 
 Esperado: tudo passa, cobrindo (Princípio VI): parser (tabela de casos do contrato); montagem do
 prompt (3 cenários só diferem em `<context_data>`, few-shot = primeiro teste público); cliente sem
-estado (uma mensagem por requisição, sem `context`); seeds 43–48; falha de interpretação encadeando
+estado (uma mensagem por requisição, sem `context`); seeds 43–65; falha de interpretação encadeando
 a próxima tentativa no mesmo `generate`; falha de infraestrutura repetindo a mesma seed sem consumir
 tentativa (relógio falso); guarda de `num_ctx`; descarte de entrada isolada vs. tentativa inteira;
-nunca suíte de tamanho zero; 6 falhas → `discarded`; `--resume` recusando configuração alterada;
+nunca suíte de tamanho zero; entradas rodando depois de RE, TLE e MLE num teste público; 8 falhas
+com um WA → `accepted_fallback` da melhor tentativa; tentativas 9 a 20 parando na primeira reserva;
+20 falhas com uma solução que manteve entradas → `accepted_low_confidence` da primeira; 20 falhas
+sem nenhuma → predição com o segundo template (seed 63) → `accepted_predicted`; 3 predições não
+interpretáveis → `awaiting_manual`, linhas `manual:` e código 4, inclusive com outras combinações
+concluídas no mesmo comando; `close` → `discarded_manual` (e código 2 fora desse estado); `package`
+recusando enquanto houver combinação aguardando; parser da predição (tabela do contrato);
+`--resume` recusando configuração alterada (inclusive o template de predição);
 retomada depois de interrupção simulada em cada ponto de escrita (mesmos bytes finais que a execução
 ininterrupta, SC-004); `--dry-run` não grava nada; `--limit`; relatório somando certo; pacote
 determinístico e `verify` (byte alterado, arquivo removido, arquivo extra); camada `slm_suites` do
@@ -73,7 +80,10 @@ Verificar e **propagar para a metodologia** (Princípio XI): maior `prompt_eval_
 `num_ctx` nunca disparou?), taxa de `unparseable_response` e de `done_reason = "length"` (efeito da
 redação de FR-007 no template, research R5a), taxa de `public_test_failed`, tamanho das suítes, tempo por chamada
 no hardware registrado, e se alguma solução correta falhou por limite nos problemas de 61 MiB
-(fatores de R7). Incluir no piloto ao menos um dos 7 problemas de 61 MiB (`--problem`).
+(fatores de R7). Incluir no piloto ao menos um dos 7 problemas de 61 MiB (`--problem`). Desde
+2026-10-06 (research R19), medir também: quantas combinações chegam a cada status, o tempo do
+`execute` nas tentativas que reprovam um teste público por TLE (as entradas passam a rodar) e, se
+alguma combinação chegar à predição, o tamanho da resposta e o tempo da chamada.
 
 ## Nível 5 — Retomada com o motor e o modelo reais (SC-004)
 
@@ -84,7 +94,10 @@ aponta dano.
 
 ## Nível 6 — Execução completa, pacote e conferência
 
-Alternar `generate --resume` e `execute` até o `execute` não sugerir mais `next:`; depois:
+Alternar `generate --resume` e `execute` até o `execute` não sugerir mais `next:`. Se algum dos
+dois sair com código 4, os autores decidem cada combinação listada e a fecham com `docker compose
+run --rm app python -m ai_clients close --problem <id> --scenario <cenário> --reason "<motivo>"`.
+Depois:
 
 ```bash
 docker compose run --rm app python -m ai_clients report
@@ -94,5 +107,6 @@ docker compose run --rm app python -m cli check --deep
 docker compose run --rm app python scripts/check_docs_sync.py --closing
 ```
 
-Esperado: 600 combinações terminais (SC-001), taxa de descarte reportada à parte com N = 200 (SC-003),
+Esperado: 600 combinações terminais (SC-001), proporção de cada status reportada à parte com
+N = 200 (SC-003),
 `verify` e `check --deep` `OK`, `--closing` com código 0 (SC-008).

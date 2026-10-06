@@ -1,7 +1,10 @@
 """``attempt_<n>.execution.json``: the reference solution of one attempt, run in the sandbox.
 
-Exists only for an attempt whose answer was parsed. Written once by ``execute``, never changed.
-``AC_ref.cpp`` plays no part in it: the solution is judged by the public tests of the problem only.
+Exists only for a solution attempt whose answer was parsed (never for a prediction). Written once by
+``execute``, never changed. ``AC_ref.cpp`` plays no part in it: the solution is judged by the public
+tests of the problem only. The generated inputs always run, even after a public test failed: by WA
+the attempt can still become a fallback suite, by RE, TLE or MLE a low-confidence one
+(``config.py``).
 """
 
 from typing import Literal
@@ -91,12 +94,10 @@ class ExecutionRecord(Schema):
     def _outcome_follows_from_the_runs(self) -> "ExecutionRecord":
         if [item.index for item in self.inputs] != list(range(len(self.inputs))):
             raise ValueError("inputs are listed in the order of the generation, one per input")
+        if not self.inputs:
+            raise ValueError("every generated input has an outcome, even after a public failure")
         if self.public_tests.failed_index is not None:
-            if self.inputs:
-                raise ValueError("after a public test failure no input runs")
             expected = AttemptFailure.PUBLIC_TEST_FAILED
-        elif not self.inputs:
-            raise ValueError("every generated input has an outcome")
         elif not any(item.kept for item in self.inputs):
             expected = AttemptFailure.ALL_INPUTS_FAILED
         else:

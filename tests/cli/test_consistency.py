@@ -418,7 +418,7 @@ def test_a_finished_slm_run_passes_with_its_counts(check, repo, capsys):
     code, out = run(check, repo, "--deep", capsys=capsys)
     assert code == 0
     assert "black_box, white_box e hybrid: 3/3" in out
-    assert "tentativas numeradas sem buraco, no máximo 6: 9/9" in out
+    assert "tentativas numeradas sem buraco, no máximo 23 (execuções até a 20ª): 9/9" in out
     assert "suite.json em cada cenário: 9/9" in out
     assert "todo problema de dataset tem pasta em slm_suites: 3/3" in out
     assert "nomes dos arquivos batem com o manifesto (28 arquivos)" in out
@@ -468,9 +468,15 @@ def test_an_slm_folder_without_a_problem_is_a_failure(check, repo, capsys):
     assert code == 1 and "nenhuma pasta de slm_suites sem problema em dataset: 1 sobrando" in out
 
 
-def _seven_attempts(folder):
-    for n in range(2, 8):
+def _twenty_four_attempts(folder):
+    for n in range(2, 25):
         (folder / f"attempt_{n}.generation.json").write_text("x")
+
+
+def _execution_of_a_prediction(folder):
+    for n in range(2, 22):
+        (folder / f"attempt_{n}.generation.json").write_text("x")
+    (folder / "attempt_21.execution.json").write_text("x")
 
 
 @pytest.mark.parametrize(
@@ -478,17 +484,30 @@ def _seven_attempts(folder):
     [
         lambda f: (f / "attempt_3.generation.json").write_text("x"),
         lambda f: (f / "attempt_2.execution.json").write_text("x"),
-        _seven_attempts,
+        _twenty_four_attempts,
+        _execution_of_a_prediction,
     ],
-    ids=["gap", "execution_without_generation", "seven_attempts"],
+    ids=[
+        "gap",
+        "execution_without_generation",
+        "twenty_four_attempts",
+        "execution_of_a_prediction",
+    ],
 )
-def test_attempts_with_a_gap_or_beyond_six_are_a_failure(check, repo, capsys, make):
+def test_attempts_with_a_gap_or_beyond_23_are_a_failure(check, repo, capsys, make):
     unpackaged(repo)
     make(slm_folder(repo, "1000_B", "black_box"))
     code, out = run(check, repo, capsys=capsys)
     assert code == 1
-    assert "[FALHA] tentativas numeradas sem buraco, no máximo 6: 8/9" in out
+    assert "[FALHA] tentativas numeradas sem buraco, no máximo 23 (execuções até a 20ª): 8/9" in out
     assert "1000_B/black_box" in out
+
+
+def test_manual_close_json_is_a_known_file(check, repo, capsys):
+    unpackaged(repo)
+    (slm_folder(repo, "2_A", "hybrid") / "manual_close.json").write_text("x")
+    _, out = run(check, repo, capsys=capsys)
+    assert "arquivo(s) estranho(s)" not in out
 
 
 def test_an_unknown_file_in_a_scenario_is_a_failure(check, repo, capsys):

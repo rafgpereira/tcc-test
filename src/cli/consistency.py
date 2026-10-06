@@ -116,14 +116,17 @@ MUTANTS_LAYER = Layer(
 )
 
 SLM_SCENARIOS = ("black_box", "white_box", "hybrid")
-SLM_MAX_ATTEMPTS = 6
+SLM_MAX_ATTEMPTS = 23  # ai_clients.config.MAX_ATTEMPTS
+SLM_SOLUTION_ATTEMPTS = 20  # ai_clients.config.SOLUTION_ATTEMPTS: later ones are never executed
 SLM_ATTEMPT_FILE = re.compile(r"^attempt_(\d+)\.(generation|execution)\.json$")
+SLM_OTHER_FILES = {"suite.json", "manual_close.json"}
 
 
 def _slm_attempt_lines(
     root: Path, layer: Layer, problems: dict[str, set[str]], in_progress: bool
 ) -> list[Line]:
-    """Inside each scenario: only ``suite.json`` and attempt files, numbered 1..k with k <= 6."""
+    """Inside each scenario: only ``suite.json``, ``manual_close.json`` and attempt files,
+    numbered 1..k with k <= 23, executions only up to the 20th."""
     base = root / layer.root
     scenarios = gaps = without_suite = 0
     broken, suites_missing, strange = [], [], []
@@ -135,14 +138,18 @@ def _slm_attempt_lines(
             scenarios += 1
             names = {p.name for p in folder.iterdir() if not p.name.startswith(".")}
             generations, executions = set(), set()
-            for name in sorted(names - {"suite.json"}):
+            for name in sorted(names - SLM_OTHER_FILES):
                 match = SLM_ATTEMPT_FILE.match(name)
                 if match is None:
                     strange.append(f"{problem_id}/{scenario}: {name}")
                     continue
                 (generations if match[2] == "generation" else executions).add(int(match[1]))
             last = max(generations | executions, default=0)
-            if last > SLM_MAX_ATTEMPTS or generations != set(range(1, last + 1)):
+            if (
+                last > SLM_MAX_ATTEMPTS
+                or generations != set(range(1, last + 1))
+                or any(n > SLM_SOLUTION_ATTEMPTS for n in executions)
+            ):
                 gaps += 1
                 broken.append(f"{problem_id}/{scenario}")
             if "suite.json" not in names:
@@ -151,7 +158,8 @@ def _slm_attempt_lines(
     lines = [
         Line(
             OK if not broken else FAIL,
-            f"tentativas numeradas sem buraco, no máximo {SLM_MAX_ATTEMPTS}: "
+            f"tentativas numeradas sem buraco, no máximo {SLM_MAX_ATTEMPTS} (execuções até a "
+            f"{SLM_SOLUTION_ATTEMPTS}ª): "
             f"{scenarios - gaps}/{scenarios}",
             _listed(broken),
         ),

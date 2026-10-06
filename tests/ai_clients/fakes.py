@@ -64,8 +64,23 @@ def well_formed_response(
     blocks = "".join(f"<input>\n{text}</input>\n" for text in inputs)
     return (
         f"<edge_cases_analysis>\n{analysis}\n</edge_cases_analysis>\n"
-        f"<inputs>\n{blocks}</inputs>\n"
         f"<reference_py>\n{code}</reference_py>\n"
+        f"<inputs>\n{blocks}</inputs>\n"
+    )
+
+
+def predicted_response(
+    tests: Iterable[tuple[str, str]],
+    analysis: str = "Edge cases: smallest and largest n.",
+) -> str:
+    """A prediction answer (attempts 21 to 23): the two blocks in order, as the template asks."""
+    blocks = "".join(
+        f"<test>\n<input>\n{given}</input>\n<output>\n{expected}</output>\n</test>\n"
+        for given, expected in tests
+    )
+    return (
+        f"<edge_cases_analysis>\n{analysis}\n</edge_cases_analysis>\n"
+        f"<tests>\n{blocks}</tests>\n"
     )
 
 

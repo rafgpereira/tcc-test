@@ -12,7 +12,7 @@ subcomandos em ordem alfabética), sempre dentro do contêiner.
 
 | Serviço | Rede | Usado para |
 |---|---|---|
-| `app` | com rede (precisa alcançar o Ollama) | `generate`, `report`, `package`, `verify` — nenhum executa código gerado pelo modelo |
+| `app` | com rede (precisa alcançar o Ollama) | `generate`, `close`, `report`, `package`, `verify` — nenhum executa código gerado pelo modelo |
 | `sandbox` | **sem rede** | `execute` — roda o `reference_py` de cada tentativa via `sandbox.runner.execute` |
 
 `generate` e `execute` nunca rodam no mesmo serviço: uma rodada completa é o operador alternando os
@@ -20,13 +20,16 @@ dois (research R8). Rodado por engano no serviço `sandbox`, `generate` não alc
 entra na espera de infraestrutura (R9), sem gravar nada; rodado por engano no `app`, `execute`
 falha ao preparar o isolamento (`InfraError` do motor, código 3), sem gravar nada.
 
-## Códigos de saída (iguais aos de `mutation`)
+## Códigos de saída (os de `mutation`, mais o `4`)
 
 `0` sucesso · `1` falha de dados (dataset divergente do manifesto, combinação danificada, trava
 ocupada, pacote/manifesto divergente) · `2` uso incorreto (opção inválida, `run.json` existente sem
-`--resume`, `--resume` com configuração diferente, `.env` incompleto) · `3` falha de infraestrutura
+`--resume`, `--resume` com configuração diferente, `.env` incompleto, `close` sobre uma combinação
+que não aguarda tratamento manual) · `3` falha de infraestrutura
 não recuperável ou de configuração do Ollama (modelo ausente, guarda de `num_ctx`, `InfraError` do
-motor) · `130` interrompido (`Ctrl+C`, `docker stop`; é seguro rodar de novo).
+motor) · `4` (desde 2026-10-06, research R19 item 7) o comando terminou, mas há combinação da
+seleção aguardando tratamento manual · `130` interrompido (`Ctrl+C`, `docker stop`; é seguro rodar
+de novo). Precedência: `130`, `3` e `1` vencem o `4`; as linhas `manual:` saem mesmo assim.
 
 ## Opções comuns a `generate` e `execute`
 
@@ -49,9 +52,13 @@ segundo comando se recusa com código 1 (`another python -m ai_clients command i
 ## `generate` (serviço `app`)
 
 Para cada combinação em `pending_generation(n)` ([data-model.md §4](../data-model.md#4-máquina-de-estados-de-uma-combinação)):
-monta o prompt, faz **uma** chamada sem estado ao Ollama com a seed `42 + n`, grava
-`attempt_<n>.generation.json` (resposta crua + interpretação). Se a interpretação falhar e `n < 6`,
-faz na hora a tentativa `n + 1`; se `n = 6`, grava `suite.json` com `status: discarded`.
+monta o prompt — com o template principal nas tentativas 1 a 20 e com o de predição
+(`src/prompt_templates/slm_predict_prompt.txt`) nas 21 a 23 —, faz **uma** chamada sem estado ao
+Ollama com a seed `42 + n`, grava `attempt_<n>.generation.json` (resposta crua + interpretação).
+Se a interpretação falhar, faz na hora a tentativa `n + 1`, a menos que a combinação tenha ficado
+`finalizable` ou `awaiting_manual` (data-model §4). Uma tentativa por predição interpretada vira
+`suite.json` (`accepted_predicted`) na hora, sem passar pelo `execute`. Toda vez que grava um
+`suite.json` imprime `<id> <scenario>: suite recorded (<status>)`.
 
 | Opção | Efeito |
 |---|---|
@@ -78,14 +85,27 @@ a tentativa como falha `repetition` e segue para a próxima seed, sem esperar.
 
 Saída por chamada: `<id> <scenario> attempt <n> seed <s>: parsed (<k> inputs) | unparseable
 (<erro>) — <prompt_eval_count>+<eval_count> tokens, <done_reason>, <duração> s`, ou
-`<id> <scenario> attempt <n> seed <s>: model failure (repetition) — <erro do Ollama>`. Resumo final:
-`done: N calls, N parsed, N unparseable, N repetition, N discarded suites; N pending execution`.
+`<id> <scenario> attempt <n> seed <s>: model failure (repetition) — <erro do Ollama>`; numa
+tentativa por predição, `parsed (<k> tests)` no lugar de `parsed (<k> inputs)`. Resumo final
+(desde 2026-10-06): `done: N calls, N parsed, N unparseable, N repetition; suites: N
+accepted_fallback, N accepted_low_confidence, N accepted_predicted; N pending execution, N awaiting
+manual handling`.
+
+Combinações aguardando tratamento manual (desde 2026-10-06): depois do resumo, uma linha em
+`stderr` por combinação da seleção nesse estado, inclusive as que já estavam assim antes deste
+comando — `manual: <id> <scenario>: 3 prediction attempts unparseable; close it with: docker compose
+run --rm app python -m ai_clients close --problem <id> --scenario <scenario> --reason "<motivo>"`
+— e saída com código 4.
 
 ## `execute` (serviço `sandbox`)
 
-Para cada combinação em `pending_execution(n)`: roda o `reference_py` nos testes públicos e, se
-passar em todos, em cada entrada gerada (research R7); grava `attempt_<n>.execution.json`; se
-`accepted`, grava `suite.json` (`accepted`); se falhou e `n = 6`, grava `suite.json` (`discarded`).
+Para cada combinação em `pending_execution(n)` (só tentativas 1 a 20): roda o `reference_py` nos
+testes públicos (até o primeiro não-AC) e depois em cada entrada gerada, qualquer que tenha sido o
+resultado dos testes públicos (research R7, R19 item 2); grava `attempt_<n>.execution.json`; se
+`accepted`, grava `suite.json` (`accepted`); se falhou e a combinação ficou `finalizable`
+(data-model §4), grava `suite.json` (`accepted_fallback` ou `accepted_low_confidence`) e imprime
+`<id> <scenario>: suite recorded (<status>)`. Depois da 20ª sem suíte, a combinação volta para o
+`generate` (predição).
 Também grava o `suite.json` de toda combinação `finalizable` que encontrar. Não tem `--resume`: não
 inicia execução nova (sem `run.json` → código 2, `run generate first`) e só processa pendências.
 
@@ -94,7 +114,9 @@ inicia execução nova (sem `run.json` → código 2, `run generate first`) e s�
 | `--dry-run` | lista as tentativas pendentes de execução (id, cenário, tentativa, nº de entradas, testes públicos, limites efetivos): `<id> <scenario> attempt <n>: <k> inputs, <p> public tests, limits <t> s and <m> MiB`, e no fim `dry run: N attempts to execute`; também exige o `run.json` |
 
 Saída por tentativa: `<id> <scenario> attempt <n>: accepted (<k> kept, <d> discarded) |
-public_test_failed (test <i>: <verdict>) | all_inputs_failed (<t> timeout, <r> runtime_error)`,
+public_test_failed (test <i>: <verdict>; <k> kept, <d> discarded) | all_inputs_failed (<t>
+timeout, <r> runtime_error)` (desde 2026-10-06 toda reprovação em teste público traz as
+contagens),
 com `, <u> non_utf8_output` acrescentado ao último caso quando houver. Uma combinação
 `finalizable` (interrompida entre a execução e o `suite.json`) imprime
 `<id> <scenario> attempt <n>: suite recorded (<status>)` e **não** conta para o `--limit` (não há
@@ -110,29 +132,52 @@ combinação — cada problema começa com `missing:` (arquivo de tentativa que 
 (`suite.json` diferente, byte a byte, do que os arquivos de tentativa dão) ou `inconsistent:`
 (JSON inválido, schema violado — inclusive seed que não bate —, arquivo que fala de outra
 combinação, `model_digest` diferente do `run.json`, execução de tentativa não interpretada, número
-de entradas diferente do da geração, tentativa depois de uma aceita, tentativa além da 6ª,
-arquivo estranho na pasta) — e sai com código 1. Temporários de escrita atômica deixados por um
+de entradas diferente do da geração, tentativa depois de uma aceita, tentativa além da 23ª,
+tentativa além da 8ª com uma reserva possível antes dela, tentativa além da 20ª com uma reserva ou
+baixa confiança possível, execução de uma tentativa por predição, `manual_close.json` numa
+combinação que não aguarda tratamento manual, arquivo estranho na pasta) — e sai com código 1. Temporários de escrita atômica deixados por um
 `kill -9` (`.<nome>.<sufixo>.tmp`) são ignorados, nunca lidos.
 
 Mensagem do `--resume` com configuração diferente (código 2): `the configuration differs from
 data/suites/slm/run.json, and a run never mixes configurations:` seguida de uma linha
 `  <campo>: recorded <valor gravado>, current <valor atual>` por campo (os de `options` como
 `options.<nome>`).
-Resumo final: `done: N executed, N accepted, N failed (N need a new generation), N discarded suites`.
+Resumo final (desde 2026-10-06): `done: N executed, N accepted, N failed (N need a new
+generation); suites: N accepted_fallback, N accepted_low_confidence; N awaiting manual handling`,
+seguido das linhas `manual:` e do código 4 nas mesmas condições do `generate`.
 Se sobrou combinação que precisa de nova geração, a última linha diz o comando seguinte, com a
 mesma seleção (`--problem`, ordenados e sem repetição, e `--scenario`, na ordem canônica) com que o
 `execute` foi chamado (desde 2026-10-04):
 `next: docker compose run --rm app python -m ai_clients generate --resume [--problem ID ...] [--scenario S ...]`.
 
+## `close` (serviço `app`, desde 2026-10-06)
+
+Fecha **uma** combinação que aguarda tratamento manual (FR-022d, research R19 item 8): grava
+`manual_close.json` (`reason`, `closed_at`) e, em seguida, `suite.json` (`discarded_manual`), e
+imprime `<id> <scenario>: suite recorded (discarded_manual)`. Usa a trava e a verificação do
+dataset como os demais; exige o `run.json` (sem ele, código 2). Não chama o modelo nem executa nada.
+
+| Opção | Efeito |
+|---|---|
+| `--problem ID` | obrigatória, uma só |
+| `--scenario S` | obrigatória, uma só |
+| `--reason TEXTO` | obrigatória; vazia ou só espaços → código 2 |
+| `--dry-run` | mostra o `manual_close.json` que seria gravado e não grava nada |
+
+Combinação em qualquer outro estado → código 2: `<id> <scenario> is <estado>, not awaiting manual
+handling; nothing was recorded`.
+
 ## `report` (serviço `app`)
 
-Lê `data/suites/slm/` (só leitura) e grava `manifests/slm_generation_report.json` (research R10).
-Funciona com a execução incompleta (conta pendentes). Código 1 se houver combinação danificada.
+Lê `data/suites/slm/` (só leitura) e grava `manifests/slm_generation_report.json` (research R10,
+R19 item 10). Funciona com a execução incompleta (conta pendentes e as que aguardam tratamento
+manual, sem código 4). Código 1 se houver combinação danificada.
 
 ## `package` (serviço `app`)
 
 Gera `data/slm_suites.zip` (determinístico) e `manifests/slm_suites.manifest.json`. Recusa (código 1)
-se alguma das 600 combinações não tiver `suite.json` ou se houver dano. Não tem `--problem` nem
+se alguma das 600 combinações não tiver `suite.json` — inclusive as que aguardam tratamento manual,
+listadas com o comando `close` — ou se houver dano. Não tem `--problem` nem
 `--scenario`: o pacote é sempre da execução completa (D3), e passar uma dessas opções é erro de uso
 do `argparse` (código 2).
 

@@ -6,13 +6,14 @@ the model itself failed the call (Ollama's ``token repeat limit reached``), ther
 record keeps the reason in ``model_failure`` instead, and the attempt is failed (``repetition``).
 """
 
-from typing import Annotated, Literal
+from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
 
 from ai_clients import config
 from ai_clients.schemas.common import Attempt, NonNegative, Scenario, Sha256Hex
 from dataset.schemas.common import PROBLEM_ID_PATTERN, Schema, SchemaVersion
+from dataset.schemas.testes import TestCase
 
 
 class OllamaMeta(Schema):
@@ -59,6 +60,40 @@ class ParsedResponse(Schema):
         return inputs
 
 
+def _complete_text(text: str, what: str) -> str:
+    if not text.strip():
+        raise ValueError(f"{what} is empty")
+    if not text.endswith("\n") or text.endswith("\n\n"):
+        raise ValueError(f"{what} must end with exactly one newline")
+    return text
+
+
+class PredictionParse(Schema):
+    """The two blocks of a well-formed prediction (attempts after config.SOLUTION_ATTEMPTS)."""
+
+    ok: Literal[True]
+    edge_cases_analysis: str
+    tests: list[TestCase] = Field(min_length=1)  # the outputs are the model's, never checked
+    extraneous_chars: NonNegative  # text outside the two blocks, ignored (never corrected)
+    duplicate_inputs: NonNegative  # tests whose input equals an earlier one (kept)
+    empty_tests: NonNegative = 0  # <test> blocks with an empty input or output, dropped alone
+
+    @field_validator("edge_cases_analysis")
+    @classmethod
+    def _not_blank(cls, text: str) -> str:
+        if not text.strip():
+            raise ValueError("the block is empty")
+        return text
+
+    @field_validator("tests")
+    @classmethod
+    def _complete_tests(cls, tests: list[TestCase]) -> list[TestCase]:
+        for index, test in enumerate(tests):
+            _complete_text(test.input, f"the input of test {index}")
+            _complete_text(test.output, f"the output of test {index}")
+        return tests
+
+
 class UnparsedResponse(Schema):
     """An answer whose blocks could not be read: the attempt is `unparseable_response`."""
 
@@ -85,8 +120,22 @@ class GenerationRecord(Schema):
     ollama: OllamaMeta | None  # null only with `model_failure` (there was no answer)
     hardware_label: str = Field(min_length=1)
     requested_at: str
-    parse: Annotated[ParsedResponse | UnparsedResponse, Field(discriminator="ok")]
+    # Two shapes have ok: true; `extra="forbid"` tells them apart, and the attempt number decides
+    # which one is allowed (_parse_of_the_attempt).
+    parse: ParsedResponse | PredictionParse | UnparsedResponse
     model_failure: ModelFailure | None = None
+
+    @model_validator(mode="after")
+    def _parse_of_the_attempt(self) -> "GenerationRecord":
+        expected = (
+            ParsedResponse if config.attempt_kind(self.attempt) == "solution" else PredictionParse
+        )
+        if self.parse.ok and not isinstance(self.parse, expected):
+            raise ValueError(
+                f"attempt {self.attempt} is a {config.attempt_kind(self.attempt)}: its parsed "
+                f"answer is a {expected.__name__}"
+            )
+        return self
 
     @model_validator(mode="after")
     def _seed_of_the_attempt(self) -> "GenerationRecord":

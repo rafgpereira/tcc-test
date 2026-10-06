@@ -3,7 +3,7 @@
 import pytest
 
 from ai_clients import __main__ as cli
-from ai_clients import store
+from ai_clients import config, store
 from sandbox.types import InfraError
 from tests.ai_clients.fakes import FakePythonRunner, echo_runner, record_generation, start_run
 
@@ -36,9 +36,9 @@ def test_it_executes_what_is_pending_and_prints_the_summary(fake, repo, capsys):
         "1_A black_box attempt 1: accepted (2 kept, 0 discarded)",
         "2_B hybrid attempt 1: accepted (2 kept, 0 discarded)",
     ]
-    assert (
-        out[2]
-        == "done: 2 executed, 2 accepted, 0 failed (0 need a new generation), 0 discarded suites"
+    assert out[2] == (
+        "done: 2 executed, 2 accepted, 0 failed (0 need a new generation); suites: "
+        "0 accepted_fallback, 0 accepted_low_confidence; 0 awaiting manual handling"
     )
     # 4 combinations were never generated
     assert out[3] == "next: docker compose run --rm app python -m ai_clients generate --resume"
@@ -119,3 +119,14 @@ def test_a_changed_dataset_stops_before_anything_runs(fake, repo):
 def test_execute_has_no_resume_option(fake, repo):
     start_run(repo)
     assert cli.main(["execute", "--resume"]) == cli.EXIT_USAGE
+
+
+def test_execute_also_reports_combinations_awaiting_manual_handling(fake, repo, capsys):
+    start_run(repo)
+    record_generation(repo, "1_A", "black_box")
+    for n in range(1, config.MAX_ATTEMPTS + 1):
+        record_generation(repo, "2_B", "hybrid", n, parsed=False)
+    assert cli.main(["execute", "--problem", "1_A", "--problem", "2_B"]) == cli.EXIT_MANUAL
+    captured = capsys.readouterr()
+    assert "1_A black_box attempt 1: accepted (2 kept, 0 discarded)" in captured.out
+    assert "manual: 2_B hybrid:" in captured.err

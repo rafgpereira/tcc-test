@@ -5,7 +5,7 @@ import re
 
 import pytest
 
-from ai_clients import config
+from ai_clients import config, parser
 from ai_clients.problem import load_problem
 from ai_clients.prompt import (
     MARKER_CONTEXT,
@@ -128,25 +128,43 @@ def test_the_real_template_loads_and_keeps_the_fr007_wording():
     assert template.text == config.PROMPT_TEMPLATE_PATH.read_text(encoding="utf-8").replace(
         "\r\n", "\n"
     )
-    assert "Every value in every input MUST respect the constraints stated in the context." in (
-        template.text
-    )
     text = " ".join(template.text.split())  # the wording, whatever the line breaks
-    assert (
-        "Use values up to the maximum allowed by the constraints, but keep the NUMBER of elements "
-        "in each input small enough to write out fully (e.g., at most ~100 elements)."
-    ) in text
+    assert "Every value in every input MUST satisfy ALL constraints of the problem." in text
+    assert "Never write an empty input. Never write an invalid input." in text
+    assert "Keep each input SHORT: at most about 50 elements and 20 lines." in text
+    assert 'Never truncate, abbreviate or write "...".' in text
     assert "the maximum size allowed by the constraints" not in text
-    assert "the largest case you can write out IN FULL" not in text
-    assert "including empty input" not in text
 
 
-def test_the_real_template_keeps_the_wording_of_the_second_pilot_review():
+def test_the_real_template_keeps_the_wording_of_the_fourth_pilot_review():
     text = " ".join(load_template().text.split())
-    assert "simulate it by hand on the example in <few_shot_example>" in text
-    assert "Generate between 10 and 20 inputs, all different from each other" in text
-    assert 'never abbreviate with "...", ranges, or notes such as "(repeated N times)"' in text
+    assert "Trace the example in <few_shot_example> by hand" in text
+    assert "If <context_data> contains only source code, infer what the program must do" in text
     assert "data = sys.stdin.read().split()" in text
-    # removed: they contradict RULE 3 (every value respects the constraints)
+    assert "Do not repeat the same input twice." in text
     assert "look valid but are invalid" not in text
-    assert "empty input" not in text
+
+
+def test_the_template_asks_for_the_blocks_in_the_order_the_parser_reads():
+    format_section = load_template().text.split("OUTPUT FORMAT", 1)[1]
+    positions = [format_section.index(f"<{tag}>") for tag in parser.TAGS]
+    assert positions == sorted(positions)
+
+
+def test_the_prediction_template_loads_and_asks_for_its_blocks_in_the_parser_order():
+    template = load_template(config.PREDICT_TEMPLATE_PATH)
+    assert len(template.text) == 2333  # the text sent by the authors on 2026-10-06, unchanged
+    assert template.sha256 != load_template().sha256
+    format_section = template.text.split("OUTPUT FORMAT", 1)[1]
+    positions = [format_section.index(f"<{tag}>") for tag in parser.PREDICTION_TAGS]
+    assert positions == sorted(positions)
+    text = " ".join(template.text.split())
+    assert "Every value in every input MUST satisfy ALL constraints of the problem." in text
+    assert "<reference_py>" not in text  # no solution is asked for
+
+
+def test_a_prediction_prompt_varies_only_in_context_data(repo):
+    template = load_template(config.PREDICT_TEMPLATE_PATH)
+    problem_input = load_problem(repo, "1_A")
+    prompts = [build_prompt(template, problem_input, s) for s in config.SCENARIOS]
+    assert len({outside_context(p) for p in prompts}) == 1

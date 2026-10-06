@@ -8,7 +8,7 @@ from ai_clients.schemas.generation import ParsedResponse, UnparsedResponse
 ANALYSIS = "<edge_cases_analysis>\nn = 1 is the smallest case.\n</edge_cases_analysis>\n"
 INPUTS = "<inputs>\n<input>\n1\n</input>\n<input>\n5\n1 2 3 4 5\n</input>\n</inputs>\n"
 CODE = "<reference_py>\nimport sys\nprint(sys.stdin.read())\n</reference_py>\n"
-GOOD = ANALYSIS + INPUTS + CODE
+GOOD = ANALYSIS + CODE + INPUTS
 
 
 def ok(raw) -> ParsedResponse:
@@ -33,7 +33,7 @@ def test_a_well_formed_answer():
 
 
 def test_text_outside_the_blocks_is_ignored_and_counted():
-    result = ok("Sure! Here it is:\n" + ANALYSIS + "ok\n" + INPUTS + CODE + "Hope it helps.")
+    result = ok("Sure! Here it is:\n" + ANALYSIS + "ok\n" + CODE + INPUTS + "Hope it helps.")
     assert result.inputs == ["1\n", "5\n1 2 3 4 5\n"]
     assert result.extraneous_chars == len("Sure!Hereitis:") + len("ok") + len("Hopeithelps.")
 
@@ -56,49 +56,49 @@ def test_a_duplicated_block(block, tag):
 
 def test_blocks_in_the_wrong_order():
     assert error(INPUTS + ANALYSIS + CODE) == "wrong_order"
-    assert error(ANALYSIS + CODE + INPUTS) == "wrong_order"
+    assert error(ANALYSIS + INPUTS + CODE) == "wrong_order"  # the order of the first template
 
 
 def test_a_block_that_is_not_closed():
-    assert error(ANALYSIS + INPUTS + "<reference_py>\nprint(1)\n") == "unclosed_block:reference_py"
+    assert error(ANALYSIS + "<reference_py>\nprint(1)\n" + INPUTS) == "unclosed_block:reference_py"
     assert error(GOOD.replace("<reference_py>", "")) == "unclosed_block:reference_py"
 
 
 def test_overlapping_blocks():
     raw = (
         ANALYSIS
-        + "<inputs>\n<input>\n1\n</input>\n<reference_py>\n</inputs>\nprint(1)\n</reference_py>"
+        + "<reference_py>\nprint(1)\n<inputs>\n</reference_py>\n<input>\n1\n</input>\n</inputs>"
     )
     assert error(raw) == "overlapping_blocks"
 
 
 def test_inputs_without_any_input():
-    assert error(ANALYSIS + "<inputs>\n\n</inputs>\n" + CODE) == "no_inputs"
+    assert error(ANALYSIS + CODE + "<inputs>\n\n</inputs>\n") == "no_inputs"
 
 
 @pytest.mark.parametrize("body", ["", "   ", "\n\n", " \n \t\n"])
 def test_an_empty_input_is_dropped_alone_and_counted(body):
     inputs = f"<inputs>\n<input>1</input><input>{body}</input><input>2</input>\n</inputs>\n"
-    result = ok(ANALYSIS + inputs + CODE)
+    result = ok(ANALYSIS + CODE + inputs)
     assert result.inputs == ["1\n", "2\n"] and result.empty_inputs == 1
 
 
 def test_only_empty_inputs_fail_the_answer():
-    raw = ANALYSIS + "<inputs>\n<input></input>\n<input>\n \n</input>\n</inputs>\n" + CODE
+    raw = ANALYSIS + CODE + "<inputs>\n<input></input>\n<input>\n \n</input>\n</inputs>\n"
     assert error(raw) == "only_empty_inputs"
 
 
 def test_text_between_inputs():
-    raw = ANALYSIS + "<inputs>\n<input>1</input>\nand also\n<input>2</input>\n</inputs>\n" + CODE
+    raw = ANALYSIS + CODE + "<inputs>\n<input>1</input>\nand also\n<input>2</input>\n</inputs>\n"
     assert error(raw) == "text_between_inputs"
-    raw = ANALYSIS + "<inputs>\nfirst:\n<input>1</input>\n</inputs>\n" + CODE
+    raw = ANALYSIS + CODE + "<inputs>\nfirst:\n<input>1</input>\n</inputs>\n"
     assert error(raw) == "text_between_inputs"
 
 
 def test_an_input_that_is_not_closed_or_is_nested():
-    raw = ANALYSIS + "<inputs>\n<input>1\n</inputs>\n" + CODE
+    raw = ANALYSIS + CODE + "<inputs>\n<input>1\n</inputs>\n"
     assert error(raw) == "unclosed_block:input"
-    raw = ANALYSIS + "<inputs>\n<input>1<input>2</input></input>\n</inputs>\n" + CODE
+    raw = ANALYSIS + CODE + "<inputs>\n<input>1<input>2</input></input>\n</inputs>\n"
     assert error(raw) == "nested_input"
 
 
@@ -117,19 +117,19 @@ def test_windows_newlines_are_normalized():
 
 
 def test_blank_lines_at_the_ends_of_an_input_go_inner_spaces_stay():
-    raw = ANALYSIS + "<inputs>\n<input>\n\n  3  \n1  2\n \n</input>\n</inputs>\n" + CODE
+    raw = ANALYSIS + CODE + "<inputs>\n<input>\n\n  3  \n1  2\n \n</input>\n</inputs>\n"
     assert ok(raw).inputs == ["  3  \n1  2\n"]
 
 
 def test_an_input_on_one_line_gets_its_final_newline():
-    raw = ANALYSIS + "<inputs><input>7</input></inputs>" + CODE
+    raw = ANALYSIS + CODE + "<inputs><input>7</input></inputs>"
     assert ok(raw).inputs == ["7\n"]
 
 
 @pytest.mark.parametrize("opening", ["```python", "```py", "```", "```python  "])
 def test_a_markdown_fence_around_the_whole_code_is_removed_and_recorded(opening):
     code = f"<reference_py>\n\n{opening}\nimport sys\n\nprint(1)\n```\n\n</reference_py>\n"
-    result = ok(ANALYSIS + INPUTS + code)
+    result = ok(ANALYSIS + code + INPUTS)
     assert result.reference_py == "import sys\n\nprint(1)\n"
     assert result.markdown_fence_removed is True
 
@@ -146,18 +146,18 @@ def test_a_markdown_fence_around_the_whole_code_is_removed_and_recorded(opening)
     ],
 )
 def test_any_other_markdown_fence_is_kept(body):
-    result = ok(ANALYSIS + INPUTS + f"<reference_py>\n{body}</reference_py>\n")
+    result = ok(ANALYSIS + f"<reference_py>\n{body}</reference_py>\n" + INPUTS)
     assert result.reference_py == body and result.markdown_fence_removed is False
 
 
 def test_a_fence_around_nothing_leaves_an_empty_code_block():
     code = "<reference_py>\n```python\n\n```\n</reference_py>\n"
-    assert error(ANALYSIS + INPUTS + code) == "empty_block:reference_py"
+    assert error(ANALYSIS + code + INPUTS) == "empty_block:reference_py"
 
 
 def test_repeated_inputs_are_kept_and_counted():
-    raw = ANALYSIS + "<inputs><input>1</input><input>2</input><input>1</input>"
-    raw += "<input>1</input></inputs>" + CODE
+    raw = ANALYSIS + CODE + "<inputs><input>1</input><input>2</input><input>1</input>"
+    raw += "<input>1</input></inputs>"
     result = ok(raw)
     assert result.inputs == ["1\n", "2\n", "1\n", "1\n"]
     assert result.duplicate_inputs == 2
@@ -167,7 +167,7 @@ def test_less_than_and_ampersand_inside_the_code_are_fine():
     code = (
         "<reference_py>\na, b = 1, 2\nif a < b and a & b == 0:\n    print('<ok>')\n</reference_py>"
     )
-    assert "a & b" in ok(ANALYSIS + INPUTS + code).reference_py
+    assert "a & b" in ok(ANALYSIS + code + INPUTS).reference_py
 
 
 def test_the_parser_is_deterministic_and_never_raises():

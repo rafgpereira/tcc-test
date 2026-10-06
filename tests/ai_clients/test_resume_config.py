@@ -24,7 +24,7 @@ def started(monkeypatch, repo):
         (pid, s, 42 + n): GOOD
         for pid in ("1_A", "2_B")
         for s in config.SCENARIOS
-        for n in range(1, 7)
+        for n in range(1, config.MAX_ATTEMPTS + 1)
     }
     client = FakeSLMClient(table, problem_ids=["1_A", "2_B"])
     monkeypatch.setattr(cli, "make_client", lambda base_url, *, timeout_s: client)
@@ -48,10 +48,29 @@ def change_config(name, value):
     return apply
 
 
-def change_template(monkeypatch, client):
-    real = prompt.load_template()
-    edited = prompt.PromptTemplate(real.text + "\n", real.sha256[::-1])
-    monkeypatch.setattr(cli.prompt, "load_template", lambda: edited)
+def change_configs(**values):
+    def apply(monkeypatch, client):
+        for name, value in values.items():
+            monkeypatch.setattr(config, name, value)
+
+    return apply
+
+
+def change_template_at(changed_path):
+    """Load the template at ``changed_path`` with one more line (so another hash)."""
+
+    def apply(monkeypatch, client):
+        real_load = prompt.load_template
+
+        def load(path=config.PROMPT_TEMPLATE_PATH):
+            real = real_load(path)
+            if path != changed_path:
+                return real
+            return prompt.PromptTemplate(real.text + "\n", real.sha256[::-1])
+
+        monkeypatch.setattr(cli.prompt, "load_template", load)
+
+    return apply
 
 
 def change_dataset_manifest(monkeypatch, client):
@@ -70,8 +89,12 @@ CHANGES = {
     "options.num_ctx": change_config("NUM_CTX", 16384),
     "options.num_predict": change_config("NUM_PREDICT", 2048),
     "seed_base": change_config("SEED_BASE", 100),
-    "max_attempts": change_config("MAX_ATTEMPTS", 5),
-    "prompt_template_sha256": change_template,
+    "strict_attempts": change_config("STRICT_ATTEMPTS", 6),
+    "solution_attempts": change_configs(SOLUTION_ATTEMPTS=18, MAX_ATTEMPTS=21),
+    "predict_attempts": change_configs(PREDICT_ATTEMPTS=2, MAX_ATTEMPTS=22),
+    "max_attempts": change_configs(SOLUTION_ATTEMPTS=12, MAX_ATTEMPTS=15),
+    "prompt_template_sha256": change_template_at(config.PROMPT_TEMPLATE_PATH),
+    "predict_template_sha256": change_template_at(config.PREDICT_TEMPLATE_PATH),
     "dataset_manifest_sha256": change_dataset_manifest,
     "py_time_factor": change_config("PY_TIME_FACTOR", 5),
     "py_memory_factor": change_config("PY_MEMORY_FACTOR", 8),

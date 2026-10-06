@@ -1,9 +1,10 @@
 """Command line entry point of the ai_clients module: ``python -m ai_clients <command>``.
 
-Commands are registered by their stories (generate, execute, report, package, verify), with the
-registration pattern of ``python -m mutation``. Exit codes (specs/003-slm-test-generation/
+Commands are registered by their stories (generate, execute, close, report, package, verify), with
+the registration pattern of ``python -m mutation``. Exit codes (specs/003-slm-test-generation/
 contracts/cli.md): 0 success, 1 data failure, 2 usage error, 3 infrastructure or Ollama
-configuration failure, 130 interrupted.
+configuration failure, 4 finished but some combination awaits manual handling (``close``), 130
+interrupted.
 """
 
 import argparse
@@ -15,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ai_clients import (
+    closing,
     config,
     execution,
     generation,
@@ -27,6 +29,7 @@ from ai_clients import (
 )
 from ai_clients.errors import ConfigurationError, InfrastructureError
 from ai_clients.ollama import OllamaClient
+from dataset.persistence import store as files
 from mutation import dataset_gate as gate
 from sandbox import isolation
 from sandbox.types import InfraError
@@ -35,6 +38,7 @@ EXIT_OK = 0
 EXIT_DATA_FAILURE = 1
 EXIT_USAGE = 2
 EXIT_INFRA = 3
+EXIT_MANUAL = 4  # the command finished, but some combination awaits manual handling
 EXIT_INTERRUPTED = 130
 
 
@@ -161,6 +165,30 @@ def report_damage(damaged: list[store.DamagedCombination]) -> int:
     return EXIT_OK
 
 
+def close_command(problem_id: str, scenario: str) -> str:
+    return (
+        "docker compose run --rm app python -m ai_clients close "
+        f'--problem {problem_id} --scenario {scenario} --reason "<reason>"'
+    )
+
+
+def finish(damaged: list[store.DamagedCombination], awaiting: list[tuple[str, str]]) -> int:
+    """Report damage and the combinations awaiting manual handling; the exit code of both.
+
+    Damage (1) wins over awaiting (4), but the ``manual:`` lines are printed anyway.
+    """
+    code = report_damage(damaged)
+    for problem_id, scenario in awaiting:
+        print(
+            f"manual: {problem_id} {scenario}: {config.PREDICT_ATTEMPTS} prediction attempts "
+            f"unparseable; close it with: {close_command(problem_id, scenario)}",
+            file=sys.stderr,
+        )
+    if code != EXIT_OK:
+        return code
+    return EXIT_MANUAL if awaiting else EXIT_OK
+
+
 def _env_positive_int(name: str, default: int) -> int:
     raw = os.environ.get(name)
     if raw is None:
@@ -212,7 +240,7 @@ def _configure_generate(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def _dry_run_generate(root: Path, combinations, template, limit: int | None) -> int:
+def _dry_run_generate(root: Path, combinations, templates: dict, limit: int | None) -> int:
     planned = 0
     largest: dict[str, tuple[int, str]] = {}
     problems: dict[str, problem.ProblemInput] = {}
@@ -229,6 +257,7 @@ def _dry_run_generate(root: Path, combinations, template, limit: int | None) -> 
             break
         if problem_id not in problems:
             problems[problem_id] = problem.load_problem(root, problem_id)
+        template = templates[config.attempt_kind(state.attempt)]
         size = len(prompt.build_prompt(template, problems[problem_id], scenario))
         print(
             f"{problem_id} {scenario} attempt {state.attempt} seed "
@@ -252,8 +281,10 @@ def _run_generate(args: argparse.Namespace) -> int:
         return failed
     combinations = selected_combinations(root, args)
     template = prompt.load_template()
+    predict_template = prompt.load_template(config.PREDICT_TEMPLATE_PATH)
     if args.dry_run:
-        return _dry_run_generate(root, combinations, template, args.limit)
+        templates = {"solution": template, "prediction": predict_template}
+        return _dry_run_generate(root, combinations, templates, args.limit)
     base_url = _required_env(config.ENV_BASE_URL)
     _required_env(config.ENV_HARDWARE_LABEL)
     timeout_s, retries = http_timeout_s(), max_infra_retries()
@@ -279,6 +310,7 @@ def _run_generate(args: argparse.Namespace) -> int:
             max_infra_retries=retries,
             echo=echo,
             model=model_name(),
+            predict_template=predict_template,
         )
         if args.resume:
             run = store.read_run(root)
@@ -308,13 +340,18 @@ def _run_generate(args: argparse.Namespace) -> int:
             clock=clock,
             echo=echo,
             limit=args.limit,
+            predict_template=predict_template,
         )
+    suites = result.suites
     print(
         f"done: {result.calls} calls, {result.parsed} parsed, {result.unparseable} unparseable, "
-        f"{result.repetition} repetition, {result.discarded} discarded suites; "
-        f"{result.pending_execution} pending execution"
+        f"{result.repetition} repetition; suites: {suites['accepted_fallback']} "
+        f"accepted_fallback, {suites['accepted_low_confidence']} accepted_low_confidence, "
+        f"{suites['accepted_predicted']} accepted_predicted; "
+        f"{result.pending_execution} pending execution, {len(result.awaiting_manual)} awaiting "
+        "manual handling"
     )
-    return report_damage(result.damaged)
+    return finish(result.damaged, result.awaiting_manual)
 
 
 register(
@@ -390,16 +427,85 @@ def _run_execute(args: argparse.Namespace) -> int:
             )
         finally:
             cleanup_slot(SLOT)
+    suites = result.suites
     print(
         f"done: {result.executed} executed, {result.accepted} accepted, {result.failed} failed "
-        f"({result.need_generation} need a new generation), {result.discarded} discarded suites"
+        f"({result.need_generation} need a new generation); suites: "
+        f"{suites['accepted_fallback']} accepted_fallback, "
+        f"{suites['accepted_low_confidence']} accepted_low_confidence; "
+        f"{len(result.awaiting_manual)} awaiting manual handling"
     )
     if result.pending_generation:
         print(
             "next: docker compose run --rm app python -m ai_clients generate --resume"
             + selection_options(args)
         )
-    return report_damage(result.damaged)
+    return finish(result.damaged, result.awaiting_manual)
+
+
+# -------------------------------------------------------------------------------------- close
+
+
+def _configure_close(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--problem", required=True, metavar="ID", help="the problem to close")
+    parser.add_argument(
+        "--scenario", required=True, choices=config.SCENARIOS, help="the scenario to close"
+    )
+    parser.add_argument(
+        "--reason", required=True, metavar="TEXT", help="why the authors close it (required)"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="only show the manual_close.json that would be written; writes nothing",
+    )
+
+
+def _run_close(args: argparse.Namespace) -> int:
+    root = Path(".")
+    failed = dataset_gate(root)
+    if failed is not None:
+        return failed
+    if args.problem not in problem.list_problem_ids(root):
+        raise UsageError(f"not in data/dataset: {args.problem}")
+    if not store.run_exists(root):
+        raise UsageError("data/suites/slm/run.json does not exist; run generate first")
+    run = store.read_run(root)
+    try:
+        record = closing.manual_close_record(
+            args.problem, args.scenario, args.reason, now=generation.utc_now
+        )
+    except ValueError as exc:
+        raise UsageError("--reason must not be empty") from exc
+    try:
+        if args.dry_run:
+            closing.check_awaiting(root, args.problem, args.scenario, run)
+            print(files.dumps_json(record), end="")
+            print("dry run: nothing was recorded")
+            return EXIT_OK
+        with store.exclusive_run(root):
+            suite = closing.close(
+                root,
+                args.problem,
+                args.scenario,
+                args.reason,
+                run=run,
+                now=lambda: record.closed_at,
+            )
+    except closing.NotAwaitingManual as exc:
+        raise UsageError(str(exc)) from exc
+    except store.DamagedCombination as exc:
+        return report_damage([exc])
+    print(f"{args.problem} {args.scenario}: suite recorded ({suite.status.value})")
+    return EXIT_OK
+
+
+register(
+    "close",
+    "close by hand a problem x scenario that awaits manual handling, with a reason (app service)",
+    _configure_close,
+    _run_close,
+)
 
 
 def _run_report(args: argparse.Namespace) -> int:
@@ -413,11 +519,8 @@ def _run_report(args: argparse.Namespace) -> int:
     report.write_report(root, built)
     print(f"report: {config.REPORT_PATH.as_posix()}")
     total = built.combinations["total"]
-    print(
-        f"{total.total} combinations: {total.accepted} accepted, {total.discarded} discarded, "
-        f"{total.pending_generation} pending generation, {total.pending_execution} pending "
-        f"execution; discard rate {built.discard_rate['total']:.1%}"
-    )
+    states = ", ".join(f"{getattr(total, state)} {state}" for state in report.STATES)
+    print(f"{total.total} combinations: {states}")
     return EXIT_OK
 
 
@@ -439,9 +542,10 @@ def _run_package(args: argparse.Namespace) -> int:
         packaging.write_manifest(root, packaging.build_manifest(result.zip_path))
         # The report is rebuilt from what was just packaged, so it always describes exactly that.
         report.write_report(root, report.build_report(root))
+    statuses = ", ".join(f"{count} {status}" for status, count in result.statuses.items())
     print(
-        f"packaged {result.combinations} combinations ({result.accepted} accepted, "
-        f"{result.discarded} discarded): {config.ZIP_PATH.as_posix()} ({result.size} bytes)"
+        f"packaged {result.combinations} combinations ({statuses}): "
+        f"{config.ZIP_PATH.as_posix()} ({result.size} bytes)"
     )
     if result.over_size_warning:
         print(

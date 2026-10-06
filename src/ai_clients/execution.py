@@ -2,8 +2,10 @@
 
 For each problem × scenario whose last attempt was parsed and not executed yet: run its Python
 solution in the sandbox (``oracle.evaluate_attempt``), record ``attempt_<n>.execution.json``, and
-then ``suite.json`` if the attempt was accepted or was the 6th. A failed attempt before the 6th
-leaves the combination waiting for ``generate --resume`` (the next seed). A combination found with
+then ``suite.json`` if the attempt was accepted or a failed one already gives the suite
+(``config.py``: the 8th with a fallback among the 8, a fallback after the 8th, or the 20th with a
+low-confidence suite). Otherwise the combination waits for ``generate --resume`` (the next seed,
+a prediction after the 20th). A combination found with
 every attempt file but no ``suite.json`` (an interruption between the two) only gets its
 ``suite.json``. Nothing is recorded before the whole evaluation of an attempt ends.
 """
@@ -25,8 +27,11 @@ class ExecuteResult:
     accepted: int = 0
     failed: int = 0
     need_generation: int = 0  # failed attempts that leave the combination for `generate --resume`
-    discarded: int = 0  # suites discarded by this run (the 6th attempt failed)
+    # suites this run recorded after a failed attempt, by status (accepted_fallback,
+    # accepted_low_confidence; accepted_predicted only after an interrupted generate)
+    suites: Counter = field(default_factory=Counter)
     pending_generation: int = 0  # combinations of the selection waiting for `generate` at the end
+    awaiting_manual: list[tuple[str, str]] = field(default_factory=list)  # selection, at the end
     damaged: list[store.DamagedCombination] = field(default_factory=list)  # reported, not repaired
 
 
@@ -37,7 +42,11 @@ def describe(record: ExecutionRecord) -> str:
         return f"accepted ({kept} kept, {len(record.inputs) - kept} discarded)"
     if record.outcome == "public_test_failed":
         tests = record.public_tests
-        return f"public_test_failed (test {tests.failed_index}: {tests.failed_verdict.value})"
+        kept = sum(item.kept for item in record.inputs)  # the generated inputs also ran
+        return (
+            f"public_test_failed (test {tests.failed_index}: {tests.failed_verdict.value}; "
+            f"{kept} kept, {len(record.inputs) - kept} discarded)"
+        )
     reasons = Counter(item.discard.value for item in record.inputs)
     counts = [f"{reasons['timeout']} timeout", f"{reasons['runtime_error']} runtime_error"]
     if reasons["non_utf8_output"]:
@@ -69,7 +78,7 @@ def execute(
         if state.kind == "finalizable":  # interrupted before its suite.json: nothing to run
             suite = store.finalize(root, problem_id, scenario, run)
             echo(f"{what}: suite recorded ({suite.status.value})")
-            result.discarded += suite.status == "discarded"
+            result.suites[suite.status.value] += 1
             continue
         if state.kind != "pending_execution":
             continue
@@ -88,10 +97,12 @@ def execute(
             store.finalize(root, problem_id, scenario, run)
             continue
         result.failed += 1
-        if state.attempt == run.max_attempts:
-            store.finalize(root, problem_id, scenario, run)
-            result.discarded += 1
+        if store.combination_state(root, problem_id, scenario, run).kind == "finalizable":
+            suite = store.finalize(root, problem_id, scenario, run)
+            echo(f"{problem_id} {scenario}: suite recorded ({suite.status.value})")
+            result.suites[suite.status.value] += 1
         else:
             result.need_generation += 1
     result.pending_generation = store.count_in_state(root, combinations, "pending_generation", run)
+    result.awaiting_manual = store.awaiting_manual(root, combinations, run)
     return result

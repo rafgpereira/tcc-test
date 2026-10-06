@@ -12,9 +12,11 @@ from ai_clients import config
 from dataset.schemas.common import Schema, SchemaVersion
 from dataset.schemas.manifest import FileHash
 
+_ATTEMPT_NUMBERS = "|".join(str(n) for n in range(1, config.MAX_ATTEMPTS + 1))
 SUITE_PATH = re.compile(
     rf"^{config.ZIP_ROOT}/(run\.json|problems/\d+_[A-Za-z0-9]+/(black_box|white_box|hybrid)/"
-    rf"(suite\.json|attempt_[1-{config.MAX_ATTEMPTS}]\.(generation|execution)\.json))$"
+    rf"(suite\.json|manual_close\.json|"
+    rf"attempt_({_ATTEMPT_NUMBERS})\.(generation|execution)\.json))$"
 )
 
 __all__ = ["FileHash", "SlmSuitesManifest"]

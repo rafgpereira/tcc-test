@@ -61,7 +61,8 @@ def test_an_accepted_attempt_records_the_execution_and_the_suite(repo, run):
         (1, 43, "RTX 3060 12GB", None)
     ]
     assert lines == ["1_A black_box attempt 1: accepted (3 kept, 0 discarded)"]
-    assert (result.executed, result.accepted, result.failed, result.discarded) == (1, 1, 0, 0)
+    assert (result.executed, result.accepted, result.failed) == (1, 1, 0)
+    assert sum(result.suites.values()) == 0  # the accepted suites are not in this counter
 
 
 def test_the_suite_lists_the_discarded_inputs_of_the_accepted_attempt(repo, run):
@@ -79,12 +80,15 @@ def test_the_suite_lists_the_discarded_inputs_of_the_accepted_attempt(repo, run)
     assert lines == ["1_A black_box attempt 1: accepted (1 kept, 1 discarded)"]
 
 
-def test_a_failure_before_the_6th_attempt_asks_for_a_new_generation(repo, run):
+def test_a_failure_before_the_8th_attempt_asks_for_a_new_generation(repo, run):
     record_generation(repo, code=WRONG_PY)
     result, lines = execute(repo, run, [("1_A", "black_box")], wrong_runner())
     assert names(repo) == ["attempt_1.execution.json", "attempt_1.generation.json"]
     assert store.combination_state(repo, "1_A", "black_box") == store.State("pending_generation", 2)
-    assert lines == ["1_A black_box attempt 1: public_test_failed (test 0: WA)"]
+    # a WA: the generated inputs also ran, so this attempt can still be a fallback
+    assert lines == [
+        "1_A black_box attempt 1: public_test_failed (test 0: WA; 2 kept, 0 discarded)"
+    ]
     assert (result.failed, result.need_generation, result.pending_generation) == (1, 1, 1)
 
 
@@ -102,29 +106,62 @@ def test_all_inputs_failed_is_reported_with_its_reasons(repo, run):
     assert lines == ["1_A black_box attempt 1: all_inputs_failed (2 timeout, 1 runtime_error)"]
 
 
-def test_the_6th_failure_discards_the_suite_with_every_individual_reason(repo, run):
-    # attempts 1, 3, 5 unparseable; 2 and 4 failed a public test; 6 is waiting for execution
-    for n in range(1, 6):
-        record_generation(repo, attempt=n, parsed=n % 2 == 0, code=WRONG_PY)
-        if n % 2 == 0:
-            execute(repo, run, [("1_A", "black_box")], wrong_runner())
-    record_generation(repo, attempt=6, inputs=["5\n"])
-    runner = FakePythonRunner(
-        table={(ECHO_PY, b"5\n"): run_result(status=RunStatus.NONZERO_EXIT, exit_code=1)},
-        default=lambda code, stdin: run_result(stdin),
+def crash_runner():
+    """Echo for the echo solution; the wrong solution crashes on everything (RE, never WA)."""
+    return FakePythonRunner(
+        default=lambda code, stdin: (
+            run_result(status=RunStatus.NONZERO_EXIT, exit_code=1)
+            if code == WRONG_PY
+            else run_result(stdin)
+        )
     )
-    result, _ = execute(repo, run, [("1_A", "black_box")], runner)
+
+
+LOW_PY = "import sys\nsys.stdout.write(sys.stdin.read())\n# crashes on the examples\n"
+
+
+def low_confidence_runner():
+    """Like ``crash_runner``; ``LOW_PY`` crashes on the public tests but echoes the inputs."""
+    public = {b"1\n", b"2\n"}  # the public tests of the echo problems
+    crash = run_result(status=RunStatus.NONZERO_EXIT, exit_code=1)
+    return FakePythonRunner(
+        default=lambda code, stdin: (
+            crash if code == WRONG_PY or (code == LOW_PY and stdin in public) else run_result(stdin)
+        )
+    )
+
+
+def twenty_failures(repo, run, eligible=()):
+    """Attempts 1..20: odd ones unparseable, even ones crash on a public test and on every
+    input (never a fallback nor low confidence), except the ``eligible`` ones (``LOW_PY``)."""
+    result = None
+    for n in range(1, 21):
+        code = LOW_PY if n in eligible else WRONG_PY
+        parsed = n % 2 == 0 or n in eligible
+        record_generation(repo, attempt=n, parsed=parsed, code=code, inputs=["5\n"])
+        if parsed:
+            result, _ = execute(repo, run, [("1_A", "black_box")], low_confidence_runner())
+    return result
+
+
+def test_twenty_failures_without_an_eligible_one_go_to_the_prediction(repo, run):
+    result = twenty_failures(repo, run)
+    assert store.read_suite(repo, "1_A", "black_box") is None
+    state = store.combination_state(repo, "1_A", "black_box", run)
+    assert (state.kind, state.attempt) == ("pending_generation", 21)
+    assert (result.failed, result.need_generation, sum(result.suites.values())) == (1, 1, 0)
+
+
+def test_the_20th_failure_gives_the_first_low_confidence_suite(repo, run):
+    result = twenty_failures(repo, run, eligible=(3, 7))
     suite = store.read_suite(repo, "1_A", "black_box")
-    assert suite.status == "discarded" and suite.tests == [] and suite.accepted_attempt is None
-    assert [(a.attempt, a.seed, a.failure) for a in suite.attempts] == [
-        (1, 43, "unparseable_response"),
-        (2, 44, "public_test_failed"),
-        (3, 45, "unparseable_response"),
-        (4, 46, "public_test_failed"),
-        (5, 47, "unparseable_response"),
-        (6, 48, "all_inputs_failed"),
-    ]
-    assert (result.failed, result.need_generation, result.discarded) == (1, 0, 1)
+    assert suite.status == "accepted_low_confidence" and suite.accepted_attempt == 3
+    assert [t.model_dump() for t in suite.tests] == [{"input": "5\n", "output": "5\n"}]
+    assert [a.attempt for a in suite.attempts if a.low_confidence_eligible] == [3, 7]
+    assert suite.attempts[2].detail == "test 0: RE; 1 kept, 0 discarded"
+    assert [(a.attempt, a.seed) for a in suite.attempts] == [(n, 42 + n) for n in range(1, 21)]
+    assert not any(a.fallback_eligible for a in suite.attempts)
+    assert (result.suites["accepted_low_confidence"], result.need_generation) == (1, 0)
 
 
 def test_a_finalizable_combination_only_gets_its_suite(repo, run, monkeypatch):
@@ -198,3 +235,104 @@ def test_an_infrastructure_failure_records_nothing(repo, run):
     with pytest.raises(InfraError):
         execute(repo, run, [("1_A", "black_box")], runner)
     assert names(repo) == ["attempt_1.generation.json"]
+
+
+# ------------------------------------------------------------------------------- fallback suites
+
+
+def fallback_runner(passes_first=()):
+    """Echo for the echo solution. A wrong solution ``print(<k>)`` prints k for everything, except
+    for the solutions listed in ``passes_first``, which echo the first public test (``1\n``)."""
+
+    def answer(code, stdin):
+        if code == ECHO_PY or (code in passes_first and stdin == b"1\n"):
+            return run_result(stdin)
+        return run_result(code.removeprefix("print(").removesuffix(")\n").encode() + b"\n")
+
+    return FakePythonRunner(default=answer)
+
+
+def wrong(k):
+    return f"print({k})\n"
+
+
+def fail_attempts(repo, run, numbers, *, runner, code=WRONG_PY, inputs=("1\n", "2\n")):
+    for n in numbers:
+        record_generation(repo, attempt=n, code=code(n) if callable(code) else code, inputs=inputs)
+        execute(repo, run, [("1_A", "black_box")], runner)
+
+
+def test_eight_failures_with_a_wa_accept_the_best_attempt_as_a_fallback(repo, run):
+    # attempts 1-8 all fail; 3 and 6 pass the first public test (test 1: WA), the others fail
+    # test 0; 6 kept more inputs than 3, so 6 is the fallback; 7 is unparseable
+    best = {3: wrong(30), 6: wrong(60)}
+    runner = fallback_runner(passes_first=set(best.values()))
+    for n in range(1, 8):
+        if n == 7:
+            record_generation(repo, attempt=n, parsed=False)
+            continue
+        inputs = ("4\n", "5\n", "6\n") if n == 6 else ("4\n", "5\n")
+        record_generation(repo, attempt=n, code=best.get(n, wrong(100 + n)), inputs=inputs)
+        execute(repo, run, [("1_A", "black_box")], runner)
+    record_generation(repo, attempt=8, code=wrong(108), inputs=("4\n",))
+    result, lines = execute(repo, run, [("1_A", "black_box")], runner)
+    suite = store.read_suite(repo, "1_A", "black_box")
+    assert suite.status == "accepted_fallback" and suite.accepted_attempt == 6
+    assert len(suite.attempts) == 8 and all(a.failure is not None for a in suite.attempts)
+    assert [a.attempt for a in suite.attempts if a.fallback_eligible] == [1, 2, 3, 4, 5, 6, 8]
+    assert suite.attempts[5].detail == "test 1: WA; 3 kept, 0 discarded"
+    # the expected outputs are what the wrong solution printed
+    assert [t.model_dump() for t in suite.tests] == [
+        {"input": i, "output": "60\n"} for i in ("4\n", "5\n", "6\n")
+    ]
+    assert lines[-1] == "1_A black_box: suite recorded (accepted_fallback)"
+    assert (result.suites["accepted_fallback"], result.need_generation) == (1, 0)
+
+
+def test_between_equal_fallbacks_the_earliest_wins(repo, run):
+    fail_attempts(repo, run, range(1, 9), runner=wrong_runner())
+    suite = store.read_suite(repo, "1_A", "black_box")
+    assert suite.status == "accepted_fallback" and suite.accepted_attempt == 1
+
+
+def test_a_wa_before_the_8th_attempt_still_asks_for_a_new_generation(repo, run):
+    fail_attempts(repo, run, range(1, 8), runner=wrong_runner())
+    assert store.combination_state(repo, "1_A", "black_box") == store.State("pending_generation", 8)
+    assert store.read_suite(repo, "1_A", "black_box") is None
+
+
+def test_a_wa_whose_inputs_all_failed_is_not_a_fallback(repo, run):
+    runner = FakePythonRunner(
+        default=lambda code, stdin: (
+            run_result(stdin)
+            if code == ECHO_PY
+            else (
+                run_result(b"0\n")
+                if stdin in (b"1\n", b"2\n")  # the public tests: a WA
+                else run_result(status=RunStatus.NONZERO_EXIT, exit_code=1)
+            )
+        )
+    )
+    fail_attempts(repo, run, range(1, 9), runner=runner, inputs=("5\n",))
+    suite = store.read_suite(repo, "1_A", "black_box")
+    assert suite is None
+    assert store.combination_state(repo, "1_A", "black_box") == store.State("pending_generation", 9)
+
+
+def test_without_a_fallback_in_8_the_first_possible_one_after_ends_the_attempts(repo, run):
+    fail_attempts(repo, run, range(1, 10), runner=crash_runner())  # RE: never a fallback
+    assert store.combination_state(repo, "1_A", "black_box") == store.State(
+        "pending_generation", 10
+    )
+    fail_attempts(repo, run, [10], runner=wrong_runner())  # a WA with kept inputs
+    suite = store.read_suite(repo, "1_A", "black_box")
+    assert suite.status == "accepted_fallback" and suite.accepted_attempt == 10
+    assert len(suite.attempts) == 10
+
+
+def test_a_full_pass_after_the_8th_is_an_ordinary_accepted_suite(repo, run):
+    fail_attempts(repo, run, range(1, 9), runner=crash_runner())
+    record_generation(repo, attempt=9)
+    execute(repo, run, [("1_A", "black_box")])
+    suite = store.read_suite(repo, "1_A", "black_box")
+    assert suite.status == "accepted" and suite.accepted_attempt == 9

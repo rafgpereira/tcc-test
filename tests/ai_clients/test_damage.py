@@ -167,3 +167,33 @@ def test_a_damaged_combination_has_its_state_refused(setup, repo):
 def test_a_leftover_temporary_file_is_not_damage(setup, repo):
     (folder(repo) / ".attempt_2.generation.json.abc123.tmp").write_text("{", encoding="utf-8")
     assert store.combination_state(repo, "1_A", "black_box", run=setup).kind == "terminal"
+
+
+# ------------------------------------------------------- damage of the rules of 2026-10-06
+
+
+def test_an_execution_of_a_prediction_attempt_is_damage(setup, repo):
+    for n in range(1, config.SOLUTION_ATTEMPTS + 2):
+        record_generation(repo, "1_A", "hybrid", n, parsed=False)
+    (folder(repo, scenario="hybrid") / "attempt_21.execution.json").write_text("{}")
+    with pytest.raises(store.DamagedCombination, match="a prediction attempt is never executed"):
+        store.combination_state(repo, "1_A", "hybrid", setup)
+
+
+def test_a_prediction_after_a_possible_low_confidence_suite_is_damage(setup, repo):
+    crash_on_public = "import sys\nsys.stdout.write(sys.stdin.read())\n# crashes on examples\n"
+
+    def runner(code, stdin, limits, slot):
+        from sandbox.types import RunStatus
+        from tests.ai_clients.fakes import run_result
+
+        if code == crash_on_public and stdin in (b"1\n", b"2\n"):
+            return run_result(status=RunStatus.NONZERO_EXIT, exit_code=1)
+        return run_result(stdin)
+
+    record_generation(repo, "1_A", "hybrid", 1, code=crash_on_public, inputs=["5\n"])
+    execution.execute(repo, [("1_A", "hybrid")], run=setup, runner=runner, echo=print)
+    for n in range(2, config.SOLUTION_ATTEMPTS + 2):  # 2..20, then a 21st it should not have
+        record_generation(repo, "1_A", "hybrid", n, parsed=False)
+    with pytest.raises(store.DamagedCombination, match="could already be the low-confidence"):
+        store.combination_state(repo, "1_A", "hybrid", setup)

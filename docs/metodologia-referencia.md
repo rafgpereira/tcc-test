@@ -1066,8 +1066,8 @@ pendentes, a especificar em módulo futuro.]**
   (stateless nativo), saída `mimeType: application/json`. **[PENDENTE — idem.]**
 - Qwen2.5-Coder-7B (local, via Ollama) — sem parâmetro de esforço de raciocínio
   (limitação arquitetural do modelo, considerar na análise de resultados); saída em
-  **texto plano com 3 blocos marcados** (`<edge_cases_analysis>`, `<inputs>` com vários
-  `<input>`, `<reference_py>`), não JSON (ver abaixo); cada chamada disparada sem
+  **texto plano com 3 blocos marcados** (`<edge_cases_analysis>`, `<reference_py>`, `<inputs>`
+  com vários `<input>`, nesta ordem desde 2026-10-06), não JSON (ver abaixo); cada chamada disparada sem
   retenção de histórico. **[DECIDIDO, 2026-09-29 — `specs/003-slm-test-generation/spec.md`,
   D1.]**
 
@@ -1092,9 +1092,14 @@ privilégios, memória derivada dos metadados do problema), sob um tempo limite 
 avaliação. Uma entrada em que a solução falha isoladamente é descartada sozinha; se a
 solução falha nos testes públicos, ou falha (erro/timeout) em 100% das entradas
 geradas, a tentativa inteira é descartada e uma nova tentativa é gerada (seed base +
-número da tentativa), até 6 tentativas — depois disso, a suíte daquele problema ×
-cenário é descartada por completo, registrada, e continua contando no N = 200 das
-métricas (a taxa de descarte é reportada à parte). Falha de infraestrutura na chamada
+número da tentativa), até 8 tentativas estritas. **[REVISTO, 2026-10-05 — `research.md`
+R16]**: se as 8 falharem, a melhor tentativa que reprovou um teste público **só por WA** e
+manteve entradas vira a suíte de **reserva** (`accepted_fallback`; para isso, depois de um WA
+as entradas geradas rodam assim mesmo); sem nenhuma, as tentativas 9 a 12 terminam na
+primeira que passar ou puder ser reserva. Só depois de 12 tentativas sem nenhuma das duas a
+suíte daquele problema × cenário é descartada por completo, registrada, e continua contando
+no N = 200 das métricas (as taxas de descarte e de reserva são reportadas à parte). Até
+2026-10-05 eram 6 tentativas e nenhuma reserva. Falha de infraestrutura na chamada
 ao Ollama (serviço fora do ar, timeout de conexão) não consome tentativa — só as
 razões de conteúdo (resposta não interpretável, falha em teste público, falha — erro de
 execução e/ou timeout, em qualquer combinação — em 100% das entradas geradas e, desde
@@ -1136,8 +1141,9 @@ template confirmados por Milena no mesmo dia]**:
 - **Amostragem [DECIDIDO, 2026-09-30 — item 27 da seção 6]**: `temperature 0.7`, `top_p 0.8`, `top_k 20`,
   `repeat_penalty 1.05` (configuração de geração publicada pelo fabricante do
   Qwen2.5-Coder-7B-Instruct), todos enviados explicitamente; **seed base 42**, seed da tentativa
-  `n` = `42 + n` (43 a 48). Achado que restringe a escolha: com `temperature 0` a decodificação é
-  gulosa, a seed não tem efeito e as 6 tentativas repetiriam a mesma resposta (R4).
+  `n` = `42 + n` (43 a 54 desde 2026-10-05, com até 12 tentativas; antes 43 a 48). Achado que
+  restringe a escolha: com `temperature 0` a decodificação é gulosa, a seed não tem efeito e as
+  tentativas repetiriam a mesma resposta (R4).
 - **Montagem do prompt**: o `<context_data>` usa sub-rótulos fixos (`<problem_statement>`,
   `<reference_solution_cpp>`), e o híbrido é a união literal dos outros dois; fora dele, o prompt
   dos 3 cenários de um problema é idêntico byte a byte (R5).
@@ -1212,7 +1218,7 @@ template confirmados por Milena no mesmo dia]**:
   `suite.json`) é só aviso enquanto o pacote não existe, mesmo com `--deep`, porque o piloto e a
   execução completa começam, ambos, por `cli check --deep` com saída `0` e a árvore ainda vazia ou
   pela metade; depois do `package`, é falha. Estrutura impossível (buraco nas tentativas, mais de
-  6, arquivo estranho, pasta sem problema) é falha desde o início.
+  12 desde 2026-10-05, antes 6, arquivo estranho, pasta sem problema) é falha desde o início.
 - **Leitura do problema**: composta localmente no módulo `ai_clients` a partir dos leitores já
   existentes do dataset (`Metadata`, `Testes`) e da leitura direta de `enunciado.md`/`AC_ref.cpp`;
   nenhum leitor novo no módulo `dataset` (decidido em 2026-09-30).
@@ -1263,6 +1269,59 @@ template confirmados por Milena no mesmo dia]**:
   encerrar o piloto 3 e rodar um piloto 4 com `qwen2.5-coder:14b` (mesmo template e mesmos 5
   problemas), escolhido pela variável opcional `OLLAMA_MODEL` do `.env` (o modelo vai para o
   `run.json`). O modelo e o método do experimento ficam pendentes (seção 6, item 30).
+- **Piloto 4 e suíte de reserva [MEDIDO E DECIDIDO, 2026-10-05 — `research.md` R16]**: com
+  `qwen2.5-coder:14b` (mesmo template, mesmos 5 problemas), 13 de 15 suítes aceitas (caixa-preta
+  3/5, caixa-branca 5/5, híbrido 5/5), 13 de 40 tentativas aceitas (32,5%, contra 14% do 7B no
+  piloto 3), mediana de 76 s por chamada (máximo 252 s). As 27 falhas foram todas em teste
+  público (16 WA, 11 RE); as 2 suítes descartadas (`1000_B` e `1008_B`, caixa-preta) erraram
+  um teste público nas 6 tentativas, 11 das 12 por WA. Em `1008_B` a solução responde `YES`
+  no teste público 1, que espera `NO`, e o prompt só mostra o teste 0. Decidido que **nenhuma
+  combinação pode ficar sem suíte**: 8 tentativas estritas; depois delas, a melhor tentativa
+  que reprovou um teste público só por WA e manteve entradas vira suíte de reserva
+  (`accepted_fallback`: mais testes públicos aprovados, depois mais entradas mantidas,
+  depois a de menor número); sem nenhuma, tentativas 9 a 12 com esse mesmo critério; descarte
+  só depois de 12. Uma tentativa com WA num teste público passa a rodar as entradas geradas.
+  As saídas de uma reserva vêm de uma solução que erra em algum caso: pendente como as
+  métricas tratam essas suítes (seção 6, item 31).
+- **Template revisto depois do piloto 4 [DECIDIDO, 2026-10-06 — `research.md` R17]**: texto
+  trocado inteiro (3.361 caracteres, eram 3.984), com os mesmos marcadores e o mesmo exemplo.
+  Os blocos passam a ser pedidos na ordem análise, solução, entradas, e o parser exige essa ordem.
+  A análise fica em no máximo 15 linhas e reescreve o formato de entrada, as restrições e a regra
+  exata da resposta antes da simulação à mão do exemplo. Na caixa-branca, o modelo é instruído a
+  inferir o comportamento e o formato de entrada pelo código (o texto continua igual nos 3
+  cenários). A solução deve usar o algoritmo mais simples e obviamente correto, até força bruta,
+  num script plano com toda variável definida antes do uso. As entradas deixam de ter contagem
+  pedida (eram de 10 a 20), ficam com no máximo ≈ 50 elementos e 20 linhas (eram ≈ 100 elementos),
+  sem repetição, e o número de casos no início da entrada precisa bater com os casos escritos.
+  Maior prompt calculado em ≈ 8.370 caracteres (era 8.993); `num_ctx`/`num_predict` não mudam. O
+  efeito na taxa de acerto não foi medido; o próximo piloto é uma execução nova.
+- **Nenhuma combinação sem suíte [DECIDIDO E IMPLEMENTADO, 2026-10-06 — `research.md` R18 e
+  R19; testado só com modelo e execução simulados]**: substitui o descarte depois de 12 tentativas. Ordem: (1) tentativas 1 a 8,
+  `accepted` na primeira que passa nos testes públicos; (2) reserva `accepted_fallback` entre as 8,
+  como antes, sem chamada nova; (3) se nenhuma das 8 pode ser reserva, tentativas 9 a 20, parando
+  na primeira `accepted` ou que possa ser reserva; (4) depois da 20ª, `accepted_low_confidence` =
+  a primeira das 20 cuja solução manteve ao menos uma entrada gerada, mesmo com RE, TLE ou MLE num
+  teste público (por isso as entradas passam a rodar depois de qualquer reprovação em teste
+  público); (5) sem isso, **predição**: o mesmo modelo recebe um segundo template
+  (`slm_predict_prompt.txt`, blocos `<edge_cases_analysis>` e `<tests>` com `<input>`/`<output>`,
+  mesmas regras de entrada do principal) e escreve entradas e saídas esperadas, sem solução Python
+  nem validação pelos testes públicos; nova tentativa só por resposta não interpretável, até 3
+  (tentativas 21 a 23); status `accepted_predicted`, a única exceção ao oráculo por execução e a
+  única em que o SLM faz o que os dois LLMs comerciais fazem; (6) sem resposta interpretável, a
+  combinação fica aguardando tratamento manual: o comando segue com as demais, sai no fim com
+  código próprio listando-as, e o pacote é recusado até os autores a fecharem, por comando
+  explícito, como `discarded_manual` com motivo obrigatório (continua no N = 200). Relatório e
+  métricas separados por status (item 31 da seção 6).
+- **Desenho técnico da regra acima [IMPLEMENTADO, 2026-10-06 — `research.md` R19]**: um único contador de tentativas por combinação (1 a 20 com solução, 21 a 23 por
+  predição, seeds 43 a 65), o tipo saindo do número. Na resposta por predição, um `<test>` com
+  entrada ou saída vazia é descartado sozinho e contado, e a saída prevista é guardada como veio,
+  sem conferência. O `run.json` passa a guardar o hash do segundo template e os orçamentos (20 e
+  3). Combinação aguardando tratamento manual faz o `generate`/`execute` sair com o código **4**
+  (novo, separado do 1 de dano); o fechamento é o comando `python -m ai_clients close --problem
+  <id> --scenario <cenário> --reason "<motivo>"`, que grava o motivo e a data num arquivo próprio
+  da combinação. O relatório troca as taxas de descarte e de reserva por uma proporção por status.
+  Custo não medido: as entradas passam a rodar depois de TLE num teste público, cada uma podendo
+  levar até 10 vezes o limite de tempo do problema.
 
 **Template de prompt**: estrutura única em inglês, com marcação XML (`<system_rules>`,
 `<context_data>`, `<few_shot_example>`, `<task>`), combinando Few-Shot Prompting +
@@ -1432,7 +1491,16 @@ diretamente ao objetivo específico de mapear desempenho por categoria algorítm
     experimento para o `qwen2.5-coder:14b`, ou fazer o SLM prever as saídas como os dois modelos
     comerciais. A decisão é de Milena e Rafael (talvez com a orientação), depois do piloto 4 (14B,
     mesmos 5 problemas). Critério sugerido: se o 14B deixar mais de ≈ 20% sem suíte, discutir a
-    terceira opção.
+    terceira opção. **Piloto 4 medido (2026-10-05, R16)**: o 14B deixou 2 de 15 sem suíte
+    (13%) com a regra de 6 tentativas; a partir dele vale a suíte de reserva (seção 3, piloto 4), e
+    a escolha do modelo continua pendente.
+31. **[DECIDIDO EM PARTE, 2026-10-06 — `research.md` R18]** Tratamento nas métricas das suítes
+    que não vêm de uma solução aprovada nos testes públicos (`accepted_fallback`, 2026-10-05,
+    R16; `accepted_low_confidence` e `accepted_predicted`, 2026-10-06, R18): as saídas esperadas
+    delas podem estar erradas, então parte dos testes pode reprovar o `AC_ref` (TFP) e matar
+    mutantes pela saída errada (MS, TDF). **Decidido**: relatório e métricas separados por status,
+    nunca misturados em silêncio. **Pendente** (módulo de métricas): se, além dos números por
+    status, haverá um número agregado e com quais status.
 4. ~~**[PROPOSTA]** Extrair dos três splits combinados~~ — **RESOLVIDO** (ver 1.1).
 5. ~~**[PROPOSTA]** Adicionar `is_description_translated == false` como critério de
    elegibilidade~~ — **RESOLVIDO** (ver 1.2).
@@ -1516,6 +1584,11 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-10-06 | **Regra "nenhuma combinação sem suíte" implementada (`research.md` R19)**: tentativas 1 a 23 (21 a 23 por predição, com `slm_predict_prompt.txt`, 2.333 caracteres), entradas rodando depois de qualquer reprovação em teste público, status `accepted_low_confidence`, `accepted_predicted` e `discarded_manual` (sai `discarded`), código de saída 4 e comando `close`, relatório por status, `cli check` até 23 tentativas. Testado com modelo e execução simulados (1.401 testes do projeto passando); nenhum número medido com o modelo real | 3 |
+| 2026-10-06 | **Plano técnico da regra "nenhuma combinação sem suíte" (`research.md` R19, ainda não implementado)**: tentativas 1 a 23 num único contador (21 a 23 por predição, seeds 63 a 65); `<test>` com entrada ou saída vazia descartado sozinho; segundo template no `run.json`; código de saída 4 para combinação aguardando tratamento manual; comando `close` com motivo e data gravados; relatório com proporção por status. Custo da execução das entradas depois de TLE não medido | 3 |
+| 2026-10-06 | **Nenhuma combinação do SLM sem suíte (`research.md` R18, ainda não implementado)**: tentativas 1 a 8 (`accepted`), reserva `accepted_fallback`, tentativas 9 a 20, depois `accepted_low_confidence` (primeira das 20 que manteve uma entrada, mesmo com RE/TLE/MLE num teste público), depois até 3 tentativas por predição com um segundo template (`accepted_predicted`, entradas e saídas escritas pelo modelo, sem validação); sem resposta interpretável, a combinação aguarda tratamento manual e só fecha como `discarded_manual` com motivo, por comando dos autores. Relatório e métricas separados por status; item 31 decidido em parte | 3, 6 |
+| 2026-10-06 | **Template do SLM revisto depois do piloto 4 (`research.md` R17)**: texto trocado inteiro (SHA-256 `fc9757e8…`, era `336634f7…`); blocos pedidos na ordem análise, solução, entradas, e o parser passa a exigir essa ordem; instrução para inferir o comportamento pelo código na caixa-branca; solução mais simples possível, num script plano com toda variável definida; entradas sem contagem pedida (eram de 10 a 20), com no máximo ≈ 50 elementos e 20 linhas (eram ≈ 100 elementos) e sem repetição. Efeito não medido | 3 |
+| 2026-10-05 | **Piloto 4 do SLM e suíte de reserva (`research.md` R16)**: com `qwen2.5-coder:14b`, 13 de 15 suítes aceitas (caixa-preta 3/5), 13 de 40 tentativas aceitas (32,5%), 27 falhas todas em teste público (16 WA, 11 RE), mediana de 76 s por chamada; as 2 descartadas (`1000_B` e `1008_B`, caixa-preta) erraram por WA em 11 de 12 tentativas. Decidido que nenhuma combinação fica sem suíte: 8 tentativas estritas (era 6); depois, a melhor tentativa que reprovou um teste público só por WA e manteve entradas vira suíte `accepted_fallback` (as entradas passam a rodar depois de um WA); sem nenhuma, tentativas 9 a 12; descarte só depois de 12. Relatório com `accepted_fallback` e `fallback_rate`; `cli check` aceita até 12 tentativas. Pendente como as métricas tratam as reservas (item 31) | 3, 6 |
 | 2026-10-05 | **Piloto 3 do SLM (parcial) e piloto com outro modelo (`research.md` R15)**: com o template revisto, nenhuma resposta não interpretada ou cortada, de 10 a 20 entradas por resposta, acerto por tentativa de 11% para 14% (caixa-preta de 3% para 18%); as falhas continuam sendo a solução Python nos testes públicos (17 WA, 15 RE), com projeção de ≈ 40% das combinações sem suíte e ≈ 20 h. Bug corrigido: o Python rodava com `-S`, e `exit()` não existia (3 RE). Decidido: encerrar o piloto 3 e rodar o piloto 4 com `qwen2.5-coder:14b` via `OLLAMA_MODEL` (opcional no `.env`); modelo e método do experimento pendentes (item 30) | 3, 6 |
 | 2026-10-05 | **Piloto 2 do SLM registrado e decisões (`research.md` R14)**: 5 problemas × 3 cenários, 74 tentativas; suítes aceitas 1/5 (caixa-preta), 3/5 (caixa-branca), 4/5 (híbrido); as 7 descartadas caíram todas porque a solução Python errou um teste público (33 WA, 29 RE, 1 TLE no total), nenhuma por causa das entradas; maior `prompt_eval_count` 2.170, mediana de 29 s por chamada, a mais longa 233 s; `1_B` (61 MiB) reprovou nas 18 tentativas. Decidido: o `AC_ref` nunca gera saídas esperadas; cada tentativa continua independente (sem reaproveitar entradas); orçamento mantido em 6; o `execute` passa a gravar o início do `stdout`, o final do `stderr`, o tempo e a memória do teste público que reprova. **Template revisto** (R14, item 6): planejar e simular à mão no exemplo antes do código, de 10 a 20 entradas distintas escritas por extenso, sem pedido de entradas inválidas nem menção a entrada vazia, dicas de Python; maior prompt 8.993 caracteres, `num_ctx`/`num_predict` sem mudança. Próximo: piloto 3 (execução nova, mesmos 5 problemas) | 3 |
 | 2026-10-04 | **Revisão depois do piloto 1 do SLM (`research.md` R13)**: piloto com 4 problemas × 3 cenários (`1000_B`, `1005_C`, `1008_B`, `1_B`): 5 suítes aceitas e 7 descartadas, 57 chamadas, maior `prompt_eval_count` 2.044, chamada mais longa 166 s; 31 reprovações em teste público por WA e 14 por RE (6 delas causadas por cerca Markdown, todas no híbrido); 3 respostas cortadas por `num_predict` e 3 tentativas perdidas por um único `<input>` vazio. Decidido: remover só a cerca que envolve o código inteiro (registrada); descartar `<input>` vazio sozinho; `token repeat limit reached` vira a razão de falha `repetition` (próxima seed); RULE 2 com no máximo ~100 elementos por entrada e sem "including empty input"; `num_predict` 5120 (razão mínima medida de 3,32 caracteres por *token*); relatório por cenário; o `next:` do `execute` repete o `--problem`/`--scenario` usado. O piloto 2 começa uma execução nova | 3, 7 |

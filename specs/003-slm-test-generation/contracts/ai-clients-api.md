@@ -108,3 +108,41 @@ def exclusive_run(root: Path) -> Iterator[None]: ...
 
 `finalize` é pura em relação aos arquivos (mesma entrada → mesmos bytes de `suite.json`) e é o único
 lugar que grava `suite.json`.
+
+## Desde 2026-10-06 (research R19)
+
+```python
+# ai_clients.config
+STRICT_ATTEMPTS = 8; SOLUTION_ATTEMPTS = 20; PREDICT_ATTEMPTS = 3; MAX_ATTEMPTS = 23
+PREDICT_TEMPLATE_PATH = .../prompt_templates/slm_predict_prompt.txt
+def attempt_kind(attempt: int) -> Literal["solution", "prediction"]: ...   # 1..20 / 21..23
+MANUAL_CLOSE_FILE = "manual_close.json"
+
+# ai_clients.parser
+def parse_prediction(raw: str) -> PredictionParse | UnparsedResponse: ...  # puro, nunca levanta
+
+# ai_clients.store
+State.kind: Literal["terminal", "pending_generation", "pending_execution", "finalizable",
+                    "awaiting_manual"]
+def write_manual_close(root: Path, record: ManualClose) -> Path: ...   # falha se já existe
+
+# ai_clients.closing
+def close(root: Path, problem_id: str, scenario: Scenario, reason: str, *, run: RunConfig,
+          now: Callable[[], str]) -> SlmSuite: ...
+    # NotAwaitingManual (código 2) se o estado não é awaiting_manual; grava manual_close.json e
+    # depois chama finalize
+```
+
+O `generate` recebe os dois templates (`load_template()` e `load_template(PREDICT_TEMPLATE_PATH)`;
+os mesmos 3 marcadores, a mesma `build_prompt`) e escolhe pelo `attempt_kind` da tentativa; o
+parser também (`parse_response` ou `parse_prediction`). `GenerateResult` e `ExecuteResult` trocam
+`fallback`/`discarded` por um contador por status de suíte e ganham `awaiting_manual:
+list[tuple[str, str]]` (as combinações da seleção nesse estado ao fim, para as linhas `manual:`
+e o código 4).
+
+Tabela mínima de `tests/ai_clients/test_parser_prediction.py`: resposta bem formada; texto
+fora dos blocos (contado); cada bloco ausente ou duplicado; ordem trocada; `<tests>` sem `<test>`;
+texto entre `<test>`s; `<test>` sem `<input>` ou sem `<output>`, com os dois trocados, com dois
+`<input>`, com texto solto dentro; `<test>` aninhado; entrada vazia e saída vazia (descartadas
+sozinhas e contadas); todos vazios; entradas repetidas (mantidas e contadas); `\r\n`; `<` e `&`
+dentro da saída.

@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from ai_clients.schemas.execution import ExecutionRecord
 from ai_clients.schemas.generation import GenerationRecord
+from ai_clients.schemas.manual_close import ManualClose
 from ai_clients.schemas.run import RunConfig
 from ai_clients.schemas.suite import SlmSuite
 
@@ -102,13 +103,16 @@ def execution(**overrides):
     return base | overrides
 
 
-def summary(attempt, failure=None, detail="x"):
+def summary(attempt, failure=None, detail="x", fallback_eligible=False, low_confidence=False):
     return dict(
         attempt=attempt,
         seed=42 + attempt,
+        kind="solution" if attempt <= 20 else "prediction",
         hardware_label="RTX 3060 12GB",
         failure=failure,
         detail=detail,
+        fallback_eligible=fallback_eligible,
+        low_confidence_eligible=low_confidence,
     )
 
 
@@ -130,20 +134,58 @@ def accepted_suite(**overrides):
     return base | overrides
 
 
-def discarded_suite(**overrides):
+def manual_suite(**overrides):
     base = dict(
         schema_version=1,
         problem_id="1_A",
         scenario="white_box",
         model="qwen2.5-coder:7b",
         model_digest=DIGEST,
-        status="discarded",
-        attempts=[summary(n, "unparseable_response") for n in range(1, 7)],
+        status="discarded_manual",
+        attempts=[summary(n, "unparseable_response") for n in range(1, 24)],
         accepted_attempt=None,
         tests=[],
         suite_size=0,
         discarded_inputs=[],
         duplicate_inputs=0,
+        manual_close={"reason": "the model never answers this one", "closed_at": "2026-10-07"},
+    )
+    return base | overrides
+
+
+def low_confidence_suite(**overrides):
+    attempts = [summary(n, "unparseable_response") for n in range(1, 21)]
+    attempts[4] = summary(5, "public_test_failed", "test 0: RE; 1 kept, 1 discarded", False, True)
+    attempts[9] = summary(10, "public_test_failed", "test 0: TLE; 2 kept, 0 discarded", False, True)
+    base = dict(
+        accepted_suite(),
+        status="accepted_low_confidence",
+        attempts=attempts,
+        accepted_attempt=5,
+    )
+    return base | overrides
+
+
+def predicted_suite(**overrides):
+    attempts = [summary(n, "unparseable_response") for n in range(1, 22)] + [summary(22)]
+    base = dict(
+        accepted_suite(),
+        status="accepted_predicted",
+        attempts=attempts,
+        accepted_attempt=22,
+        discarded_inputs=[],
+    )
+    return base | overrides
+
+
+def fallback_suite(**overrides):
+    attempts = [summary(n, "unparseable_response") for n in range(1, 9)]
+    attempts[2] = summary(3, "public_test_failed", "test 1: WA; 1 kept, 1 discarded", True)
+    base = dict(
+        accepted_suite(),
+        status="accepted_fallback",
+        attempts=attempts,
+        accepted_attempt=3,
     )
     return base | overrides
 
@@ -164,8 +206,12 @@ def run_config(**overrides):
             num_predict=4096,
         ),
         seed_base=42,
-        max_attempts=6,
+        strict_attempts=8,
+        solution_attempts=20,
+        predict_attempts=3,
+        max_attempts=23,
         prompt_template_sha256=HEX,
+        predict_template_sha256=HEX,
         dataset_manifest_sha256=HEX,
         py_time_factor=10,
         py_memory_factor=4,
@@ -178,7 +224,10 @@ VALID = {
     "generation": (GenerationRecord, generation),
     "execution": (ExecutionRecord, execution),
     "accepted suite": (SlmSuite, accepted_suite),
-    "discarded suite": (SlmSuite, discarded_suite),
+    "fallback suite": (SlmSuite, fallback_suite),
+    "low-confidence suite": (SlmSuite, low_confidence_suite),
+    "predicted suite": (SlmSuite, predicted_suite),
+    "manual suite": (SlmSuite, manual_suite),
     "run": (RunConfig, run_config),
 }
 
@@ -209,8 +258,8 @@ def test_only_schema_version_1_exists(name):
 # ---------------------------------------------------------------------------- GenerationRecord
 
 
-@pytest.mark.parametrize("attempt", [0, 7])
-def test_the_attempt_is_between_1_and_6(attempt):
+@pytest.mark.parametrize("attempt", [0, 24])
+def test_the_attempt_is_between_1_and_23(attempt):
     with pytest.raises(ValidationError):
         GenerationRecord.model_validate(generation(attempt=attempt, seed=42 + attempt))
 
@@ -294,14 +343,15 @@ def test_parse_counters_are_not_negative(field_name):
 # ----------------------------------------------------------------------------- ExecutionRecord
 
 
-def test_a_public_test_failure_runs_no_input():
-    failed = dict(total=2, passed=0, failed_index=0, failed_verdict="WA")
+@pytest.mark.parametrize("verdict", ["WA", "RE", "TLE", "MLE"])
+def test_after_any_public_test_failure_every_input_runs(verdict):
+    failed = dict(total=2, passed=0, failed_index=0, failed_verdict=verdict)
     ExecutionRecord.model_validate(
-        execution(public_tests=failed, inputs=[], outcome="public_test_failed")
+        execution(public_tests=failed, inputs=[kept(0), dropped(1)], outcome="public_test_failed")
     )
     with pytest.raises(ValidationError):
         ExecutionRecord.model_validate(
-            execution(public_tests=failed, inputs=[kept(0)], outcome="public_test_failed")
+            execution(public_tests=failed, inputs=[], outcome="public_test_failed")
         )
 
 
@@ -315,7 +365,7 @@ def test_only_a_failing_public_test_has_a_diagnosis():
     # {}: a record of the 2nd pilot, written before the diagnosis existed
     for diagnosis in ({}, {"failed_output_head": "", "failed_stderr_tail": "Traceback"}):
         ExecutionRecord.model_validate(
-            execution(public_tests={**failed, **diagnosis}, inputs=[], outcome="public_test_failed")
+            execution(public_tests={**failed, **diagnosis}, outcome="public_test_failed")
         )
 
 
@@ -324,7 +374,7 @@ def test_public_test_failed_if_and_only_if_there_is_a_failed_index():
         ExecutionRecord.model_validate(execution(inputs=[], outcome="public_test_failed"))
     failed = dict(total=2, passed=0, failed_index=0, failed_verdict="WA")
     with pytest.raises(ValidationError):  # a public test failed, but outcome says accepted
-        ExecutionRecord.model_validate(execution(public_tests=failed, inputs=[]))
+        ExecutionRecord.model_validate(execution(public_tests=failed))
 
 
 def test_all_inputs_failed_if_and_only_if_nothing_was_kept():
@@ -389,21 +439,111 @@ def test_only_the_last_attempt_of_an_accepted_suite_succeeded():
         )
 
 
-def test_a_discarded_suite_has_exactly_six_failed_attempts():
+def test_a_manual_suite_has_exactly_23_failed_attempts():
     with pytest.raises(ValidationError):
-        SlmSuite.model_validate(discarded_suite(attempts=discarded_suite()["attempts"][:5]))
+        SlmSuite.model_validate(manual_suite(attempts=manual_suite()["attempts"][:22]))
     with pytest.raises(ValidationError):
-        attempts = discarded_suite()["attempts"][:5] + [summary(6)]
-        SlmSuite.model_validate(discarded_suite(attempts=attempts))
+        attempts = manual_suite()["attempts"][:22] + [summary(23)]
+        SlmSuite.model_validate(manual_suite(attempts=attempts))
 
 
-def test_a_discarded_suite_has_no_tests_and_no_accepted_attempt():
+def test_a_manual_suite_has_its_reason_and_only_it_has_one():
+    with pytest.raises(ValidationError):
+        SlmSuite.model_validate(manual_suite(manual_close=None))
+    with pytest.raises(ValidationError):
+        SlmSuite.model_validate(manual_suite(manual_close={"reason": "", "closed_at": "x"}))
+    with pytest.raises(ValidationError):
+        SlmSuite.model_validate(accepted_suite(manual_close=manual_suite()["manual_close"]))
+
+
+def test_the_status_discarded_no_longer_exists():
+    with pytest.raises(ValidationError):
+        SlmSuite.model_validate(manual_suite(status="discarded", manual_close=None))
+
+
+@pytest.mark.parametrize(
+    "eligible",
+    [
+        summary(4, "public_test_failed", "test 0: WA; 1 kept, 0 discarded", True),
+        summary(4, "public_test_failed", "test 0: RE; 1 kept, 0 discarded", False, True),
+    ],
+    ids=["fallback", "low_confidence"],
+)
+def test_no_prediction_while_a_solution_could_be_the_suite(eligible):
+    attempts = predicted_suite()["attempts"]
+    attempts[3] = eligible
+    with pytest.raises(ValidationError):
+        SlmSuite.model_validate(predicted_suite(attempts=attempts))
+    attempts = manual_suite()["attempts"]
+    attempts[3] = eligible
+    with pytest.raises(ValidationError):
+        SlmSuite.model_validate(manual_suite(attempts=attempts))
+
+
+def test_a_low_confidence_suite_comes_from_the_first_eligible_of_20_attempts():
+    with pytest.raises(ValidationError):  # not the first eligible one
+        SlmSuite.model_validate(low_confidence_suite(accepted_attempt=10))
+    with pytest.raises(ValidationError):  # before the 20 solution attempts are over
+        attempts = low_confidence_suite()["attempts"][:12]
+        SlmSuite.model_validate(low_confidence_suite(attempts=attempts))
+    with pytest.raises(ValidationError):  # a WA among them would have been a fallback
+        attempts = low_confidence_suite()["attempts"]
+        attempts[1] = summary(2, "public_test_failed", "test 0: WA; 1 kept, 0 discarded", True)
+        SlmSuite.model_validate(low_confidence_suite(attempts=attempts))
+    with pytest.raises(ValidationError):  # only a public test failure is eligible
+        attempts = low_confidence_suite()["attempts"]
+        attempts[0] = summary(1, "all_inputs_failed", "x", False, True)
+        SlmSuite.model_validate(low_confidence_suite(attempts=attempts))
+
+
+def test_a_predicted_suite_comes_from_its_last_attempt_a_prediction():
+    with pytest.raises(ValidationError):  # the accepted attempt is the last one
+        SlmSuite.model_validate(predicted_suite(accepted_attempt=21))
+    with pytest.raises(ValidationError):  # a prediction comes only after the 20 solutions
+        attempts = [summary(n, "unparseable_response") for n in range(1, 5)] + [summary(5)]
+        SlmSuite.model_validate(predicted_suite(attempts=attempts, accepted_attempt=5))
+    with pytest.raises(ValidationError):  # nothing was run, so nothing was discarded
+        discarded = [{"index": 0, "discard": "timeout", "verdict": "TLE"}]
+        SlmSuite.model_validate(predicted_suite(discarded_inputs=discarded))
+
+
+def test_the_kind_follows_from_the_attempt_number():
+    attempts = predicted_suite()["attempts"]
+    attempts[-1] = attempts[-1] | {"kind": "solution"}
+    with pytest.raises(ValidationError):
+        SlmSuite.model_validate(predicted_suite(attempts=attempts))
+
+
+def test_a_fallback_suite_comes_from_a_possible_fallback_after_every_attempt_failed():
+    with pytest.raises(ValidationError):  # not a possible fallback
+        SlmSuite.model_validate(fallback_suite(accepted_attempt=2))
+    with pytest.raises(ValidationError):  # before the 8 strict attempts are over
+        SlmSuite.model_validate(fallback_suite(attempts=fallback_suite()["attempts"][:5]))
+    with pytest.raises(ValidationError):  # a fallback is never empty
+        SlmSuite.model_validate(fallback_suite(tests=[], suite_size=0, discarded_inputs=[]))
+    with pytest.raises(ValidationError):  # only a public test failure can be a fallback
+        attempts = fallback_suite()["attempts"]
+        attempts[0] = summary(1, "unparseable_response", "x", True)
+        SlmSuite.model_validate(fallback_suite(attempts=attempts))
+
+
+def test_after_the_8th_a_fallback_comes_from_the_last_attempt_only():
+    attempts = [summary(n, "public_test_failed", "test 0: RE") for n in range(1, 11)]
+    attempts[-1] = summary(10, "public_test_failed", "test 0: WA; 1 kept, 0 discarded", True)
+    SlmSuite.model_validate(fallback_suite(attempts=attempts, accepted_attempt=10))
+    early = list(attempts)
+    early[3] = summary(4, "public_test_failed", "test 0: WA; 1 kept, 0 discarded", True)
+    with pytest.raises(ValidationError):  # attempt 4 would have ended the attempts at the 8th
+        SlmSuite.model_validate(fallback_suite(attempts=early, accepted_attempt=10))
+
+
+def test_a_manual_suite_has_no_tests_and_no_accepted_attempt():
     with pytest.raises(ValidationError):
         SlmSuite.model_validate(
-            discarded_suite(tests=[{"input": "1\n", "output": "1\n"}], suite_size=1)
+            manual_suite(tests=[{"input": "1\n", "output": "1\n"}], suite_size=1)
         )
     with pytest.raises(ValidationError):
-        SlmSuite.model_validate(discarded_suite(accepted_attempt=6))
+        SlmSuite.model_validate(manual_suite(accepted_attempt=6))
 
 
 def test_attempts_are_numbered_from_1_without_gaps_and_with_their_seed():
@@ -427,3 +567,62 @@ def test_the_tests_have_exactly_the_shape_of_the_dataset_test_case():
         SlmSuite.model_validate(
             accepted_suite(tests=[{"input": "1\n", "output": "1\n", "note": "x"}])
         )
+
+
+# ------------------------------------------------------------------- prediction and manual close
+
+
+def prediction(**overrides):
+    base = dict(
+        ok=True,
+        edge_cases_analysis="n = 1 is the smallest case.\n",
+        tests=[{"input": "1\n", "output": "1\n"}],
+        extraneous_chars=0,
+        duplicate_inputs=0,
+        empty_tests=0,
+    )
+    return base | overrides
+
+
+def test_a_prediction_attempt_records_a_prediction():
+    GenerationRecord.model_validate(generation(attempt=21, seed=63, parse=prediction()))
+    with pytest.raises(ValidationError):  # a prediction in a solution attempt
+        GenerationRecord.model_validate(generation(parse=prediction()))
+    with pytest.raises(ValidationError):  # a solution in a prediction attempt
+        GenerationRecord.model_validate(generation(attempt=21, seed=63))
+
+
+@pytest.mark.parametrize(
+    "test",
+    [
+        {"input": "  \n", "output": "1\n"},
+        {"input": "1\n", "output": ""},
+        {"input": "1", "output": "1\n"},
+    ],
+)
+def test_a_predicted_test_is_complete(test):
+    with pytest.raises(ValidationError):
+        GenerationRecord.model_validate(
+            generation(attempt=21, seed=63, parse=prediction(tests=[test]))
+        )
+
+
+def test_the_run_budget_adds_up():
+    RunConfig.model_validate(run_config())
+    with pytest.raises(ValidationError):
+        RunConfig.model_validate(run_config(max_attempts=12))
+    with pytest.raises(ValidationError):
+        RunConfig.model_validate(run_config(strict_attempts=21))
+
+
+def test_a_manual_close_needs_a_reason():
+    record = dict(
+        schema_version=1,
+        problem_id="1_A",
+        scenario="hybrid",
+        reason="the model never answers this one",
+        closed_at="2026-10-07T12:00:00Z",
+    )
+    ManualClose.model_validate(record)
+    with pytest.raises(ValidationError):
+        ManualClose.model_validate(record | {"reason": "  "})

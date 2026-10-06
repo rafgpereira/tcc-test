@@ -30,7 +30,7 @@ def fake(monkeypatch, repo, env):
         (pid, s, 42 + n): GOOD
         for pid in ("1_A", "2_B")
         for s in config.SCENARIOS
-        for n in range(1, 7)
+        for n in range(1, config.MAX_ATTEMPTS + 1)
     }
     client = FakeSLMClient(table, problem_ids=["1_A", "2_B"])
     made = {}
@@ -52,8 +52,9 @@ def test_a_first_run_creates_run_json_and_records_every_combination(fake, repo, 
     assert fake.made == {"base_url": "http://ollama.test:11434", "timeout_s": 900}
     assert len(fake.requests) == 6
     assert capsys.readouterr().out.splitlines()[-1] == (
-        "done: 6 calls, 6 parsed, 0 unparseable, 0 repetition, 0 discarded suites; "
-        "6 pending execution"
+        "done: 6 calls, 6 parsed, 0 unparseable, 0 repetition; suites: 0 accepted_fallback, "
+        "0 accepted_low_confidence, 0 accepted_predicted; 6 pending execution, 0 awaiting "
+        "manual handling"
     )
 
 
@@ -172,3 +173,34 @@ def test_run_json_is_valid_deterministic_json(fake, repo):
     cli.main(["generate", "--limit", "1"])
     data = json.loads((repo / config.SUITES_DIR / config.RUN_FILE).read_text(encoding="utf-8"))
     assert data["schema_version"] == 1 and data["seed_base"] == 42
+
+
+def test_a_combination_awaiting_manual_handling_exits_with_4_after_the_others(fake, repo, capsys):
+    bad = completion("no blocks")
+    for n in range(1, config.MAX_ATTEMPTS + 1):
+        fake.table[("1_A", "hybrid", 42 + n)] = bad
+    assert cli.main(["generate"]) == cli.EXIT_MANUAL
+    captured = capsys.readouterr()
+    assert len(fake.requests) == 5 + config.MAX_ATTEMPTS  # the other 5 were called too
+    assert captured.out.splitlines()[-1].endswith("5 pending execution, 1 awaiting manual handling")
+    expected = (
+        "manual: 1_A hybrid: 3 prediction attempts unparseable; close it with: docker compose "
+        'run --rm app python -m ai_clients close --problem 1_A --scenario hybrid --reason "<reason>"'
+    )
+    assert captured.err.splitlines() == [expected]
+    # still awaiting at the next generate, which calls nothing for it
+    fake.requests.clear()
+    assert cli.main(["generate", "--resume"]) == cli.EXIT_MANUAL
+    assert fake.requests == []
+
+
+def test_damage_wins_over_awaiting_manual_handling(fake, repo, capsys):
+    bad = completion("no blocks")
+    for n in range(1, config.MAX_ATTEMPTS + 1):
+        fake.table[("1_A", "hybrid", 42 + n)] = bad
+    assert cli.main(["generate"]) == cli.EXIT_MANUAL
+    path = store.combination_dir(repo, "2_B", "hybrid") / "attempt_1.generation.json"
+    path.write_text("{", encoding="utf-8")
+    assert cli.main(["generate", "--resume"]) == cli.EXIT_DATA_FAILURE
+    err = capsys.readouterr().err
+    assert "damaged: 2_B hybrid" in err and "manual: 1_A hybrid" in err

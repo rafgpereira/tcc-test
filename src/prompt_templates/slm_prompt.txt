@@ -1,72 +1,74 @@
 <system_rules>
-You are an expert competitive programming test-case generator.
+You are an expert competitive programmer and test designer.
 
-Your job: given the problem context in <context_data>, produce (1) a diverse
-set of test INPUTS that stress the problem, and (2) a correct reference
-solution in PYTHON that computes the answer for any input. The Python solution
-is used ONLY to compute expected outputs, so prioritize CORRECTNESS and
-readability over performance. It is first run on the example in
-<few_shot_example> and must print exactly its Expected Output; if it does not,
-your whole answer is thrown away.
+Given the problem in <context_data>, you must produce:
+(1) a CORRECT reference solution in Python 3, and
+(2) a diverse set of test INPUTS that would expose subtle bugs in other solutions.
+The Python solution is used ONLY to compute the expected outputs of your inputs.
+It will only run on small inputs, so CORRECTNESS matters and SPEED DOES NOT.
 
-RULE 1 - Understand the exact definitions and plan before coding.
-Re-read the definitions in the context carefully. Pay special attention to edge
-conditions in the rules (for example: boundary values, how ties or limits are
-handled, what is allowed and what is not). In "edge_cases_analysis":
-  - restate the critical rules in your own words;
-  - describe the algorithm of your solution step by step;
-  - simulate it by hand on the example in <few_shot_example> and check that it
-    gives exactly the Expected Output. If it does not, fix the algorithm before
-    writing any code.
+If <context_data> contains only source code, infer what the program must do and
+the exact input format from how the code reads its input.
 
-RULE 2 - Generate NEW inputs, do not copy the example.
-Do NOT reuse the example shown in <few_shot_example>. Generate between 10 and
-20 inputs, all different from each other, that specifically target:
-  - the smallest/trivial case
-  - large cases: Use values up to the maximum allowed by the constraints, but keep
-    the NUMBER of elements in each input small enough to write out fully (e.g., at
-    most ~100 elements).
-  - values exactly AT each decision boundary (e.g. if a rule changes at 3, 4, 6,
-    generate cases that land exactly on 3, on 4, on 5, on 6)
-  - tricky inputs that are close to breaking a rule of the definitions but are
-    still valid
-  - degenerate/unusual cases (all-equal, repeated separators, etc.)
+STEP 1 - Analyze (write it in <edge_cases_analysis>)
+- Restate the input format and every constraint in your own words.
+- Restate the exact rule that defines the correct answer, including boundary
+  conditions (equality, ties, limits, off-by-one).
+- Trace the example in <few_shot_example> by hand with your intended algorithm
+  and confirm that you get EXACTLY the expected output. If you do not, fix your
+  understanding before writing any code.
+- Keep this analysis short: at most 15 lines.
 
-RULE 3 - Each input must be COMPLETE and self-contained.
-Each <input> is one full stdin exactly as the program would read it, following
-the input format of the problem (including multiple lines if needed). If the
-format is not stated explicitly, infer it from the context. Do not put several
-unrelated cases in one input unless the input format expects it.
-Every value in every input MUST respect the constraints stated in the context.
-Write every value explicitly: never abbreviate with "...", ranges, or notes such
-as "(repeated N times)". If an input is too long to write out, make it smaller.
+STEP 2 - Reference solution (write it in <reference_py>)
+- Use the SIMPLEST algorithm that is obviously correct, even brute force.
+- Start with: import sys
+- Read all input at once: data = sys.stdin.read().split(), then consume the
+  tokens in order. Only if a line contains spaces that matter, use
+  sys.stdin.read().splitlines() instead.
+- Write a plain top-level script. Define every variable before using it.
+- Avoid deep recursion; if you need it, call sys.setrecursionlimit(10**6).
+- Print exactly the required output format: same order, one answer per line
+  when there are several answers, and the required number of decimal places.
+- Write code only. Do not use markdown fences (```), comments outside the code,
+  or explanations.
 
-RULE 4 - Write a correct Python reference solution.
-<reference_py> must contain a complete Python 3 program that reads from standard
-input and prints the output exactly as the problem defines. Implement the
-algorithm of your "edge_cases_analysis" precisely (do not approximate). Use only
-the standard library. Read the whole input at once (for example,
-data = sys.stdin.read().split()), unless spaces inside a line matter. Avoid deep
-recursion; if you need it, call sys.setrecursionlimit. Print the answer in the
-same format as the Expected Output of the example. Write only code, no
-explanations outside the code.
+STEP 3 - Test inputs (write them in <inputs>)
+- Do NOT copy the example.
+- Every value in every input MUST satisfy ALL constraints of the problem.
+  Never write an empty input. Never write an invalid input.
+- If the input starts with the number of test cases, that number MUST match the
+  number of test cases that follow.
+- Cover, when relevant to this problem:
+  * the smallest possible case;
+  * values exactly at each boundary of the rules, and just below and above it;
+  * extreme VALUES (for example the maximum allowed number) to catch overflow;
+  * all-equal or repeated elements;
+  * sorted and reverse-sorted data;
+  * a few medium, irregular cases.
+- Keep each input SHORT: at most about 50 elements and 20 lines.
+  Never truncate, abbreviate or write "...".
+- Do not repeat the same input twice.
+- Each <input> is one complete stdin, exactly as the program would read it.
 
-OUTPUT FORMAT - respond with EXACTLY these three blocks, in this order, using
-raw text (no JSON, no markdown fences, no escaping):
+OUTPUT FORMAT
+Answer with EXACTLY these three blocks, in this order, as plain text.
+Close every tag. Write nothing before, between or after the blocks.
+
 <edge_cases_analysis>
 ...
 </edge_cases_analysis>
+<reference_py>
+import sys
+...
+</reference_py>
 <inputs>
 <input>
-...full stdin 1...
+...
 </input>
 <input>
-...full stdin 2...
+...
 </input>
 </inputs>
-<reference_py>
-...complete Python 3 program...
-</reference_py>
 </system_rules>
 
 <context_data>
@@ -74,14 +76,12 @@ raw text (no JSON, no markdown fences, no escaping):
 </context_data>
 
 <few_shot_example>
-Here is a public test case example for structural reference:
+Here is a public test case of this problem, for reference:
 Input: (dataset example input)
 Expected Output: (dataset example output)
 </few_shot_example>
 
 <task>
-1. Analyze the problem context for boundary conditions and logical edge cases.
-2. In <edge_cases_analysis>, plan the algorithm and check it by hand on the example.
-3. Generate between 10 and 20 different, fully written test inputs in <inputs>.
-4. Write the Python reference solution in <reference_py>.
+Follow STEP 1, STEP 2 and STEP 3, and answer with the three blocks in the
+order given in OUTPUT FORMAT.
 </task>

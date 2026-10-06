@@ -11,7 +11,7 @@ from pathlib import Path
 
 # Model and sampling. Every option is sent explicitly, so a default of the Modelfile or of an
 # Ollama version never changes the experiment silently. `temperature` must stay above 0: with
-# greedy decoding the seed has no effect and the 6 attempts would repeat the same answer.
+# greedy decoding the seed has no effect and the attempts would repeat the same answer.
 # MODEL is the model of the design; `OLLAMA_MODEL` in `.env` replaces it, for the pilots that
 # compare models. The model in use is recorded in run.json, so a run never mixes two models.
 MODEL = "qwen2.5-coder:7b"
@@ -28,9 +28,24 @@ REPEAT_PENALTY = 1.05
 NUM_CTX = 8192
 NUM_PREDICT = 5120
 
-# Attempts: attempt n (1..6) uses the seed SEED_BASE + n, i.e. 43..48.
+# Attempts: attempt n (1..MAX_ATTEMPTS) uses the seed SEED_BASE + n, i.e. 43..65; no problem ×
+# scenario ends without a suite. In the first STRICT_ATTEMPTS only an attempt whose solution
+# passes every public test is accepted. If none of them is, the best of them whose solution failed
+# a public test only by WA, and kept some generated input, is accepted as a fallback (status
+# `accepted_fallback`: its expected outputs come from a solution known to be wrong on some input).
+# If none of the 8 can be a fallback either, attempts 9..SOLUTION_ATTEMPTS accept the first one
+# that passes or can be a fallback. After the 20th without either, the first of the 20 whose
+# solution kept some generated input is accepted with low confidence (`accepted_low_confidence`:
+# it failed a public test by RE, TLE or MLE). Without one, attempts SOLUTION_ATTEMPTS+1..
+# MAX_ATTEMPTS ask for a prediction (the second template: inputs AND expected outputs, no
+# solution, nothing run) and the first one parsed is the suite (`accepted_predicted`). If none of
+# them is parsed, the combination awaits manual handling: the authors close it with
+# `python -m ai_clients close` (`discarded_manual`).
 SEED_BASE = 42
-MAX_ATTEMPTS = 6
+STRICT_ATTEMPTS = 8
+SOLUTION_ATTEMPTS = 20
+PREDICT_ATTEMPTS = 3
+MAX_ATTEMPTS = SOLUTION_ATTEMPTS + PREDICT_ATTEMPTS
 
 # Limits of the Python reference solution = limits of the problem times these factors.
 PY_TIME_FACTOR = 10
@@ -63,6 +78,7 @@ PROBLEMS_DIR = SUITES_DIR / "problems"
 RUN_FILE = "run.json"
 LOCK_FILE = ".lock"  # flock: one command at a time over data/suites/slm/
 SUITE_FILE = "suite.json"
+MANUAL_CLOSE_FILE = "manual_close.json"  # the decision of the authors (`close`)
 
 REPORT_PATH = Path("manifests") / "slm_generation_report.json"
 MANIFEST_PATH = Path("manifests") / "slm_suites.manifest.json"
@@ -71,6 +87,14 @@ ZIP_PATH = DATA_DIR / "slm_suites.zip"
 ZIP_ROOT = "suites/slm"  # `unzip data/slm_suites.zip -d data/` lands on SUITES_DIR
 
 PROMPT_TEMPLATE_PATH = Path(__file__).resolve().parents[1] / "prompt_templates" / "slm_prompt.txt"
+PREDICT_TEMPLATE_PATH = PROMPT_TEMPLATE_PATH.with_name("slm_predict_prompt.txt")
+
+
+def attempt_kind(attempt: int) -> str:
+    """``solution`` for attempts 1..SOLUTION_ATTEMPTS, ``prediction`` for the last ones."""
+    if not 1 <= attempt <= MAX_ATTEMPTS:
+        raise ValueError(f"attempt must be in [1, {MAX_ATTEMPTS}], got {attempt}")
+    return "solution" if attempt <= SOLUTION_ATTEMPTS else "prediction"
 
 
 def seed_for(attempt: int) -> int:

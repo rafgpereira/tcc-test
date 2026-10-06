@@ -7,19 +7,25 @@ import zipfile
 import pytest
 
 from ai_clients import __main__ as cli
-from ai_clients import config, execution, store
+from ai_clients import closing, config, execution, store
 from tests.ai_clients.fakes import echo_runner, record_generation, start_run
 
 COMBOS = [(pid, s) for pid in ("1_A", "2_B") for s in config.SCENARIOS]
 
 
+def unparseable_to_the_end(repo, pid="2_B", scenario="hybrid"):
+    """23 unparseable answers: the combination awaits manual handling."""
+    for n in range(1, config.MAX_ATTEMPTS + 1):
+        record_generation(repo, pid, scenario, n, parsed=False)
+
+
 def finish(repo, run, combos=COMBOS):
-    """Every combination accepted at attempt 1 (the hybrid of 2_B: discarded, 6 unparseable)."""
+    """Every combination accepted at attempt 1 (the hybrid of 2_B: 23 unparseable answers,
+    closed by hand as discarded_manual)."""
     for pid, scenario in combos:
         if (pid, scenario) == ("2_B", "hybrid"):
-            for n in range(1, 7):
-                record_generation(repo, pid, scenario, n, parsed=False)
-            store.finalize(repo, pid, scenario, run)
+            unparseable_to_the_end(repo, pid, scenario)
+            closing.close(repo, pid, scenario, "never parsed", run=run, now=lambda: "2026-10-07")
         else:
             record_generation(repo, pid, scenario)
     execution.execute(repo, combos, run=run, runner=echo_runner(), echo=lambda line: None)
@@ -46,12 +52,16 @@ def tree_files(base):
 def test_package_writes_the_zip_the_manifest_and_the_report(finished, repo, capsys):
     assert cli.main(["package"]) == cli.EXIT_OK
     out = capsys.readouterr().out
-    assert "packaged 6 combinations (5 accepted, 1 discarded)" in out
+    assert (
+        "packaged 6 combinations (5 accepted, 0 accepted_fallback, 0 accepted_low_confidence, "
+        "0 accepted_predicted, 1 discarded_manual)"
+    ) in out
     with zipfile.ZipFile(repo / config.ZIP_PATH) as archive:
         names = archive.namelist()
     assert "suites/slm/run.json" in names
     assert "suites/slm/problems/1_A/black_box/suite.json" in names
-    assert "suites/slm/problems/2_B/hybrid/attempt_6.generation.json" in names
+    assert "suites/slm/problems/2_B/hybrid/attempt_23.generation.json" in names
+    assert "suites/slm/problems/2_B/hybrid/manual_close.json" in names
     assert not any(name.endswith(config.LOCK_FILE) for name in names)
     assert names == sorted(names)
     manifest = json.loads((repo / config.MANIFEST_PATH).read_text(encoding="utf-8"))
@@ -152,3 +162,19 @@ def test_verify_after_unzip_in_a_fresh_clone(finished, repo):
     with zipfile.ZipFile(repo / config.ZIP_PATH) as archive:
         archive.extractall(repo / "data")
     assert cli.main(["verify", "--extracted", "data/suites/slm"]) == cli.EXIT_OK
+
+
+def test_package_refuses_while_a_combination_awaits_manual_handling(repo, monkeypatch, capsys):
+    monkeypatch.chdir(repo)
+    run = start_run(repo)
+    for pid, scenario in COMBOS:
+        if (pid, scenario) == ("2_B", "hybrid"):
+            unparseable_to_the_end(repo)
+        else:
+            record_generation(repo, pid, scenario)
+    execution.execute(repo, COMBOS, run=run, runner=echo_runner(), echo=lambda line: None)
+    assert cli.main(["package"]) == cli.EXIT_DATA_FAILURE
+    err = capsys.readouterr().err
+    assert "1 await manual handling (2_B hybrid)" in err
+    assert "python -m ai_clients close --problem ID --scenario S" in err
+    assert not (repo / config.ZIP_PATH).exists()

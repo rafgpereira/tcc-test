@@ -14,12 +14,14 @@ while any problem × scenario of the dataset has no ``suite.json``, or if anythi
 import json
 import os
 import zipfile
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
 from ai_clients import config, store
 from ai_clients.problem import list_problem_ids
 from ai_clients.report import DamagedTreeError
+from ai_clients.schemas.common import SuiteStatus
 from ai_clients.schemas.manifest import FileHash, SlmSuitesManifest
 from dataset.integrity.packaging import (
     COMPRESS_LEVEL,
@@ -42,8 +44,7 @@ class PackageResult:
     zip_path: Path
     size: int
     combinations: int
-    accepted: int
-    discarded: int
+    statuses: dict[str, int]  # suite status -> combinations, every status present
     over_size_warning: bool
 
 
@@ -52,13 +53,13 @@ def _ignored(name: str) -> bool:
     return name.startswith(".")
 
 
-def check_finished(root: Path) -> tuple[int, int]:
-    """``(accepted, discarded)`` of a finished run; refuses an unfinished or damaged one."""
+def check_finished(root: Path) -> dict[str, int]:
+    """Suite status -> combinations of a finished run; refuses an unfinished or damaged one."""
     root = Path(root)
     run = store.read_run(root)
     problems = list_problem_ids(root)
-    unfinished, damaged = [], []
-    accepted = discarded = 0
+    unfinished, awaiting, damaged = [], [], []
+    statuses: Counter = Counter()
     for problem_id in problems:
         for scenario in config.SCENARIOS:
             try:
@@ -66,21 +67,27 @@ def check_finished(root: Path) -> tuple[int, int]:
             except store.DamagedCombination as exc:
                 damaged.append(exc)
                 continue
+            if state.kind == "awaiting_manual":
+                awaiting.append(f"{problem_id} {scenario}")
             if state.kind != "terminal":
                 unfinished.append(f"{problem_id} {scenario}")
-            elif store.read_suite(root, problem_id, scenario).status == "accepted":
-                accepted += 1
             else:
-                discarded += 1
+                statuses[store.read_suite(root, problem_id, scenario).status.value] += 1
     if damaged:
         raise DamagedTreeError(damaged)
     total = len(problems) * len(config.SCENARIOS)
     if unfinished:
         shown = ", ".join(unfinished[:5]) + (", ..." if len(unfinished) > 5 else "")
-        raise UnfinishedRunError(
+        message = (
             f"{len(unfinished)} of {total} combinations have no suite.json ({shown}); finish the "
             "run (generate --resume and execute) before packaging"
         )
+        if awaiting:
+            message += (
+                f"; {len(awaiting)} await manual handling ({', '.join(awaiting)}): close each "
+                'with python -m ai_clients close --problem ID --scenario S --reason "..."'
+            )
+        raise UnfinishedRunError(message)
     extra = []
     for folder in sorted((root / config.PROBLEMS_DIR).iterdir()):
         if _ignored(folder.name):
@@ -96,7 +103,7 @@ def check_finished(root: Path) -> tuple[int, int]:
             f"data/suites/slm/problems has entries that are not a problem × scenario of the "
             f"dataset: {', '.join(extra[:5])}"
         )
-    return accepted, discarded
+    return {status.value: statuses[status.value] for status in SuiteStatus}
 
 
 def _dir_info(path: str) -> zipfile.ZipInfo:
@@ -126,7 +133,7 @@ def _tree(base: Path) -> list[Path]:
 def build_zip(root: Path, zip_path: Path) -> PackageResult:
     """Build the zip atomically (temporary file + ``os.replace``) from a finished run."""
     root, zip_path = Path(root), Path(zip_path)
-    accepted, discarded = check_finished(root)
+    statuses = check_finished(root)
     base = root / config.SUITES_DIR
     entries: list[tuple[str, Path | None]] = [(f"{config.ZIP_ROOT}/", None)]
     for path in _tree(base):
@@ -149,7 +156,7 @@ def build_zip(root: Path, zip_path: Path) -> PackageResult:
         raise
     size = zip_path.stat().st_size
     return PackageResult(
-        zip_path, size, accepted + discarded, accepted, discarded, size > SIZE_WARNING_BYTES
+        zip_path, size, sum(statuses.values()), statuses, size > SIZE_WARNING_BYTES
     )
 
 

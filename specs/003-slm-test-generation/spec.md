@@ -69,6 +69,8 @@ WA/mutantes e cálculo das métricas."
   independente e pede entradas e solução de novo; as entradas de uma tentativa reprovada saem com ela
   (FR-018).
 - Q: Mudar o orçamento de 6 tentativas? → A: Não; continua 6 (mediana medida de 29 s por chamada).
+  **Superado em 2026-10-05, depois do piloto 4** (sessão abaixo): 8 tentativas estritas, suíte de
+  reserva e teto de 12.
 - Q: O que registrar de um teste público reprovado? → A: O início do `stdout` (até 2.048 bytes), o
   final do `stderr`, o tempo de CPU e o pico de memória, no registro de execução da tentativa.
 - Q: Como revisar o prompt para a solução Python errar menos? → A: Planejar o algoritmo e simulá-lo
@@ -81,6 +83,49 @@ WA/mutantes e cálculo das métricas."
   `OLLAMA_MODEL` (o modelo do desenho continua o 7B até a decisão). Depois, Milena e Rafael decidem
   entre manter o 7B, trocar para o 14B ou fazer o SLM prever as saídas (`research.md` R15). O
   Python passa a rodar sem `-S`, que deixava `exit()` indefinido.
+
+### Session 2026-10-05 (piloto 4, `research.md` R16)
+
+- Q: Nenhuma combinação pode ficar sem suíte. O que fazer quando todas as tentativas falham? → A:
+  O orçamento estrito passa de 6 para **8** tentativas (seeds 43 a 50). Se as 8 falharem, a
+  melhor delas que reprovou um teste público **só por WA** e manteve ao menos uma entrada gerada
+  vira a suíte, com status próprio `accepted_fallback` (FR-022a): a que passou mais testes
+  públicos, depois a que manteve mais entradas, depois a de menor número. Para isso, uma tentativa
+  que reprova um teste público por WA roda as entradas geradas assim mesmo (FR-018(b)). Se nenhuma
+  das 8 puder ser reserva (respostas não interpretadas, RE, TLE, MLE ou nenhuma entrada mantida),
+  as tentativas 9 a 12 (seeds 51 a 54) aceitam a primeira que passar em tudo ou puder ser reserva.
+  Só depois de 12 sem nenhuma das duas a suíte é descartada (FR-022).
+- Q: Marcar as suítes de reserva igual às aceitas? → A: Não. Elas têm saídas esperadas vindas de
+  uma solução que sabidamente erra em algum caso, então o status é próprio, a tentativa usada fica
+  em `accepted_attempt` e cada tentativa diz se podia ser reserva (`fallback_eligible`); a análise
+  pode separá-las ou excluí-las (FR-023).
+
+### Session 2026-10-06 (nenhuma combinação sem suíte)
+
+- Q: Em que momento a suíte de baixa confiança pode ser escolhida, dado que as tentativas extras
+  vêm antes dela e o teto é de 20 tentativas? → A: Só depois da 20ª. Ordem completa (FR-022 a
+  FR-022c): (1) tentativas 1 a 8, a primeira que passa em todos os testes públicos vira a suíte
+  (`accepted`); (2) se nenhuma passou, a reserva entre as que falharam só por WA
+  (`accepted_fallback`, critérios de desempate de FR-022a), sem chamada nova; (3) se nenhuma das 8
+  pode ser reserva, tentativas 9 a 20, parando na primeira que for `accepted` ou puder ser
+  reserva; (4) depois da 20ª sem nenhuma das duas, `accepted_low_confidence` = a primeira das 20
+  cuja solução rodou em pelo menos uma entrada gerada (mesmo tendo falhado nos testes públicos por
+  RE, TLE ou MLE); (5) se nem isso existir, predição: o mesmo modelo recebe um segundo template
+  (`src/prompt_templates/slm_predict_prompt.txt`) e escreve entradas **e** saídas esperadas, sem
+  solução Python e sem validação pelos testes públicos; nova tentativa só por resposta não
+  interpretável, até 3 (tentativas 21 a 23, seeds seguintes às já usadas); a suíte recebe
+  `accepted_predicted`; (6) se nem as 3 forem interpretáveis, o comando para e reporta a
+  combinação para tratamento manual. O status `discarded` deixa de existir no fluxo normal, e
+  relatório e métricas separam as suítes por status.
+- Q: Quando uma combinação esgota as 3 tentativas por predição sem resposta interpretável, o
+  comando para na hora ou continua com as outras? → A: Continua. A combinação fica marcada como
+  aguardando tratamento manual, o comando segue com as demais e, no fim, sai com um código de saída
+  próprio listando todas as marcadas; o `report` as conta à parte e o `package` recusa enquanto
+  existir alguma (FR-022).
+- Q: Que tratamento manual tira uma combinação desse estado e com qual status ela fecha? → A: Um
+  comando explícito dos autores a fecha com o status `discarded_manual` e um motivo obrigatório
+  (registrados no resultado da combinação, com data); o status é contado à parte no relatório e a
+  combinação continua no N = 200 (FR-022d).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -115,8 +160,8 @@ rodado.
    histórico de chamadas anteriores), configurado com o modelo, a temperatura, a seed e o
    `num_ctx` fixados e registrados, e persiste a resposta crua, as entradas extraídas e a
    solução Python de referência.
-2. **Given** uma resposta cuja estrutura de blocos (`<edge_cases_analysis>`, `<inputs>` com um
-   ou mais `<input>`, `<reference_py>`) não pode ser interpretada, **When** ela é processada,
+2. **Given** uma resposta cuja estrutura de blocos (`<edge_cases_analysis>`, `<reference_py>`,
+   `<inputs>` com um ou mais `<input>`) não pode ser interpretada, **When** ela é processada,
    **Then** o sistema registra essa tentativa como falha de interpretação (uma das razões de
    descarte de tentativa de FR-018), sem produzir uma suíte a partir dela.
 3. **Given** um problema e um cenário cuja tentativa anterior falhou, **When** uma nova
@@ -130,12 +175,15 @@ rodado.
 
 Depois da geração, os autores disparam a fase de execução — em sandbox, sem rede — que roda a
 solução Python de referência de cada tentativa pendente contra os testes públicos do problema
-(para validar a solução) e, se ela passa, contra as entradas geradas (para calcular o
-`expected_output` de cada uma). Entradas em que a solução falha isoladamente são descartadas
-uma a uma; se a solução falha nos testes públicos, ou se falha — por erro de execução, por
-timeout, ou por uma combinação das duas razões entre entradas diferentes — em 100% das entradas
-geradas (nenhuma sobrevive ao descarte individual), a tentativa inteira é descartada e uma nova
-rodada de geração é disparada para aquele problema × cenário, até o limite de 6 tentativas.
+(para validar a solução) e contra as entradas geradas (para calcular o `expected_output` de cada
+uma; as entradas rodam mesmo quando a solução reprova um teste público, para a tentativa poder
+servir de reserva ou de baixa confiança). Entradas em que a solução falha isoladamente são
+descartadas uma a uma; se a solução falha nos testes públicos, ou se falha — por erro de
+execução, por timeout, ou por uma combinação das duas razões entre entradas diferentes — em 100%
+das entradas geradas (nenhuma sobrevive ao descarte individual), a tentativa falha e uma nova
+rodada de geração é disparada para aquele problema × cenário, até o limite de 8 tentativas
+estritas; depois delas valem, nesta ordem, a reserva (FR-022a), as tentativas 9 a 20, a baixa
+confiança (FR-022b) e a predição (FR-022c), a única exceção ao oráculo por execução.
 
 **Why this priority**: é o núcleo conceitual do módulo — sem essa etapa, o `expected_output`
 seria uma previsão do modelo (sujeita a erro), não um valor obtido por execução real, o que
@@ -168,16 +216,22 @@ demais.
    fase de execução avalia essa tentativa, **Then** a tentativa inteira é descartada (nunca
    aceita como uma suíte de tamanho zero) e uma nova tentativa de geração é disparada para o
    mesmo problema × cenário, com a próxima seed.
-5. **Given** um problema × cenário que acumula 6 tentativas descartadas (por qualquer
+5. **Given** um problema × cenário cujas 8 primeiras tentativas falharam (por qualquer
    combinação das razões de FR-018: resposta não interpretável, falha nos testes públicos, falha —
    erro de execução e/ou timeout, em qualquer combinação — em 100% das entradas geradas, ou
-   falha do próprio modelo na chamada),
-   **When** a 6ª tentativa também falha, **Then** o sistema descarta a suíte inteira daquele
-   problema × cenário, registra o motivo de cada uma das 6 tentativas e continua contando esse
-   problema no N = 200 usado pelas métricas, sem substituí-lo por outro.
+   falha do próprio modelo na chamada), **When** alguma delas reprovou um teste público só por WA
+   e manteve entradas, **Then** a melhor dessas vira a suíte com status `accepted_fallback`
+   (FR-022a); **When** nenhuma pode ser reserva, **Then** seguem as tentativas 9 a 20, que aceitam
+   a primeira que passar em tudo ou puder ser reserva; **When** a 20ª também falha sem reserva,
+   **Then** a suíte é a da primeira das 20 cuja solução manteve ao menos uma entrada gerada
+   (`accepted_low_confidence`, FR-022b); **When** nenhuma manteve, **Then** seguem até 3
+   tentativas por predição (`accepted_predicted`, FR-022c); **When** nenhuma das 3 é interpretável,
+   **Then** a combinação fica aguardando tratamento manual, as demais seguem e o comando sai no fim
+   com código próprio listando-a. Em todos os casos o motivo
+   de cada tentativa fica registrado e o problema continua contando no N = 200.
 6. **Given** uma falha de infraestrutura na chamada ao Ollama (endereço inacessível, timeout de
    conexão, erro do lado do servidor), **When** ela ocorre, **Then** o sistema NÃO consome uma
-   das 6 tentativas — a mesma chamada é reexecutada com a mesma seed assim que o serviço volta a
+   das tentativas — a mesma chamada é reexecutada com a mesma seed assim que o serviço volta a
    responder, distinguindo esse caso das razões de descarte de FR-018.
 
 ---
@@ -255,15 +309,19 @@ tentativas por razão) somam corretamente.
   não determinismo na solução Python — o risco fica registrado como limitação conhecida
   (Assumptions), já que a validação existente (testes públicos + entradas geradas, uma execução
   cada) não teria como diferenciar não determinismo de acerto.
-- O mesmo problema × cenário atinge 6 tentativas descartadas por razões diferentes em cada
-  tentativa (ex.: tentativa 1 não interpretável, tentativa 2 falha nos testes públicos,
-  tentativa 3 timeout): todas as 6 razões, distintas ou repetidas, ficam registradas
-  individualmente; o descarte final da suíte não perde o detalhe de qual tentativa falhou por
-  qual motivo.
+- O mesmo problema × cenário atinge 20 tentativas com falha por razões diferentes em cada
+  tentativa (ex.: tentativa 1 não interpretável, tentativa 2 falha nos testes públicos por RE,
+  tentativa 3 timeout), sem nenhuma que possa ser reserva ou de baixa confiança: todas as 20
+  razões, distintas ou repetidas, ficam registradas individualmente, e a combinação segue para a
+  predição (FR-022c); a suíte final não perde o detalhe de qual tentativa falhou por qual motivo.
+- As 3 tentativas por predição (FR-022c) dão resposta não interpretável: a combinação fica
+  marcada como aguardando tratamento manual, o comando segue com as demais e sai no fim com código
+  próprio listando as marcadas; o pacote é recusado enquanto houver alguma (FR-022). Não existe
+  descarte automático.
 - Falha de infraestrutura (Ollama fora do ar) ocorre repetidamente, sem nunca voltar a responder:
   a mesma chamada é repetida até um teto de repetições consecutivas configurável no `.env`
   (FR-018a); ao atingi-lo, o comando para com erro de infraestrutura, sem gravar nada daquela
-  tentativa e sem consumir o orçamento de 6 tentativas — rodar o comando de novo, com o serviço de
+  tentativa e sem consumir o orçamento de tentativas — rodar o comando de novo, com o serviço de
   volta, refaz a mesma chamada com a mesma seed. Não é uma condição de descarte de suíte.
   (Decidido em 2026-09-30, na revisão de consistência dos artefatos; antes o módulo não tinha
   teto e dependia de o operador interromper manualmente.)
@@ -281,7 +339,10 @@ tentativas por razão) somam corretamente.
 
 - **FR-001**: O sistema MUST, para cada um dos 200 problemas do dataset e cada um dos 3
   cenários de contexto (caixa-preta, caixa-branca, híbrido), disparar chamadas ao SLM
-  (Qwen2.5-Coder-7B, via Ollama) até obter uma suíte aceita ou esgotar 6 tentativas.
+  (Qwen2.5-Coder-7B, via Ollama) até obter uma suíte, na ordem de FR-022 a FR-022c: aceita,
+  de reserva (FR-022a), de baixa confiança (FR-022b) ou por predição (FR-022c). Nenhuma combinação
+  termina sem suíte no fluxo normal (revisado em 2026-10-06; antes uma suíte podia ser descartada
+  depois de 12 tentativas).
 - **FR-002**: Cada chamada ao modelo MUST ser uma única requisição *stateless* — sem reter ou
   reaproveitar histórico de nenhuma chamada anterior, para o mesmo ou para outro problema ×
   cenário (Constitution, Princípio III).
@@ -313,9 +374,11 @@ tentativas por razão) somam corretamente.
 
 ### Formato de resposta e interpretação
 
-- **FR-009**: A resposta do modelo MUST ser texto plano com 3 blocos marcados —
-  `<edge_cases_analysis>`, `<inputs>` (contendo um ou mais `<input>`) e `<reference_py>` — nunca
-  JSON, para evitar erros de escape de código dentro da solução Python.
+- **FR-009**: A resposta do modelo MUST ser texto plano com 3 blocos marcados, nesta ordem —
+  `<edge_cases_analysis>`, `<reference_py>` e `<inputs>` (contendo um ou mais `<input>`) — nunca
+  JSON, para evitar erros de escape de código dentro da solução Python. A ordem é a que o template
+  pede (até 2026-10-06 era análise, entradas, solução; `research.md` R17). Só nas tentativas por
+  predição (FR-022c) a resposta tem 2 blocos, `<edge_cases_analysis>` e `<tests>`.
 - **FR-010**: O sistema MUST interpretar deterministicamente os 3 blocos da resposta crua; se
   qualquer bloco obrigatório estiver ausente, vazio ou malformado, a tentativa correspondente
   MUST ser registrada como falha de interpretação (uma das razões de descarte de tentativa, ver
@@ -352,8 +415,11 @@ tentativas por razão) somam corretamente.
   públicos do próprio problema; `AC_ref.cpp` MUST NOT ser usado, em nenhuma circunstância, para
   aprovar, descartar ou corrigir uma tentativa ou uma suíte.
 - **FR-018**: Uma tentativa (problema × cenário × número da tentativa) MUST ser marcada como
-  falha, consumindo uma unidade do orçamento de 6, quando: (a) a resposta crua não pode ser
-  interpretada (FR-010); (b) a solução Python falha em pelo menos um teste público do problema;
+  falha, consumindo uma unidade do orçamento (8 tentativas estritas, até 20; FR-022), quando: (a)
+  a resposta crua não pode ser interpretada (FR-010); (b) a solução Python falha em pelo menos um
+  teste público do problema (as entradas geradas MUST rodar assim mesmo, qualquer que seja a
+  primeira falha — WA para a tentativa poder ser reserva, RE, TLE ou MLE para poder ser de baixa
+  confiança, FR-022b; até 2026-10-05 nenhuma rodava depois de RE, TLE ou MLE);
   ou (c) a solução Python falha — por erro de execução, por timeout (FR-016), ou por qualquer
   combinação das duas razões entre entradas diferentes — em 100% das entradas geradas (ou seja,
   nenhuma entrada sobrevive ao descarte individual de FR-019; uma tentativa nunca é aceita com
@@ -361,7 +427,7 @@ tentativas por razão) somam corretamente.
   interrompe a geração com `token repeat limit reached` (razão `repetition`, acrescentada em
   2026-10-04: com a mesma seed o laço se repetiria, então não é falha de infraestrutura).
 - **FR-018a**: Uma falha de infraestrutura na chamada ao Ollama (serviço inacessível, timeout de
-  conexão, erro do lado do servidor que não seja a falha do modelo de FR-018(d)) MUST NOT consumir uma unidade do orçamento de 6 tentativas —
+  conexão, erro do lado do servidor que não seja a falha do modelo de FR-018(d)) MUST NOT consumir uma unidade do orçamento de tentativas —
   a mesma chamada, com a mesma seed, MUST ser reexecutada quando o serviço voltar a responder.
   As repetições consecutivas de uma mesma chamada MUST ter um teto, e o tempo máximo de espera de
   uma resposta MUST ser um *timeout* de leitura; ambos são configuráveis pelo operador no `.env`
@@ -374,18 +440,55 @@ tentativas por razão) somam corretamente.
 ### Retentativas e descarte
 
 - **FR-020**: Cada tentativa de um mesmo problema × cenário MUST usar uma seed diferente e
-  previsível, derivada da seed base somada ao número da tentativa (1 a 6).
+  previsível, derivada da seed base somada ao número da tentativa (1 a 20 com solução Python e 21
+  a 23 por predição, FR-022c; até 2026-10-05, 1 a 6; até 2026-10-06, 1 a 12).
 - **FR-021**: As novas tentativas MUST acontecer em rodadas: depois de cada execução, somente os
   problemas × cenários cuja tentativa foi marcada como falha (FR-018) MUST voltar para uma nova
   chamada de geração, com a próxima seed; combinações já aceitas MUST NOT ser regeneradas. A
   falha de interpretação (FR-018, razão (a)) é a exceção: como não há nada a executar, a fase de
   geração já faz a tentativa seguinte, com a próxima seed, na mesma execução, sem esperar uma
   rodada de execução (decidido no plano, 2026-09-30, `research.md` R8).
-- **FR-022**: Depois de 6 tentativas marcadas como falha (FR-018) para o mesmo problema ×
-  cenário, a suíte MUST ser descartada por completo, com o motivo registrado.
-- **FR-023**: Uma suíte descartada (FR-022) MUST continuar contando no N = 200 problemas usado
-  pelas demais métricas do experimento; a taxa de descarte (por problema × cenário) MUST ser
-  reportada separadamente, nunca reduzindo esse N em silêncio.
+- **FR-022**: Nenhum problema × cenário MUST terminar sem suíte no fluxo normal. A ordem é:
+  tentativas 1 a 8 (`accepted` na primeira que passa em todos os testes públicos); reserva
+  (FR-022a); tentativas extras 9 a 20; baixa confiança (FR-022b); predição (FR-022c). Se nem a
+  predição produzir uma resposta interpretável, a combinação MUST ficar marcada como aguardando
+  tratamento manual: o comando MUST continuar com as demais combinações e, no fim, sair com um
+  código de saída próprio listando todas as marcadas; o relatório MUST contá-las à parte e o
+  pacote final (FR-028) MUST ser recusado enquanto existir alguma. (Até 2026-10-05: descarte depois de 6 tentativas; até 2026-10-06: descarte
+  depois de 12 sem reserva.)
+- **FR-022a**: Uma tentativa **pode ser reserva** se a resposta foi interpretada, a solução
+  reprovou um teste público por WA (não RE, TLE ou MLE) e ao menos uma entrada gerada foi mantida.
+  Quando as 8 primeiras tentativas falharam e alguma pode ser reserva, a suíte MUST ser a da
+  melhor delas (mais testes públicos aprovados; depois mais entradas mantidas; depois o menor
+  número), com status `accepted_fallback`, sem nova chamada. Se nenhuma das 8 pode, as tentativas
+  9 a 20 MUST terminar na primeira que passar em tudo (`accepted`) ou puder ser reserva
+  (`accepted_fallback`). Decidido em 2026-10-05 (`research.md` R16); teto de 12 elevado para 20 em
+  2026-10-06.
+- **FR-022b**: Se as 20 tentativas terminaram sem nenhuma aceita ou que pudesse ser reserva, a
+  suíte MUST ser a da **primeira** das 20 cuja solução rodou sem RE, TLE ou MLE em pelo menos uma
+  entrada gerada (ao menos uma entrada mantida), mesmo que tenha reprovado um teste público por RE,
+  TLE ou MLE, com status `accepted_low_confidence`, sem nova chamada. Decidido em 2026-10-06.
+- **FR-022c**: Se nenhuma das 20 pode ser de baixa confiança, o mesmo modelo MUST receber um
+  segundo template (`src/prompt_templates/slm_predict_prompt.txt`), com a mesma composição de
+  cenários (FR-004) e o mesmo exemplo (FR-005), que pede entradas **e** saídas esperadas
+  diretamente, sem solução Python, em dois blocos: `<edge_cases_analysis>` e `<tests>` (cada
+  `<test>` com um `<input>` e um `<output>`). As regras de entrada são as do template principal
+  (restrições, casos-limite, tamanho máximo, sem entrada vazia ou repetida). Não há validação pelos
+  testes públicos (não existe programa a validar). Uma nova tentativa MUST acontecer só por
+  resposta não interpretável, até 3 (tentativas 21 a 23, seeds seguintes às já usadas). A suíte
+  recebe status `accepted_predicted`. Decidido em 2026-10-06.
+- **FR-022d**: Uma combinação aguardando tratamento manual (FR-022) só MUST sair desse estado por
+  um comando explícito dos autores, que a fecha com o status `discarded_manual` e um motivo
+  obrigatório, gravados com a data no resultado da combinação. Esse é o único caminho para uma
+  combinação terminar sem suíte; ela continua contando no N = 200 e é reportada à parte (FR-023).
+  Decidido em 2026-10-06.
+- **FR-023**: O relatório MUST contar as combinações por status (`accepted`, `accepted_fallback`,
+  `accepted_low_confidence`, `accepted_predicted`, `discarded_manual` e aguardando tratamento
+  manual), por cenário e no total, e as métricas do
+  experimento MUST ser reportadas separadas por status, nunca misturando em silêncio suítes cujas
+  saídas esperadas vêm de uma solução que passou nos testes públicos com as demais: as de reserva e
+  de baixa confiança vêm de uma solução que erra em algum caso, e as por predição não foram
+  calculadas por nenhum programa. Revisado em 2026-10-06 (antes: taxa de descarte e de reserva).
 - **FR-024**: O resultado de cada problema × cenário MUST registrar todas as seeds usadas
   (inclusive das tentativas que falharam), o motivo de cada falha e, quando houver sucesso, qual
   tentativa foi aceita.
@@ -418,7 +521,8 @@ tentativas por razão) somam corretamente.
 ### Key Entities *(include if feature involves data)*
 
 - **Tentativa**: uma chamada *stateless* ao SLM para um problema × cenário específico,
-  identificada pelo número da tentativa (1 a 6) e pela seed derivada; guarda a resposta crua, o
+  identificada pelo número da tentativa (1 a 20 com solução Python, 21 a 23 por predição) e pela
+  seed derivada; guarda a resposta crua, o
   identificador do modelo, o hardware do Ollama e o veredito (aceita, ou falha com uma das
   razões de FR-018).
 - **Suíte SLM**: o conjunto de casos de teste aceitos para um problema × cenário, junto com o
@@ -432,8 +536,14 @@ tentativas por razão) somam corretamente.
 - **Solução Python de referência**: o código Python que acompanha uma tentativa, cuja única
   função é calcular `expected_output` a partir das entradas daquela mesma tentativa; nunca é
   objeto de avaliação nem persiste além do necessário para auditoria da tentativa.
-- **Registro de descarte de suíte**: quando uma suíte é descartada após 6 tentativas, o registro
-  de todas as seeds usadas e o motivo de cada uma das 6 falhas.
+- **Suíte de reserva** (`accepted_fallback`): a suíte tirada de uma tentativa que reprovou um
+  teste público por WA, depois de 8 tentativas sem acerto (FR-022a); tem o mesmo formato da
+  aceita, mas saídas esperadas possivelmente erradas.
+- **Suíte de baixa confiança** (`accepted_low_confidence`): a suíte tirada da primeira das 20
+  tentativas cuja solução rodou em ao menos uma entrada gerada, mesmo tendo reprovado um teste
+  público por RE, TLE ou MLE (FR-022b).
+- **Suíte por predição** (`accepted_predicted`): entradas e saídas esperadas escritas diretamente
+  pelo modelo com o segundo template, sem solução Python nem validação (FR-022c).
 - **Relatório de geração de suítes SLM**: dado quantitativo agregado (taxa de descarte,
   distribuição de tamanho de suíte, funil de falha por razão, seeds e hardware), para citação no
   texto do TCC sem reabrir os arquivos-fonte das suítes.
@@ -443,14 +553,14 @@ tentativas por razão) somam corretamente.
 ### Measurable Outcomes
 
 - **SC-001**: Para cada uma das 600 combinações (200 problemas × 3 cenários), a execução
-  completa termina em exatamente um de dois estados — suíte aceita (com tamanho registrado) ou
-  suíte descartada (com as 6 razões de falha registradas) — nunca um estado intermediário ou
-  ambíguo.
+  completa termina em exatamente um de quatro estados — `accepted`, `accepted_fallback`,
+  `accepted_low_confidence` ou `accepted_predicted`, com o tamanho e a tentativa usada registrados
+  — ou, só por decisão explícita dos autores, `discarded_manual` com motivo (FR-022d); nunca um
+  estado intermediário ou ambíguo no pacote final.
 - **SC-002**: 100% dos casos de teste mantidos em suítes aceitas têm `expected_output`
   calculado por execução real da solução Python sobre a entrada, nunca por previsão do modelo.
-- **SC-003**: A taxa de descarte de suítes (combinações que esgotam as 6 tentativas) é medida e
-  reportada separadamente, sem reduzir silenciosamente o N = 200 usado pelas demais métricas do
-  experimento.
+- **SC-003**: A proporção de suítes de cada status é medida e reportada separadamente, por cenário
+  e no total, sem reduzir silenciosamente o N = 200 usado pelas demais métricas do experimento.
 - **SC-004**: Interromper a geração ou a execução em qualquer ponto e retomar produz o mesmo
   resultado final (mesmas suítes aceitas, mesmo conteúdo, mesmas entradas descartadas) que uma
   execução ininterrupta sobre a mesma entrada e as mesmas seeds, sem arquivo duplicado ou
@@ -461,7 +571,7 @@ tentativas por razão) somam corretamente.
   100% das execuções, com limites de tempo e memória derivados dos metadados do problema (nunca
   hardcoded).
 - **SC-007**: Uma falha de infraestrutura na chamada ao Ollama nunca é contabilizada como uma
-  das 6 tentativas em nenhuma execução observada — só as razões de FR-018 consomem
+  das tentativas em nenhuma execução observada — só as razões de FR-018 consomem
   o orçamento, e nenhuma tentativa é aceita com uma suíte de tamanho zero.
 - **SC-008**: Ao concluir a feature, `docker compose run --rm app python
   scripts/check_docs_sync.py --closing` (sobre o pacote novo deste módulo, quando implementado)
@@ -540,8 +650,8 @@ registradas em Clarifications), fecham essa pendência.
   inteira dentro de um campo JSON expõe o pipeline a erros de escape de aspas, quebras de linha
   e barras invertidas dentro do código gerado — risco que os dois modelos de fronteira mitigam
   melhor, mas que um modelo de 7B tende a errar com mais frequência. **Decisão**: o Qwen
-  responde em texto plano com 3 blocos marcados por tags (`<edge_cases_analysis>`, `<inputs>` com
-  vários `<input>`, `<reference_py>`), interpretados deterministicamente pelo pipeline; a suíte
+  responde em texto plano com 3 blocos marcados por tags (`<edge_cases_analysis>`, `<reference_py>`,
+  `<inputs>` com vários `<input>`; ordem de R17, 2026-10-06), interpretados deterministicamente pelo pipeline; a suíte
   persistida depois da interpretação continua sendo JSON com schema formal e versionado
   (Constitution, Princípio IV) — só a resposta crua do modelo deixa de ser JSON. Reflete-se em
   FR-009 a FR-011; **este parágrafo da metodologia (seção 3) MUST ser atualizado no mesmo ciclo

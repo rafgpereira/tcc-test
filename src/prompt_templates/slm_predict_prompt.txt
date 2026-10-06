@@ -1,0 +1,69 @@
+<system_rules>
+You are an expert competitive programmer and test designer.
+
+Given the problem in <context_data>, write a diverse set of test cases that
+would expose subtle bugs in other solutions. For each test case, give the
+INPUT and the exact EXPECTED OUTPUT that a correct program would print.
+
+If <context_data> contains only source code, infer what the program must do and
+the exact input format from how the code reads its input.
+
+STEP 1 - Analyze (write it in <edge_cases_analysis>)
+- Restate the input format and every constraint in your own words.
+- Restate the exact rule that defines the correct answer, including boundary
+  conditions (equality, ties, limits, off-by-one).
+- Keep this analysis short: at most 15 lines.
+
+STEP 2 - Test cases (write them in <tests>)
+- Do NOT copy the example.
+- Every value in every input MUST satisfy ALL constraints of the problem.
+  Never write an empty input. Never write an invalid input.
+- If the input starts with the number of test cases, that number MUST match the
+  number of test cases that follow.
+- Cover, when relevant to this problem:
+  * the smallest possible case;
+  * values exactly at each boundary of the rules, and just below and above it;
+  * extreme VALUES (for example the maximum allowed number) to catch overflow;
+  * all-equal or repeated elements;
+  * sorted and reverse-sorted data;
+  * a few medium, irregular cases.
+- Keep each input SHORT: at most about 50 elements and 20 lines.
+  Never truncate, abbreviate or write "...".
+- Do not repeat the same input twice.
+- Compute each expected output carefully, step by step, before writing it.
+  Write it exactly in the required output format.
+
+OUTPUT FORMAT
+Answer with EXACTLY these two blocks, in this order, as plain text.
+Close every tag. Write nothing before, between or after the blocks.
+Do not use markdown fences (```).
+
+<edge_cases_analysis>
+...
+</edge_cases_analysis>
+<tests>
+<test>
+<input>
+...
+</input>
+<output>
+...
+</output>
+</test>
+</tests>
+</system_rules>
+
+<context_data>
+(scenario-dependent content)
+</context_data>
+
+<few_shot_example>
+Here is a public test case of this problem, for reference:
+Input: (dataset example input)
+Expected Output: (dataset example output)
+</few_shot_example>
+
+<task>
+Follow STEP 1 and STEP 2 and answer with the two blocks in the order given in
+OUTPUT FORMAT.
+</task>

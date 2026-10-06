@@ -22,10 +22,12 @@ from pydantic import ValidationError
 from ai_clients import config
 from ai_clients.schemas.execution import ExecutionRecord
 from ai_clients.schemas.generation import GenerationRecord
+from ai_clients.schemas.manual_close import ManualClose
 from ai_clients.schemas.run import RunConfig
-from ai_clients.schemas.suite import AttemptSummary, DiscardedInput, SlmSuite
+from ai_clients.schemas.suite import AttemptSummary, DiscardedInput, ManualCloseInfo, SlmSuite
 from dataset.persistence import store
 from dataset.schemas.testes import TestCase
+from sandbox.types import Verdict
 
 __all__ = [
     "AlreadyRunningError",
@@ -34,6 +36,7 @@ __all__ = [
     "GenerationRecord",
     "State",
     "attempt_files",
+    "awaiting_manual",
     "combination_dir",
     "combination_state",
     "count_in_state",
@@ -48,6 +51,7 @@ __all__ = [
     "run_exists",
     "write_execution",
     "write_generation",
+    "write_manual_close",
     "write_run",
 ]
 
@@ -117,6 +121,11 @@ def write_execution(root: Path, record: ExecutionRecord) -> Path:
     return _write_once(folder / config.execution_file_name(record.attempt), record)
 
 
+def write_manual_close(root: Path, record: ManualClose) -> Path:
+    folder = _ensure_combination_dir(root, record.problem_id, record.scenario)
+    return _write_once(folder / config.MANUAL_CLOSE_FILE, record)
+
+
 def read_generation(
     root: Path, problem_id: str, scenario: str, attempt: int
 ) -> GenerationRecord | None:
@@ -162,7 +171,9 @@ def read_run(root: Path) -> RunConfig:
 class State:
     """Where a problem × scenario stands; ``attempt`` is the one the next step is about."""
 
-    kind: Literal["terminal", "pending_generation", "pending_execution", "finalizable"]
+    kind: Literal[
+        "terminal", "pending_generation", "pending_execution", "finalizable", "awaiting_manual"
+    ]
     attempt: int
 
 
@@ -199,6 +210,22 @@ class AttemptFiles:
     generations: list[GenerationRecord]  # attempts 1, 2, ... without a gap
     executions: dict[int, ExecutionRecord]
     suite: Path | None
+    manual_close: ManualClose | None = None
+
+
+def _read_named(path: Path, schema, named_as: tuple, problems: list[str]):
+    """The record of ``path`` if it is valid and about ``named_as``; else a problem and ``None``."""
+    try:
+        record = schema.model_validate_json(path.read_bytes())
+    except ValueError as exc:  # also invalid JSON and invalid UTF-8
+        problems.append(f"inconsistent: {path.name}: {_reason(exc)}")
+        return None
+    attempt = getattr(record, "attempt", None)  # manual_close.json is about no attempt
+    named = (record.problem_id, record.scenario.value, *(() if attempt is None else (attempt,)))
+    if named != named_as:
+        problems.append(f"inconsistent: {path.name}: it is about {' '.join(map(str, named))}")
+        return None
+    return record
 
 
 def _load(root: Path, problem_id: str, scenario: str, run: RunConfig | None) -> AttemptFiles:
@@ -207,13 +234,16 @@ def _load(root: Path, problem_id: str, scenario: str, run: RunConfig | None) -> 
     folder = combination_dir(root, problem_id, scenario)
     problems: list[str] = []
     found: dict[str, dict] = {"generation": {}, "execution": {}}
-    suite = None
+    suite = manual_close = None
     for path in sorted(folder.iterdir()) if folder.is_dir() else []:
         name = path.name
         if _is_leftover(name):
             continue
         if name == config.SUITE_FILE and path.is_file():
             suite = path
+            continue
+        if name == config.MANUAL_CLOSE_FILE and path.is_file():
+            manual_close = _read_named(path, ManualClose, (problem_id, scenario), problems)
             continue
         match = _ATTEMPT_FILE.match(name)
         if match is None or not path.is_file():
@@ -223,17 +253,13 @@ def _load(root: Path, problem_id: str, scenario: str, run: RunConfig | None) -> 
         if not 1 <= attempt <= config.MAX_ATTEMPTS:
             problems.append(f"inconsistent: {name}: there are only {config.MAX_ATTEMPTS} attempts")
             continue
+        if kind == "execution" and config.attempt_kind(attempt) == "prediction":
+            problems.append(f"inconsistent: {name}: a prediction attempt is never executed")
+            continue
         schema = GenerationRecord if kind == "generation" else ExecutionRecord
-        try:
-            record = schema.model_validate_json(path.read_bytes())
-        except ValueError as exc:  # also invalid JSON and invalid UTF-8
-            problems.append(f"inconsistent: {name}: {_reason(exc)}")
-            continue
-        named = (record.problem_id, record.scenario.value, record.attempt)
-        if named != (problem_id, scenario, attempt):
-            problems.append(f"inconsistent: {name}: it is about {' '.join(map(str, named))}")
-            continue
-        found[kind][attempt] = record
+        record = _read_named(path, schema, (problem_id, scenario, attempt), problems)
+        if record is not None:
+            found[kind][attempt] = record
     generations, executions = found["generation"], found["execution"]
     last = max([*generations, *executions], default=0)
     for n in range(1, last + 1):
@@ -251,25 +277,104 @@ def _load(root: Path, problem_id: str, scenario: str, run: RunConfig | None) -> 
                 problems.append(
                     f"inconsistent: {config.execution_file_name(n)}: attempt {n} was not parsed"
                 )
-        elif (
-            execution is not None
-            and execution.public_tests.failed_index is None
-            and len(execution.inputs) != len(record.parse.inputs)
-        ):
+        elif execution is not None and len(execution.inputs) != len(record.parse.inputs):
             problems.append(
                 f"inconsistent: {config.execution_file_name(n)}: {len(execution.inputs)} "
                 f"inputs, the generation has {len(record.parse.inputs)}"
             )
         if n < last and record.parse.ok:  # a later attempt exists: this one must have failed
-            if execution is None:
-                problems.append(f"missing: {config.execution_file_name(n)}")
-            elif execution.outcome == "accepted":
+            if config.attempt_kind(n) == "prediction" or (
+                execution is not None and execution.outcome == "accepted"
+            ):
                 problems.append(
                     f"inconsistent: {config.generation_file_name(n + 1)}: attempt {n} was accepted"
                 )
+            elif execution is None:
+                problems.append(f"missing: {config.execution_file_name(n)}")
+    if not problems:
+        problems += _early_suite(generations, executions, last)
+    if not problems and manual_close is not None:
+        final = generations.get(config.MAX_ATTEMPTS)
+        if final is None or final.parse.ok:
+            problems.append(
+                f"inconsistent: {config.MANUAL_CLOSE_FILE}: the combination does not await "
+                "manual handling"
+            )
     if problems:
         raise DamagedCombination(problem_id, scenario, problems)
-    return AttemptFiles([generations[n] for n in range(1, last + 1)], executions, suite)
+    generations = [generations[n] for n in range(1, last + 1)]
+    return AttemptFiles(generations, executions, suite, manual_close)
+
+
+def _early_suite(generations: dict, executions: dict, last: int) -> list[str]:
+    """An attempt made although an earlier one could already be the suite (config.py)."""
+    name = config.generation_file_name(last)
+    solutions = range(1, min(last, config.SOLUTION_ATTEMPTS + 1))
+    if last > config.STRICT_ATTEMPTS:
+        for n in solutions:
+            if n < last and n in executions and _can_be_fallback(generations[n], executions[n]):
+                return [f"inconsistent: {name}: attempt {n} could already be the fallback suite"]
+    if last > config.SOLUTION_ATTEMPTS:
+        for n in solutions:
+            if n in executions and _can_be_low_confidence(generations[n], executions[n]):
+                return [
+                    f"inconsistent: {name}: attempt {n} could already be the low-confidence suite"
+                ]
+    return []
+
+
+def _kept_some(execution: ExecutionRecord | None) -> bool:
+    return execution is not None and any(item.kept for item in execution.inputs)
+
+
+def _can_be_fallback(generation: GenerationRecord, execution: ExecutionRecord | None) -> bool:
+    """A parsed attempt whose solution failed a public test by WA and kept some generated input."""
+    return (
+        generation.parse.ok
+        and _kept_some(execution)
+        and execution.public_tests.failed_verdict is Verdict.WA
+    )
+
+
+def _can_be_low_confidence(generation: GenerationRecord, execution: ExecutionRecord | None) -> bool:
+    """A parsed attempt whose solution failed a public test by RE, TLE or MLE and kept an input."""
+    return (
+        generation.parse.ok
+        and _kept_some(execution)
+        and execution.public_tests.failed_verdict not in (None, Verdict.WA)
+    )
+
+
+def _fallback(files: AttemptFiles) -> int | None:
+    """The attempt a fallback suite comes from, once the strict attempts are over; else ``None``.
+
+    The one that passed the most public tests, then kept the most generated inputs, then the
+    earliest. After the strict attempts only the last one can be a candidate (``_load``).
+    """
+    if len(files.generations) < config.STRICT_ATTEMPTS:
+        return None
+    candidates = [
+        (g.attempt, files.executions[g.attempt])
+        for g in files.generations
+        if _can_be_fallback(g, files.executions.get(g.attempt))
+    ]
+    if not candidates:
+        return None
+    best = min(
+        candidates,
+        key=lambda c: (-c[1].public_tests.passed, -sum(i.kept for i in c[1].inputs), c[0]),
+    )
+    return best[0]
+
+
+def _low_confidence(files: AttemptFiles) -> int | None:
+    """The first attempt that can be a low-confidence suite, once the solutions are over."""
+    if len(files.generations) != config.SOLUTION_ATTEMPTS:
+        return None
+    for g in files.generations:
+        if _can_be_low_confidence(g, files.executions.get(g.attempt)):
+            return g.attempt
+    return None
 
 
 def _state_of_attempts(files: AttemptFiles) -> State:
@@ -277,15 +382,21 @@ def _state_of_attempts(files: AttemptFiles) -> State:
         return State("pending_generation", 1)
     last = files.generations[-1]
     n = last.attempt
+    if config.attempt_kind(n) == "prediction":
+        if last.parse.ok:
+            return State("finalizable", n)
+        if n < config.MAX_ATTEMPTS:
+            return State("pending_generation", n + 1)
+        return State("finalizable" if files.manual_close else "awaiting_manual", n)
     if last.parse.ok:
         execution = files.executions.get(n)
         if execution is None:
             return State("pending_execution", n)
         if execution.outcome == "accepted":
             return State("finalizable", n)
-    if n < config.MAX_ATTEMPTS:
-        return State("pending_generation", n + 1)
-    return State("finalizable", n)
+    if _fallback(files) is not None or _low_confidence(files) is not None:
+        return State("finalizable", n)
+    return State("pending_generation", n + 1)  # after the 20th: the first prediction
 
 
 def combination_state(
@@ -322,14 +433,21 @@ def read_suite(root: Path, problem_id: str, scenario: str) -> SlmSuite | None:
 
 
 def _summary(generation: GenerationRecord, execution: ExecutionRecord | None) -> AttemptSummary:
+    kept = 0 if execution is None else sum(item.kept for item in execution.inputs)
     if generation.model_failure is not None:
         failure, detail = generation.model_failure.reason, generation.model_failure.detail
     elif not generation.parse.ok:
         failure, detail = "unparseable_response", generation.parse.error
+    elif config.attempt_kind(generation.attempt) == "prediction":
+        tests = generation.parse.tests
+        failure, detail = None, f"{len(tests)} tests predicted"
     elif execution.outcome == "public_test_failed":
         tests = execution.public_tests
         failure = "public_test_failed"
-        detail = f"test {tests.failed_index}: {tests.failed_verdict.value}"
+        detail = (
+            f"test {tests.failed_index}: {tests.failed_verdict.value}; "
+            f"{kept} kept, {len(execution.inputs) - kept} discarded"
+        )
     else:
         reasons = Counter(item.discard.value for item in execution.inputs if not item.kept)
         if execution.outcome == "all_inputs_failed":
@@ -337,46 +455,66 @@ def _summary(generation: GenerationRecord, execution: ExecutionRecord | None) ->
             detail = ", ".join(f"{count} {reason}" for reason, count in sorted(reasons.items()))
         else:
             failure = None
-            kept = sum(item.kept for item in execution.inputs)
             detail = f"{kept} kept, {len(execution.inputs) - kept} discarded"
     return AttemptSummary(
         attempt=generation.attempt,
         seed=generation.seed,
+        kind=config.attempt_kind(generation.attempt),
         hardware_label=generation.hardware_label,
         failure=failure,
         detail=detail,
+        fallback_eligible=_can_be_fallback(generation, execution),
+        low_confidence_eligible=_can_be_low_confidence(generation, execution),
     )
 
 
 def _build_suite(files: AttemptFiles, problem_id: str, scenario: str, run: RunConfig) -> SlmSuite:
-    """``suite.json`` as a pure function of the attempt files and of ``run.json``."""
+    """``suite.json`` as a pure function of the files of the combination and of ``run.json``."""
     generations = files.generations
     executions = [files.executions.get(g.attempt) for g in generations]
     attempts = [_summary(g, e) for g, e in zip(generations, executions, strict=True)]
-    last_generation, last_execution = generations[-1], executions[-1]
-    accepted = attempts[-1].failure is None
-    tests, discarded = [], []
-    if accepted:
-        inputs = last_generation.parse.inputs
-        for item in last_execution.inputs:
-            if item.kept:
-                tests.append(TestCase(input=inputs[item.index], output=item.output))
-            else:
-                discarded.append(
-                    DiscardedInput(index=item.index, discard=item.discard, verdict=item.verdict)
-                )
+    last = generations[-1].attempt
+    if attempts[-1].failure is None:
+        chosen = last
+        status = "accepted" if config.attempt_kind(last) == "solution" else "accepted_predicted"
+    elif (chosen := _fallback(files)) is not None:
+        status = "accepted_fallback"
+    elif (chosen := _low_confidence(files)) is not None:
+        status = "accepted_low_confidence"
+    else:  # the 23rd was not parsed and the authors closed it (manual_close.json)
+        status = "discarded_manual"
+    tests, discarded, duplicates = [], [], 0
+    if chosen is not None:
+        parse = generations[chosen - 1].parse
+        duplicates = parse.duplicate_inputs
+        if status == "accepted_predicted":
+            tests = list(parse.tests)
+        else:
+            for item in executions[chosen - 1].inputs:
+                if item.kept:
+                    tests.append(TestCase(input=parse.inputs[item.index], output=item.output))
+                else:
+                    discarded.append(
+                        DiscardedInput(index=item.index, discard=item.discard, verdict=item.verdict)
+                    )
+    closed = files.manual_close if status == "discarded_manual" else None
     return SlmSuite(
         problem_id=problem_id,
         scenario=scenario,
         model=run.model,
         model_digest=run.model_digest,
-        status="accepted" if accepted else "discarded",
+        status=status,
         attempts=attempts,
-        accepted_attempt=last_generation.attempt if accepted else None,
+        accepted_attempt=chosen,
         tests=tests,
         suite_size=len(tests),
         discarded_inputs=discarded,
-        duplicate_inputs=last_generation.parse.duplicate_inputs if accepted else 0,
+        duplicate_inputs=duplicates,
+        manual_close=(
+            None
+            if closed is None
+            else ManualCloseInfo(reason=closed.reason, closed_at=closed.closed_at)
+        ),
     )
 
 
@@ -424,3 +562,17 @@ def count_in_state(
         except DamagedCombination:
             pass
     return total
+
+
+def awaiting_manual(
+    root: Path, combinations: Iterable[tuple[str, str]], run: RunConfig | None = None
+) -> list[tuple[str, str]]:
+    """The combinations of ``combinations`` that await manual handling (``close``), in order."""
+    found = []
+    for problem_id, scenario in combinations:
+        try:
+            if combination_state(root, problem_id, scenario, run).kind == "awaiting_manual":
+                found.append((problem_id, scenario))
+        except DamagedCombination:
+            pass
+    return found

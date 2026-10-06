@@ -202,8 +202,9 @@ elements)." e o item 1 perdeu "(including empty input if allowed)" (R13, item 2)
 **Decisão**: parser determinístico, sem correção heurística, sobre o texto cru (depois de só
 `\r\n` → `\n`):
 
-1. Cada uma das tags de topo `<edge_cases_analysis>`, `<inputs>`, `<reference_py>` deve abrir e
-   fechar **exatamente uma vez**, nesta ordem, sem se sobrepor. Qualquer outra situação (ausente,
+1. Cada uma das tags de topo `<edge_cases_analysis>`, `<reference_py>`, `<inputs>` deve abrir e
+   fechar **exatamente uma vez**, nesta ordem (a que o prompt pede; até o template de R17 era
+   `<edge_cases_analysis>`, `<inputs>`, `<reference_py>`), sem se sobrepor. Qualquer outra situação (ausente,
    duplicada, fora de ordem, sem fechamento) → `unparseable_response`, com o motivo exato
    (`missing_block:<tag>`, `duplicated_block:<tag>`, `wrong_order`, …).
 2. Texto fora dos três blocos (preâmbulo, comentário final) é **ignorado e contado**
@@ -686,3 +687,206 @@ Decisões (Milena, 2026-10-05):
    saídas erradas viram falsos positivos na TFP; acaba a assimetria de método entre o SLM e os dois
    comerciais, mas muda a metodologia). Critério sugerido: se o 14B deixar mais de ≈ 20% das
    combinações sem suíte, discutir a terceira opção.
+
+## R16 — Piloto 4 (`qwen2.5-coder:14b`) e suíte de reserva (2026-10-05)
+
+**Piloto 4 (2026-10-05, `data/suites/slm/`, `qwen2.5-coder:14b` Q4_K_M, template `336634f7…` de
+R14, mesmos 5 problemas, Python já sem `-S`)**: terminou com as 15 combinações terminais. Medido
+dos arquivos de tentativa:
+
+| | Piloto 3 (7B, parcial) | Piloto 4 (14B) |
+|---|---|---|
+| Tentativas aceitas | 5/37 (14%) | 13/40 (32,5%) |
+| Suítes aceitas (caixa-preta / caixa-branca / híbrido) | — (interrompido) | 3/5 / 5/5 / 5/5 |
+| Falhas | 32 (17 WA, 15 RE) | 27 (16 WA, 11 RE), todas em teste público |
+| Entradas por resposta | 10 a 20 | 10 a 21 |
+| *Tokens* de saída (mediana; máximo) | 1.001; 2.098 | 1.082; 2.009 |
+| Tempo por chamada (mediana; máximo) | 29 s; 131 s | 76 s; 252 s |
+
+As 2 suítes descartadas são de caixa-preta, e todas as 12 tentativas delas reprovaram num teste
+público, 11 por WA: `1008_B` (5 vezes `YES` no teste público 1, que espera `NO`; o prompt só
+mostra o teste público 0, cuja resposta é `YES`) e `1000_B` (5 vezes `7` em vez de `6` no teste 0,
+a mesma leitura errada do enunciado; a primeira foi RE). Nenhuma resposta deixou de ser
+interpretada.
+
+Decisões (Milena, 2026-10-05):
+
+1. **Nenhuma combinação pode ficar sem suíte.** O orçamento estrito passa de 6 para **8**
+   tentativas (seeds 43 a 50).
+2. **Suíte de reserva** (`accepted_fallback`): uma tentativa *pode ser reserva* se a resposta foi
+   interpretada, a solução reprovou um teste público por **WA** (não RE, TLE ou MLE) e ao menos uma
+   entrada gerada foi mantida. Se as 8 falharem, a melhor das que podem ser reserva vira a suíte,
+   sem nova chamada: a que passou mais testes públicos, depois a que manteve mais entradas, depois a
+   de menor número. RE/TLE/MLE ficaram de fora porque uma solução que quebra num exemplo válido
+   tende a quebrar também nas entradas geradas, e WA é o único caso em que as saídas existem e
+   foram produzidas por um algoritmo que termina.
+3. Para isso, **uma tentativa que reprova um teste público por WA roda as entradas geradas assim
+   mesmo** (o `outcome` continua `public_test_failed`); depois de RE/TLE/MLE nenhuma roda, como
+   antes.
+4. **Se nenhuma das 8 puder ser reserva**, as tentativas 9 a 12 (seeds 51 a 54) terminam na
+   primeira que passar em tudo (`accepted`) ou puder ser reserva (`accepted_fallback`). Só depois de
+   12 sem nenhuma das duas a suíte é descartada. O teto existe para um problema em que o modelo
+   sempre quebra não fazer o `generate`/`execute` alternar para sempre.
+5. **Status próprio** em vez de `accepted`: as saídas esperadas de uma reserva vêm de uma solução
+   que sabidamente erra em algum caso, então algum teste dela vai reprovar o `AC_ref` e contar como
+   falso positivo, e algum mutante "morto" pode ter sido morto pela saída errada. `suite.json`
+   guarda a tentativa escolhida (`accepted_attempt`) e, por tentativa, se ela podia ser reserva
+   (`fallback_eligible`); o relatório conta `accepted_fallback` e `fallback_rate` à parte. Como as
+   métricas tratam essas suítes fica pendente (metodologia, seção 6, item 31).
+6. `run.json` ganha `strict_attempts` (8) e `max_attempts` vai a 12: as árvores dos pilotos 1 a 4
+   não são lidas pelo código novo (o `--resume` e o `report` recusam o `run.json` antigo), o que é
+   o esperado, porque a regra mudou. O próximo piloto é uma execução nova.
+
+**Alternativas rejeitadas**: aceitar a 8ª tentativa com WA, qualquer que fosse (podia ser uma
+resposta não interpretada ou um RE, sem saídas); gerar tentativas extras com o critério relaxado
+mesmo havendo uma reserva entre as 8 (gastaria chamadas para obter algo que já existe); marcar a
+reserva como `accepted` (a análise não teria como separá-la).
+
+**Custo estimado, não medido**: as entradas de uma tentativa com WA passam a rodar (de 10 a 21
+execuções Python a mais por tentativa). O tempo dessa execução não foi medido nos pilotos.
+
+## R17 — Template revisto depois do piloto 4 (2026-10-06)
+
+**Decisão (Milena, 2026-10-06)**: o texto de `src/prompt_templates/slm_prompt.txt` foi trocado
+inteiro (SHA-256 `fc9757e8…`, era `336634f7…` de R14; 3.361 caracteres, eram 3.984). Os três
+marcadores, o `<few_shot_example>` e a composição dos cenários não mudam. O que muda:
+
+1. **Ordem dos blocos**: `<edge_cases_analysis>`, `<reference_py>`, `<inputs>`. A solução vem antes
+   das entradas. O parser (R6, regra 1) passou a exigir essa ordem; a antiga agora é `wrong_order`.
+   Um teste confere que a ordem do OUTPUT FORMAT do template é a mesma que o parser lê.
+2. **Três passos** (STEP 1 a 3) no lugar das quatro regras. A análise tem no máximo 15 linhas e
+   reescreve o formato de entrada, as restrições e a regra exata da resposta (igualdade, empate,
+   limites, *off-by-one*), e então simula o exemplo à mão.
+3. **Caixa-branca**: se `<context_data>` só tem código, o modelo deve inferir o comportamento e o
+   formato de entrada pela forma como o código lê a entrada. O texto continua igual nos 3 cenários.
+4. **Solução**: o algoritmo mais simples que seja obviamente correto, até força bruta; começa com
+   `import sys`; script plano, com toda variável definida antes do uso (alvo dos `NameError` e
+   `UnboundLocalError` de R15); `sys.setrecursionlimit(10**6)` se precisar de recursão; formato de
+   saída exato; sem cerca Markdown. Sai o aviso de que a resposta inteira é descartada se a solução
+   errar o exemplo.
+5. **Entradas**: sem contagem pedida (era de 10 a 20); cada entrada com no máximo ≈ 50 elementos e
+   20 linhas (era ≈ 100 elementos); nenhuma vazia, inválida ou repetida; se a entrada começa pelo
+   número de casos, ele precisa bater com os casos escritos; lista de cobertura (menor caso, cada
+   fronteira e seus vizinhos, valores extremos para *overflow*, elementos iguais, dados ordenados e
+   invertidos, alguns casos médios).
+
+**Efeito no tamanho do prompt (calculado, não medido)**: o maior prompt de R14 (híbrido, `61_B`,
+8.993 caracteres) cai para ≈ 8.370, porque só o template muda. `num_ctx`/`num_predict` não mudam.
+
+**Efeito nas execuções**: o `--resume` recusa uma árvore criada com outro template, então o piloto
+seguinte é uma execução nova (o que já valia por R16, decisão 6). O efeito do template novo sobre a
+taxa de acerto e o tamanho das suítes não foi medido.
+
+## R18 — Nenhuma combinação sem suíte (2026-10-06)
+
+**Decisão (Milena, 2026-10-06, `/speckit-clarify`; spec FR-022 a FR-022d)**: o descarte depois de 12
+tentativas (R16) deixa de existir no fluxo normal. Ordem:
+
+1. Tentativas 1 a 8 (seeds 43 a 50): `accepted` na primeira que passa em todos os testes públicos.
+2. Nenhuma passou: reserva `accepted_fallback` entre as 8 que falharam só por WA, com o desempate
+   de R16. Sem chamada nova.
+3. Nenhuma das 8 pode ser reserva: tentativas 9 a 20 (seeds 51 a 62), parando na primeira que for
+   `accepted` ou puder ser reserva.
+4. Depois da 20ª sem nenhuma das duas: `accepted_low_confidence` = a **primeira** das 20 cuja
+   solução manteve ao menos uma entrada gerada, mesmo tendo reprovado um teste público por RE, TLE
+   ou MLE. Para isso, as entradas geradas passam a rodar depois de **qualquer** reprovação em teste
+   público (em R16, só depois de WA).
+5. Nenhuma das 20 serve: **predição**. O mesmo modelo recebe um segundo template,
+   `src/prompt_templates/slm_predict_prompt.txt` (texto dos autores), com os mesmos cenários e o
+   mesmo exemplo, que pede `<edge_cases_analysis>` e `<tests>` (cada `<test>` com `<input>` e
+   `<output>`), sem solução Python, com as mesmas regras de entrada do template principal. Não há
+   validação pelos testes públicos (não existe programa). Nova tentativa só por resposta não
+   interpretável, até 3 (tentativas 21 a 23, seeds 63 a 65). Status `accepted_predicted`.
+6. Nem a predição interpretável: a combinação fica **aguardando tratamento manual**. O comando
+   continua com as demais e, no fim, sai com um código próprio listando todas; o `report` as conta
+   à parte e o `package` recusa enquanto existir alguma. Os autores a fecham por um comando
+   explícito, com o status `discarded_manual` e um motivo obrigatório, gravados com a data; ela
+   continua no N = 200.
+
+Relatório e métricas separados por status (metodologia, seção 6, item 31, decidido em parte).
+
+**Alternativas rejeitadas (perguntas do clarify)**: escolher a baixa confiança logo depois das 8,
+antes das extras (mais barato, mas contraria a ordem pedida); aceitar a baixa confiança já nas
+tentativas 9 a 20; parar o comando na primeira combinação sem suíte (bloquearia as demais); fechar
+a combinação só com mais tentativas por predição ou só fora da ferramenta.
+
+**Custo e efeitos não medidos**: até 20 chamadas com solução Python mais 3 de predição por
+combinação (com o 14B, mediana de 76 s por chamada no piloto 4); as entradas de uma tentativa com
+TLE num teste público podem levar até 10 vezes o limite de tempo cada uma (`PY_TIME_FACTOR`). Os
+detalhes (código de saída, nome do comando de fechamento, regras do parser de `<tests>`, `run.json`)
+ficam para o plano.
+
+## R19 — Desenho técnico de R18: baixa confiança, predição e tratamento manual (2026-10-06)
+
+Plano de R18 (spec FR-022 a FR-022d). Nenhuma dependência nova; nada de `src/sandbox/` muda.
+**Implementado em 2026-10-06** (tarefas T064 a T074), testado só com cliente e executor
+simulados; nenhum número medido com o modelo real.
+
+1. **Numeração das tentativas.** **Decisão**: um único contador por combinação, como hoje.
+   Tentativas 1 a 20 pedem solução Python (template principal); 21 a 23 pedem predição (template
+   novo). O tipo da tentativa sai do número, não de um campo: `config.STRICT_ATTEMPTS = 8`,
+   `SOLUTION_ATTEMPTS = 20`, `PREDICT_ATTEMPTS = 3`, `MAX_ATTEMPTS = 23`; seed `42 + n` (43 a 65).
+   **Alternativa rejeitada**: numerar as tentativas por predição à parte (1 a 3), o que daria
+   duas tentativas com a mesma seed na mesma combinação e quebraria FR-020.
+2. **Entradas depois de qualquer reprovação.** **Decisão**: o `evaluate_attempt` roda as entradas
+   geradas depois de RE, TLE e MLE num teste público, como já faz depois de WA; o
+   `ExecutionRecord` passa a exigir uma entrada avaliada por entrada gerada sempre que a resposta
+   foi interpretada. **Custo (não medido)**: uma solução com TLE num teste público tende a dar TLE
+   nas entradas, cada uma até 10 vezes o limite do problema; **alternativa rejeitada**: só rodar as
+   entradas depois da 20ª (exigiria reabrir tentativas já gravadas e um arquivo de execução
+   reescrito, contra a regra de arquivos imutáveis).
+3. **Quem pode ser de baixa confiança.** **Decisão**: `low_confidence_eligible` = resposta
+   interpretada, `public_test_failed` e ao menos uma entrada mantida. Só é usado depois da 20ª,
+   quando nenhuma tentativa pode ser reserva (então nenhuma das elegíveis tem WA). A suíte vem da
+   **primeira** delas, com as entradas mantidas e as saídas reais da solução, sem chamada nova.
+4. **Resposta por predição.** **Decisão**: um parser próprio, `parse_prediction`, com as regras de
+   R6 adaptadas: `<edge_cases_analysis>` e `<tests>` uma vez cada, nesta ordem, sem sobreposição;
+   texto fora dos blocos ignorado e contado; dentro de `<tests>`, um ou mais `<test>`, só espaço em
+   branco entre eles (`text_between_tests`); cada `<test>` tem exatamente um `<input>` seguido de um
+   `<output>`, só espaço em branco ao redor (`malformed_test`); cada bloco perde as linhas em branco
+   das pontas e ganha exatamente um `\n` final (como as entradas). Um `<test>` com entrada **ou**
+   saída vazia é descartado sozinho e contado (`empty_tests`); todos vazios → `only_empty_tests`;
+   entradas repetidas ficam e são contadas. Não há cerca Markdown a remover (não há código). A
+   saída prevista é guardada como veio (só a normalização das pontas), sem nenhuma conferência.
+   **Alternativa rejeitada**: aceitar saída vazia (raro em programação competitiva e, sem um
+   programa, impossível de distinguir de uma resposta que esqueceu a saída).
+5. **Registro da predição.** **Decisão**: o mesmo `attempt_<n>.generation.json`; `parse` ganha o
+   terceiro formato `PredictionParse` (`ok: true`, `edge_cases_analysis`, `tests: list[TestCase]`,
+   `extraneous_chars`, `duplicate_inputs`, `empty_tests`). O schema confere que tentativas 1 a 20
+   só têm `ParsedResponse`/`UnparsedResponse` e 21 a 23 só `PredictionParse`/`UnparsedResponse`.
+   Tentativa por predição nunca tem `attempt_<n>.execution.json` (seria dano). A interpretada vira
+   `suite.json` direto no `generate`, sem passar pelo `execute`.
+6. **`run.json`.** **Decisão**: `max_attempts` passa a 23 e entram `solution_attempts` (20),
+   `predict_attempts` (3) e `predict_template_sha256`; todos comparados no `--resume`. O
+   `run.json` dos pilotos anteriores não é lido pelo código novo (como em R16, decisão 6).
+7. **Aguardando tratamento manual.** **Decisão**: estado novo da máquina de estados,
+   `awaiting_manual`, derivado dos arquivos (23 tentativas e a 23ª sem interpretação), sem arquivo
+   próprio. `generate` e `execute` seguem com as outras combinações e, no fim, se alguma combinação
+   da seleção está nesse estado, imprimem uma linha `manual: <id> <scenario>: …` por combinação,
+   com o comando de fechamento, e saem com o **código 4** (novo). Dano (código 1), infraestrutura
+   (3) e interrupção (130) têm precedência sobre o 4, mas as linhas `manual:` saem do mesmo jeito.
+   `report` conta `awaiting_manual` e sai com 0; `package` recusa com código 1 (como para qualquer
+   combinação sem `suite.json`). **Alternativa rejeitada**: reaproveitar o código 1 (misturaria um
+   estado esperado do fluxo com dano nos arquivos).
+8. **Fechamento manual.** **Decisão**: comando novo `python -m ai_clients close --problem ID
+   --scenario S --reason TEXTO` (serviço `app`, uma combinação por vez, as três opções
+   obrigatórias, motivo não vazio). Só aceita uma combinação em `awaiting_manual` (senão código 2,
+   dizendo o estado). Grava `manual_close.json` (`reason`, `closed_at`) e, em seguida, o
+   `suite.json` com `status: discarded_manual`, `tests: []`, `accepted_attempt: null` e o objeto
+   `manual_close` copiado — o `suite.json` continua sendo função pura dos arquivos da pasta.
+   `--dry-run` mostra o que seria gravado. **Alternativa rejeitada**: fechar com uma opção do
+   `generate` (misturaria uma decisão humana com o laço automático).
+9. **`suite.json`.** **Decisão**: `status` ∈ `accepted`, `accepted_fallback`,
+   `accepted_low_confidence`, `accepted_predicted`, `discarded_manual` (sai `discarded`);
+   `AttemptSummary` ganha `low_confidence_eligible` e `kind` (`solution` ou `prediction`);
+   `manual_close` (objeto ou `null`). Numa suíte por predição, `tests` são os pares do modelo,
+   `discarded_inputs` fica vazio e `duplicate_inputs` vem da tentativa escolhida.
+10. **Relatório.** **Decisão**: `combinations` com um contador por status mais `awaiting_manual`,
+   `pending_generation` e `pending_execution` (somam `total`); `status_rate` (status → cenário →
+   proporção) no lugar de `discard_rate` e `fallback_rate`; `suite_size` por status (cada um por
+   cenário e no total); `attempt_failures` com as tentativas 1 a 23; `empty_tests` por cenário.
+11. **`cli check`.** **Decisão**: a camada `slm_suites` aceita até 23 tentativas, nenhuma
+   `attempt_<n>.execution.json` com `n ≥ 21` e o arquivo `manual_close.json`; o resto fica igual.
+12. **`num_ctx`/`num_predict`.** **Decisão**: sem mudança; o template de predição tem 2.333
+   caracteres (medido no texto enviado pela Milena; o principal tem 3.361) e a guarda de `num_ctx` vale para ele. **Não medido**: o
+   tamanho das respostas por predição.

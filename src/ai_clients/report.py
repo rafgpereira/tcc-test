@@ -1,7 +1,7 @@
 """Build ``manifests/slm_generation_report.json`` from ``data/suites/slm/`` (read only).
 
-The scope is always every problem of the dataset × the 3 scenarios, so the discard rate is over
-all of them (N is never reduced to the suites that survived). A damaged combination stops the
+The scope is always every problem of the dataset × the 3 scenarios, so the share of each status is
+over all of them (N is never reduced). A damaged combination stops the
 report: numbers over files that do not agree with each other would be worthless.
 """
 
@@ -11,9 +11,13 @@ from pathlib import Path
 from ai_clients import config, store
 from ai_clients.problem import list_problem_ids
 from ai_clients.schemas.common import AttemptFailure, InputDiscard
+from ai_clients.schemas.generation import PredictionParse
 from ai_clients.schemas.report import (
     GROUPS,
+    STATES,
+    STATUSES,
     TOTAL,
+    WITH_TESTS,
     AttemptCounts,
     CombinationCounts,
     SizeStats,
@@ -59,13 +63,13 @@ def build_report(root: Path) -> SlmGenerationReport:
     root = Path(root)
     run = store.read_run(root)
     counts = {group: Counter() for group in GROUPS}
-    sizes: dict[str, list[int]] = {group: [] for group in GROUPS}
+    sizes = {status: {group: [] for group in GROUPS} for status in WITH_TESTS}
     failures = {reason: Counter() for reason in AttemptFailure}
     discards: Counter = Counter()
     hardware: Counter = Counter()
     seeds: dict[str, list[int]] = {}
     damaged: list[store.DamagedCombination] = []
-    length, fences, empty = Counter(), Counter(), Counter()
+    length, fences, empty, empty_tests = Counter(), Counter(), Counter(), Counter()
     calls = failed = duplicates = prompt_total = eval_total = prompt_max = 0
     duration_ns = 0
     for problem_id in list_problem_ids(root):
@@ -79,9 +83,9 @@ def build_report(root: Path) -> SlmGenerationReport:
                 damaged.append(exc)
                 continue
             kind = state.kind if suite is None else suite.status.value
-            if kind == "accepted":
+            if kind in WITH_TESTS:
                 for group in (TOTAL, scenario):
-                    sizes[group].append(suite.suite_size)
+                    sizes[kind][group].append(suite.suite_size)
                 duplicates += suite.duplicate_inputs
             for group in (TOTAL, scenario):
                 counts[group][kind] += 1
@@ -98,7 +102,9 @@ def build_report(root: Path) -> SlmGenerationReport:
                 parse = generation.parse
                 for group in (TOTAL, scenario):
                     length[group] += meta is not None and meta.done_reason == "length"
-                    if parse.ok:
+                    if isinstance(parse, PredictionParse):
+                        empty_tests[group] += parse.empty_tests
+                    elif parse.ok:
                         fences[group] += parse.markdown_fence_removed
                         empty[group] += parse.empty_inputs
                 execution = attempts.executions.get(generation.attempt)
@@ -120,10 +126,7 @@ def build_report(root: Path) -> SlmGenerationReport:
     combinations = {
         group: CombinationCounts(
             total=sum(counts[group].values()),
-            accepted=counts[group]["accepted"],
-            discarded=counts[group]["discarded"],
-            pending_generation=counts[group]["pending_generation"],
-            pending_execution=counts[group]["pending_execution"],
+            **{state: counts[group][state] for state in STATES},
         )
         for group in GROUPS
     }
@@ -135,12 +138,20 @@ def build_report(root: Path) -> SlmGenerationReport:
         options=run.options,
         seed_base=run.seed_base,
         prompt_template_sha256=run.prompt_template_sha256,
+        predict_template_sha256=run.predict_template_sha256,
         dataset_manifest_sha256=run.dataset_manifest_sha256,
         combinations=combinations,
-        discard_rate={
-            group: (c.discarded / c.total if c.total else 0.0) for group, c in combinations.items()
+        status_rate={
+            status: {
+                group: (getattr(c, status) / c.total if c.total else 0.0)
+                for group, c in combinations.items()
+            }
+            for status in STATUSES
         },
-        suite_size={group: size_stats(sizes[group]) for group in GROUPS},
+        suite_size={
+            status: {group: size_stats(sizes[status][group]) for group in GROUPS}
+            for status in WITH_TESTS
+        },
         attempts=AttemptCounts(total=calls, failed=failed),
         attempt_failures={
             reason: {n: failures[reason][n] for n in numbers} for reason in AttemptFailure
@@ -150,6 +161,7 @@ def build_report(root: Path) -> SlmGenerationReport:
         done_reason_length={group: length[group] for group in GROUPS},
         markdown_fences_removed={group: fences[group] for group in GROUPS},
         empty_inputs={group: empty[group] for group in GROUPS},
+        empty_tests={group: empty_tests[group] for group in GROUPS},
         tokens=TokenCounts(prompt_total=prompt_total, eval_total=eval_total, prompt_max=prompt_max),
         duration_s_total=duration_ns / 1e9,
         hardware=dict(sorted(hardware.items())),

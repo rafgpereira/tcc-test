@@ -3,8 +3,8 @@
 Rules (docs/metodologia-referencia.md, section 3; research R6), applied to the raw text after only
 ``\\r\\n`` -> ``\\n``:
 
-1. ``<edge_cases_analysis>``, ``<inputs>`` and ``<reference_py>`` each open and close exactly once,
-   in this order, without overlapping; anything else fails with the exact reason.
+1. ``<edge_cases_analysis>``, ``<reference_py>`` and ``<inputs>`` each open and close exactly once,
+   in this order (the one the prompt asks for), without overlapping; anything else fails with the exact reason.
 2. Text outside the three blocks is ignored and its non-blank characters are counted; it never
    changes what is read.
 3. ``<inputs>`` holds one or more ``<input>...</input>``, not nested, with only whitespace between.
@@ -19,11 +19,13 @@ Rules (docs/metodologia-referencia.md, section 3; research R6), applied to the r
    counted.
 
 ``parse_response`` is pure and never raises: every answer is either parsed or has an error code.
+``parse_prediction`` does the same for the answer of a prediction attempt (end of this file).
 """
 
-from ai_clients.schemas.generation import ParsedResponse, UnparsedResponse
+from ai_clients.schemas.generation import ParsedResponse, PredictionParse, UnparsedResponse
+from dataset.schemas.testes import TestCase
 
-TAGS = ("edge_cases_analysis", "inputs", "reference_py")
+TAGS = ("edge_cases_analysis", "reference_py", "inputs")
 FENCE_OPENINGS = ("```python", "```py", "```")
 FENCE_CLOSING = "```"
 
@@ -94,18 +96,24 @@ def _inputs(body: str) -> tuple[list[str], int]:
     return inputs, empty
 
 
-def _parse(raw: str) -> ParsedResponse:
+def _blocks(raw: str, tags: tuple[str, ...]) -> tuple[dict[str, str], int]:
+    """The content of each top-level block, and the non-blank characters outside them."""
     text = raw.replace("\r\n", "\n")
-    spans = [_span(text, tag) for tag in TAGS]
+    spans = [_span(text, tag) for tag in tags]
     starts = [span[0] for span in spans]
     if starts != sorted(starts):
         raise _Unparseable("wrong_order")
     if any(spans[i][3] > spans[i + 1][0] for i in range(len(spans) - 1)):
         raise _Unparseable("overlapping_blocks")
-    blocks = {tag: text[span[1] : span[2]] for tag, span in zip(TAGS, spans, strict=True)}
+    blocks = {tag: text[span[1] : span[2]] for tag, span in zip(tags, spans, strict=True)}
     outside = [text[: spans[0][0]]]
     outside += [text[spans[i][3] : spans[i + 1][0]] for i in range(len(spans) - 1)]
     outside.append(text[spans[-1][3] :])
+    return blocks, sum(len("".join(part.split())) for part in outside)
+
+
+def _parse(raw: str) -> ParsedResponse:
+    blocks, extraneous = _blocks(raw, TAGS)
     analysis = _normalize_block(blocks["edge_cases_analysis"])
     code, fence_removed = _strip_fence(_normalize_block(blocks["reference_py"]))
     for tag, value in (("edge_cases_analysis", analysis), ("reference_py", code)):
@@ -117,7 +125,7 @@ def _parse(raw: str) -> ParsedResponse:
         edge_cases_analysis=analysis,
         inputs=inputs,
         reference_py=code,
-        extraneous_chars=sum(len("".join(part.split())) for part in outside),
+        extraneous_chars=extraneous,
         duplicate_inputs=len(inputs) - len(set(inputs)),
         empty_inputs=empty,
         markdown_fence_removed=fence_removed,
@@ -128,5 +136,89 @@ def parse_response(raw: str) -> ParsedResponse | UnparsedResponse:
     """Parse the raw answer of the model; never raises."""
     try:
         return _parse(raw)
+    except _Unparseable as exc:
+        return UnparsedResponse(ok=False, error=str(exc))
+
+
+# ------------------------------------------------------------------------------- prediction
+#
+# The answer of a prediction attempt (research R19, item 4): ``<edge_cases_analysis>`` and
+# ``<tests>``, with the same rules 1, 2 and 4 as above; inside ``<tests>``, one or more ``<test>``
+# with only whitespace between them, each holding exactly one ``<input>`` followed by one
+# ``<output>`` and nothing else but whitespace. A test with an empty input or output is dropped
+# alone and counted (``empty_tests``); only when every test is dropped does the answer fail. The
+# predicted output is kept as written (only rule 4), never checked: there is no program to run.
+
+PREDICTION_TAGS = ("edge_cases_analysis", "tests")
+_TEST_PARTS = ("input", "output")
+
+
+def _test(content: str) -> tuple[str, str]:
+    """The (input, output) of the content of one ``<test>``, not yet normalized."""
+    rest, parts = content.strip(), []
+    for tag in _TEST_PARTS:
+        opening, closing = f"<{tag}>", f"</{tag}>"
+        end = rest.find(closing)
+        if not rest.startswith(opening) or end < 0:
+            raise _Unparseable("malformed_test")
+        body = rest[len(opening) : end]
+        if any(f"<{t}>" in body or f"</{t}>" in body for t in _TEST_PARTS):
+            raise _Unparseable("malformed_test")
+        parts.append(body)
+        rest = rest[end + len(closing) :].strip()
+    if rest:
+        raise _Unparseable("malformed_test")
+    return parts[0], parts[1]
+
+
+def _tests(body: str) -> tuple[list[TestCase], int]:
+    """The tests with a non-empty input and output, in order, and how many were dropped."""
+    tests, empty, position = [], 0, 0
+    while True:
+        start = body.find("<test>", position)
+        gap = body[position:] if start < 0 else body[position:start]
+        if gap.strip():
+            raise _Unparseable("text_between_tests")
+        if start < 0:
+            break
+        content_start = start + len("<test>")
+        end = body.find("</test>", content_start)
+        if end < 0:
+            raise _Unparseable("unclosed_block:test")
+        content = body[content_start:end]
+        if "<test>" in content:
+            raise _Unparseable("nested_test")
+        given, expected = (_normalize_block(part) for part in _test(content))
+        if given and expected:
+            tests.append(TestCase(input=given, output=expected))
+        else:
+            empty += 1
+        position = end + len("</test>")
+    if not tests:
+        raise _Unparseable("only_empty_tests" if empty else "no_tests")
+    return tests, empty
+
+
+def _parse_prediction(raw: str) -> PredictionParse:
+    blocks, extraneous = _blocks(raw, PREDICTION_TAGS)
+    analysis = _normalize_block(blocks["edge_cases_analysis"])
+    if not analysis:
+        raise _Unparseable("empty_block:edge_cases_analysis")
+    tests, empty = _tests(blocks["tests"])
+    inputs = [test.input for test in tests]
+    return PredictionParse(
+        ok=True,
+        edge_cases_analysis=analysis,
+        tests=tests,
+        extraneous_chars=extraneous,
+        duplicate_inputs=len(inputs) - len(set(inputs)),
+        empty_tests=empty,
+    )
+
+
+def parse_prediction(raw: str) -> PredictionParse | UnparsedResponse:
+    """Parse the raw answer of a prediction attempt; never raises."""
+    try:
+        return _parse_prediction(raw)
     except _Unparseable as exc:
         return UnparsedResponse(ok=False, error=str(exc))

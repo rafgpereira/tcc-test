@@ -62,7 +62,9 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
 - Suítes do modelo local (`ai_clients`; precisa de `OLLAMA_BASE_URL` e `OLLAMA_HARDWARE_LABEL` no
   `.env`): alternar `docker compose run --rm app python -m ai_clients generate [--resume]` e
   `docker compose run --rm sandbox python -m ai_clients execute` até o `execute` não imprimir
-  `next:`; depois `docker compose run --rm app python -m ai_clients report`, `... package` e
+  `next:` (código `4` = algum problema e cenário aguarda os autores: decidir e fechar com
+  `docker compose run --rm app python -m ai_clients close --problem ID --scenario S --reason "..."`);
+  depois `docker compose run --rm app python -m ai_clients report`, `... package` e
   `... verify [--extracted data/suites/slm]`
 - Conferir a consistência entre artefatos (dataset descompactado × mutantes × suítes do modelo
   local, 1:1, com contagens; só lê): `docker compose run --rm app python -m cli check [--deep]`. Todo módulo que
