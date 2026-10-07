@@ -183,6 +183,21 @@ vira uma trava compartilhada para `generate`/`execute` mais uma trava exclusiva 
   ele pula ou espera? → A: Pula: segue com as outras combinações e informa no resumo final quantas
   pulou por estarem em uso; a pulada fica com o processo que a pegou primeiro (FR-026a).
 
+### Session 2026-10-07 (resposta do Ollama em *streaming*, `research.md` R25)
+
+Pedido da Milena: pelo túnel do cloudflared, toda chamada que passa de ~100 s recebe HTTP 524 (o
+proxy do Cloudflare encerra o pedido sem nenhum byte nesse tempo), e o `generate` repete a mesma
+chamada até esgotar as 30 repetições. A resposta passa a vir em *streaming* (`"stream": true`); o
+texto, as opções e a seed não mudam, e o resultado gravado é idêntico ao da chamada sem
+*streaming*, então a execução em andamento continua com `--resume` (FR-002a).
+
+- Q: Uma conexão que cai no meio da resposta é o quê? → A: Falha de infraestrutura: a mesma
+  chamada, com a mesma seed, é refeita, e nada da resposta parcial é gravado (FR-018a).
+- Q: O que passa a medir `OLLAMA_HTTP_TIMEOUT_S`? → A: O maior tempo sem receber nenhum byte da
+  resposta (o silêncio), não a resposta inteira; uma geração longa que continua mandando pedaços
+  não é cortada, e a duração dela continua limitada por `num_predict` (decidido pelo agente e
+  registrado em R25, item 3, por ser a única leitura compatível com o *streaming*).
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
@@ -400,6 +415,11 @@ tentativas por razão) somam corretamente.
 - **FR-002**: Cada chamada ao modelo MUST ser uma única requisição *stateless* — sem reter ou
   reaproveitar histórico de nenhuma chamada anterior, para o mesmo ou para outro problema ×
   cenário (Constitution, Princípio III).
+- **FR-002a**: A resposta MUST ser pedida em *streaming* e montada no cliente: o conteúdo é a
+  junção dos pedaços, e modelo, `created_at`, `done_reason`, contagens de *tokens* e durações vêm
+  do último pedaço (`done: true`), de modo que o registro gravado seja idêntico ao da mesma chamada
+  sem *streaming*; nada do transporte MUST entrar no `run.json`, e uma execução começada sem
+  *streaming* MUST continuar com `--resume`. Decidido em 2026-10-07 (R25).
 - **FR-003**: O endereço do servidor Ollama MUST ser configurável via `.env` (máquina local ou
   servidor remoto), e cada resultado persistido MUST registrar o identificador exato do modelo
   que respondeu.
@@ -482,10 +502,12 @@ tentativas por razão) somam corretamente.
   interrompe a geração com `token repeat limit reached` (razão `repetition`, acrescentada em
   2026-10-04: com a mesma seed o laço se repetiria, então não é falha de infraestrutura).
 - **FR-018a**: Uma falha de infraestrutura na chamada ao Ollama (serviço inacessível, timeout de
-  conexão, erro do lado do servidor que não seja a falha do modelo de FR-018(d)) MUST NOT consumir uma unidade do orçamento de tentativas —
+  conexão, erro do lado do servidor que não seja a falha do modelo de FR-018(d), resposta em
+  *streaming* que termina antes do último pedaço — desde 2026-10-07, R25) MUST NOT consumir uma unidade do orçamento de tentativas —
   a mesma chamada, com a mesma seed, MUST ser reexecutada quando o serviço voltar a responder.
   As repetições consecutivas de uma mesma chamada MUST ter um teto, e o tempo máximo de espera de
-  uma resposta MUST ser um *timeout* de leitura; ambos são configuráveis pelo operador no `.env`
+  uma resposta MUST ser um *timeout* de leitura (desde 2026-10-07, o maior silêncio entre dois
+  pedaços da resposta, R25); nada de uma resposta incompleta MUST ser gravado; ambos são configuráveis pelo operador no `.env`
   (com valor padrão). Atingir o teto MUST encerrar o comando com erro de infraestrutura, sem
   gravar a tentativa e sem consumir o orçamento; a próxima execução refaz a mesma chamada.
 - **FR-019**: Quando a solução Python falha (erro de execução ou timeout) em algumas entradas

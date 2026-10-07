@@ -1116,7 +1116,8 @@ completos (schema da suíte, formato exato de persistência, retomada) em
 `specs/003-slm-test-generation/research.md`, R2–R8; amostragem, forma dos casos e ajuste do
 template confirmados por Milena no mesmo dia]**:
 
-- **Chamada**: `POST /api/chat` do Ollama, `stream: false`, **uma única mensagem** (`role:
+- **Chamada**: `POST /api/chat` do Ollama, `stream: false` (desde 2026-10-07, `stream: true`;
+  ver "Resposta em *streaming*" abaixo), **uma única mensagem** (`role:
   user`) com o prompt inteiro, sem `context` nem `system` — sem estado por construção (R2). O
   `digest` do modelo (`qwen2.5-coder:7b`), a quantização e a versão do Ollama são registrados por
   execução e conferidos em toda retomada.
@@ -1388,6 +1389,17 @@ template confirmados por Milena no mesmo dia]**:
   experimento muda: os arquivos gravados são os mesmos de uma execução sem concorrência; as travas
   são arquivos com ponto, fora do pacote e do `cli check`. Testado com dois `generate` em metades
   disjuntas e sobrepostas, `execute` com `generate` ativo e `package`/`close` recusados.
+- **Resposta em *streaming* [DECIDIDO E IMPLEMENTADO, 2026-10-07 — `research.md` R25]**: pelo
+  túnel do cloudflared, chamadas de mais de ~100 s recebiam HTTP 524 (o proxy fecha um pedido sem
+  bytes nesse tempo) e eram repetidas até esgotar as repetições. O `/api/chat` passa a ser pedido
+  com `stream: true`: o conteúdo é a junção dos pedaços e modelo, `created_at`, `done_reason`,
+  contagens e durações vêm do último pedaço, o que dá o **mesmo registro** da chamada sem
+  *streaming* (texto, opções e seed não mudam; o *streaming* é só transporte). Resposta que
+  termina antes do último pedaço é falha de infraestrutura (mesma chamada, mesma seed, nada
+  gravado). `OLLAMA_HTTP_TIMEOUT_S` passa a medir o maior silêncio entre pedaços. O `run.json`
+  não muda: a execução em andamento continua com `--resume` (conferido: nenhuma diferença).
+  Única diferença de texto: o `detail` de uma falha `repetition` passa a citar o *stream* em vez
+  de `HTTP 500` (informativo; o motivo e a contagem são os mesmos).
 
 **Template de prompt**: estrutura única em inglês, com marcação XML (`<system_rules>`,
 `<context_data>`, `<few_shot_example>`, `<task>`), combinando Few-Shot Prompting +
@@ -1647,6 +1659,7 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-10-07 | **Resposta do Ollama em *streaming* (`research.md` R25)**: `stream: true`, pedaços juntados e métricas do último (registro idêntico ao sem *streaming*); resposta incompleta é falha de infraestrutura; `OLLAMA_HTTP_TIMEOUT_S` = maior silêncio entre pedaços; `run.json` inalterado e `--resume` aceita a execução atual; motivo: HTTP 524 do Cloudflare em chamadas de mais de ~100 s | 3 |
 | 2026-10-07 | **Execução concorrente do SLM para duas GPUs (`research.md` R24)**: trava compartilhada para `generate --resume`/`execute`, trava por combinação (a combinação em uso é pulada e contada), `close`, `package` e o primeiro `generate` exclusivos, um `execute` por vez; laço em bash das duas GPUs no README do módulo; os dados gravados não mudam | 3 |
 | 2026-10-07 | **Piloto 6 do SLM e decisão da execução completa (`research.md` R23)**: 15 de 15 combinações com suíte (13 `accepted`, 12 na fase 1 e 1 na fase 2; 2 `accepted_fallback`), 57 chamadas, 13 aceitas (22,8%), 44 falhas (35 WA, 8 RE, 1 `all_inputs_failed`), mediana de 43 s, ≈ 46 min; fases 4 e 5 não exercitadas. Decidido: configuração congelada; a execução completa continua a mesma execução com `--resume` até 600; duas GPUs T4 (Kaggle) com dois `generate` em paralelo sobre metades disjuntas; determinismo entre GPUs não medido | 3 |
 | 2026-10-06 | **Política de 5 fases implementada (`research.md` R22)**: tabela `ATTEMPT_POLICY` por extenso no código (seeds 42–47 a 0,7; seed 48 de 0,7 a 0,2; predição 49–51 a 0,7), gravada no `run.json` e conferida em cada tentativa; `schema_version` 2 e recusa das execuções anteriores com código 2; reserva só depois da 12ª; entradas só depois de WA; cerca removida em `<input>`/`<output>` da predição; relatório com `acceptance` e `per_phase`; saem `OLLAMA_TEMPERATURE`, `OLLAMA_SEED_BASE` e `accepted_low_confidence`. Testado com modelo e execução simulados; nenhum número medido com o modelo real | 3 |

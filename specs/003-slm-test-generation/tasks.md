@@ -422,3 +422,14 @@ Execução concorrente para duas GPUs (spec FR-026a, sessão 2026-10-07; researc
 - [X] T093 `__main__`: `generate --resume` e `execute` com a trava compartilhada (`execute` também com `single_execute`), o primeiro `generate`, `close` e `package` com a exclusiva; `; N skipped (in use by another command)` no resumo quando N > 0 per FR-026a, contracts/cli.md (missing)
 - [X] T094 Testes em `tests/ai_clients/test_concurrency.py` (novo): dois `generate` em metades disjuntas ao mesmo tempo; metades sobrepostas (a combinação em uso pulada e contada, nenhuma tentativa repetida, relatório sem dano); `execute` com `generate` ativo; `execute` pulando a combinação em uso; `package` e `close` recusados com `generate` rodando; segundo `execute` recusado; `generate`/`execute` recusados com a exclusiva; travas fora do pacote. `test_resume.py` e `test_packaging.py` ignoram todo arquivo com ponto, como o pacote per R24 item 5 (missing)
 - [X] T095 📌 PROPAGAR — `src/ai_clients/README.md` (tabela de comandos, "Se algo der errado", o laço em bash das duas GPUs no passo 4), `README.md` da raiz ("Estado atual", "Referência de comandos"), metodologia (seção 3 + seção 8), R24 e S15 marcados como implementados; `check_docs_sync.py` sai `0` per Constitution XI (missing)
+
+## Phase 13: Convergence
+
+Resposta do Ollama em *streaming* (spec FR-002a e FR-018a, sessão 2026-10-07; research R25;
+contratos). Valem as regras do topo (teste antes, 📌 PROPAGAR); tudo conferido com
+`docker compose run --rm sandbox pytest tests/ai_clients tests/cli`.
+
+- [X] T096 Testes em `tests/ai_clients/test_ollama.py`: o servidor local de teste passa a responder em *streaming* (`stream_of`); *stream* completo em vários pedaços = o `Completion` sem *streaming*; métricas só do último pedaço; *timeout* como silêncio entre pedaços; *stream* sem `done` (0, 1 e 3 pedaços), cortado no meio de uma linha e menor que o `Content-Length` → `OllamaUnavailable`; `token repeat limit reached` no *stream* → `ModelRepetition`; outro erro e linha que não é JSON → `OllamaUnavailable` per FR-002a, R25 item 7 (missing)
+- [X] T097 `src/ai_clients/ollama.py`: `"stream": true` em `request_body`; `OllamaClient._stream_chat` junta os pedaços e devolve o último; `_translated` concentra a tradução de erros (inclusive `http.client.HTTPException`) para abrir e para ler; `model_info` sem mudança per FR-002a, FR-018a, R25 itens 1–5 (missing)
+- [X] T098 Conferir que o `run.json` não muda (`test_resume_config.py`: nenhum campo de *streaming*) e comparar o `run.json` da execução em andamento com a configuração atual (nenhuma diferença) per FR-002a, R25 item 6 (missing)
+- [X] T099 📌 PROPAGAR — `src/ai_clients/README.md` (o que `OLLAMA_HTTP_TIMEOUT_S` mede, o 524 e a resposta interrompida em "Se algo der errado"), `.env.example`, metodologia (seção 3 + seção 8), R25 e S16 implementados; `check_docs_sync.py` sai `0` per Constitution XI (missing)

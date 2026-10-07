@@ -80,13 +80,13 @@ Se a interpretação falhar, faz na hora a tentativa `n + 1`, a menos que a comb
 | `--dry-run` | imprime, por combinação que seria chamada, o tamanho do prompt em caracteres e a tentativa/seed; ao fim, o maior prompt por cenário e o total de chamadas previstas; não exige `OLLAMA_BASE_URL`/`OLLAMA_HARDWARE_LABEL` |
 
 Variáveis de ambiente (`.env`, research R12): `OLLAMA_BASE_URL` e `OLLAMA_HARDWARE_LABEL`,
-obrigatórias fora do `--dry-run` (código 2 se faltarem); `OLLAMA_HTTP_TIMEOUT_S` (padrão 900) e
+obrigatórias fora do `--dry-run` (código 2 se faltarem); `OLLAMA_HTTP_TIMEOUT_S` (padrão 900; desde 2026-10-07 o maior silêncio entre dois pedaços da resposta, R25) e
 `OLLAMA_MAX_INFRA_RETRIES` (padrão 30), opcionais — valor que não é inteiro positivo → código 2.
 `OLLAMA_MODEL`, opcional (desde 2026-10-05, R15): outro modelo do Ollama para um piloto que compara
 modelos (padrão `qwen2.5-coder:7b`); vai para o `run.json`, e o `--resume` recusa um modelo
 diferente do gravado (código 2).
 
-Falha de infraestrutura (Ollama inacessível, *timeout*, HTTP 5xx, túnel do ngrok fora do ar — HTTP de erro com `ERR_NGROK_` no corpo): imprime
+Falha de infraestrutura (Ollama inacessível, *timeout*, HTTP 5xx — inclusive o 524 de um proxy —, túnel do ngrok fora do ar — HTTP de erro com `ERR_NGROK_` no corpo —, resposta em *streaming* que termina antes do último pedaço, desde 2026-10-07): imprime
 `ollama unavailable (<motivo>); retrying the same call (seed S) in T s (retry k of N)` e repete a
 mesma chamada, sem gravar nada, até `OLLAMA_MAX_INFRA_RETRIES` repetições consecutivas; atingido o
 teto, sai com código 3 (`ollama unavailable after N consecutive retries (<motivo>); nothing was

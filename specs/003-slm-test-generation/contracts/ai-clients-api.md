@@ -28,7 +28,7 @@ class SLMClient(Protocol):
     def model_info(self, model: str) -> ModelInfo: ...        # digest, quantização, versão
     def complete(self, model: str, prompt: str, options: GenerationOptions) -> Completion: ...
 
-class OllamaClient:                # implementação real, urllib, POST /api/chat, stream=false
+class OllamaClient:                # implementação real, urllib, POST /api/chat, stream=true desde 2026-10-07 (R25)
     def __init__(self, base_url: str, *, timeout_s: float) -> None: ...
         # timeout_s = OLLAMA_HTTP_TIMEOUT_S do .env, ou config.DEFAULT_HTTP_TIMEOUT_S (900)
 ```
@@ -192,3 +192,13 @@ def claim(root: Path, problem_id: str, scenario: str) -> Iterator[bool]: ...
 
 `GenerateResult` e `ExecuteResult` ganham `skipped: int`. Testes em
 `tests/ai_clients/test_concurrency.py` (R24, item 5).
+
+## Desde 2026-10-07, resposta em *streaming* (research R25)
+
+`request_body` manda `"stream": true`; `OllamaClient.complete` lê uma linha JSON por pedaço, junta
+os `message.content` e tira `model`, `created_at`, `done_reason`, contagens e durações do pedaço com
+`done: true` (o mesmo `Completion` da resposta sem *streaming*). Sem esse pedaço (conexão fechada ou
+cortada, linha que não é JSON, *timeout* entre pedaços) → `OllamaUnavailable`, nada devolvido; uma
+linha `{"error": ...}` → `ModelRepetition` se for `token repeat limit reached`, senão
+`OllamaUnavailable`. `timeout_s` é o maior silêncio entre dois pedaços. Testes em
+`tests/ai_clients/test_ollama.py` e `test_resume_config.py` (R25, itens 6 e 7).

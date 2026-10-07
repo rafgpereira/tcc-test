@@ -48,8 +48,9 @@ com `ollama pull qwen2.5-coder:14b`. No `.env` (o arquivo de configuração na r
 - `OLLAMA_HARDWARE_LABEL` — um texto que descreve a máquina onde o Ollama roda (placa de vídeo,
   processador, memória), gravado junto de cada resposta; nunca é detectado sozinho.
 
-Opcionais: `OLLAMA_HTTP_TIMEOUT_S` (quanto esperar por uma resposta, padrão 900 segundos; aumente
-se o Ollama roda sem placa de vídeo) e `OLLAMA_MAX_INFRA_RETRIES` (quantas vezes seguidas a mesma
+Opcionais: `OLLAMA_HTTP_TIMEOUT_S` (quanto esperar, no máximo, sem receber nada do Ollama, padrão
+900 segundos; a resposta chega aos pedaços enquanto o modelo escreve, então uma resposta longa que
+continua chegando não é cortada; aumente se o Ollama roda sem placa de vídeo) e `OLLAMA_MAX_INFRA_RETRIES` (quantas vezes seguidas a mesma
 chamada é repetida se o Ollama não responder, padrão 30). `OLLAMA_MODEL` troca o modelo (padrão
 `qwen2.5-coder:14b`, o do experimento), só para um piloto que compara modelos; ele precisa estar
 instalado no Ollama (`ollama pull <modelo>`), e trocar de modelo exige uma execução nova. A seed e a
@@ -180,6 +181,7 @@ de novo continua de onde parou.
 ```bash
 GPU0="https://ENDERECO-DA-MAQUINA-0"
 GPU1="https://ENDERECO-DA-MAQUINA-1"
+(
 mkdir -p data/logs
 ls data/dataset/problems | awk 'NR % 2 == 1 {printf "--problem %s ", $0}' > data/logs/half0.args
 ls data/dataset/problems | awk 'NR % 2 == 0 {printf "--problem %s ", $0}' > data/logs/half1.args
@@ -192,7 +194,9 @@ explain() {  # $1 = name, $2 = exit code, $3 = log
   esac
   return 1
 }
-round=0
+# Ctrl+C stops the two generate too (commands started with & do not get it from the terminal)
+trap 'echo "PARADO: interrompido; parando os dois generate..."; kill $pid0 $pid1 2>/dev/null; wait; exit 130' INT TERM
+pid0= pid1= round=0
 while true; do
   round=$((round + 1))
   echo "== rodada $round: dois generate =="
@@ -204,6 +208,7 @@ while true; do
   pid1=$!
   wait $pid0; code0=$?
   wait $pid1; code1=$?
+  pid0= pid1=
   ok=1
   explain "generate da GPU0 ($GPU0)" $code0 data/logs/gpu0.log || ok=0
   explain "generate da GPU1 ($GPU1)" $code1 data/logs/gpu1.log || ok=0
@@ -216,11 +221,14 @@ while true; do
   grep -q '^next:' data/logs/execute-$round.log || { echo "== acabou: nenhum next: =="; break; }
 done
 docker compose run --rm app python -m ai_clients report
+)
 ```
 
 Código `4` não para o laço (os outros problemas seguem); as linhas `manual: ...` ficam nos logs, e
-os autores fecham cada uma com o `close`. Se um túnel voltar com outro endereço, troque a variável
-`GPU0` ou `GPU1` e rode o laço de novo.
+os autores fecham cada uma com o `close`. Rode **um** laço por vez, num terminal só; para parar,
+Ctrl+C nele, que também para os dois `generate` (espere a mensagem `PARADO`; confira com `docker
+ps` que nenhum container `tcc-test-app-run-...` ficou rodando). Se um túnel voltar com outro
+endereço, pare o laço, troque a variável `GPU0` ou `GPU1` e rode o laço de novo.
 
 **Fechar à mão um problema e cenário que aguarda os autores** (só depois de os autores decidirem o
 que fazer com ele):
@@ -299,7 +307,7 @@ ou de configuração do Ollama, `4` terminou, mas algum problema e cenário agua
 | `error: data/dataset does not match manifests/dataset.manifest.json`, ou `... not found; restore the versioned dataset` (`1`) | `unzip data/dataset.zip -d data/` (apague `data/dataset` antes) e rode de novo |
 | `error: OLLAMA_BASE_URL is not set in .env` (ou `OLLAMA_HARDWARE_LABEL`) (`2`) | preencha a variável no `.env` |
 | `error: a run already exists in data/suites/slm; use --resume to continue it` (`2`) | rode com `--resume`; para começar do zero, apague `data/suites/slm` |
-| `ollama unavailable (...); retrying the same call ...` | o Ollama não respondeu (ou o túnel do ngrok caiu: `ERR_NGROK_3200`); o comando espera e tenta de novo sozinho. Confira se o Ollama e o túnel estão no ar e se o endereço do `.env` está certo; se o túnel voltar com outro endereço, interrompa (Ctrl+C), troque o `OLLAMA_BASE_URL` e rode `generate --resume` |
+| `ollama unavailable (...); retrying the same call ...` | o Ollama não respondeu (ou o túnel do ngrok caiu: `ERR_NGROK_3200`; ou um proxy desistiu do pedido: `HTTP 524`; ou a resposta parou no meio: `ended before its last piece`); o comando espera e tenta de novo sozinho, com a mesma seed, sem gravar nada da resposta incompleta. Confira se o Ollama e o túnel estão no ar e se o endereço do `.env` está certo; se o túnel voltar com outro endereço, interrompa (Ctrl+C), troque o `OLLAMA_BASE_URL` e rode `generate --resume` |
 | `infrastructure failure: ollama unavailable after N consecutive retries ...` (`3`) | coloque o Ollama no ar e rode `generate --resume`; nada foi perdido |
 | `configuration error: model qwen2.5-coder:14b is not installed ...` (`3`) | `ollama pull qwen2.5-coder:14b` no servidor do Ollama |
 | `error: data/suites/slm holds a run of an older version of python -m ai_clients ...` (`2`) | a pasta tem uma execução de uma versão anterior (outra tabela de pedidos), que não pode ser continuada nem lida: `mv data/suites/slm data/suites/slm-<nome>` e comece uma execução nova |

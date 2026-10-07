@@ -48,7 +48,8 @@ sem necessidade enquanto há um modelo só — Princípio IX).
 
 ## R2 — API do Ollama e isolamento sem estado
 
-**Decisão**: `POST {OLLAMA_BASE_URL}/api/chat` com `"stream": false`, **uma única mensagem**
+**Decisão** (o `"stream": false` foi trocado por `"stream": true` em 2026-10-07, R25; o resto vale):
+`POST {OLLAMA_BASE_URL}/api/chat` com `"stream": false`, **uma única mensagem**
 `{"role": "user", "content": <prompt>}`, sem campo `system`, sem `context`, sem `format`, e
 `options` completos e explícitos (R4). Cliente HTTP da biblioteca padrão (`urllib.request`), uma
 conexão nova por requisição. Antes da primeira chamada de uma execução, `GET /api/version` e
@@ -1156,3 +1157,56 @@ nada de `src/sandbox/` muda.
 **Alternativas rejeitadas**: esperar a combinação em uso (esclarecimento de 2026-10-07); uma trava
 por problema (impediria dois processos de dividir os cenários de um mesmo problema, sem ganho);
 permitir dois `execute` (exigiria um *slot* do motor por processo, uma mudança no módulo `sandbox`).
+
+## R25 — Resposta do Ollama em *streaming* (2026-10-07)
+
+**Implementado em 2026-10-07** (Phase 13 de `tasks.md`). Substitui o `"stream": false` de R2; o
+resto de R2 (uma mensagem, sem `context`/`system`/`format`/`template`, opções explícitas, uma
+conexão nova por pedido) continua igual.
+
+**Problema medido**: pelo túnel do cloudflared, chamadas de mais de ~100 s recebem HTTP 524 (o
+proxy do Cloudflare fecha um pedido que fica esse tempo sem receber nenhum byte). Sem
+*streaming*, o Ollama só manda bytes no fim da geração; o `generate` tratava o 524 como falha de
+infraestrutura (correto) e refazia a mesma chamada, que voltava a passar de 100 s, até as 30
+repetições.
+
+1. **Pedido**: `"stream": true` no `/api/chat`; o texto, as opções e a seed são os mesmos. O Ollama
+   devolve uma linha JSON por pedaço (`message.content` parcial, `done: false`) e, por último, um
+   pedaço com `done: true`, `message.content` vazio e as métricas (`done_reason`,
+   `prompt_eval_count`, `eval_count`, `total_duration`, `load_duration`, `prompt_eval_duration`,
+   `eval_duration`).
+2. **Resposta montada**: conteúdo = junção dos `message.content` na ordem; `model`, `created_at`,
+   `done_reason`, contagens e durações do **último** pedaço. É exatamente o que o Ollama faz para
+   montar a resposta sem *streaming* (junta os pedaços e devolve o último com o conteúdo inteiro),
+   então o `Completion` e o `attempt_<n>.generation.json` gravados são idênticos. O *streaming* é só
+   transporte: não muda o que o modelo gera.
+3. ***Timeout***: o `timeout` do `urllib` vale para cada leitura do *socket*, então
+   `OLLAMA_HTTP_TIMEOUT_S` (padrão 900) passa a ser o maior silêncio entre dois pedaços (na prática,
+   a espera até o primeiro *token*, que inclui carregar o modelo e ler o prompt), não a resposta
+   inteira. Uma geração longa que segue mandando pedaços não é cortada; a duração dela continua
+   limitada por `num_predict`.
+4. **Resposta incompleta** é falha de infraestrutura (`OllamaUnavailable`: a mesma chamada, com a
+   mesma seed, sem gastar tentativa) e nada dela é gravado: conexão fechada sem o pedaço `done:
+   true`, corpo menor que o `Content-Length`, conexão derrubada no meio de uma linha, linha que não é
+   JSON, *timeout* entre pedaços.
+5. **Erro dentro do *stream***: depois do HTTP 200 enviado, o Ollama informa um erro como uma linha
+   `{"error": ...}`. Com `token repeat limit reached` é a falha do modelo (`ModelRepetition`, gasta
+   a tentativa, como antes); qualquer outro é infraestrutura. O `detail` gravado de uma
+   `repetition` passa de `HTTP 500 from /api/chat: {...}` para `error in the stream of /api/chat:
+   {...}` (texto informativo, não comparado nem contado; o motivo `repetition` é o mesmo). Um erro
+   HTTP antes do *stream* (5xx, 4xx, `ERR_NGROK_`) é tratado como antes.
+6. **`--resume`**: nada do transporte está no `run.json` (modelo, digest, quantização, versão do
+   Ollama, opções, tabela de tentativas, hashes dos templates e do dataset, fatores); conferido em
+   2026-10-07 com o `run.json` da execução em andamento: nenhuma diferença. Um teste
+   (`test_resume_config.py`) falha se um campo de *streaming* entrar no `run.json`.
+7. **Testes** (`tests/ai_clients/test_ollama.py`, servidor HTTP local): *stream* completo em vários
+   pedaços dá o mesmo `Completion` da resposta sem *streaming*; métricas só do último pedaço; uma
+   resposta que segue mandando pedaços não é cortada pelo *timeout*, e um silêncio maior que ele é
+   falha de infraestrutura; *stream* que termina depois de 0, 1 ou 3 de 4 pedaços sem `done`, corte
+   no meio de uma linha e corpo menor que o `Content-Length` → falha de infraestrutura; `token
+   repeat limit reached` dentro do *stream* → `ModelRepetition`; outro erro ou linha que não é JSON
+   → falha de infraestrutura.
+
+**Alternativas rejeitadas**: aumentar o *timeout* do proxy (não configurável num túnel rápido do
+Cloudflare); voltar ao ngrok (derruba conexões depois de pausas, medido em 2026-10-07); mandar
+`keep_alive` ou bytes de preenchimento (o Ollama não manda nada antes do fim sem *streaming*).

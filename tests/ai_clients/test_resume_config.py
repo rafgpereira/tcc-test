@@ -142,3 +142,11 @@ def test_created_at_is_not_compared(started, repo):
     data = json.loads(path.read_text(encoding="utf-8"))
     path.write_text(json.dumps(data | {"created_at": "2000-01-01T00:00:00Z"}), encoding="utf-8")
     assert cli.main(["generate", "--resume", "--limit", "1"]) == cli.EXIT_OK
+
+
+def test_streaming_the_answers_is_not_part_of_the_run():
+    """Streamed or not, an answer is the same (research R25): a run started before the client
+    streamed its answers is resumed by it, so nothing of the transport is in run.json."""
+    from ai_clients.schemas.run import RunConfig
+
+    assert not any("stream" in name for name in RunConfig.model_fields)
