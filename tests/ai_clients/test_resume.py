@@ -93,11 +93,11 @@ def drive(root, monkeypatch, client, runner, max_rounds=20):
 
 
 def tree(root):
-    """Every file under data/suites/slm (but the lock), with the informative timestamps removed."""
+    """Every file under data/suites/slm (but the locks), with the informative timestamps removed."""
     base = root / config.SUITES_DIR
     out = {}
     for path in sorted(base.rglob("*")):
-        if path.is_dir() or path.name == config.LOCK_FILE:
+        if path.is_dir() or any(part.startswith(".") for part in path.relative_to(base).parts):
             continue
         data = json.loads(path.read_text(encoding="utf-8"))
         data.pop("created_at", None)

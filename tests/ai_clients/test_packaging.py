@@ -45,7 +45,7 @@ def tree_files(base):
     return {
         p.relative_to(base).as_posix(): p.read_bytes()
         for p in sorted(base.rglob("*"))
-        if p.is_file() and p.name != config.LOCK_FILE
+        if p.is_file() and not any(part.startswith(".") for part in p.relative_to(base).parts)
     }
 
 

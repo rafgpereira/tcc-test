@@ -110,3 +110,11 @@ docker compose run --rm app python scripts/check_docs_sync.py --closing
 Esperado: 600 combinações terminais (SC-001), proporção de cada status reportada à parte com
 N = 200 (SC-003),
 `verify` e `check --deep` `OK`, `--closing` com código 0 (SC-008).
+
+## Nível 7 — Duas GPUs (desde 2026-10-07, research R23 e R24)
+
+Primeiro passo, obrigatório: `docker compose run --rm app python -m cli check --deep` com saída 0.
+Depois, o laço do README do módulo: dois `generate --resume` em paralelo (um `OLLAMA_BASE_URL` por
+GPU, metades disjuntas dos problemas, logs separados), um único `execute`, repetido enquanto houver
+`next:`, e o `report` no fim. Esperado: nenhum `skipped` com metades disjuntas; a contagem de
+chamadas por etiqueta de hardware soma as duas GPUs (a etiqueta é a mesma nos dois processos).

@@ -41,6 +41,42 @@ def test_the_lock_is_released_when_the_command_fails(tmp_path):
         pass
 
 
+def test_shared_runs_go_together_and_exclude_an_exclusive_one(tmp_path):
+    with (
+        store.shared_run(tmp_path),
+        store.shared_run(tmp_path),  # two generate --resume
+        pytest.raises(store.AlreadyRunningError),
+        store.exclusive_run(tmp_path),
+    ):
+        pass
+    with (
+        store.exclusive_run(tmp_path),  # package or close
+        pytest.raises(store.AlreadyRunningError),
+        store.shared_run(tmp_path),
+    ):
+        pass
+
+
+def test_one_execute_at_a_time(tmp_path):
+    with (
+        store.single_execute(tmp_path),
+        pytest.raises(store.AlreadyRunningError, match="execute is already running"),
+        store.single_execute(tmp_path),
+    ):
+        pass
+
+
+def test_a_combination_is_claimed_by_one_command_at_a_time(tmp_path):
+    with store.claim(tmp_path, "1_A", "hybrid") as first:
+        with store.claim(tmp_path, "1_A", "hybrid") as second:
+            assert (first, second) == (True, False)
+        with store.claim(tmp_path, "1_A", "black_box") as other:
+            assert other  # another scenario of the same problem is free
+    with store.claim(tmp_path, "1_A", "hybrid") as again:
+        assert again  # released at the end
+    assert (tmp_path / "data/suites/slm/.locks/1_A__hybrid.lock").is_file()
+
+
 def test_a_generation_is_written_and_read_back(tmp_path):
     record = store.GenerationRecord.model_validate(
         generation(scenario="white_box", attempt=2, seed=44)

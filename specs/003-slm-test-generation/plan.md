@@ -57,6 +57,7 @@ foram decididos em 2026-09-30 (Milena, opção A em todas); S3 e S6 são informa
 | **S12** | Os autores decidiram (2026-10-06, R18) que nenhuma combinação termina sem suíte: depois das 8 tentativas e da reserva, tentativas 9 a 20, depois `accepted_low_confidence`, depois até 3 tentativas por predição com um segundo template (`accepted_predicted`); sem resposta interpretável, a combinação aguarda tratamento manual e só fecha como `discarded_manual`. | **Planejado e implementado em 2026-10-06 (R19; T064 a T074)**: `MAX_ATTEMPTS = 23` (20 com solução, 3 por predição, tipo derivado do número); entradas rodando depois de qualquer reprovação em teste público; `parse_prediction` e `PredictionParse`; `predict_template_sha256`, `solution_attempts` e `predict_attempts` no `run.json`; estado `awaiting_manual`, código de saída 4 e linhas `manual:`; comando `close` gravando `manual_close.json`; `suite.json` com os 5 status, `kind`, `low_confidence_eligible` e `manual_close`; relatório por status (`status_rate`); `cli check` até 23 tentativas. | **Decidido em 2026-10-06 (Milena)**: spec FR-022 a FR-022d; desenho em R19 (data-model §3–4, contratos). As árvores dos pilotos não são lidas pelo código novo. |
 | **S13** | Piloto 5 (R20): com o 14B e a regra de R18, 15 de 15 combinações com suíte. Os autores escolheram o 14B como modelo do experimento e pediram um piloto 6 de temperatura e seeds. | `config.MODEL = "qwen2.5-coder:14b"`; `OLLAMA_TEMPERATURE` e `OLLAMA_SEED_BASE` opcionais no `.env`, gravados no `run.json` e comparados no `--resume`; a seed passa a ser conferida pelo `store` contra a `seed_base` do `run.json` (antes, contra a constante 42 nos schemas). | **Decidido em 2026-10-06 (Milena)**: R20. |
 | **S14** | Política de 5 fases (R21): fase 1, tentativas 1–6 (seeds 42–47, temperatura 0,7); fase 2, 7–12 (seed 48, temperatura 0,7 a 0,2); fase 3, reserva entre as 12; fase 4, predição 13–15 (seeds 49–51, 0,7); fase 5, tratamento manual. Saem as tentativas extras, `accepted_low_confidence`, `OLLAMA_TEMPERATURE` e `OLLAMA_SEED_BASE`; as entradas voltam a rodar só depois de WA. | **Planejado em 2026-10-06 (R22; data-model §2–4, contratos)**: `config.ATTEMPT_POLICY` com as 15 linhas, gravada no `run.json` (`attempt_policy`) e comparada linha a linha pelo `--resume`; fase, seed, temperatura e template em cada `attempt_<n>.generation.json`, conferidos pelo `store`; `schema_version` 2 e recusa de `run.json` antigo (código 2, mandando mover a pasta); máquina de estados de 15 tentativas com reserva só depois da 12ª; entradas só depois de WA; cerca removida em `<input>`/`<output>` da predição; relatório com `acceptance` (fase e tentativa) e `per_phase` (chamadas, *tokens*, tempo); `cli check` até 15. | **Decidido em 2026-10-06 (Milena)**: spec FR-018, FR-020, FR-022 a FR-022d, FR-023; R21. |
+| **S15** | Piloto 6 (R23): 15 de 15 combinações com suíte; configuração congelada e a execução completa continua a mesma, com duas GPUs T4 (Kaggle) em paralelo. A trava única de `data/suites/slm/` impede dois `generate` ao mesmo tempo. | **Implementado em 2026-10-07 (R24; data-model §5, contratos; Phase 12)**: trava compartilhada para `generate --resume`/`execute`, exclusiva para `generate` sem `--resume`, `close` e `package`; trava exclusiva por combinação em `.locks/`, combinação em uso pulada e contada (`skipped`); um `execute` por vez (`.execute.lock`, o *slot* do motor é único); testes em `test_concurrency.py`; laço em bash para duas GPUs no README do módulo. | **Decidido em 2026-10-07 (Milena)**: FR-026a. |
 
 ## Technical Context
 
@@ -105,7 +106,7 @@ de custo: o custo real depende das taxas medidas no piloto.
 | IV. Contratos versionados | Pydantic com `schema_version: 1` para `run.json`, geração, execução, suíte, relatório, manifesto; casos no contrato `TestCase` existente (S2) | ✅ |
 | V. Sandboxing | `reference_py` só no serviço `sandbox`, pelo mesmo `execute` do motor (uid por slot, rlimits, sem rede, sem capacidades), limites derivados de `metadata.json`; workdir novo por execução | ✅ |
 | VI. Testa a si próprio | Testes unitários (parser, prompt, cliente, estados, retomada, relatório, pacote) e de integração com o motor real | ✅ |
-| VII. Retomada | Arquivos imutáveis, escrita atômica, estado derivado dos arquivos, `suite.json` função pura, `flock` | ✅ |
+| VII. Retomada | Arquivos imutáveis, escrita atômica, estado derivado dos arquivos, `suite.json` função pura, `flock` da execução e, desde 2026-10-07, por combinação (vários processos sem corromper, R24) | ✅ |
 | VIII. Custo/uso de IA | SLM local, sem custo por chamada; mesmo assim *tokens*, durações e `done_reason` gravados por chamada e somados no relatório; nenhuma chamada paga | ✅ |
 | IX. Simplicidade | Sem dependência nova, sem paralelismo, sem abstração multi-modelo além do `Protocol` usado pelo falso | ✅ |
 | X. Revisão humana | Nenhuma operação de Git pelo agente; tudo fica `modified`/`untracked` | ✅ |
@@ -139,7 +140,7 @@ metodologia atualizados neste ciclo; o README do módulo muda junto com o códig
 specs/003-slm-test-generation/
 ├── spec.md
 ├── plan.md              # este arquivo
-├── research.md          # R0–R22
+├── research.md          # R0–R24
 ├── data-model.md
 ├── quickstart.md
 ├── sync-matrix.json     # D1–D3 da spec ↔ metodologia (check_docs_sync C5)
@@ -181,6 +182,7 @@ tests/ai_clients/
 ├── fakes.py             # FakeSLMClient, runner Python falso, relógio falso
 ├── test_schemas.py  test_problem.py  test_store.py
 ├── test_config.py   # a tabela ATTEMPT_POLICY (R22)
+├── test_concurrency.py   # dois generate, execute junto, travas (R24)
 ├── test_prompt.py  test_parser.py  test_parser_prediction.py  test_ollama.py
 ├── test_generation.py  test_cli_generate.py  test_closing.py  test_cli_close.py
 ├── test_oracle.py  test_execution.py  test_cli_execute.py

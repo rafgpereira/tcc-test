@@ -10,7 +10,9 @@ versionado; só o pacote da execução final (`data/slm_suites.zip`) e os arquiv
 
 ```text
 data/suites/slm/
-├── .lock                                  # flock; nunca empacotado
+├── .lock                                  # flock da execução; nunca empacotado
+├── .execute.lock                          # flock: um execute por vez (desde 2026-10-07)
+├── .locks/<id>__<scenario>.lock          # flock por combinação (desde 2026-10-07)
 ├── run.json                               # RunConfig
 └── problems/<problem_id>/<scenario>/      # scenario ∈ black_box | white_box | hybrid
     ├── attempt_1.generation.json          # GenerationRecord

@@ -190,6 +190,11 @@ def finish(damaged: list[store.DamagedCombination], awaiting: list[tuple[str, st
     return EXIT_MANUAL if awaiting else EXIT_OK
 
 
+def skipped_note(skipped: int) -> str:
+    """The end of a summary line: the combinations left to another command running together."""
+    return f"; {skipped} skipped (in use by another command)" if skipped else ""
+
+
 def _env_positive_int(name: str, default: int) -> int:
     raw = os.environ.get(name)
     if raw is None:
@@ -303,7 +308,10 @@ def _run_generate(args: argparse.Namespace) -> int:
     def echo(message: str) -> None:
         print(message, flush=True)
 
-    with store.exclusive_run(root):
+    # Several `generate --resume` may run together (one per GPU, research R24); starting a run is
+    # always done by one command alone.
+    lock = store.shared_run if args.resume else store.exclusive_run
+    with lock(root):
         current = generation.current_run_config(
             client,
             template,
@@ -350,7 +358,7 @@ def _run_generate(args: argparse.Namespace) -> int:
         f"{result.repetition} repetition; suites: {suites['accepted_fallback']} "
         f"accepted_fallback, {suites['accepted_predicted']} accepted_predicted; "
         f"{result.pending_execution} pending execution, {len(result.awaiting_manual)} awaiting "
-        "manual handling"
+        f"manual handling{skipped_note(result.skipped)}"
     )
     return finish(result.damaged, result.awaiting_manual)
 
@@ -414,7 +422,8 @@ def _run_execute(args: argparse.Namespace) -> int:
     def echo(message: str) -> None:
         print(message, flush=True)
 
-    with store.exclusive_run(root):
+    # Together with any `generate --resume`, never with another `execute` (one engine slot).
+    with store.shared_run(root), store.single_execute(root):
         cleanup_slot(SLOT)  # leftovers of a run that was killed
         try:
             result = execution.execute(
@@ -433,7 +442,7 @@ def _run_execute(args: argparse.Namespace) -> int:
         f"done: {result.executed} executed, {result.accepted} accepted, {result.failed} failed "
         f"({result.need_generation} need a new generation); suites: "
         f"{suites['accepted_fallback']} accepted_fallback; "
-        f"{len(result.awaiting_manual)} awaiting manual handling"
+        f"{len(result.awaiting_manual)} awaiting manual handling{skipped_note(result.skipped)}"
     )
     if result.pending_generation:
         print(

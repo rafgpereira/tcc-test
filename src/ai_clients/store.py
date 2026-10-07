@@ -38,6 +38,7 @@ __all__ = [
     "State",
     "attempt_files",
     "awaiting_manual",
+    "claim",
     "combination_dir",
     "combination_state",
     "count_in_state",
@@ -50,6 +51,8 @@ __all__ = [
     "read_run",
     "read_suite",
     "run_exists",
+    "shared_run",
+    "single_execute",
     "write_execution",
     "write_generation",
     "write_manual_close",
@@ -84,23 +87,75 @@ class AlreadyRunningError(Exception):
     """Another ``python -m ai_clients`` command holds the lock of ``data/suites/slm/``."""
 
 
-@contextmanager
-def exclusive_run(root: Path) -> Iterator[None]:
-    """One command at a time over ``data/suites/slm/`` (also across the two services).
+ALREADY_RUNNING = "another python -m ai_clients command is already running over data/suites/slm/"
 
-    An ``flock`` on ``data/suites/slm/.lock``: the operating system releases it when the process
-    ends, however it ends (Ctrl+C, ``kill -9``, a power cut), so it never goes stale.
+
+@contextmanager
+def _flock(path: Path, mode: int, busy: str) -> Iterator[None]:
+    """Hold an ``flock`` on ``path``, never waiting: ``AlreadyRunningError(busy)`` if it is taken.
+
+    The operating system releases it when the process ends, however it ends (Ctrl+C, ``kill -9``,
+    a power cut), so it never goes stale.
     """
-    ensure_suites_dir(root)
-    with (Path(root) / config.SUITES_DIR / config.LOCK_FILE).open("a") as handle:
+    with path.open("a") as handle:
         try:
-            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.flock(handle, mode | fcntl.LOCK_NB)
         except BlockingIOError as exc:
-            raise AlreadyRunningError(
-                "another python -m ai_clients command is already running over data/suites/slm/"
-            ) from exc
+            raise AlreadyRunningError(busy) from exc
         try:
             yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+@contextmanager
+def exclusive_run(root: Path) -> Iterator[None]:
+    """No other command over ``data/suites/slm/`` (also across the two services).
+
+    ``generate`` starting a run, ``close`` and ``package`` (research R24).
+    """
+    ensure_suites_dir(root)
+    with _flock(Path(root) / config.SUITES_DIR / config.LOCK_FILE, fcntl.LOCK_EX, ALREADY_RUNNING):
+        yield
+
+
+@contextmanager
+def shared_run(root: Path) -> Iterator[None]:
+    """Several ``generate --resume`` and an ``execute`` together, none with an exclusive one.
+
+    Each combination is then taken by one of them at a time (``claim``).
+    """
+    ensure_suites_dir(root)
+    with _flock(Path(root) / config.SUITES_DIR / config.LOCK_FILE, fcntl.LOCK_SH, ALREADY_RUNNING):
+        yield
+
+
+@contextmanager
+def single_execute(root: Path) -> Iterator[None]:
+    """One ``execute`` at a time: they all use the same engine slot, cleaned at start and end."""
+    ensure_suites_dir(root)
+    path = Path(root) / config.SUITES_DIR / config.EXECUTE_LOCK_FILE
+    with _flock(path, fcntl.LOCK_EX, "another python -m ai_clients execute is already running"):
+        yield
+
+
+@contextmanager
+def claim(root: Path, problem_id: str, scenario: str) -> Iterator[bool]:
+    """Take one combination for this process: ``True``, or ``False`` if another process has it.
+
+    The state of a combination is read only while it is claimed, so two processes never make the
+    same attempt; a combination in use is skipped, never waited for (research R24).
+    """
+    locks = store.make_private_dir(ensure_suites_dir(root) / config.COMBINATION_LOCKS_DIR)
+    name = f"{problem_id}__{getattr(scenario, 'value', scenario)}.lock"
+    with (locks / name).open("a") as handle:
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            yield False
+            return
+        try:
+            yield True
         finally:
             fcntl.flock(handle, fcntl.LOCK_UN)
 

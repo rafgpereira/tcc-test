@@ -154,6 +154,7 @@ class GenerateResult:
     pending_execution: int = 0  # combinations of the selection waiting for `execute` at the end
     awaiting_manual: list[tuple[str, str]] = field(default_factory=list)  # selection, at the end
     damaged: list[store.DamagedCombination] = field(default_factory=list)  # reported, not repaired
+    skipped: int = 0  # combinations in use by another command, left for it (research R24)
 
 
 def _check_context_window(completion: Completion, run: RunConfig, what: str) -> None:
@@ -185,6 +186,98 @@ def _record_suite(root, problem_id, scenario, run, result: GenerateResult, echo)
     suite = store.finalize(root, problem_id, scenario, run)
     echo(f"{problem_id} {scenario}: suite recorded ({suite.status.value})")
     result.suites[suite.status.value] += 1
+
+
+def _attempts(
+    root: Path,
+    problem: ProblemInput,
+    scenario: str,
+    attempt: int,
+    client: SLMClient,
+    *,
+    templates: dict,
+    run: RunConfig,
+    hardware_label: Callable[[], str],
+    max_infra_retries: int,
+    clock: Clock,
+    echo: Callable[[str], None],
+    now: Callable[[], str],
+    result: GenerateResult,
+) -> None:
+    """Call the model for one claimed combination until it needs `execute`, has its suite or waits
+    for the authors."""
+    problem_id = problem.problem_id
+    while True:
+        what = f"{problem_id} {scenario} attempt {attempt}"
+        spec = run.spec(attempt)
+        kind = spec.template.value
+        chosen, parse_answer = templates[kind]
+        prompt = build_prompt(chosen, problem, scenario)
+        options = generation_options(run, attempt)
+        try:
+            completion = _with_retries(
+                lambda options=options, prompt=prompt: client.complete(run.model, prompt, options),
+                what=what,
+                seed=options.seed,
+                max_retries=max_infra_retries,
+                clock=clock,
+                echo=echo,
+            )
+        except ModelRepetition as exc:
+            completion, failure = None, ModelFailure(reason="repetition", detail=exc.detail)
+            parse = UnparsedResponse(ok=False, error=failure.reason)
+        else:
+            _check_context_window(completion, run, what)
+            failure, parse = None, parse_answer(completion.content)
+        record = GenerationRecord(
+            problem_id=problem_id,
+            scenario=scenario,
+            attempt=attempt,
+            phase=spec.phase,
+            seed=spec.seed,
+            temperature=spec.temperature,
+            template=spec.template,
+            model_digest=run.model_digest,
+            prompt_sha256=prompt_sha256(prompt),
+            raw_response="" if completion is None else completion.content,
+            ollama=None if completion is None else _ollama_meta(completion),
+            hardware_label=hardware_label(),
+            requested_at=now(),
+            parse=parse,
+            model_failure=failure,
+        )
+        store.write_generation(root, record)
+        result.calls += 1
+        if completion is None:
+            echo(f"{what} seed {options.seed}: model failure (repetition) — {failure.detail}")
+        else:
+            if not parse.ok:
+                outcome = f"unparseable ({parse.error})"
+            elif kind == "prediction":
+                outcome = f"parsed ({len(parse.tests)} tests)"
+            else:
+                outcome = f"parsed ({len(parse.inputs)} inputs)"
+            echo(
+                f"{what} seed {options.seed}: {outcome} — {completion.prompt_eval_count}+"
+                f"{completion.eval_count} tokens, {completion.done_reason}, "
+                f"{completion.total_duration_ns / 1e9:.1f} s"
+            )
+        if parse.ok:
+            result.parsed += 1
+        elif completion is None:
+            result.repetition += 1
+        else:
+            result.unparseable += 1
+        if parse.ok and kind == "solution":
+            break  # the solution runs in `execute`
+        state = store.combination_state(root, problem_id, scenario, run)
+        if state.kind == "finalizable":  # a prediction or, after the 12th, a fallback
+            _record_suite(root, problem_id, scenario, run, result, echo)
+            break
+        if state.kind == "awaiting_manual":
+            echo(f"{problem_id} {scenario}: awaiting manual handling")
+            break
+        attempt = state.attempt
 
 
 def generate(
@@ -224,90 +317,43 @@ def generate(
         except store.DamagedCombination as exc:
             result.damaged.append(exc)
             continue
-        if state.kind == "finalizable":  # interrupted before its suite.json: no call needed
-            _record_suite(root, problem_id, scenario, run, result, echo)
+        if state.kind not in ("finalizable", "pending_generation"):
             continue
-        if state.kind != "pending_generation":
-            continue
-        if limit is not None and handled >= limit:
+        if state.kind == "pending_generation" and limit is not None and handled >= limit:
             break
-        handled += 1
-        if problem_id not in problems:
-            problems[problem_id] = load_problem(root, problem_id)
-        attempt = state.attempt
-        while True:
-            what = f"{problem_id} {scenario} attempt {attempt}"
-            spec = run.spec(attempt)
-            kind = spec.template.value
-            chosen, parse_answer = templates[kind]
-            prompt = build_prompt(chosen, problems[problem_id], scenario)
-            options = generation_options(run, attempt)
-            try:
-                completion = _with_retries(
-                    lambda options=options, prompt=prompt: client.complete(
-                        run.model, prompt, options
-                    ),
-                    what=what,
-                    seed=options.seed,
-                    max_retries=max_infra_retries,
-                    clock=clock,
-                    echo=echo,
-                )
-            except ModelRepetition as exc:
-                completion, failure = None, ModelFailure(reason="repetition", detail=exc.detail)
-                parse = UnparsedResponse(ok=False, error=failure.reason)
-            else:
-                _check_context_window(completion, run, what)
-                failure, parse = None, parse_answer(completion.content)
-            record = GenerationRecord(
-                problem_id=problem_id,
-                scenario=scenario,
-                attempt=attempt,
-                phase=spec.phase,
-                seed=spec.seed,
-                temperature=spec.temperature,
-                template=spec.template,
-                model_digest=run.model_digest,
-                prompt_sha256=prompt_sha256(prompt),
-                raw_response="" if completion is None else completion.content,
-                ollama=None if completion is None else _ollama_meta(completion),
-                hardware_label=hardware_label(),
-                requested_at=now(),
-                parse=parse,
-                model_failure=failure,
-            )
-            store.write_generation(root, record)
-            result.calls += 1
-            if completion is None:
-                echo(f"{what} seed {options.seed}: model failure (repetition) — {failure.detail}")
-            else:
-                if not parse.ok:
-                    outcome = f"unparseable ({parse.error})"
-                elif kind == "prediction":
-                    outcome = f"parsed ({len(parse.tests)} tests)"
-                else:
-                    outcome = f"parsed ({len(parse.inputs)} inputs)"
-                echo(
-                    f"{what} seed {options.seed}: {outcome} — {completion.prompt_eval_count}+"
-                    f"{completion.eval_count} tokens, {completion.done_reason}, "
-                    f"{completion.total_duration_ns / 1e9:.1f} s"
-                )
-            if parse.ok:
-                result.parsed += 1
-            elif completion is None:
-                result.repetition += 1
-            else:
-                result.unparseable += 1
-            if parse.ok and kind == "solution":
-                break  # the solution runs in `execute`
-            state = store.combination_state(root, problem_id, scenario, run)
-            if state.kind == "finalizable":  # a prediction or, after the 12th, a fallback
+        with store.claim(root, problem_id, scenario) as mine:
+            if not mine:  # another command is on it: left for it, never waited for
+                echo(f"{problem_id} {scenario}: skipped (in use by another command)")
+                result.skipped += 1
+                continue
+            try:  # read again: the other command may have moved it on before letting it go
+                state = store.combination_state(root, problem_id, scenario, run)
+            except store.DamagedCombination as exc:
+                result.damaged.append(exc)
+                continue
+            if state.kind == "finalizable":  # interrupted before its suite.json: no call needed
                 _record_suite(root, problem_id, scenario, run, result, echo)
-                break
-            if state.kind == "awaiting_manual":
-                echo(f"{problem_id} {scenario}: awaiting manual handling")
-                break
-            attempt = state.attempt
+                continue
+            if state.kind != "pending_generation":
+                continue
+            handled += 1
+            if problem_id not in problems:
+                problems[problem_id] = load_problem(root, problem_id)
+            _attempts(
+                root,
+                problems[problem_id],
+                scenario,
+                state.attempt,
+                client,
+                templates=templates,
+                run=run,
+                hardware_label=hardware_label,
+                max_infra_retries=max_infra_retries,
+                clock=clock,
+                echo=echo,
+                now=now,
+                result=result,
+            )
     result.pending_execution = store.count_in_state(root, combinations, "pending_execution", run)
     result.awaiting_manual = store.awaiting_manual(root, combinations, run)
     return result

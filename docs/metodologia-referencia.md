@@ -1363,6 +1363,31 @@ template confirmados por Milena no mesmo dia]**:
   Na resposta por predição, uma cerca Markdown que envolve um `<input>` ou `<output>` inteiro é
   removida e contada, como a do código. O relatório passa a mostrar, por cenário, em que fase e
   tentativa cada combinação ficou com a suíte e as chamadas, *tokens* e tempo de cada fase.
+- **Piloto 6 e execução completa [MEDIDO E DECIDIDO, 2026-10-07 — `research.md` R23]**: com a
+  política de 5 fases (código `e69d2fe`, 14B, Ollama 0.35.0), as 15 combinações terminaram com
+  suíte: 13 `accepted` (12 na fase 1; `1005_C` caixa-preta na fase 2, tentativa 8, temperatura
+  0,6) e 2 `accepted_fallback` (`1000_B` e `1008_B` caixa-preta, as mesmas dos pilotos 4 e 5);
+  57 chamadas, 13 aceitas (22,8%), 44 falhas (35 WA, 8 RE, 1 com todas as entradas
+  descartadas), nenhuma resposta não interpretada, mediana de 43 s por chamada, ≈ 46 min de
+  modelo; nenhuma combinação chegou à predição nem ao tratamento manual. Decidido: **a
+  configuração fica congelada e a execução completa continua esta mesma execução** com
+  `--resume` até as 600 combinações (as 15 do piloto entram no resultado), gerando em duas GPUs
+  T4 idênticas (Kaggle) com dois `generate` em paralelo sobre metades disjuntas dos problemas
+  (R24); a mesma etiqueta de hardware nos dois processos; o determinismo entre as duas GPUs não
+  é medido. Primeiro passo da continuação: `cli check --deep` com saída 0.
+- **Execução concorrente para duas GPUs [DECIDIDO E IMPLEMENTADO, 2026-10-07 — `research.md` R24]**:
+  vários `generate --resume` e um `execute` podem rodar ao mesmo tempo sobre `data/suites/slm/`
+  (trava compartilhada); cada problema × cenário é tratado por um processo de cada vez (trava
+  exclusiva por combinação, sem esperar), e a combinação em uso por outro é **pulada e contada**
+  no resumo (`N skipped (in use by another command)`), nunca esperada; o estado é relido com a
+  trava pegada, então duas metades sobrepostas nunca fazem a mesma tentativa duas vezes. O
+  primeiro `generate` (sem `--resume`), `close` e `package` continuam exclusivos (recusa com
+  código 1 se houver outro comando), e só um `execute` por vez (o *slot* do motor é único). Cada
+  `generate` usa o `OLLAMA_BASE_URL` passado com `-e` e confere, no `--resume`, que o modelo e a
+  versão do Ollama do seu endpoint são os do `run.json` (configuração congelada). Nenhum dado do
+  experimento muda: os arquivos gravados são os mesmos de uma execução sem concorrência; as travas
+  são arquivos com ponto, fora do pacote e do `cli check`. Testado com dois `generate` em metades
+  disjuntas e sobrepostas, `execute` com `generate` ativo e `package`/`close` recusados.
 
 **Template de prompt**: estrutura única em inglês, com marcação XML (`<system_rules>`,
 `<context_data>`, `<few_shot_example>`, `<task>`), combinando Few-Shot Prompting +
@@ -1622,6 +1647,8 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-10-07 | **Execução concorrente do SLM para duas GPUs (`research.md` R24)**: trava compartilhada para `generate --resume`/`execute`, trava por combinação (a combinação em uso é pulada e contada), `close`, `package` e o primeiro `generate` exclusivos, um `execute` por vez; laço em bash das duas GPUs no README do módulo; os dados gravados não mudam | 3 |
+| 2026-10-07 | **Piloto 6 do SLM e decisão da execução completa (`research.md` R23)**: 15 de 15 combinações com suíte (13 `accepted`, 12 na fase 1 e 1 na fase 2; 2 `accepted_fallback`), 57 chamadas, 13 aceitas (22,8%), 44 falhas (35 WA, 8 RE, 1 `all_inputs_failed`), mediana de 43 s, ≈ 46 min; fases 4 e 5 não exercitadas. Decidido: configuração congelada; a execução completa continua a mesma execução com `--resume` até 600; duas GPUs T4 (Kaggle) com dois `generate` em paralelo sobre metades disjuntas; determinismo entre GPUs não medido | 3 |
 | 2026-10-06 | **Política de 5 fases implementada (`research.md` R22)**: tabela `ATTEMPT_POLICY` por extenso no código (seeds 42–47 a 0,7; seed 48 de 0,7 a 0,2; predição 49–51 a 0,7), gravada no `run.json` e conferida em cada tentativa; `schema_version` 2 e recusa das execuções anteriores com código 2; reserva só depois da 12ª; entradas só depois de WA; cerca removida em `<input>`/`<output>` da predição; relatório com `acceptance` e `per_phase`; saem `OLLAMA_TEMPERATURE`, `OLLAMA_SEED_BASE` e `accepted_low_confidence`. Testado com modelo e execução simulados; nenhum número medido com o modelo real | 3 |
 | 2026-10-06 | **Desenho técnico da política de 5 fases (`research.md` R22, ainda não implementado)**: motivo, pelos pilotos 4 e 5: as falhas foram quase todas WA repetidas em várias seeds a 0,7, e as tentativas extras e a baixa confiança nunca foram exercitadas; tabela `ATTEMPT_POLICY` por extenso no código e no `run.json`, conferida em cada tentativa; `schema_version` 2 e recusa das execuções anteriores (mover `data/suites/slm` antes do piloto 6); cerca removida em `<input>`/`<output>` da predição; relatório com a fase e a tentativa de aceitação por cenário e chamadas, *tokens* e tempo por fase | 3 |
 | 2026-10-06 | **Política de 5 fases do SLM (`research.md` R21, ainda não implementada)**: fase 1, tentativas 1–6 com seeds 42–47 e temperatura 0,7; fase 2, tentativas 7–12 com seed 48 e temperatura de 0,7 a 0,2; fase 3, reserva entre as 12; fase 4, predição nas tentativas 13–15 (seeds 49–51, 0,7); fase 5, tratamento manual. Substitui as tentativas extras, a baixa confiança e o piloto de temperaturas; saem `OLLAMA_TEMPERATURE`/`OLLAMA_SEED_BASE`; entradas rodam só depois de WA; é a política do experimento, validada no piloto 6 | 3, 6 |

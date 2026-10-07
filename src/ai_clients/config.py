@@ -122,7 +122,9 @@ DATASET_PROBLEMS_DIR = DATASET_DIR / "problems"
 SUITES_DIR = DATA_DIR / "suites" / "slm"
 PROBLEMS_DIR = SUITES_DIR / "problems"
 RUN_FILE = "run.json"
-LOCK_FILE = ".lock"  # flock: one command at a time over data/suites/slm/
+LOCK_FILE = ".lock"  # flock: shared by generate --resume/execute, exclusive otherwise (R24)
+EXECUTE_LOCK_FILE = ".execute.lock"  # flock: one execute at a time (one engine slot)
+COMBINATION_LOCKS_DIR = ".locks"  # flock per problem x scenario: <id>__<scenario>.lock
 SUITE_FILE = "suite.json"
 MANUAL_CLOSE_FILE = "manual_close.json"  # the decision of the authors (`close`)
 

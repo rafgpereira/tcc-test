@@ -174,3 +174,21 @@ passagem direta para a predição, `awaiting_manual`, seed e temperatura enviada
 tabela alterada recusa o `--resume`); `test_cli_*` (`run.json` de versão 1 recusado com código
 2); `test_damage.py` (fase, seed, temperatura ou template divergentes); `test_parser_prediction.py`
 (cerca em `<input>`/`<output>`); `test_report.py` (`acceptance` e `per_phase`).
+
+## Desde 2026-10-07, execução concorrente (research R24)
+
+```python
+# ai_clients.store
+@contextmanager
+def shared_run(root: Path) -> Iterator[None]: ...       # LOCK_SH | LOCK_NB on .lock
+@contextmanager
+def exclusive_run(root: Path) -> Iterator[None]: ...    # LOCK_EX | LOCK_NB on .lock (unchanged)
+@contextmanager
+def single_execute(root: Path) -> Iterator[None]: ...   # LOCK_EX | LOCK_NB on .execute.lock
+@contextmanager
+def claim(root: Path, problem_id: str, scenario: str) -> Iterator[bool]: ...
+    # LOCK_EX | LOCK_NB on .locks/<id>__<scenario>.lock; yields False (and holds nothing) if taken
+```
+
+`GenerateResult` e `ExecuteResult` ganham `skipped: int`. Testes em
+`tests/ai_clients/test_concurrency.py` (R24, item 5).

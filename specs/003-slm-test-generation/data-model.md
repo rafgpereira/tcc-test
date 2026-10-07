@@ -218,3 +218,15 @@ aponta o mesmo): `attempt_3` sem `attempt_2`; execução sem geração ou de uma
 ou o contrário; tentativa depois de uma aceita; tentativa 13 ou mais com uma reserva possível entre
 as 12; entradas executadas depois de RE/TLE/MLE; `manual_close.json` fora de `awaiting_manual`;
 `model_digest` diferente do `run.json`; `suite.json` que não é a função dos arquivos.
+
+## 5. Concorrência (desde 2026-10-07, research R24, FR-026a)
+
+| Trava (`flock`, sempre sem esperar) | Arquivo | Quem pega | Em conflito |
+|---|---|---|---|
+| da execução, compartilhada | `data/suites/slm/.lock` | `generate --resume`, `execute` | recusa com código 1 se alguém tem a exclusiva |
+| da execução, exclusiva | `data/suites/slm/.lock` | `generate` sem `--resume` (cria o `run.json`), `close`, `package` | recusa com código 1 se alguém tem qualquer uma |
+| do `execute` | `data/suites/slm/.execute.lock` | `execute` | um segundo `execute` recusa com código 1 |
+| da combinação | `data/suites/slm/.locks/<id>__<cenário>.lock` | `generate` e `execute`, de ler o estado até gravar a última coisa daquela combinação | a combinação é **pulada** e contada (`skipped`) |
+
+O estado de uma combinação (§4) só é lido com a trava dela. Os arquivos de trava não são dados da
+execução: começam com ponto e ficam fora do pacote, do manifesto e do `cli check`.

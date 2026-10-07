@@ -54,8 +54,13 @@ se divergir (Edge Case da spec). `manifests/dataset.manifest.json` ausente (`Fil
 portão) também sai com código 1, com a mesma orientação de restauração
 (`unzip data/dataset.zip -d data/`).
 
-Uma única instância por vez sobre `data/suites/slm/`: `flock` em `data/suites/slm/.lock`; um
-segundo comando se recusa com código 1 (`another python -m ai_clients command is already running`).
+Comandos ao mesmo tempo sobre `data/suites/slm/` (desde 2026-10-07, research R24, data-model §5):
+vários `generate --resume` e um `execute` podem rodar juntos — cada combinação é tratada por um
+processo de cada vez, e a que estiver em uso por outro é pulada (linha `<id> <cenário>: skipped (in
+use by another command)`) e contada no fim do resumo (`; N skipped (in use by another command)`, só
+quando N > 0); um segundo `execute`, e `generate` sem `--resume`, `close` e `package`
+enquanto outro comando roda, recusam com código 1 (`another python -m ai_clients command is already
+running over data/suites/slm/`). Até 2026-10-07 era um comando por vez.
 
 ## `generate` (serviço `app`)
 
@@ -204,3 +209,10 @@ Código 0 se tudo bate, 1 se não, 2 se o manifesto não existe.
 
 `slm_suites` (research R10): chave aceita em `--only`; ver
 [file-formats.md](./file-formats.md#6-camada-slm_suites-do-cli-check).
+
+## Duas GPUs (desde 2026-10-07, research R23 e R24)
+
+Dois `generate --resume` em paralelo, cada um com seu `OLLAMA_BASE_URL` (`docker compose run -e
+OLLAMA_BASE_URL=...`, que tem prioridade sobre o `.env`) e metades disjuntas dos problemas
+(`--problem`), e um único `execute` depois que os dois terminam; repetir enquanto o `execute`
+imprimir `next:`. O laço em bash fica no README do módulo.

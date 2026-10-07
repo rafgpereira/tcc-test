@@ -1073,3 +1073,86 @@ com cerca (`test_parser_prediction.py`); relatório por fase (`test_report.py`).
 
 **Custo e efeito não medidos**: no máximo 15 chamadas por combinação (eram 23); o efeito da
 temperatura baixa só o piloto 6 mede.
+
+## R23 — Piloto 6 e continuação da mesma execução até as 600 combinações (2026-10-07)
+
+**Piloto 6 (2026-10-06/07, `data/suites/slm/`, código `e69d2fe`, `qwen2.5-coder:14b` digest
+`9ec8897f…`, Ollama 0.35.0, templates `fc9757e8…` e `421adf86…`, política de 5 fases de R21/R22,
+mesmos 5 problemas × 3 cenários, "GPU T4 - Google Colab, 16GB RAM")**. Medido dos arquivos das 15
+combinações do piloto (as tentativas de `1009_B` e `1011_B`, já começadas na mesma execução, ficam
+de fora):
+
+| | Piloto 5 (seeds a 0,7) | Piloto 6 (5 fases) |
+|---|---|---|
+| Suítes | 13 `accepted`, 2 `accepted_fallback` | 13 `accepted` (12 na fase 1, 1 na fase 2), 2 `accepted_fallback` (fase 3) |
+| Chamadas / aceitas | 49 / 13 (26,5%) | 57 / 13 (22,8%): 43 na fase 1, 14 na fase 2, nenhuma predição |
+| Falhas | 36 (29 WA, 7 RE) | 44 (35 WA, 8 RE, 1 `all_inputs_failed`) |
+| Não interpretadas / cortadas | 0 / 0 | 0 / 0 |
+| Tempo por chamada (mediana; máximo) | 48 s; 179 s | 43 s; 166 s (≈ 46 min de modelo) |
+| Entradas por resposta; tamanho das suítes | 3–16; 5–16 | 5–10; 4–10 |
+
+A fase 2 resolveu `1005_C` caixa-preta na tentativa 8 (seed 48, temperatura 0,6) depois de 7 falhas
+(6 WA, 1 RE). `1000_B` e `1008_B` caixa-preta, as mesmas dos pilotos 4 e 5, erraram as 12 (quase
+só WA) e ficaram como reserva: `1000_B` pela tentativa 1, `1008_B` pela tentativa 9 (fase 2,
+temperatura 0,5), a que passou mais testes públicos. Nenhuma combinação chegou à predição nem ao
+tratamento manual, então as fases 4 e 5 continuam testadas só com o modelo simulado.
+
+**Decisões (Milena, 2026-10-07)**:
+
+1. **A configuração fica congelada** (modelo, digest, versão do Ollama, os dois templates, a tabela
+   `ATTEMPT_POLICY`, opções, fatores) e **a execução completa é a continuação desta mesma
+   execução**, com `--resume`, até as 600 combinações: as 15 do piloto 6 entram no resultado final.
+   **Alternativa rejeitada**: começar a execução completa numa pasta nova (refaria 15 combinações
+   já feitas com a mesma configuração).
+2. **Duas GPUs T4 idênticas (Kaggle), cada uma com seu Ollama**, para gerar as 585 restantes: dois
+   `generate --resume` em paralelo, com metades disjuntas dos problemas e o `OLLAMA_BASE_URL` de
+   cada um passado com `docker compose run -e`, e um único `execute` depois (desenho em R24).
+   `OLLAMA_HARDWARE_LABEL` é o mesmo nos dois processos (o do `.env`), então a etiqueta não
+   distingue as duas GPUs. **Não será medido** se as duas GPUs dão respostas idênticas para a
+   mesma seed e temperatura (decisão dos autores: são T4 idênticas, como a do Colab).
+3. Antes do primeiro `generate` da continuação: `docker compose run --rm app python -m cli check
+   --deep` com saída 0.
+
+## R24 — Execução concorrente: travas compartilhada e por combinação (2026-10-07)
+
+**Implementado em 2026-10-07** (Phase 12 de `tasks.md`): o resumo só mostra `; N skipped (in
+use by another command)` quando N > 0, então as saídas sem concorrência não mudam.
+
+Plano de FR-026a (spec, sessão 2026-10-07; decisões de R23). Nenhuma dependência nova (`fcntl`);
+nada de `src/sandbox/` muda.
+
+1. **Trava da execução** (`data/suites/slm/.lock`, `flock`): **compartilhada** para `generate
+   --resume` e `execute` (`store.shared_run`), **exclusiva** para `package` e `close`
+   (`store.exclusive_run`, como hoje). Sempre sem esperar (`LOCK_NB`): pedir a exclusiva com
+   alguém segurando a compartilhada, ou o contrário, recusa na hora com código 1 (`another python -m
+   ai_clients command is already running ...`). O `generate` **sem** `--resume` (que cria o
+   `run.json`) continua com a exclusiva: uma execução nova é sempre começada por um processo só, e
+   o paralelismo vale a partir do `--resume`. `report` e os `--dry-run` não pegam trava (só leem).
+2. **Trava por combinação** (`data/suites/slm/.locks/<id>__<cenário>.lock`, exclusiva, sem esperar,
+   `store.claim`): `generate` e `execute` só olham o estado de uma combinação, chamam o modelo,
+   executam e gravam com ela pegada, e a soltam ao terminar aquela combinação. Se outro processo a
+   tem, ela é **pulada** e contada (`skipped`), sem esperar (esclarecimento de 2026-10-07): o
+   resumo final ganha `N skipped (in use by another command)`. Como o estado é lido só depois de
+   pegar a trava, duas metades sobrepostas nunca fazem a mesma tentativa duas vezes. A pasta
+   `.locks` começa com ponto, então o pacote, o manifesto e o `cli check` a ignoram (já ignoram todo
+   caminho com ponto).
+3. **Um `execute` por vez**: os `execute` usam o mesmo *slot* do motor (uid e pasta de trabalho) e
+   limpam esse *slot* no começo e no fim; dois em paralelo se atrapalhariam. Por isso o `execute`
+   pega também uma trava exclusiva própria (`data/suites/slm/.execute.lock`); um segundo `execute`
+   recusa com código 1. `generate` e `execute` podem rodar juntos.
+4. **Etiqueta e endereço**: cada processo lê o próprio `OLLAMA_BASE_URL` (o `-e` do `docker compose
+   run` tem prioridade sobre o `.env`); a etiqueta é a do `.env` nos dois (R23, decisão 2). O
+   `--resume` de cada processo confere o `run.json` contra o modelo e a versão do Ollama do seu
+   endpoint: GPUs com outra versão ou outro digest são recusadas (código 2), o que protege a
+   configuração congelada.
+5. **Testes** (`tests/ai_clients/test_concurrency.py`, novo, com dois `generate` em *threads* e um
+   cliente falso que bloqueia a primeira chamada até o teste liberá-la — `flock` em dois descritores
+   do mesmo processo se excluem como entre processos): metades disjuntas juntas (nada pulado, a
+   mesma árvore de uma execução sem concorrência); metades sobrepostas (a combinação em uso é
+   pulada e contada, nenhum arquivo duplicado, a rodada seguinte completa); `execute` com um
+   `generate` ativo (roda o resto, pula a combinação em uso); `package` e `close` recusando com
+   código 1 enquanto um `generate` roda; um segundo `execute` recusado.
+
+**Alternativas rejeitadas**: esperar a combinação em uso (esclarecimento de 2026-10-07); uma trava
+por problema (impediria dois processos de dividir os cenários de um mesmo problema, sem ganho);
+permitir dois `execute` (exigiria um *slot* do motor por processo, uma mudança no módulo `sandbox`).

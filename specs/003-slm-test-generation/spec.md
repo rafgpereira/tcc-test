@@ -169,6 +169,20 @@ tratamento manual (decisão B já tomada). Não existem mais tentativas extras n
   geradas? → A: Não. As entradas rodam só quando a solução passa em todos os testes públicos ou
   quando o primeiro erro é WA (a reserva só usa WA), como até 2026-10-05 (FR-018).
 
+### Session 2026-10-07 (duas GPUs e continuação da execução, `research.md` R23 e R24)
+
+Decisões da Milena: a configuração do piloto 6 fica congelada e a execução completa é a
+continuação da mesma execução com `--resume` até as 600 combinações; as 585 restantes são geradas
+em duas GPUs T4 idênticas, com dois `generate --resume` em paralelo sobre metades disjuntas dos
+problemas, cada um com seu `OLLAMA_BASE_URL` (passado com `docker compose run -e`) e o mesmo
+`OLLAMA_HARDWARE_LABEL`; um único `execute` depois. Para isso, a trava única de `data/suites/slm/`
+vira uma trava compartilhada para `generate`/`execute` mais uma trava exclusiva por combinação;
+`package` e `close` continuam exclusivos (FR-026a). Não há teste de determinismo entre as GPUs.
+
+- Q: Quando um `generate` ou o `execute` chega a uma combinação que outro processo está tratando,
+  ele pula ou espera? → A: Pula: segue com as outras combinações e informa no resumo final quantas
+  pulou por estarem em uso; a pulada fica com o processo que a pegou primeiro (FR-026a).
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
@@ -355,6 +369,9 @@ tentativas por razão) somam corretamente.
   marcada como aguardando tratamento manual, o comando segue com as demais e sai no fim com código
   próprio listando as marcadas; o pacote é recusado enquanto houver alguma (FR-022). Não existe
   descarte automático.
+- Dois processos recebem a mesma combinação (metades sobrepostas por engano, ou um `execute`
+  rodando junto de um `generate`): só um a trata; o outro a pula e a conta no resumo; nenhum arquivo
+  é duplicado nem corrompido, e a próxima rodada retoma o que faltar (FR-026a).
 - Falha de infraestrutura (Ollama fora do ar) ocorre repetidamente, sem nunca voltar a responder:
   a mesma chamada é repetida até um teto de repetições consecutivas configurável no `.env`
   (FR-018a); ao atingi-lo, o comando para com erro de infraestrutura, sem gravar nada daquela
@@ -546,6 +563,14 @@ tentativas por razão) somam corretamente.
   cada chamada.
 - **FR-026**: O pipeline (ambas as fases) MUST poder ser interrompido e retomado a qualquer
   momento sem duplicar nem corromper dados já persistidos (Constitution, Princípio VII).
+- **FR-026a**: Vários `generate --resume` e um `execute` MUST poder rodar ao mesmo tempo sobre a
+  mesma execução (por exemplo, dois `generate` com metades dos problemas, cada um ligado a um servidor
+  Ollama), sem duplicar nem corromper nada: cada combinação é tratada por um processo de cada vez
+  (trava exclusiva por combinação); uma combinação em uso por outro processo MUST ser pulada e
+  contada no resumo final, nunca esperada; `package` e `close` MUST continuar exigindo que nenhum
+  outro comando esteja rodando (recusa com código 1), assim como o `generate` que começa a execução
+  (sem `--resume`); um segundo `execute` MUST ser recusado com código 1 (o *slot* do motor é um
+  só). Decidido em 2026-10-07 (R24).
 - **FR-027**: O sistema MUST produzir um relatório versionável, agregando: a contagem por status
   e a fase e tentativa em que cada combinação ficou com a suíte (FR-023), distribuição do tamanho das suítes aceitas, funil de falha de tentativa
   por razão (não interpretável, falha em teste público, falha — erro de execução e/ou timeout —
