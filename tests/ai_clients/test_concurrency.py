@@ -153,6 +153,36 @@ def test_overlapping_halves_skip_the_combination_in_use_and_corrupt_nothing(
     assert cli.main(["report"]) == cli.EXIT_OK  # a sound tree: nothing damaged
 
 
+def test_two_generate_on_every_problem_share_the_work(env, monkeypatch, repo, capsys):
+    """Both get the whole queue (research R26): each skips the combination the other is on and
+    takes the next one, so the faster one does more and every attempt is made once."""
+    gpu0 = BlockingClient(hold={("1_A", "black_box", 1)})
+    gpu1 = BlockingClient(hold={("1_A", "white_box", 1)})
+    use_clients(monkeypatch, gpu0, gpu1)
+    first = Background(["generate", "--resume"])
+    second = Background(["generate", "--resume"])
+    first.start()
+    assert gpu0.entered.wait(WAIT_S)
+    second.start()  # skips 1_A black_box, held by the first, and stops on 1_A white_box
+    assert gpu1.entered.wait(WAIT_S)
+    gpu0.release.set()  # the first skips 1_A white_box and takes the rest of the queue
+    assert first.finish() == cli.EXIT_OK
+    gpu1.release.set()
+    assert second.finish() == cli.EXIT_OK
+    assert [r["key"] for r in gpu0.requests] == [
+        ("1_A", "black_box", 1),
+        ("1_A", "hybrid", 1),
+        ("2_B", "black_box", 1),
+        ("2_B", "white_box", 1),
+        ("2_B", "hybrid", 1),
+    ]
+    assert [r["key"] for r in gpu1.requests] == [("1_A", "white_box", 1)]
+    assert generations(repo) == every_first_attempt()  # each attempt once, none twice
+    out = capsys.readouterr().out.splitlines()
+    assert out.count("1_A black_box: skipped (in use by another command)") == 1
+    assert out.count("1_A white_box: skipped (in use by another command)") == 1
+
+
 def test_execute_runs_while_a_generate_is_active(env, monkeypatch, repo, capsys):
     record_generation(repo, "2_B", "black_box")
     record_generation(repo, "2_B", "hybrid")

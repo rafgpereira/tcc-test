@@ -1106,7 +1106,8 @@ tratamento manual, então as fases 4 e 5 continuam testadas só com o modelo sim
    **Alternativa rejeitada**: começar a execução completa numa pasta nova (refaria 15 combinações
    já feitas com a mesma configuração).
 2. **Duas GPUs T4 idênticas (Kaggle), cada uma com seu Ollama**, para gerar as 585 restantes: dois
-   `generate --resume` em paralelo, com metades disjuntas dos problemas e o `OLLAMA_BASE_URL` de
+   `generate --resume` em paralelo, com metades disjuntas dos problemas (desde R26, todos os
+   problemas nos dois) e o `OLLAMA_BASE_URL` de
    cada um passado com `docker compose run -e`, e um único `execute` depois (desenho em R24).
    `OLLAMA_HARDWARE_LABEL` é o mesmo nos dois processos (o do `.env`), então a etiqueta não
    distingue as duas GPUs. **Não será medido** se as duas GPUs dão respostas idênticas para a
@@ -1210,3 +1211,35 @@ repetições.
 **Alternativas rejeitadas**: aumentar o *timeout* do proxy (não configurável num túnel rápido do
 Cloudflare); voltar ao ngrok (derruba conexões depois de pausas, medido em 2026-10-07); mandar
 `keep_alive` ou bytes de preenchimento (o Ollama não manda nada antes do fim sem *streaming*).
+
+## R26 — Divisão automática do trabalho entre as GPUs (2026-10-07)
+
+**Implementado em 2026-10-07** (Phase 14 de `tasks.md`): só o laço do README do módulo muda;
+nenhum código de `src/` muda.
+
+Achado na execução completa: com metades fixas (problemas de ordem ímpar numa GPU, de ordem par na
+outra), a GPU0 terminou a sua metade (`done: 5 calls ...; 291 pending execution`) e ficou parada
+enquanto a GPU1 ainda tinha fila; o tempo de cada metade depende de quantas tentativas cada
+combinação pede e da velocidade de cada túnel, não do número de problemas.
+
+1. **Os dois `generate --resume` recebem todos os problemas** (sem `--problem`). Os dois percorrem
+   as combinações na mesma ordem (problema, depois cenário); a trava por combinação de R24 (item 2)
+   faz quem chega a uma combinação em uso pulá-la, sem esperar, e seguir para a seguinte. Os dois
+   processos se revezam na fila: a máquina mais rápida trata mais combinações, e nenhuma fica parada
+   enquanto ainda houver combinação livre. Se uma máquina sai (código 3), a outra segue com a fila
+   inteira até o fim da rodada.
+2. **Cada combinação continua sendo tratada uma vez por rodada**: o estado é relido com a trava
+   pegada (R24, item 2), então uma combinação que o outro processo acabou de levar à execução não é
+   chamada de novo. O `skipped` passa a ser o esperado (cada linha é uma combinação tratada pelo
+   outro processo), não um sinal de laço duplicado.
+3. **Nada do experimento muda**: a seed, a temperatura e o texto de cada tentativa dependem só da
+   combinação e do número da tentativa (FR-002), nunca de qual processo ou GPU a fez; o `run.json` e
+   os arquivos gravados são os mesmos.
+4. **Teste** (`tests/ai_clients/test_concurrency.py`): dois `generate` com todos os problemas, cada
+   um parado numa combinação diferente; cada um pula a do outro, o primeiro trata o resto da fila, e
+   cada primeira tentativa é feita uma vez só.
+
+**Alternativas rejeitadas**: rebalancear as metades a cada rodada pelo número de combinações
+pendentes (o tempo de cada combinação varia e não é conhecido antes); uma opção `--reverse` para o
+segundo processo percorrer a fila de trás para frente (menos linhas `skipped`, mas exige código
+novo, e o revezamento já divide o trabalho).

@@ -66,8 +66,8 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
   `docker compose run --rm app python -m ai_clients close --problem ID --scenario S --reason "..."`);
   depois `docker compose run --rm app python -m ai_clients report`, `... package` e
   `... verify [--extracted data/suites/slm]`. Com duas máquinas de Ollama, vários `generate
-  --resume` (cada um com `-e OLLAMA_BASE_URL=...` e metade dos `--problem`) e um `execute` rodam
-  juntos; `close`, `package` e o primeiro `generate` só rodam sozinhos (laço pronto no README do
+  --resume` (cada um com `-e OLLAMA_BASE_URL=...` e todos os problemas, que eles dividem
+  sozinhos) e um `execute` rodam juntos; `close`, `package` e o primeiro `generate` só rodam sozinhos (laço pronto no README do
   módulo)
 - Conferir a consistência entre artefatos (dataset descompactado × mutantes × suítes do modelo
   local, 1:1, com contagens; só lê): `docker compose run --rm app python -m cli check [--deep]`. Todo módulo que

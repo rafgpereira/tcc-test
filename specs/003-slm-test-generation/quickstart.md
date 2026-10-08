@@ -111,10 +111,12 @@ Esperado: 600 combinações terminais (SC-001), proporção de cada status repor
 N = 200 (SC-003),
 `verify` e `check --deep` `OK`, `--closing` com código 0 (SC-008).
 
-## Nível 7 — Duas GPUs (desde 2026-10-07, research R23 e R24)
+## Nível 7 — Duas GPUs (desde 2026-10-07, research R23, R24 e R26)
 
 Primeiro passo, obrigatório: `docker compose run --rm app python -m cli check --deep` com saída 0.
 Depois, o laço do README do módulo: dois `generate --resume` em paralelo (um `OLLAMA_BASE_URL` por
-GPU, metades disjuntas dos problemas, logs separados), um único `execute`, repetido enquanto houver
-`next:`, e o `report` no fim. Esperado: nenhum `skipped` com metades disjuntas; a contagem de
+GPU, todos os problemas nos dois, logs separados), um único `execute`, repetido enquanto houver
+`next:`, e o `report` no fim. Esperado: linhas `skipped` nos dois logs (cada uma é uma combinação
+tratada pelo outro `generate`), os dois `generate` terminando perto um do outro em cada rodada,
+e cada tentativa gravada uma vez só (`cli check --deep` com saída 0 no fim); a contagem de
 chamadas por etiqueta de hardware soma as duas GPUs (a etiqueta é a mesma nos dois processos).

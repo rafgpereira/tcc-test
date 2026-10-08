@@ -213,6 +213,7 @@ Código 0 se tudo bate, 1 se não, 2 se o manifesto não existe.
 ## Duas GPUs (desde 2026-10-07, research R23 e R24)
 
 Dois `generate --resume` em paralelo, cada um com seu `OLLAMA_BASE_URL` (`docker compose run -e
-OLLAMA_BASE_URL=...`, que tem prioridade sobre o `.env`) e metades disjuntas dos problemas
-(`--problem`), e um único `execute` depois que os dois terminam; repetir enquanto o `execute`
+OLLAMA_BASE_URL=...`, que tem prioridade sobre o `.env`) e todos os problemas (desde R26: a
+combinação em uso por um é pulada pelo outro, então os dois dividem a fila sozinhos e cada
+`skipped` é uma combinação tratada pelo outro), e um único `execute` depois que os dois terminam; repetir enquanto o `execute`
 imprimir `next:`. O laço em bash fica no README do módulo.

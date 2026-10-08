@@ -198,6 +198,17 @@ texto, as opções e a seed não mudam, e o resultado gravado é idêntico ao da
   não é cortada, e a duração dela continua limitada por `num_predict` (decidido pelo agente e
   registrado em R25, item 3, por ser a única leitura compatível com o *streaming*).
 
+
+### Session 2026-10-07 (divisão automática do trabalho entre as GPUs, `research.md` R26)
+
+Pedido da Milena: com metades fixas, uma GPU terminou a sua e ficou parada enquanto a outra ainda
+tinha fila. O laço passa a dar **todos** os problemas aos dois `generate`; a trava por combinação
+(FR-026a) já faz quem chega a uma combinação em uso pulá-la e seguir para a seguinte, então os dois
+dividem o trabalho sozinhos, sem código novo no módulo.
+
+- Q: Uma combinação pulada por estar em uso fica sem tratamento nessa rodada? → A: Não: quem a
+  tem a trata; o `skipped` passa a ser o esperado com duas máquinas (cada linha é uma combinação
+  feita pelo outro processo), e a próxima rodada só retoma o que ainda faltar (FR-026a).
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
@@ -384,9 +395,10 @@ tentativas por razão) somam corretamente.
   marcada como aguardando tratamento manual, o comando segue com as demais e sai no fim com código
   próprio listando as marcadas; o pacote é recusado enquanto houver alguma (FR-022). Não existe
   descarte automático.
-- Dois processos recebem a mesma combinação (metades sobrepostas por engano, ou um `execute`
-  rodando junto de um `generate`): só um a trata; o outro a pula e a conta no resumo; nenhum arquivo
-  é duplicado nem corrompido, e a próxima rodada retoma o que faltar (FR-026a).
+- Dois processos recebem a mesma combinação (dois `generate` com todos os problemas, o uso
+  normal com duas máquinas, ou um `execute` rodando junto de um `generate`): só um a trata; o
+  outro a pula, a conta no resumo e segue para a seguinte; nenhum arquivo é duplicado nem
+  corrompido, e a próxima rodada retoma o que faltar (FR-026a).
 - Falha de infraestrutura (Ollama fora do ar) ocorre repetidamente, sem nunca voltar a responder:
   a mesma chamada é repetida até um teto de repetições consecutivas configurável no `.env`
   (FR-018a); ao atingi-lo, o comando para com erro de infraestrutura, sem gravar nada daquela
@@ -586,8 +598,8 @@ tentativas por razão) somam corretamente.
 - **FR-026**: O pipeline (ambas as fases) MUST poder ser interrompido e retomado a qualquer
   momento sem duplicar nem corromper dados já persistidos (Constitution, Princípio VII).
 - **FR-026a**: Vários `generate --resume` e um `execute` MUST poder rodar ao mesmo tempo sobre a
-  mesma execução (por exemplo, dois `generate` com metades dos problemas, cada um ligado a um servidor
-  Ollama), sem duplicar nem corromper nada: cada combinação é tratada por um processo de cada vez
+  mesma execução (por exemplo, dois `generate` com todos os problemas, cada um ligado a um servidor
+  Ollama, que assim dividem o trabalho sozinhos, R26), sem duplicar nem corromper nada: cada combinação é tratada por um processo de cada vez
   (trava exclusiva por combinação); uma combinação em uso por outro processo MUST ser pulada e
   contada no resumo final, nunca esperada; `package` e `close` MUST continuar exigindo que nenhum
   outro comando esteja rodando (recusa com código 1), assim como o `generate` que começa a execução

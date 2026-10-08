@@ -1374,7 +1374,7 @@ template confirmados por Milena no mesmo dia]**:
   configuração fica congelada e a execução completa continua esta mesma execução** com
   `--resume` até as 600 combinações (as 15 do piloto entram no resultado), gerando em duas GPUs
   T4 idênticas (Kaggle) com dois `generate` em paralelo sobre metades disjuntas dos problemas
-  (R24); a mesma etiqueta de hardware nos dois processos; o determinismo entre as duas GPUs não
+  (R24; desde R26, todos os problemas nos dois); a mesma etiqueta de hardware nos dois processos; o determinismo entre as duas GPUs não
   é medido. Primeiro passo da continuação: `cli check --deep` com saída 0.
 - **Execução concorrente para duas GPUs [DECIDIDO E IMPLEMENTADO, 2026-10-07 — `research.md` R24]**:
   vários `generate --resume` e um `execute` podem rodar ao mesmo tempo sobre `data/suites/slm/`
@@ -1389,6 +1389,14 @@ template confirmados por Milena no mesmo dia]**:
   experimento muda: os arquivos gravados são os mesmos de uma execução sem concorrência; as travas
   são arquivos com ponto, fora do pacote e do `cli check`. Testado com dois `generate` em metades
   disjuntas e sobrepostas, `execute` com `generate` ativo e `package`/`close` recusados.
+- **Divisão automática do trabalho entre as GPUs [DECIDIDO E IMPLEMENTADO, 2026-10-07 —
+  `research.md` R26]**: com metades fixas, a GPU0 terminou a sua e ficou parada enquanto a GPU1
+  ainda tinha fila. O laço passa a dar **todos** os problemas aos dois `generate --resume`; como
+  a combinação em uso por um é pulada pelo outro (R24), os dois se revezam na fila: a máquina
+  mais rápida trata mais combinações e nenhuma fica parada enquanto houver combinação livre. O
+  `skipped` passa a ser o esperado (cada linha é uma combinação tratada pelo outro processo).
+  Nenhum código muda e nenhum dado do experimento muda: a seed, a temperatura e o texto de cada
+  tentativa dependem só da combinação e do número da tentativa, não da GPU que a fez.
 - **Resposta em *streaming* [DECIDIDO E IMPLEMENTADO, 2026-10-07 — `research.md` R25]**: pelo
   túnel do cloudflared, chamadas de mais de ~100 s recebiam HTTP 524 (o proxy fecha um pedido sem
   bytes nesse tempo) e eram repetidas até esgotar as repetições. O `/api/chat` passa a ser pedido
@@ -1659,6 +1667,7 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-10-07 | **Divisão automática do trabalho entre as GPUs (`research.md` R26)**: com metades fixas uma GPU ficava parada enquanto a outra tinha fila; o laço do README do módulo dá todos os problemas aos dois `generate --resume`, e a trava por combinação (R24) os faz dividir a fila sozinhos (`skipped` passa a ser o esperado); nenhum código nem dado do experimento muda; teste novo em `test_concurrency.py`. |
 | 2026-10-07 | **Resposta do Ollama em *streaming* (`research.md` R25)**: `stream: true`, pedaços juntados e métricas do último (registro idêntico ao sem *streaming*); resposta incompleta é falha de infraestrutura; `OLLAMA_HTTP_TIMEOUT_S` = maior silêncio entre pedaços; `run.json` inalterado e `--resume` aceita a execução atual; motivo: HTTP 524 do Cloudflare em chamadas de mais de ~100 s | 3 |
 | 2026-10-07 | **Execução concorrente do SLM para duas GPUs (`research.md` R24)**: trava compartilhada para `generate --resume`/`execute`, trava por combinação (a combinação em uso é pulada e contada), `close`, `package` e o primeiro `generate` exclusivos, um `execute` por vez; laço em bash das duas GPUs no README do módulo; os dados gravados não mudam | 3 |
 | 2026-10-07 | **Piloto 6 do SLM e decisão da execução completa (`research.md` R23)**: 15 de 15 combinações com suíte (13 `accepted`, 12 na fase 1 e 1 na fase 2; 2 `accepted_fallback`), 57 chamadas, 13 aceitas (22,8%), 44 falhas (35 WA, 8 RE, 1 `all_inputs_failed`), mediana de 43 s, ≈ 46 min; fases 4 e 5 não exercitadas. Decidido: configuração congelada; a execução completa continua a mesma execução com `--resume` até 600; duas GPUs T4 (Kaggle) com dois `generate` em paralelo sobre metades disjuntas; determinismo entre GPUs não medido | 3 |

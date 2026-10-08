@@ -433,3 +433,13 @@ contratos). Valem as regras do topo (teste antes, 📌 PROPAGAR); tudo conferido
 - [X] T097 `src/ai_clients/ollama.py`: `"stream": true` em `request_body`; `OllamaClient._stream_chat` junta os pedaços e devolve o último; `_translated` concentra a tradução de erros (inclusive `http.client.HTTPException`) para abrir e para ler; `model_info` sem mudança per FR-002a, FR-018a, R25 itens 1–5 (missing)
 - [X] T098 Conferir que o `run.json` não muda (`test_resume_config.py`: nenhum campo de *streaming*) e comparar o `run.json` da execução em andamento com a configuração atual (nenhuma diferença) per FR-002a, R25 item 6 (missing)
 - [X] T099 📌 PROPAGAR — `src/ai_clients/README.md` (o que `OLLAMA_HTTP_TIMEOUT_S` mede, o 524 e a resposta interrompida em "Se algo der errado"), `.env.example`, metodologia (seção 3 + seção 8), R25 e S16 implementados; `check_docs_sync.py` sai `0` per Constitution XI (missing)
+
+## Phase 14: Convergence
+
+Divisão automática do trabalho entre as GPUs (spec FR-026a, sessão 2026-10-07; research R26).
+Valem as regras do topo (teste antes, 📌 PROPAGAR); tudo conferido com
+`docker compose run --rm sandbox pytest tests/ai_clients tests/cli`.
+
+- [X] T100 Teste em `tests/ai_clients/test_concurrency.py`: dois `generate` com todos os problemas, cada um parado numa combinação diferente, pulam a do outro e dividem a fila; cada primeira tentativa feita uma vez só per FR-026a, R26 item 4 (missing)
+- [X] T101 Laço do `src/ai_clients/README.md` sem as metades (`half0.args`/`half1.args`): os dois `generate --resume` sem `--problem`; texto, tabela de comandos e "Se algo der errado" (o `skipped` é o esperado) per R26 itens 1–2 (missing)
+- [X] T102 📌 PROPAGAR — `README.md` da raiz ("Referência de comandos"), `CLAUDE.md`, contrato `cli.md`, quickstart Nível 7, metodologia (seção 3 + seção 8), R26 e S17 implementados; `check_docs_sync.py` sai `0` per Constitution XI (missing)
