@@ -22,6 +22,8 @@ Rules (docs/metodologia-referencia.md, section 3; research R6), applied to the r
 ``parse_prediction`` does the same for the answer of a prediction attempt (end of this file).
 """
 
+import re
+
 from ai_clients.schemas.generation import ParsedResponse, PredictionParse, UnparsedResponse
 from dataset.schemas.testes import TestCase
 
@@ -148,13 +150,29 @@ def parse_response(raw: str) -> ParsedResponse | UnparsedResponse:
 # ``<output>`` and nothing else but whitespace. Rule 5 applies to each ``<input>`` and ``<output>``
 # with the fences of data (```` ``` ````, ```` ```text ````, ```` ```txt ````, ```` ```plaintext
 # ````): one wrapping the whole block is removed and counted (``markdown_fences_removed``), any
-# other stays. A test with an empty input or output is dropped alone and counted (``empty_tests``);
-# only when every test is dropped does the answer fail. The predicted output is kept as written
-# (only rules 4 and 5), never checked: there is no program to run.
+# other stays. A test with an empty input or output is dropped alone and counted (``empty_tests``),
+# and so is one with an abbreviated input or output (``abbreviated_tests``, research R27): a line
+# holding a token made only of 3 or more dots next to other tokens (``1 2 ... 100``), or a ``…``
+# anywhere. A line of dots alone (a grid row such as ``...``) is data and stays: 0 of the 47,492
+# inputs and outputs of the dataset's tests match the rule, 67 contain ``...``. Only when every
+# test is dropped does the answer fail. The predicted output is kept as written (only rules 4 and
+# 5), never checked: there is no program to run.
 
 PREDICTION_TAGS = ("edge_cases_analysis", "tests")
 _TEST_PARTS = ("input", "output")
 DATA_FENCE_OPENINGS = ("```", "```text", "```txt", "```plaintext")
+_DOTS = re.compile(r"^\.{3,}$")
+
+
+def is_abbreviated(text: str) -> bool:
+    """Whether a predicted input or output elides values (``1 1 ... 1``) instead of writing them."""
+    if "…" in text:
+        return True
+    for line in text.splitlines():
+        tokens = line.split()
+        if len(tokens) > 1 and any(_DOTS.match(token) for token in tokens):
+            return True
+    return False
 
 
 def _test(content: str) -> tuple[str, str]:
@@ -175,10 +193,10 @@ def _test(content: str) -> tuple[str, str]:
     return parts[0], parts[1]
 
 
-def _tests(body: str) -> tuple[list[TestCase], int, int]:
-    """The tests with a non-empty input and output, in order, how many were dropped and how many
-    fences were removed."""
-    tests, empty, fences, position = [], 0, 0, 0
+def _tests(body: str) -> tuple[list[TestCase], int, int, int]:
+    """The tests with a complete input and output, in order, how many were dropped for being
+    empty, how many for being abbreviated, and how many fences were removed."""
+    tests, empty, abbreviated, fences, position = [], 0, 0, 0, 0
     while True:
         start = body.find("<test>", position)
         gap = body[position:] if start < 0 else body[position:start]
@@ -199,14 +217,20 @@ def _tests(body: str) -> tuple[list[TestCase], int, int]:
             fences += removed
             parts.append(text)
         given, expected = parts
-        if given and expected:
-            tests.append(TestCase(input=given, output=expected))
-        else:
+        if not (given and expected):
             empty += 1
+        elif is_abbreviated(given) or is_abbreviated(expected):
+            abbreviated += 1
+        else:
+            tests.append(TestCase(input=given, output=expected))
         position = end + len("</test>")
     if not tests:
+        if empty and abbreviated:
+            raise _Unparseable("only_empty_or_abbreviated_tests")
+        if abbreviated:
+            raise _Unparseable("only_abbreviated_tests")
         raise _Unparseable("only_empty_tests" if empty else "no_tests")
-    return tests, empty, fences
+    return tests, empty, abbreviated, fences
 
 
 def _parse_prediction(raw: str) -> PredictionParse:
@@ -214,7 +238,7 @@ def _parse_prediction(raw: str) -> PredictionParse:
     analysis = _normalize_block(blocks["edge_cases_analysis"])
     if not analysis:
         raise _Unparseable("empty_block:edge_cases_analysis")
-    tests, empty, fences = _tests(blocks["tests"])
+    tests, empty, abbreviated, fences = _tests(blocks["tests"])
     inputs = [test.input for test in tests]
     return PredictionParse(
         ok=True,
@@ -223,6 +247,7 @@ def _parse_prediction(raw: str) -> PredictionParse:
         extraneous_chars=extraneous,
         duplicate_inputs=len(inputs) - len(set(inputs)),
         empty_tests=empty,
+        abbreviated_tests=abbreviated,
         markdown_fences_removed=fences,
     )
 

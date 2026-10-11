@@ -14,10 +14,16 @@ from dataset.schemas.common import Schema
 from dataset.schemas.manifest import FileHash
 
 _ATTEMPT_NUMBERS = "|".join(str(n) for n in range(1, config.MAX_ATTEMPTS + 1))
+_COMBINATION_FILE = (
+    rf"\d+_[A-Za-z0-9]+/(black_box|white_box|hybrid)/(suite\.json|manual_close\.json|"
+    rf"attempt_({_ATTEMPT_NUMBERS})\.(generation|execution)\.json)"
+)
+# The files of each combination, run.json and, since research R27, the template changes and the
+# files they moved aside (superseded/<NNN>/ holds combination files, with the same names).
 SUITE_PATH = re.compile(
-    rf"^{config.ZIP_ROOT}/(run\.json|problems/\d+_[A-Za-z0-9]+/(black_box|white_box|hybrid)/"
-    rf"(suite\.json|manual_close\.json|"
-    rf"attempt_({_ATTEMPT_NUMBERS})\.(generation|execution)\.json))$"
+    rf"^{config.ZIP_ROOT}/(run\.json|problems/{_COMBINATION_FILE}|"
+    rf"{config.TEMPLATE_CHANGES_DIR}/\d{{3}}\.json|"
+    rf"{config.SUPERSEDED_DIR}/\d{{3}}/{_COMBINATION_FILE})$"
 )
 
 __all__ = ["FileHash", "SlmSuitesManifest"]

@@ -84,6 +84,7 @@ class PredictionParse(Schema):
     extraneous_chars: NonNegative  # text outside the two blocks, ignored (never corrected)
     duplicate_inputs: NonNegative  # tests whose input equals an earlier one (kept)
     empty_tests: NonNegative = 0  # <test> blocks with an empty input or output, dropped alone
+    abbreviated_tests: NonNegative = 0  # tests eliding values ("1 1 ... 1"), dropped alone (R27)
     markdown_fences_removed: NonNegative = 0  # fences wrapping a whole <input> or <output>
 
     @field_validator("edge_cases_analysis")
@@ -128,6 +129,9 @@ class GenerationRecord(Schema):
     template: AttemptKind
     model_digest: str = Field(min_length=1)  # of the model that answered (also in run.json)
     prompt_sha256: Sha256Hex
+    # The template the prompt was built from (research R27): the run's current one of its kind, or
+    # absent in the attempts written before 2026-10-07, valid while that template is not changed.
+    template_sha256: Sha256Hex | None = None
     raw_response: str
     ollama: OllamaMeta | None  # null only with `model_failure` (there was no answer)
     hardware_label: str = Field(min_length=1)

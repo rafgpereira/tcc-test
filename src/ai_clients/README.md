@@ -241,6 +241,23 @@ Grava `manual_close.json` (o motivo e a data) e o `suite.json` com `status: disc
 testes; o problema continua contando no total do experimento. Imprime `<id> <cenário>: suite
 recorded (discarded_manual)`. `--dry-run` só mostra o que seria gravado.
 
+**Trocar um texto-base no meio da execução** (só por decisão dos autores; uma execução usa uma
+única versão de cada texto-base): edite o arquivo em `src/prompt_templates/` (o
+`generate --resume` passa a recusar com `2`, então o laço para na rodada seguinte) e rode:
+
+```bash
+docker compose run --rm app python -m ai_clients change-template --template prediction --reason "<motivo>"
+```
+
+Grava a troca em `data/suites/slm/template_changes/001.json` (o texto-base, a impressão digital
+SHA-256 do antigo e do novo, a data, o motivo e o que foi movido) e move para
+`data/suites/slm/superseded/001/<id>/<cenário>/` os pedidos feitos com o texto antigo, do
+primeiro deles em diante, com o `suite.json`. Esses problemas e cenários voltam a ficar
+pendentes, e o próximo `generate --resume` os refaz com o texto novo e as mesmas seeds. Imprime
+uma linha por problema e cenário refeito e `next: ...generate --resume`; `--dry-run` só lista o
+que seria movido. Interrompido no meio, rode o mesmo comando de novo: ele termina de mover, sem
+gravar outra troca. O que foi movido entra no pacote, mas não nas contagens do relatório.
+
 **5. Relatório (a qualquer momento):**
 
 ```bash
@@ -253,8 +270,8 @@ problema e cenário estão em cada `status` da tabela do passo 3, aguardando os 
 cada `status` (mínimo, quartis, máximo e histograma), quantas tentativas falharam por qual motivo
 e em qual número de tentativa, entradas descartadas por motivo, e por cenário quantas respostas
 foram cortadas por tamanho (`done_reason_length`), quantas cercas Markdown foram tiradas e quantas
-entradas e testes previstos vazios foram descartados, *tokens*, tempo do modelo, máquinas usadas e
-as seeds de cada combinação. Imprime
+entradas e testes previstos vazios ou abreviados foram descartados, *tokens*, tempo do modelo,
+máquinas usadas, as seeds de cada combinação e as trocas de texto-base (`template_changes`). Imprime
 `report: manifests/slm_generation_report.json` e uma linha com as contagens. Pode rodar com a
 execução pela metade (conta as pendentes).
 
@@ -265,7 +282,8 @@ docker compose run --rm app python -m ai_clients package
 ```
 
 Só funciona quando todo problema e cenário do dataset tem `suite.json` (senão recusa com `1`,
-dizendo quantos faltam e quais aguardam os autores, com o comando `close`). Gera `data/slm_suites.zip` (os mesmos arquivos dão sempre o mesmo zip,
+dizendo quantos faltam e quais aguardam os autores, com o comando `close`, ou se a pasta
+`superseded/` não bate com as trocas de texto-base). Gera `data/slm_suites.zip` (os mesmos arquivos dão sempre o mesmo zip,
 byte a byte), `manifests/slm_suites.manifest.json` (o SHA-256 de cada arquivo e do zip) e refaz o
 relatório. Esses três arquivos são os que se versionam; `data/suites/` nunca é versionado.
 
@@ -288,9 +306,10 @@ o dataset: `docker compose run --rm app python -m cli check --deep`.
 
 | Comando | Serviço | O que faz / variações |
 |---|---|---|
-| `python -m ai_clients generate` | `app` | pede ao modelo as entradas e a solução Python de cada problema e cenário ainda pendente e grava as respostas. `--resume` é obrigatório quando já existe `data/suites/slm/run.json` (continua a mesma execução; sem ele o comando recusa com código `2`) e recusa, também com `2`, se algo que muda as respostas mudou desde o início da execução — o modelo (ou a versão baixada dele), a versão do Ollama, os parâmetros de geração, os dois textos-base do pedido (solução e predição), o número de tentativas, o dataset ou as folgas de tempo e memória —, listando o que mudou; trocar a máquina do Ollama, o `OLLAMA_HARDWARE_LABEL` ou as esperas do `.env` é permitido. `--dry-run` só lista os pedidos previstos e o tamanho de cada um, sem Ollama e sem gravar nada. `--limit N` trata no máximo N combinações de problema e cenário (na ordem: problema em ordem alfabética, depois caixa-preta, caixa-branca, híbrido). `--problem ID` e `--scenario black_box`, `white_box` ou `hybrid` (repetíveis) restringem. Se o Ollama não responde, a mesma chamada é repetida (espera de 5 s dobrando até 60 s) sem gastar tentativa, até `OLLAMA_MAX_INFRA_RETRIES` vezes seguidas; aí o comando para com código `3` sem gravar nada daquela tentativa. Já o `token repeat limit reached` do Ollama (o modelo travou repetindo texto) é tentativa perdida (`repetition`) e segue direto para o pedido seguinte. Os pedidos 13 a 15 são de predição (segundo texto-base) e a primeira resposta lida vira a suíte na hora. Se algum problema e cenário da seleção aguarda os autores, imprime uma linha `manual: ...` por combinação, com o comando `close`, e sai com `4` depois de tratar todos os outros. Interrompido (Ctrl+C, `docker stop`), sai com `130`; rodar de novo com `--resume` refaz só a chamada que estava em andamento, com a mesma seed. Vários `generate --resume` (um por máquina de Ollama, cada um com `-e OLLAMA_BASE_URL=...` e todos os problemas) e um `execute` podem rodar ao mesmo tempo: um problema e cenário em uso por outro comando é pulado (`skipped (in use by another command)`), contado no resumo e tratado pelo outro, o que divide o trabalho entre as máquinas sem metades fixas. O primeiro `generate` (sem `--resume`) roda sozinho |
+| `python -m ai_clients generate` | `app` | pede ao modelo as entradas e a solução Python de cada problema e cenário ainda pendente e grava as respostas. `--resume` é obrigatório quando já existe `data/suites/slm/run.json` (continua a mesma execução; sem ele o comando recusa com código `2`) e recusa, também com `2`, se algo que muda as respostas mudou desde o início da execução — o modelo (ou a versão baixada dele), a versão do Ollama, os parâmetros de geração, os dois textos-base do pedido (solução e predição), o número de tentativas, o dataset ou as folgas de tempo e memória —, listando o que mudou (para trocar um texto-base de propósito, há o `change-template`); trocar a máquina do Ollama, o `OLLAMA_HARDWARE_LABEL` ou as esperas do `.env` é permitido. `--dry-run` só lista os pedidos previstos e o tamanho de cada um, sem Ollama e sem gravar nada. `--limit N` trata no máximo N combinações de problema e cenário (na ordem: problema em ordem alfabética, depois caixa-preta, caixa-branca, híbrido). `--problem ID` e `--scenario black_box`, `white_box` ou `hybrid` (repetíveis) restringem. Se o Ollama não responde, a mesma chamada é repetida (espera de 5 s dobrando até 60 s) sem gastar tentativa, até `OLLAMA_MAX_INFRA_RETRIES` vezes seguidas; aí o comando para com código `3` sem gravar nada daquela tentativa. Já o `token repeat limit reached` do Ollama (o modelo travou repetindo texto) é tentativa perdida (`repetition`) e segue direto para o pedido seguinte. Os pedidos 13 a 15 são de predição (segundo texto-base) e a primeira resposta lida vira a suíte na hora; um teste previsto com valores abreviados (`1 1 ... 1`) é descartado sozinho, e se nenhum sobrar a resposta não é lida. Se algum problema e cenário da seleção aguarda os autores, imprime uma linha `manual: ...` por combinação, com o comando `close`, e sai com `4` depois de tratar todos os outros. Interrompido (Ctrl+C, `docker stop`), sai com `130`; rodar de novo com `--resume` refaz só a chamada que estava em andamento, com a mesma seed. Vários `generate --resume` (um por máquina de Ollama, cada um com `-e OLLAMA_BASE_URL=...` e todos os problemas) e um `execute` podem rodar ao mesmo tempo: um problema e cenário em uso por outro comando é pulado (`skipped (in use by another command)`), contado no resumo e tratado pelo outro, o que divide o trabalho entre as máquinas sem metades fixas. O primeiro `generate` (sem `--resume`) roda sozinho |
 | `python -m ai_clients execute` | `sandbox` | roda a solução Python de cada resposta lida e ainda não executada, sobre os testes públicos e as entradas geradas, e grava as saídas esperadas e, quando a combinação termina, o `suite.json`. Exige `data/suites/slm/run.json` (rode o `generate` antes; sem ele, código `2`); não tem `--resume`, porque sempre continua de onde parou. `--dry-run` só lista as tentativas a executar (número de entradas, de testes públicos e os limites efetivos), sem executar nem gravar nada. `--limit N`, `--problem ID` e `--scenario S` como no `generate`. Termina com `next: ...generate --resume` (com os mesmos `--problem` e `--scenario` usados no `execute`) se ainda há problema e cenário esperando um novo pedido ao modelo; as linhas `manual: ...` e o código `4` como no `generate`. Uma falha do ambiente de execução (por exemplo, rodar no serviço `app`) para com código `3` sem gravar nada daquela tentativa. Interrompido (Ctrl+C, `docker stop`), sai com `130`; rodar de novo refaz só a tentativa que estava em andamento. Pode rodar junto com `generate --resume` (pula, e conta, o problema e cenário que um deles estiver usando), mas só um `execute` por vez |
 | `python -m ai_clients close --problem ID --scenario S --reason "TEXTO"` | `app` | fecha à mão **um** problema e cenário que aguarda os autores: grava `manual_close.json` (motivo e data) e o `suite.json` com `status: discarded_manual`. As três opções são obrigatórias; motivo vazio, combinação em outro estado ou problema fora do dataset → `2`, sem gravar nada. `--dry-run` só mostra o que seria gravado. Exige o `run.json` (código `2` sem ele). Recusa (`1`) se outro comando estiver rodando |
+| `python -m ai_clients change-template --template prediction --reason "TEXTO"` | `app` | depois de editar um texto-base (`--template solution` ou `prediction`), grava a troca e move para `data/suites/slm/superseded/<NNN>/` os pedidos feitos com o texto antigo, do primeiro deles em diante, com o `suite.json`; esses problemas e cenários são refeitos pelo `generate --resume` com o texto novo e as mesmas seeds. As duas opções são obrigatórias; texto igual ao da execução ou motivo vazio → `2`; algum problema e cenário danificado → `1`, sem gravar nem mover nada. `--dry-run` só lista o que seria movido. Interrompido, rodar de novo termina de mover, sem gravar outra troca. Recusa (`1`) se outro comando estiver rodando |
 | `python -m ai_clients report` | `app` | grava `manifests/slm_generation_report.json` com os números da execução, lendo só `data/suites/slm/`; pode rodar a qualquer momento. Exige o `run.json` (código `2` sem ele); combinação danificada → `1`, sem gravar o relatório |
 | `python -m ai_clients package` | `app` | gera `data/slm_suites.zip`, `manifests/slm_suites.manifest.json` e refaz o relatório; recusa (`1`) se algum problema e cenário do dataset não tem `suite.json` (inclusive os que aguardam os autores, listados com o comando `close`) ou se há combinação danificada. Não tem `--problem` nem `--scenario`: o pacote é sempre da execução inteira. Recusa (`1`) se outro comando estiver rodando |
 | `python -m ai_clients verify` | `app` | confere `data/slm_suites.zip` contra o manifesto; `--extracted data/suites/slm` confere também a pasta descompactada, arquivo a arquivo. `0` se tudo bate, `1` se não, `2` sem o manifesto |
@@ -318,7 +337,10 @@ ou de configuração do Ollama, `4` terminou, mas algum problema e cenário agua
 | `error: <id> <cenário> is <estado>, not awaiting manual handling; nothing was recorded` (`2`, no `close`) | só se fecha à mão um problema e cenário que aguarda os autores; confira o `--problem` e o `--scenario` |
 | `FAIL` no `verify` | algum arquivo foi alterado, apagado ou acrescentado depois do pacote: apague `data/suites/slm` e descompacte de novo |
 | `infrastructure failure: cannot prepare the workdir ...` ou `cannot start ...` (`3`, no `execute`) | o `execute` foi rodado fora do serviço `sandbox`: use `docker compose run --rm sandbox ...`; nada foi gravado |
-| `error: the configuration differs from data/suites/slm/run.json ...` (`2`) | algo que muda as respostas mudou (a lista abaixo da mensagem diz o quê, com o valor gravado e o atual); volte ao que estava, ou tire `data/suites/slm` do lugar para começar uma execução nova |
+| `error: the configuration differs from data/suites/slm/run.json ...` (`2`) | algo que muda as respostas mudou (a lista abaixo da mensagem diz o quê, com o valor gravado e o atual); volte ao que estava, ou tire `data/suites/slm` do lugar para começar uma execução nova. Se foi um texto-base trocado de propósito (`prompt_template_sha256` ou `predict_template_sha256`), rode o `change-template` que a mensagem sugere |
+| `error: the prediction template file is the current prediction template of the run ...; edit the file first` (`2`, no `change-template`) | o arquivo do texto-base não mudou: edite-o antes, ou não há nada a trocar |
+| `damaged: <id> <cenário>: inconsistent: attempt_<n>.generation.json: made before the ... template was changed` ou `... is not the ... template of the run` (`1`) | uma troca de texto-base ficou pela metade: rode o mesmo `change-template` de novo, que termina de mover |
+| `error: data/suites/slm/template_changes: ...` (`1`) | um registro de troca foi alterado, apagado ou renumerado; avise os autores antes de mexer |
 | `damaged: <id> <cenário>: missing: ... / changed: ... / inconsistent: ...` (`1`) | os arquivos daquele problema e cenário foram alterados, apagados ou não batem entre si; o comando não conserta nada e continua com os demais. Avise os autores antes de mexer |
 | `error: another python -m ai_clients command is already running over data/suites/slm/` (`1`) | `close`, `package` e o primeiro `generate` só rodam sozinhos, e `generate --resume` e `execute` não rodam junto com eles: espere o outro comando terminar |
 | `error: another python -m ai_clients execute is already running` (`1`) | só um `execute` por vez: espere o outro terminar |
@@ -340,6 +362,7 @@ ou de configuração do Ollama, `4` terminou, mas algum problema e cenário agua
 |---|---|---|
 | Respostas do modelo, execuções e suíte final de cada problema e cenário | JSON | `data/suites/slm/problems/<id>/<cenário>/` (não versionado); a suíte final é de onde a etapa de avaliação vai ler |
 | Relatório agregado | JSON | `manifests/slm_generation_report.json` (versionado) |
+| Trocas de texto-base e os pedidos refeitos por elas | JSON | `data/suites/slm/template_changes/` e `data/suites/slm/superseded/` (não versionados; entram no pacote) |
 | Pacote da execução final e manifesto | zip e JSON | `data/slm_suites.zip` e `manifests/slm_suites.manifest.json` (versionados) |
 
 ## (e) Dependências e pré-requisitos
@@ -363,7 +386,8 @@ ou de configuração do Ollama, `4` terminou, mas algum problema e cenário agua
 - Nos cenários com código, o modelo pode só traduzir a solução C++ para Python, em vez de resolver
   o problema de forma independente.
 - Não há verificação de que a solução Python é determinística nem de que cada entrada gerada
-  respeita as restrições do enunciado.
+  respeita as restrições do enunciado. Na predição, só os testes com valores abreviados
+  (`1 1 ... 1`, `…`) são descartados; uma linha só de pontos (como `...` numa grade) é mantida.
 
 ## Referências
 
@@ -378,6 +402,7 @@ ou de configuração do Ollama, `4` terminou, mas algum problema e cenário agua
 | `generate` | 2026-10-06 | 7535dee |
 | `execute` | 2026-10-06 | 7535dee |
 | `close` | pendente | — |
+| `change-template` | pendente | — |
 | `report` | 2026-10-06 | 7535dee |
 | `package` | pendente | — |
 | `verify` | pendente | — |

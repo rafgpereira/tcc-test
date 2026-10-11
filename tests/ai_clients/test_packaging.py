@@ -114,6 +114,61 @@ def test_package_refuses_a_damaged_run(finished, repo, capsys):
     assert not (repo / config.ZIP_PATH).exists()
 
 
+def a_template_change(repo, stray=False):
+    """A finished change of the prediction template that moved one file aside (research R27)."""
+    from ai_clients.schemas.template_change import TemplateChange
+
+    run = store.read_run(repo)
+    name = "attempt_13.generation.json"
+    change = TemplateChange(
+        number=1,
+        template="prediction",
+        from_sha256=run.predict_template_sha256,
+        to_sha256="b" * 64,
+        changed_at="2026-10-07T12:00:00Z",
+        reason="degenerate inputs",
+        superseded=[{"problem_id": "1_A", "scenario": "black_box", "files": [name]}],
+    )
+    store.write_template_change(repo, change)
+    kept = store.superseded_dir(repo, 1, "1_A", "black_box")
+    kept.mkdir(parents=True)
+    (kept / name).write_text("{}\n", encoding="utf-8")
+    if stray:
+        (kept / "attempt_14.generation.json").write_text("{}\n", encoding="utf-8")
+
+
+@pytest.fixture()
+def finished_by_solutions(repo, monkeypatch):
+    """Every combination accepted at attempt 1: no attempt used the prediction template (an
+    attempt of it written without template_sha256 is damage once that template changed)."""
+    monkeypatch.chdir(repo)
+    run = start_run(repo)
+    for pid, scenario in COMBOS:
+        record_generation(repo, pid, scenario)
+    execution.execute(repo, COMBOS, run=run, runner=echo_runner(), echo=lambda line: None)
+    return run
+
+
+def test_the_package_keeps_the_template_changes_and_what_they_moved_aside(
+    finished_by_solutions, repo
+):
+    a_template_change(repo)
+    assert cli.main(["package"]) == cli.EXIT_OK
+    with zipfile.ZipFile(repo / config.ZIP_PATH) as archive:
+        inside = set(archive.namelist())
+    assert "suites/slm/template_changes/001.json" in inside
+    assert "suites/slm/superseded/001/1_A/black_box/attempt_13.generation.json" in inside
+    report = json.loads((repo / config.REPORT_PATH).read_text(encoding="utf-8"))
+    assert [c["reason"] for c in report["template_changes"]] == ["degenerate inputs"]
+
+
+def test_package_refuses_superseded_files_no_change_lists(finished_by_solutions, repo, capsys):
+    a_template_change(repo, stray=True)
+    assert cli.main(["package"]) == cli.EXIT_DATA_FAILURE
+    assert "no template change lists it" in capsys.readouterr().err
+    assert not (repo / config.ZIP_PATH).exists()
+
+
 def test_package_has_no_problem_or_scenario_option(finished):
     assert cli.main(["package", "--problem", "1_A"]) == cli.EXIT_USAGE
     assert cli.main(["package", "--scenario", "hybrid"]) == cli.EXIT_USAGE

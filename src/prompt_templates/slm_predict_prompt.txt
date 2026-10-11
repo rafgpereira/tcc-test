@@ -20,18 +20,21 @@ STEP 2 - Test cases (write them in <tests>)
   Never write an empty input. Never write an invalid input.
 - If the input starts with the number of test cases, that number MUST match the
   number of test cases that follow.
+- You must compute every expected output by hand, so keep inputs SMALL:
+  * at most 10 numbers or elements per input, and at most 10 lines;
+  * values may be large (for example the maximum allowed number), but the
+    NUMBER of elements must stay small;
+  * never write a long sequence such as 1 2 3 4 ... ; choose a few values instead.
 - Cover, when relevant to this problem:
   * the smallest possible case;
   * values exactly at each boundary of the rules, and just below and above it;
-  * extreme VALUES (for example the maximum allowed number) to catch overflow;
+  * extreme VALUES to catch overflow;
   * all-equal or repeated elements;
-  * sorted and reverse-sorted data;
-  * a few medium, irregular cases.
-- Keep each input SHORT: at most about 50 elements and 20 lines.
-  Never truncate, abbreviate or write "...".
-- Do not repeat the same input twice.
+  * a few small sorted, reverse-sorted and irregular cases.
+- Write between 5 and 12 test cases. Every test must be different.
 - Compute each expected output carefully, step by step, before writing it.
   Write it exactly in the required output format.
+- After the last test, close </tests> and stop.
 
 OUTPUT FORMAT
 Answer with EXACTLY these two blocks, in this order, as plain text.

@@ -6,10 +6,11 @@ under different configurations. The read timeout and the retry ceiling for infra
 are deliberately NOT here: they never change the content of an answer, only how long one waits.
 """
 
-from pydantic import Field, model_validator
+from pydantic import Field, PrivateAttr, model_validator
 
 from ai_clients import config
 from ai_clients.schemas.common import AttemptKind, AttemptPhase, SchemaVersion, Sha256Hex
+from ai_clients.schemas.template_change import TemplateChange
 from dataset.schemas.common import Schema
 
 
@@ -58,6 +59,36 @@ class RunConfig(Schema):
             )
         )
         return self
+
+    # The kinds of template changed since run.json (research R27); set by `with_changes` only.
+    _changed_templates: frozenset[str] = PrivateAttr(default_factory=frozenset)
+
+    def template_sha256(self, kind: str) -> str:
+        """The current template of ``kind`` (``solution`` or ``prediction``)."""
+        return self.prompt_template_sha256 if kind == "solution" else self.predict_template_sha256
+
+    def template_was_changed(self, kind: str) -> bool:
+        """Whether the template of ``kind`` was changed during the run (attempts must say which)."""
+        return kind in self._changed_templates
+
+    def with_changes(self, changes: list[TemplateChange]) -> "RunConfig":
+        """This run with ``changes`` applied in order: its current templates.
+
+        ``ValueError`` if a change does not start from the template current at its point.
+        """
+        current, changed = self, set()
+        for change in changes:
+            kind = change.template.value
+            if change.from_sha256 != current.template_sha256(kind):
+                raise ValueError(
+                    f"template change {change.number} starts from the {kind} template "
+                    f"{change.from_sha256}, but the current one is {current.template_sha256(kind)}"
+                )
+            name = "prompt_template_sha256" if kind == "solution" else "predict_template_sha256"
+            current = current.model_copy(update={name: change.to_sha256})
+            changed.add(kind)
+        current._changed_templates = frozenset(changed)
+        return current
 
     def spec(self, attempt: int) -> AttemptRow:
         """The row of ``attempt`` in this run's policy; ``ValueError`` beyond its last attempt."""

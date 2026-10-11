@@ -27,6 +27,7 @@ from ai_clients.schemas.report import (
     PhaseCounts,
     SizeStats,
     SlmGenerationReport,
+    TemplateChangeSummary,
     TokenCounts,
 )
 from dataset.persistence import store as files
@@ -75,6 +76,7 @@ def build_report(root: Path) -> SlmGenerationReport:
     seeds: dict[str, list[int]] = {}
     damaged: list[store.DamagedCombination] = []
     length, fences, empty, empty_tests = Counter(), Counter(), Counter(), Counter()
+    abbreviated = Counter()
     by_phase = {group: Counter() for group in GROUPS}
     by_attempt = {group: Counter() for group in GROUPS}
     phases = {phase: Counter() for phase in CALL_PHASES}
@@ -119,6 +121,7 @@ def build_report(root: Path) -> SlmGenerationReport:
                     length[group] += meta is not None and meta.done_reason == "length"
                     if isinstance(parse, PredictionParse):
                         empty_tests[group] += parse.empty_tests
+                        abbreviated[group] += parse.abbreviated_tests
                         fences[group] += parse.markdown_fences_removed
                     elif parse.ok:
                         fences[group] += parse.markdown_fence_removed
@@ -155,6 +158,19 @@ def build_report(root: Path) -> SlmGenerationReport:
         attempt_policy=run.attempt_policy,
         prompt_template_sha256=run.prompt_template_sha256,
         predict_template_sha256=run.predict_template_sha256,
+        template_changes=[
+            TemplateChangeSummary(
+                number=change.number,
+                template=change.template,
+                from_sha256=change.from_sha256,
+                to_sha256=change.to_sha256,
+                changed_at=change.changed_at,
+                reason=change.reason,
+                combinations=len(change.superseded),
+                files=sum(len(item.files) for item in change.superseded),
+            )
+            for change in store.template_changes(root)
+        ],
         dataset_manifest_sha256=run.dataset_manifest_sha256,
         combinations=combinations,
         status_rate={
@@ -195,6 +211,7 @@ def build_report(root: Path) -> SlmGenerationReport:
         markdown_fences_removed={group: fences[group] for group in GROUPS},
         empty_inputs={group: empty[group] for group in GROUPS},
         empty_tests={group: empty_tests[group] for group in GROUPS},
+        abbreviated_tests={group: abbreviated[group] for group in GROUPS},
         tokens=TokenCounts(prompt_total=prompt_total, eval_total=eval_total, prompt_max=prompt_max),
         duration_s_total=duration_ns / 1e9,
         hardware=dict(sorted(hardware.items())),

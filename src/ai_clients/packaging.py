@@ -4,8 +4,9 @@ Same conventions as the zips of the dataset and of the mutants (``dataset.integr
 entries sorted by path, a fixed modification time, fixed Unix permissions, ``deflate`` at a fixed
 level, so the same tree gives the same zip bytes. The root inside the zip is ``suites/slm/``, so
 ``unzip data/slm_suites.zip -d data/`` lands exactly on ``data/suites/slm/``, where the commands
-read. Every file of every combination goes in, and ``run.json`` (the provenance of the run); the
-``.lock`` and the leftovers of an interrupted atomic write never do.
+read. Every file of every combination goes in, and ``run.json`` (the provenance of the run), with
+the template changes and the attempts they moved aside (``template_changes/`` and ``superseded/``,
+research R27); the locks and the leftovers of an interrupted atomic write never do.
 
 A package is only worth versioning if it is exactly what a whole run produced, so it is refused
 while any problem × scenario of the dataset has no ``suite.json``, or if anything is damaged.
@@ -18,7 +19,7 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
-from ai_clients import config, store
+from ai_clients import config, store, template_change
 from ai_clients.problem import list_problem_ids
 from ai_clients.report import DamagedTreeError
 from ai_clients.schemas.common import SuiteStatus
@@ -102,6 +103,12 @@ def check_finished(root: Path) -> dict[str, int]:
         raise UnfinishedRunError(
             f"data/suites/slm/problems has entries that are not a problem × scenario of the "
             f"dataset: {', '.join(extra[:5])}"
+        )
+    superseded = template_change.superseded_problems(root, store.template_changes(root))
+    if superseded:
+        raise UnfinishedRunError(
+            f"the template changes and data/suites/slm/{config.SUPERSEDED_DIR} disagree: "
+            + "; ".join(superseded[:5])
         )
     return {status.value: statuses[status.value] for status in SuiteStatus}
 

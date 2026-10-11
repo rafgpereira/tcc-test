@@ -25,6 +25,7 @@ from ai_clients.schemas.generation import GenerationRecord
 from ai_clients.schemas.manual_close import ManualClose
 from ai_clients.schemas.run import RunConfig
 from ai_clients.schemas.suite import AttemptSummary, DiscardedInput, ManualCloseInfo, SlmSuite
+from ai_clients.schemas.template_change import TemplateChange
 from dataset.persistence import store
 from dataset.schemas.testes import TestCase
 from sandbox.types import Verdict
@@ -32,6 +33,7 @@ from sandbox.types import Verdict
 __all__ = [
     "AlreadyRunningError",
     "DamagedCombination",
+    "DamagedRunError",
     "ExecutionRecord",
     "GenerationRecord",
     "IncompatibleRunError",
@@ -53,10 +55,13 @@ __all__ = [
     "run_exists",
     "shared_run",
     "single_execute",
+    "superseded_dir",
+    "template_changes",
     "write_execution",
     "write_generation",
     "write_manual_close",
     "write_run",
+    "write_template_change",
 ]
 
 
@@ -90,6 +95,18 @@ class AlreadyRunningError(Exception):
 ALREADY_RUNNING = "another python -m ai_clients command is already running over data/suites/slm/"
 
 
+def _open_lock(path: Path):
+    """Open (creating it if needed) a lock file that every service can open afterwards.
+
+    ``execute`` runs as root in the ``sandbox`` service: a lock file it creates is given to the
+    host user, like every file and folder it writes, or ``generate`` (the host user, in ``app``)
+    could not open it again (``PermissionError``, found on 2026-10-08).
+    """
+    handle = path.open("a")
+    store.chown_to_host(path)
+    return handle
+
+
 @contextmanager
 def _flock(path: Path, mode: int, busy: str) -> Iterator[None]:
     """Hold an ``flock`` on ``path``, never waiting: ``AlreadyRunningError(busy)`` if it is taken.
@@ -97,7 +114,7 @@ def _flock(path: Path, mode: int, busy: str) -> Iterator[None]:
     The operating system releases it when the process ends, however it ends (Ctrl+C, ``kill -9``,
     a power cut), so it never goes stale.
     """
-    with path.open("a") as handle:
+    with _open_lock(path) as handle:
         try:
             fcntl.flock(handle, mode | fcntl.LOCK_NB)
         except BlockingIOError as exc:
@@ -148,7 +165,7 @@ def claim(root: Path, problem_id: str, scenario: str) -> Iterator[bool]:
     """
     locks = store.make_private_dir(ensure_suites_dir(root) / config.COMBINATION_LOCKS_DIR)
     name = f"{problem_id}__{getattr(scenario, 'value', scenario)}.lock"
-    with (locks / name).open("a") as handle:
+    with _open_lock(locks / name) as handle:
         try:
             fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
@@ -226,13 +243,64 @@ INCOMPATIBLE_RUN = (
 )
 
 
+class DamagedRunError(Exception):
+    """The template changes of the run are not what ``change-template`` writes; never repaired."""
+
+
 def read_run(root: Path) -> RunConfig:
-    """``run.json``; ``IncompatibleRunError`` if it is not a run of this version (schema 2)."""
+    """The run as it stands: ``run.json`` with its template changes applied in order (R27).
+
+    ``IncompatibleRunError`` if ``run.json`` is not a run of this version (schema 2);
+    ``DamagedRunError`` if a template change is unreadable, misnumbered or out of the chain.
+    """
     raw = run_path(root).read_bytes()
     try:
-        return RunConfig.model_validate_json(raw)
+        run = RunConfig.model_validate_json(raw)
     except ValueError as exc:  # also invalid JSON: never read a run half-way
         raise IncompatibleRunError(INCOMPATIBLE_RUN) from exc
+    try:
+        return run.with_changes(template_changes(root))
+    except ValueError as exc:
+        raise DamagedRunError(f"data/suites/slm/{config.TEMPLATE_CHANGES_DIR}: {exc}") from exc
+
+
+# ---------------------------------------------------------------------------- template changes
+
+
+def template_changes_dir(root: Path) -> Path:
+    return Path(root) / config.SUITES_DIR / config.TEMPLATE_CHANGES_DIR
+
+
+def superseded_dir(root: Path, number: int, problem_id: str, scenario: str) -> Path:
+    """Where change ``number`` keeps the files it moved out of ``problems/<id>/<scenario>/``."""
+    name = config.template_change_file_name(number).removesuffix(".json")
+    scenario = str(getattr(scenario, "value", scenario))
+    return Path(root) / config.SUITES_DIR / config.SUPERSEDED_DIR / name / problem_id / scenario
+
+
+def template_changes(root: Path) -> list[TemplateChange]:
+    """Every template change of the run, in order; ``ValueError`` if one is not well formed."""
+    folder = template_changes_dir(root)
+    if not folder.is_dir():
+        return []
+    names = sorted(p.name for p in folder.iterdir() if not p.name.startswith("."))
+    changes = []
+    for number, name in enumerate(names, start=1):
+        if name != config.template_change_file_name(number):
+            raise ValueError(f"{name}: the changes are 001.json, 002.json, ... without a gap")
+        try:
+            change = TemplateChange.model_validate_json((folder / name).read_bytes())
+        except ValueError as exc:  # also invalid JSON
+            raise ValueError(f"{name}: {_reason(exc)}") from exc
+        if change.number != number:
+            raise ValueError(f"{name}: it says it is change {change.number}")
+        changes.append(change)
+    return changes
+
+
+def write_template_change(root: Path, change: TemplateChange) -> Path:
+    folder = store.make_private_dir(ensure_suites_dir(root) / config.TEMPLATE_CHANGES_DIR)
+    return _write_once(folder / config.template_change_file_name(change.number), change)
 
 
 # ------------------------------------------------------------------------------ state machine
@@ -355,6 +423,8 @@ def _load(root: Path, problem_id: str, scenario: str, run: RunConfig | None) -> 
                 f"inconsistent: {config.generation_file_name(n)}: model_digest "
                 f"{record.model_digest} differs from run.json ({run.model_digest})"
             )
+        if run is not None:
+            problems += _template_problems(record, run)
         execution = executions.get(n)
         if not record.parse.ok:
             if execution is not None:
@@ -392,6 +462,23 @@ def _load(root: Path, problem_id: str, scenario: str, run: RunConfig | None) -> 
         raise DamagedCombination(problem_id, scenario, problems)
     generations = [generations[n] for n in range(1, last + 1)]
     return AttemptFiles(generations, executions, suite, manual_close)
+
+
+def _template_problems(record: GenerationRecord, run: RunConfig) -> list[str]:
+    """An attempt made with another template than the run's current one of its kind (R27)."""
+    kind, name = record.template.value, config.generation_file_name(record.attempt)
+    again = f"it belongs in {config.SUPERSEDED_DIR}/ (run the same change-template again)"
+    if record.template_sha256 is None:
+        if run.template_was_changed(kind):
+            return [f"inconsistent: {name}: made before the {kind} template was changed; {again}"]
+        return []
+    current = run.template_sha256(kind)
+    if record.template_sha256 != current:
+        wrong = f"template_sha256 {record.template_sha256}"
+        return [
+            f"inconsistent: {name}: {wrong} is not the {kind} template of the run ({current}); {again}"
+        ]
+    return []
 
 
 def _early_suite(generations: dict, executions: dict, last: int) -> list[str]:

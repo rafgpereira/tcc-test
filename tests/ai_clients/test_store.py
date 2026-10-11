@@ -41,6 +41,27 @@ def test_the_lock_is_released_when_the_command_fails(tmp_path):
         pass
 
 
+@pytest.mark.skipif(os.geteuid() != 0, reason="only root (the sandbox service) gives files away")
+def test_every_lock_file_root_creates_goes_to_the_host_user(tmp_path, monkeypatch):
+    """`execute` (root, sandbox) may create a lock first; `generate` (the host user, app) must be
+    able to open it afterwards (PermissionError on 2026-10-08, from .locks/1009_B__black_box)."""
+    monkeypatch.setenv("HOST_UID", "4321")
+    monkeypatch.setenv("HOST_GID", "4322")
+    with (
+        store.shared_run(tmp_path),
+        store.single_execute(tmp_path),
+        store.claim(tmp_path, "1009_B", "black_box") as mine,
+    ):
+        assert mine
+    base = tmp_path / config.SUITES_DIR
+    for path in (
+        base / config.LOCK_FILE,
+        base / config.EXECUTE_LOCK_FILE,
+        base / config.COMBINATION_LOCKS_DIR / "1009_B__black_box.lock",
+    ):
+        assert (path.stat().st_uid, path.stat().st_gid) == (4321, 4322), path.name
+
+
 def test_shared_runs_go_together_and_exclude_an_exclusive_one(tmp_path):
     with (
         store.shared_run(tmp_path),

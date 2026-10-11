@@ -239,6 +239,7 @@ def _attempts(
             template=spec.template,
             model_digest=run.model_digest,
             prompt_sha256=prompt_sha256(prompt),
+            template_sha256=chosen.sha256,
             raw_response="" if completion is None else completion.content,
             ollama=None if completion is None else _ollama_meta(completion),
             hardware_label=hardware_label(),

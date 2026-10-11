@@ -153,7 +153,8 @@ def test_the_template_asks_for_the_blocks_in_the_order_the_parser_reads():
 
 def test_the_prediction_template_loads_and_asks_for_its_blocks_in_the_parser_order():
     template = load_template(config.PREDICT_TEMPLATE_PATH)
-    assert len(template.text) == 2333  # the text sent by the authors on 2026-10-06, unchanged
+    # The text of 2026-10-06 with the STEP 2 sent by the authors on 2026-10-07 (research R27).
+    assert template.sha256 == "e52133f6ea0cf32eee93d86a6a5237b097bcf1d691148a6b256ad7bce18a46cc"
     assert template.sha256 != load_template().sha256
     format_section = template.text.split("OUTPUT FORMAT", 1)[1]
     positions = [format_section.index(f"<{tag}>") for tag in parser.PREDICTION_TAGS]
@@ -161,6 +162,9 @@ def test_the_prediction_template_loads_and_asks_for_its_blocks_in_the_parser_ord
     text = " ".join(template.text.split())
     assert "Every value in every input MUST satisfy ALL constraints of the problem." in text
     assert "<reference_py>" not in text  # no solution is asked for
+    assert "at most 10 numbers or elements per input, and at most 10 lines" in text
+    assert "never write a long sequence such as 1 2 3 4 ..." in text
+    assert "After the last test, close </tests> and stop." in text
 
 
 def test_a_prediction_prompt_varies_only_in_context_data(repo):

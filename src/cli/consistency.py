@@ -10,9 +10,10 @@ Walks the real folders (the EXTRACTED dataset, ``data/dataset/``, and the mutant
 * dataset and mutants are 1:1: no problem without mutants, no mutants without a problem;
 * the names of the files on disk are the names the manifests list (missing and extra files);
 * each problem has the suites of the local model (``data/suites/slm/``): one folder per scenario,
-  each with ``suite.json`` and its attempts numbered from 1 without a gap, at most 6. Before the run
-  is packaged (no manifest yet) a missing folder or ``suite.json`` is the run in progress, a
-  warning; afterwards it is a failure.
+  each with ``suite.json`` and its attempts numbered from 1 without a gap, at most 15. Before the
+  run is packaged (no manifest yet) a missing folder or ``suite.json`` is the run in progress, a
+  warning; afterwards it is a failure. The attempts a template change moved aside
+  (``data/suites/slm/superseded/``) are checked apart against the changes that list them.
 
 It never reads the code inside the files and never writes anything. ``deep=True`` additionally
 recomputes the SHA-256 of every file and of the zips and compares them with the manifests, for the
@@ -176,6 +177,73 @@ def _slm_attempt_lines(
     return lines
 
 
+SLM_DIR = Path("data/suites/slm")
+SLM_CHANGES_DIR = "template_changes"  # ai_clients.config.TEMPLATE_CHANGES_DIR
+SLM_SUPERSEDED_DIR = "superseded"  # ai_clients.config.SUPERSEDED_DIR
+
+
+def _slm_superseded_lines(root: Path) -> list[Line]:
+    """The attempts a template change moved aside (``superseded/<NNN>/``, ai_clients R27): each
+    file a change lists is there and no longer in ``problems/``, and nothing else is there."""
+    base = root / SLM_DIR
+    changes, kept = base / SLM_CHANGES_DIR, base / SLM_SUPERSEDED_DIR
+    if not changes.is_dir() and not kept.is_dir():
+        return []
+    names = []
+    if changes.is_dir():
+        names = sorted(p.name for p in changes.iterdir() if not p.name.startswith("."))
+    listed: set[str] = set()
+    wrong: list[str] = []
+    combinations = 0
+    for number, name in enumerate(names, start=1):
+        if name != f"{number:03d}.json":
+            wrong.append(f"{SLM_CHANGES_DIR}/{name}: fora da sequência 001.json, 002.json, ...")
+            continue
+        try:
+            change = json.loads((changes / name).read_text(encoding="utf-8"))
+            items = [
+                (i["problem_id"], i["scenario"], list(i["files"])) for i in change["superseded"]
+            ]
+        except (OSError, ValueError, KeyError, TypeError):
+            wrong.append(f"{SLM_CHANGES_DIR}/{name}: não é um registro de troca")
+            continue
+        for problem_id, scenario, files in items:
+            combinations += 1
+            for file in files:
+                rel = f"{name.removesuffix('.json')}/{problem_id}/{scenario}/{file}"
+                listed.add(rel)
+                if (kept / rel).is_file():
+                    continue  # a file of the same name in problems/ is the one made again
+                if (base / "problems" / problem_id / scenario / file).exists():
+                    wrong.append(f"{rel}: ainda não movido (rode o mesmo change-template de novo)")
+                else:
+                    wrong.append(f"{rel}: falta em {SLM_SUPERSEDED_DIR}/")
+    if kept.is_dir():
+        for path in sorted(kept.rglob("*")):
+            rel = path.relative_to(kept).as_posix()
+            hidden = any(part.startswith(".") for part in path.relative_to(kept).parts)
+            if path.is_file() and not hidden and rel not in listed:
+                wrong.append(f"{rel}: nenhuma troca de template o lista")
+    return [
+        Line(
+            INFO,
+            f"trocas de template: {len(names)}; combinações refeitas: {combinations}; arquivos "
+            f"guardados em {SLM_SUPERSEDED_DIR}/: {len(listed)} (fora das métricas)",
+        ),
+        Line(
+            OK if not wrong else FAIL,
+            f"{SLM_SUPERSEDED_DIR}/ bate com as trocas de template",
+            _listed(wrong),
+        ),
+    ]
+
+
+def _slm_lines(
+    root: Path, layer: Layer, problems: dict[str, set[str]], in_progress: bool
+) -> list[Line]:
+    return _slm_attempt_lines(root, layer, problems, in_progress) + _slm_superseded_lines(root)
+
+
 SLM_SUITES_LAYER = Layer(
     key="slm_suites",
     title="Suítes do modelo local (data/suites/slm/problems)",
@@ -189,7 +257,7 @@ SLM_SUITES_LAYER = Layer(
     zip_key="slm_suites_zip",
     files_root="data/suites/slm",
     in_progress_without_manifest=True,
-    extra_checks=_slm_attempt_lines,
+    extra_checks=_slm_lines,
 )
 
 # The first layer is the reference: every other layer must be 1:1 with it. A later module adds its

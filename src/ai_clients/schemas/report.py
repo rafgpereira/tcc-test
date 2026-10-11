@@ -15,6 +15,7 @@ from pydantic import Field, model_validator
 from ai_clients import config
 from ai_clients.schemas.common import (
     AttemptFailure,
+    AttemptKind,
     InputDiscard,
     NonNegative,
     SchemaVersion,
@@ -99,6 +100,19 @@ class TokenCounts(Schema):
     prompt_max: NonNegative  # the largest prompt_eval_count (checked against num_ctx)
 
 
+class TemplateChangeSummary(Schema):
+    """One template change of the run (research R27); its moved attempts are not in any count."""
+
+    number: int = Field(ge=1)
+    template: AttemptKind
+    from_sha256: Sha256Hex
+    to_sha256: Sha256Hex
+    changed_at: str
+    reason: str
+    combinations: NonNegative  # made again with the new template
+    files: NonNegative  # moved to superseded/<NNN>/
+
+
 class SlmGenerationReport(Schema):
     schema_version: SchemaVersion = 2
     model: str
@@ -106,8 +120,9 @@ class SlmGenerationReport(Schema):
     ollama_version: str
     options: SamplingOptions
     attempt_policy: list[AttemptRow]
-    prompt_template_sha256: Sha256Hex
+    prompt_template_sha256: Sha256Hex  # the current templates: run.json with its changes
     predict_template_sha256: Sha256Hex
+    template_changes: list[TemplateChangeSummary]  # in order; empty if none (R27)
     dataset_manifest_sha256: Sha256Hex
     combinations: dict[str, CombinationCounts]
     status_rate: dict[str, dict[str, float]]  # status -> group -> share of the scope
@@ -122,6 +137,7 @@ class SlmGenerationReport(Schema):
     markdown_fences_removed: dict[str, NonNegative]  # fences removed (solutions and predictions)
     empty_inputs: dict[str, NonNegative]  # empty <input> blocks dropped by the parser
     empty_tests: dict[str, NonNegative]  # predicted tests with an empty input or output, dropped
+    abbreviated_tests: dict[str, NonNegative]  # predicted tests eliding values, dropped (R27)
     tokens: TokenCounts
     duration_s_total: float = Field(ge=0)
     hardware: dict[str, NonNegative]  # hardware label -> calls
@@ -136,6 +152,7 @@ class SlmGenerationReport(Schema):
             self.markdown_fences_removed,
             self.empty_inputs,
             self.empty_tests,
+            self.abbreviated_tests,
             *self.status_rate.values(),
             *self.suite_size.values(),
         )
@@ -149,6 +166,7 @@ class SlmGenerationReport(Schema):
             self.markdown_fences_removed,
             self.empty_inputs,
             self.empty_tests,
+            self.abbreviated_tests,
         )
         for table in counted:
             if sum(table[s] for s in config.SCENARIOS) != table[TOTAL]:

@@ -127,6 +127,16 @@ EXECUTE_LOCK_FILE = ".execute.lock"  # flock: one execute at a time (one engine 
 COMBINATION_LOCKS_DIR = ".locks"  # flock per problem x scenario: <id>__<scenario>.lock
 SUITE_FILE = "suite.json"
 MANUAL_CLOSE_FILE = "manual_close.json"  # the decision of the authors (`close`)
+# A template changed during the run (`change-template`, research R27): the record of each change,
+# and the files it moved out of `problems/`, by change number.
+TEMPLATE_CHANGES_DIR = "template_changes"  # <NNN>.json
+SUPERSEDED_DIR = "superseded"  # <NNN>/<id>/<scenario>/<the moved files>
+
+
+def template_change_file_name(number: int) -> str:
+    """``<NNN>.json``: the number of the change with 3 digits."""
+    return f"{number:03d}.json"
+
 
 REPORT_PATH = Path("manifests") / "slm_generation_report.json"
 MANIFEST_PATH = Path("manifests") / "slm_suites.manifest.json"

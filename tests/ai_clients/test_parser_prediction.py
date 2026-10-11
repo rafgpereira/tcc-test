@@ -157,3 +157,47 @@ def test_a_fence_around_nothing_leaves_an_empty_test_that_is_dropped():
     test = "<test>\n<input>\n```\n```\n</input>\n<output>\nYES\n</output>\n</test>\n"
     result = ok(ANALYSIS + block_of(test, TEST_1))
     assert len(result.tests) == 1 and result.empty_tests == 1
+
+
+def a_test(given: str, expected: str = "1\n") -> str:
+    return f"<test>\n<input>\n{given}</input>\n<output>\n{expected}</output>\n</test>\n"
+
+
+@pytest.mark.parametrize(
+    "given, expected",
+    [
+        ("100000\n1 1 1 ... 1 (100000 ones)\n1 100000\n", "100000\n"),  # 939_C, attempt 14
+        ("5\n1 2 ... 5\n", "15\n"),
+        ("3\n7 .... 9\n", "2\n"),
+        ("3\n1 2 3\n", "1 … 3\n"),  # in the output too
+        ("2\n1…2\n", "3\n"),  # a "…" anywhere
+    ],
+)
+def test_an_abbreviated_test_is_dropped_and_counted(given, expected):
+    """Research R27: values elided instead of written make an invalid input (or a wrong output)."""
+    result = ok(ANALYSIS + block_of(a_test(given, expected), TEST_1))
+    assert [t.model_dump() for t in result.tests] == [{"input": "1\n", "output": "YES\n"}]
+    assert (result.abbreviated_tests, result.empty_tests) == (1, 0)
+
+
+@pytest.mark.parametrize("row", ["...", "#..#", "..#..", ". . #", "1.5 2.25", "a...b c"])
+def test_dots_that_are_data_stay(row):
+    """A grid row of dots (0 of the dataset's 47,492 test texts match the rule; 67 contain ...)."""
+    result = ok(ANALYSIS + block_of(a_test(f"1 3\n{row}\n")))
+    assert result.tests[0].input == f"1 3\n{row}\n" and result.abbreviated_tests == 0
+
+
+def test_only_abbreviated_tests_is_unparseable():
+    assert error(ANALYSIS + block_of(a_test("2\n1 ... 2\n"))) == "only_abbreviated_tests"
+
+
+def test_only_empty_or_abbreviated_tests_is_unparseable():
+    empty = "<test>\n<input>\n</input>\n<output>\n1\n</output>\n</test>\n"
+    raw = ANALYSIS + block_of(empty, a_test("2\n1 ... 2\n"))
+    assert error(raw) == "only_empty_or_abbreviated_tests"
+
+
+def test_a_record_written_before_the_count_reads_as_zero():
+    old = ok(GOOD).model_dump(mode="json")
+    del old["abbreviated_tests"]
+    assert PredictionParse.model_validate(old).abbreviated_tests == 0

@@ -1,6 +1,7 @@
 """Command line entry point of the ai_clients module: ``python -m ai_clients <command>``.
 
-Commands are registered by their stories (generate, execute, close, report, package, verify), with
+Commands are registered by their stories (generate, execute, close, change-template, report,
+package, verify), with
 the registration pattern of ``python -m mutation``. Exit codes (specs/003-slm-test-generation/
 contracts/cli.md): 0 success, 1 data failure, 2 usage error, 3 infrastructure or Ollama
 configuration failure, 4 finished but some combination awaits manual handling (``close``), 130
@@ -26,6 +27,7 @@ from ai_clients import (
     prompt,
     report,
     store,
+    template_change,
 )
 from ai_clients.errors import ConfigurationError, InfrastructureError
 from ai_clients.ollama import OllamaClient
@@ -237,6 +239,16 @@ def _required_env(name: str) -> str:
     return value
 
 
+TEMPLATE_FIELDS = {"solution": "prompt_template_sha256", "prediction": "predict_template_sha256"}
+
+
+def change_command(kind: str) -> str:
+    return (
+        "docker compose run --rm app python -m ai_clients change-template "
+        f'--template {kind} --reason "<reason>"'
+    )
+
+
 def _configure_generate(parser: argparse.ArgumentParser) -> None:
     add_common_options(parser)
     parser.add_argument(
@@ -330,11 +342,20 @@ def _run_generate(args: argparse.Namespace) -> int:
                     f"  {name}: recorded {recorded!r}, current {now!r}"
                     for name, recorded, now in differences
                 )
+                changed = [
+                    kind
+                    for kind, name in TEMPLATE_FIELDS.items()
+                    if name in {difference[0] for difference in differences}
+                ]
+                hint = "".join(
+                    f"; or, if the {kind} template was changed on purpose: {change_command(kind)}"
+                    for kind in changed
+                )
                 raise UsageError(
                     "the configuration differs from data/suites/slm/run.json, and a run never "
                     f"mixes configurations:\n{lines}\n"
                     "restore the recorded configuration, or move data/suites/slm away to start a "
-                    "new run"
+                    f"new run{hint}"
                 )
         else:
             store.write_run(root, current)
@@ -517,6 +538,103 @@ register(
 )
 
 
+# ---------------------------------------------------------------------------- change-template
+
+
+def _configure_change_template(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--template",
+        required=True,
+        choices=tuple(TEMPLATE_FIELDS),
+        help="the template whose file was edited (prediction: slm_predict_prompt.txt)",
+    )
+    parser.add_argument(
+        "--reason", required=True, metavar="TEXT", help="why the authors change it (required)"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="only list the combinations that would be made again; writes and moves nothing",
+    )
+
+
+def _run_change_template(args: argparse.Namespace) -> int:
+    root = Path(".")
+    failed = dataset_gate(root)
+    if failed is not None:
+        return failed
+    if not store.run_exists(root):
+        raise UsageError("data/suites/slm/run.json does not exist; run generate first")
+    if not args.reason.strip():
+        raise UsageError("--reason must not be empty")
+    path = (
+        config.PROMPT_TEMPLATE_PATH if args.template == "solution" else config.PREDICT_TEMPLATE_PATH
+    )
+    template = prompt.load_template(path)
+    try:
+        if args.dry_run:
+            changes = store.template_changes(root)
+            if changes and template_change.files_left(root, changes[-1]):
+                left = template_change.files_left(root, changes[-1])
+                print(
+                    f"dry run: change {changes[-1].number} was interrupted with {left} file(s) "
+                    "still to move; run the command without --dry-run to finish it"
+                )
+                return EXIT_OK
+            run = store.read_run(root)
+            number = len(changes) + 1
+            planned = template_change.plan_change(
+                root,
+                args.template,
+                template,
+                args.reason,
+                run=run,
+                number=number,
+                now=generation.utc_now,
+            )
+            for item in planned.superseded:
+                print(f"{item.problem_id} {item.scenario.value}: {', '.join(item.files)}")
+            print(
+                f"dry run: change {number} would make {len(planned.superseded)} combination(s) "
+                "again; nothing was recorded"
+            )
+            return EXIT_OK
+        with store.exclusive_run(root):
+            result = template_change.change_template(
+                root, args.template, template, args.reason, now=generation.utc_now
+            )
+    except template_change.NothingToChange as exc:
+        raise UsageError(str(exc)) from exc
+    except report.DamagedTreeError as exc:
+        code = report_damage(exc.damaged)
+        print("error: nothing was recorded nor moved", file=sys.stderr)
+        return code
+    except template_change.BrokenChangeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_DATA_FAILURE
+    change = result.change
+    if result.finished_earlier:
+        print(f"finished the interrupted change {change.number}: {result.moved} file(s) moved")
+    for item in change.superseded:
+        print(f"{item.problem_id} {item.scenario.value}: {len(item.files)} file(s) superseded")
+    print(
+        f"change {change.number}: {change.template.value} template {change.from_sha256[:12]} -> "
+        f"{change.to_sha256[:12]}; {len(change.superseded)} combination(s) to make again, "
+        f"{result.moved} file(s) moved to data/suites/slm/{config.SUPERSEDED_DIR}/"
+    )
+    print("next: docker compose run --rm app python -m ai_clients generate --resume")
+    return EXIT_OK
+
+
+register(
+    "change-template",
+    "record a template changed during the run and move the attempts made with the old one aside, "
+    "to be made again (app service)",
+    _configure_change_template,
+    _run_change_template,
+)
+
+
 def _run_report(args: argparse.Namespace) -> int:
     root = Path(".")
     if not store.run_exists(root):
@@ -666,7 +784,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     except store.IncompatibleRunError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_USAGE
-    except store.AlreadyRunningError as exc:
+    except (store.AlreadyRunningError, store.DamagedRunError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_DATA_FAILURE
     except ConfigurationError as exc:
