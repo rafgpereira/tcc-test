@@ -94,6 +94,7 @@ Uma tentativa na fase de geração (FR-013a, FR-014, FR-024, FR-025). Imutável.
 | `phase`, `seed`, `temperature`, `template` | int, int, float, `AttemptTemplate` | **novos em 2026-10-06**: a linha `attempt` do `attempt_policy` do `run.json`; o `store` confere os quatro (divergência é dano) |
 | `model_digest` | str | `digest` do modelo que respondeu (FR-003); `==` `run.json.model_digest`, senão dano |
 | `prompt_sha256` | str | do prompt exato enviado (o texto se recompõe do template + dataset) |
+| `template_sha256` | str ou ausente | **novo em 2026-10-07 (R27)**: hash do template usado; `==` o template corrente do mesmo tipo (`run.json` + trocas), senão dano; ausente só nas tentativas gravadas antes, e então dano se aquele template já foi trocado |
 | `raw_response` | str | `message.content` **integral**; `""` quando há `model_failure` |
 | `ollama` | objeto ou `null` | `model`, `created_at`, `done_reason`, `prompt_eval_count`, `eval_count`, `total_duration_ns`, `load_duration_ns`, `prompt_eval_duration_ns`, `eval_duration_ns`; `null` só com `model_failure` |
 | `hardware_label` | str | de `OLLAMA_HARDWARE_LABEL` no momento da chamada |
@@ -110,11 +111,12 @@ Uma tentativa na fase de geração (FR-013a, FR-014, FR-024, FR-025). Imutável.
   list[TestCase]` (≥ 1; `input` e `output` não vazios, cada um terminado em um único `\n`),
   `extraneous_chars`, `duplicate_inputs`, `empty_tests` (testes com entrada ou saída vazia,
   descartados sozinhos) e **`markdown_fences_removed: int`** (novo: cercas que envolviam um
-  `<input>` ou `<output>` inteiro, removidas; R22, item 7).
+  `<input>` ou `<output>` inteiro, removidas; R22, item 7) e `abbreviated_tests` (desde
+  2026-10-07, R27: testes com entrada ou saída abreviada, descartados sozinhos; ausente = 0).
 - `UnparsedResponse` (`ok: false`) → `error` (código do parser: `missing_block:<tag>`,
   `duplicated_block:<tag>`, `wrong_order`, `only_empty_inputs`, `text_between_inputs`,
   `missing_block:tests`, `no_tests`, `text_between_tests`, `malformed_test`, `nested_test`,
-  `only_empty_tests`, …). A tentativa **é** a falha `unparseable_response` (ou `repetition`).
+  `only_empty_tests`, `only_abbreviated_tests`, `only_empty_or_abbreviated_tests`, …). A tentativa **é** a falha `unparseable_response` (ou `repetition`).
 
 ### 3.3 `ExecutionRecord` — `problems/<id>/<scenario>/attempt_<n>.execution.json`
 
@@ -191,6 +193,29 @@ hardware somam `attempts.total`.
 Mesma forma do manifesto dos mutantes: `slm_suites_zip: {path, size, sha256}` e `files: [{path,
 size, sha256}]`, ordenado; os caminhos aceitos são os de `run.json`, `suite.json`,
 `manual_close.json` e `attempt_<1..15>.(generation|execution).json`.
+
+### 3.7 `TemplateChange` — `data/suites/slm/template_changes/<NNN>.json` (desde 2026-10-07, R27)
+
+Uma troca de template no meio da execução, gravada uma vez por `change-template`; `<NNN>` é o
+número com três dígitos (`001`, `002`, ...), sem buraco.
+
+| Campo | Tipo | Regra |
+|---|---|---|
+| `schema_version` | `2` | |
+| `number` | int ≥ 1 | igual ao nome do arquivo |
+| `template` | `solution` \| `prediction` | |
+| `from_sha256` / `to_sha256` | SHA-256 | diferentes; `from` é o hash corrente (o do `run.json` ou o `to` da troca anterior do mesmo template) |
+| `changed_at` | texto UTC | |
+| `reason` | texto não vazio | |
+| `superseded` | lista de `{problem_id, scenario, files}` | por combinação, em ordem canônica; `files` = nomes movidos (não vazio) |
+
+O **template corrente** de uma execução é o do `run.json` com as trocas aplicadas em ordem
+(`store.read_run`); o `--resume` compara a configuração atual com ele.
+
+### 3.8 `superseded/<NNN>/<id>/<cenário>/` (desde 2026-10-07, R27)
+
+Os arquivos que a troca `<NNN>` tirou de `problems/<id>/<cenário>/`, com o mesmo nome. Entram no
+pacote e no manifesto; não entram no relatório de métricas nem no estado de nenhuma combinação.
 
 ## 4. Máquina de estados de uma combinação
 

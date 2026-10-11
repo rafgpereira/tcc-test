@@ -83,7 +83,7 @@ Variáveis de ambiente (`.env`, research R12): `OLLAMA_BASE_URL` e `OLLAMA_HARDW
 obrigatórias fora do `--dry-run` (código 2 se faltarem); `OLLAMA_HTTP_TIMEOUT_S` (padrão 900; desde 2026-10-07 o maior silêncio entre dois pedaços da resposta, R25) e
 `OLLAMA_MAX_INFRA_RETRIES` (padrão 30), opcionais — valor que não é inteiro positivo → código 2.
 `OLLAMA_MODEL`, opcional (desde 2026-10-05, R15): outro modelo do Ollama para um piloto que compara
-modelos (padrão `qwen2.5-coder:7b`); vai para o `run.json`, e o `--resume` recusa um modelo
+modelos (padrão `qwen2.5-coder:14b` desde 2026-10-06, R20; era `qwen2.5-coder:7b`); vai para o `run.json`, e o `--resume` recusa um modelo
 diferente do gravado (código 2).
 
 Falha de infraestrutura (Ollama inacessível, *timeout*, HTTP 5xx — inclusive o 524 de um proxy —, túnel do ngrok fora do ar — HTTP de erro com `ERR_NGROK_` no corpo —, resposta em *streaming* que termina antes do último pedaço, desde 2026-10-07): imprime
@@ -217,3 +217,32 @@ OLLAMA_BASE_URL=...`, que tem prioridade sobre o `.env`) e todos os problemas (d
 combinação em uso por um é pulada pelo outro, então os dois dividem a fila sozinhos e cada
 `skipped` é uma combinação tratada pelo outro), e um único `execute` depois que os dois terminam; repetir enquanto o `execute`
 imprimir `next:`. O laço em bash fica no README do módulo.
+
+## `change-template` (serviço `app`, desde 2026-10-07, research R27)
+
+```
+python -m ai_clients change-template --template {solution,prediction} --reason TEXTO [--dry-run]
+```
+
+Depois de os autores editarem o arquivo do template (`src/prompt_templates/slm_prompt.txt` ou
+`slm_predict_prompt.txt`). Trava exclusiva (como `close` e `package`). Grava
+`data/suites/slm/template_changes/<NNN>.json` e move para `superseded/<NNN>/<id>/<cenário>/`, em cada
+combinação, as tentativas feitas com o template antigo, da primeira delas em diante, com
+`suite.json` e `manual_close.json`; a combinação volta a `pending_generation` nessa tentativa.
+
+| Situação | Saída | Código |
+|---|---|---|
+| troca feita | uma linha `<id> <cenário>: N file(s) superseded` por combinação, `change <n>: <template> template <hash antigo> -> <hash novo>; K combination(s) to make again, F file(s) moved ...` e `next: ...generate --resume` | `0` |
+| troca anterior interrompida | `finished the interrupted change <n>: F file(s) moved` e o resto como acima; nenhuma troca nova | `0` |
+| `--dry-run` | `<id> <cenário>: <arquivos>` por combinação e `dry run: change <n> would make K combination(s) again; nothing was recorded` | `0` |
+| arquivo do template igual ao corrente | `error: the <template> template file is the current <template> template of the run (...); edit the file first` | `2` |
+| `--reason` vazio, sem `run.json` | `error: ...` | `2` |
+| combinação danificada | `damaged: ...` por combinação e `error: nothing was recorded nor moved` | `1` |
+| arquivo listado ausente dos dois lugares | `error: <id> <cenário> <arquivo>: change <n> lists it, and it is neither in problems/ nor in superseded/` | `1` |
+| outro comando rodando | `error: another python -m ai_clients command is already running ...` | `1` |
+
+A recusa do `generate --resume` por `prompt_template_sha256`/`predict_template_sha256` diferente
+termina com `; or, if the <template> template was changed on purpose: docker compose run --rm app
+python -m ai_clients change-template --template <template> --reason "<reason>"`. Um registro de
+troca ilegível, renumerado ou fora da cadeia faz todo comando que lê o `run.json` sair com
+`error: data/suites/slm/template_changes: ...` e código `1`.

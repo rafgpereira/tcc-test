@@ -202,3 +202,36 @@ cortada, linha que não é JSON, *timeout* entre pedaços) → `OllamaUnavailabl
 linha `{"error": ...}` → `ModelRepetition` se for `token repeat limit reached`, senão
 `OllamaUnavailable`. `timeout_s` é o maior silêncio entre dois pedaços. Testes em
 `tests/ai_clients/test_ollama.py` e `test_resume_config.py` (R25, itens 6 e 7).
+
+## Desde 2026-10-07, troca de template (research R27)
+
+```python
+# ai_clients.schemas.run
+RunConfig.template_sha256(kind) -> str            # o template corrente de "solution"/"prediction"
+RunConfig.template_was_changed(kind) -> bool
+RunConfig.with_changes(changes) -> RunConfig      # ValueError fora da cadeia
+
+# ai_clients.store
+read_run(root) -> RunConfig                       # run.json + template_changes/, em ordem
+template_changes(root) -> list[TemplateChange]
+write_template_change(root, change) -> Path       # uma vez
+superseded_dir(root, number, problem_id, scenario) -> Path
+class DamagedRunError(Exception)                  # registro de troca ilegível ou fora da cadeia
+
+# ai_clients.template_change
+plan_change(root, kind, template, reason, *, run, number, now) -> TemplateChange
+apply_change(root, change) -> int                 # move o que falta; os já em superseded/ são pulados
+files_left(root, change) -> int                   # listados que ainda não estão em superseded/
+superseded_problems(root, changes) -> list[str]
+change_template(root, kind, template, reason, *, now) -> ChangeResult
+class NothingToChange(Exception); class BrokenChangeError(Exception)
+
+# ai_clients.parser
+is_abbreviated(text) -> bool                      # "1 2 ... 5" ou "…": teste descartado na predição
+```
+
+`store._load` confere `template_sha256` de cada tentativa contra o template corrente do seu tipo;
+sem o campo, só é dano se aquele template já foi trocado. "Pendente" numa troca é julgado só por
+`superseded/`, nunca por `problems/`: depois de refeita, a combinação tem arquivos novos com os
+mesmos nomes. Testes em `tests/ai_clients/test_template_change.py`, `test_parser_prediction.py` e
+`test_packaging.py`.

@@ -110,7 +110,9 @@ inglês e C++ no tokenizador do Qwen2.5 fica entre 3 e 4), o maior prompt dá �
 somado ao teto de saída (4.096), fica em ≈ 7.250, abaixo de 8.192 com folga. `num_ctx` inclui
 prompt e resposta; o padrão do Ollama (2.048 ou 4.096, conforme a versão) truncaria o prompt **em
 silêncio**, por isso é explícito. 8.192 está dentro do contexto nativo do Qwen2.5-Coder-7B
-(32.768) e cabe em GPU de 8 GB com a quantização padrão.
+(32.768) e cabe em GPU de 8 GB com a quantização padrão. *(O modelo final é o
+`qwen2.5-coder:14b`, R20, com o mesmo `num_ctx`; na execução completa o maior
+`prompt_eval_count` foi 2.499, R28.)*
 
 **Guarda em tempo de execução** (a contagem real de *tokens* só existe na resposta do Ollama):
 toda resposta registra `prompt_eval_count`; se `prompt_eval_count + num_predict > num_ctx`, a
@@ -125,6 +127,11 @@ só para uma estimativa que a guarda já cobre).
 ---
 
 ## R4 — Parâmetros de amostragem **[DECIDIDO, 2026-09-30 — S4 = A]**
+
+> **Substituído em parte por R21/R22 (política de 5 fases, 2026-10-06)**: `top_p`, `top_k` e
+> `repeat_penalty` continuam; a seed base 42 (`42 + n`) e a temperatura única 0,7 deixaram de
+> valer — seed e temperatura de cada tentativa vêm de `config.ATTEMPT_POLICY` (15 tentativas;
+> spec FR-020). O modelo também não é mais o 7B (R20: `qwen2.5-coder:14b`).
 
 **Decisão**: `temperature = 0.7`, `top_p = 0.8`, `top_k = 20`, `repeat_penalty = 1.05` — a
 configuração de geração publicada pelos autores do Qwen2.5-Coder-7B-Instruct
@@ -402,7 +409,8 @@ Nada foi gravado na ocorrência real (a queda veio antes da primeira chamada ao 
 
 - `python -m ai_clients report` → `manifests/slm_generation_report.json` (versionado): contagens
   por estado e cenário, taxa de descarte por cenário e total (sobre as 600 combinações, N nunca
-  reduzido), distribuição do tamanho das suítes aceitas (mín./quartis/máx. e histograma), funil de
+  reduzido; substituída pela contagem e proporção por status desde R19/R22, porque nenhuma
+  combinação termina descartada no fluxo normal), distribuição do tamanho das suítes aceitas (mín./quartis/máx. e histograma), funil de
   falhas por razão e por número da tentativa, entradas descartadas por razão, duplicatas,
   `done_reason = "length"`, cercas Markdown removidas e entradas vazias descartadas (as três por
   cenário, R13), *tokens* (soma, máximo de `prompt_eval_count`), duração, seeds por
@@ -465,7 +473,7 @@ Mais duas variáveis **opcionais** (R9), com padrão em `ai_clients/config.py`:
   infraestrutura antes de o comando parar (padrão `30`; com o recuo de 5 s a 60 s, ≈ 27 min de
   espera).
 
-Valor que não é inteiro positivo → código 2. O nome do modelo (`qwen2.5-coder:7b`) é constante do desenho experimental em
+Valor que não é inteiro positivo → código 2. O nome do modelo (`qwen2.5-coder:7b`; `qwen2.5-coder:14b` desde R20) é constante do desenho experimental em
 `ai_clients/config.py`, não `.env`.
 
 ⚠ **Sinalizado** (plan.md, S6): no Linux, um contêiner não resolve `host.docker.internal` sem
@@ -1155,6 +1163,14 @@ nada de `src/sandbox/` muda.
    `generate` ativo (roda o resto, pula a combinação em uso); `package` e `close` recusando com
    código 1 enquanto um `generate` roda; um segundo `execute` recusado.
 
+**Correção de 2026-10-08**: rodando um `execute` junto dos `generate`, o `generate` parou com
+`PermissionError: ... data/suites/slm/.locks/1009_B__black_box.lock`. O `execute` roda como root
+no serviço `sandbox` e tinha criado 5 arquivos de trava (e o `.execute.lock`) com dono root, que o
+usuário do serviço `app` não consegue abrir para escrita. Todo arquivo de trava passa a ser
+entregue ao usuário do host ao ser aberto (`store._open_lock`, o mesmo `chown_to_host` dos outros
+arquivos); os 6 já existentes foram devolvidos ao usuário. Nenhum dado foi afetado. Teste:
+`test_every_lock_file_root_creates_goes_to_the_host_user` (`tests/ai_clients/test_store.py`).
+
 **Alternativas rejeitadas**: esperar a combinação em uso (esclarecimento de 2026-10-07); uma trava
 por problema (impediria dois processos de dividir os cenários de um mesmo problema, sem ganho);
 permitir dois `execute` (exigiria um *slot* do motor por processo, uma mudança no módulo `sandbox`).
@@ -1243,3 +1259,156 @@ combinação pede e da velocidade de cada túnel, não do número de problemas.
 pendentes (o tempo de cada combinação varia e não é conhecido antes); uma opção `--reverse` para o
 segundo processo percorrer a fila de trás para frente (menos linhas `skipped`, mas exige código
 novo, e o revezamento já divide o trabalho).
+
+## R27 — Troca do template de predição numa execução em andamento (2026-10-07)
+
+**Implementado em 2026-10-07** (Phase 15 de `tasks.md`).
+
+**Achado** (medido em `data/suites/slm/` antes de mudar qualquer coisa): das 594 pastas de
+combinação, **1** passou pela predição, a `939_C` caixa-preta, hoje `accepted_predicted`. A
+tentativa 13 (seed 49) escreveu `1 1 1 ...` até o teto de 5120 tokens (`done_reason: length`,
+417 s, `unclosed_block:tests`); a 14 (seed 50) foi interpretada e virou a suíte (9 testes), mas um
+dos testes tem a entrada `1 1 1 ... 1 (100000 ones)`, inválida, embora o template proíba "...".
+As falhas por repetição dos logs (102_B, 155_C, 332_A, 523_C, 538_A) são das tentativas 1 a 3, do
+template de solução (o "prediction aborted" é o nome que o Ollama dá a qualquer geração), e os 524
+são de antes do *streaming* (R25). O hash do template de predição está no `run.json`
+(`predict_template_sha256`, `421adf86…`) e o `--resume` recusa com código 2 qualquer mudança dele.
+
+**Decisões** (Milena, 2026-10-07):
+
+1. **O STEP 2 do template de predição muda** (texto da Milena): no máximo 10 números ou elementos
+   e 10 linhas por entrada, valores grandes permitidos mas poucos elementos, nunca uma sequência
+   longa como `1 2 3 4 ...`, de 5 a 12 testes diferentes, e parar depois de `</tests>`.
+2. **Troca explícita, sem misturar versões**: `python -m ai_clients change-template --template
+   prediction --reason "..."` (serviço `app`, trava exclusiva como `close` e `package`), rodado
+   depois de editar o arquivo do template. Ele:
+   - lê o hash do arquivo atual e o compara com o template corrente da execução; igual, recusa com
+     código 2 (nada a trocar), a menos que uma troca anterior tenha ficado pela metade (ver 4);
+   - em cada combinação do dataset, acha a primeira tentativa feita com aquele template e lista
+     ela, as seguintes (gerações e execuções), o `suite.json` e o `manual_close.json`; para o
+     template de predição isso é a partir da 13; para o de solução seria a combinação inteira;
+   - grava `data/suites/slm/template_changes/<NNN>.json` (uma vez, como todo registro): número,
+     template, hash antigo e novo, data, motivo e, por combinação, os arquivos movidos;
+   - move esses arquivos para `data/suites/slm/superseded/<NNN>/<id>/<cenário>/` (primeiro
+     `suite.json` e `manual_close.json`, depois as tentativas da maior para a menor). A combinação
+     volta a ficar pendente na primeira tentativa movida, e o `generate --resume` a refaz com o
+     template novo e as mesmas seeds da tabela (49, 50, 51).
+   Uma combinação danificada recusa a troca inteira antes de gravar qualquer coisa (código 1).
+3. **O `run.json` não é reescrito** (todo registro é gravado uma vez): o template corrente de uma
+   execução é o do `run.json` com as trocas aplicadas em ordem (`store.read_run`). Cada troca tem
+   de partir do hash corrente (cadeia conferida ao ler); a comparação do `--resume` é contra esse
+   template corrente, e a recusa por hash diferente passa a dizer como trocar de propósito.
+4. **Interrompida no meio** (depois de gravar a troca, antes de mover tudo), a combinação fica
+   danificada (tentativa com o template antigo); rodar o mesmo `change-template` de novo termina de
+   mover o que a troca lista, sem gravar outra troca.
+5. **Hash por tentativa**: `attempt_<n>.generation.json` ganha `template_sha256` (o hash do
+   template usado). Ao ler uma combinação, uma tentativa com hash diferente do template corrente do
+   seu tipo, ou sem hash quando aquele template já foi trocado, é dano (`inconsistent:`). As
+   tentativas antigas, sem o campo, continuam válidas enquanto o template delas não for trocado
+   (o de solução nunca foi).
+6. **Pasta à parte, no pacote**: `superseded/` e `template_changes/` entram no zip e no manifesto
+   (são arquivos sem ponto em `data/suites/slm/`); o `package` recusa se uma troca não terminou de
+   mover. Nada de `superseded/` entra no relatório de métricas, que ganha a lista das trocas
+   (`template_changes`, com o número de combinações e arquivos movidos). O `cli check` confere à
+   parte que cada arquivo listado numa troca está em `superseded/<NNN>/` e não mais em
+   `problems/`, e que `superseded/` não tem nada fora das trocas.
+7. **Teste abreviado na predição**: o parser descarta, contando em `abbreviated_tests`, o teste
+   cuja entrada ou saída tem uma linha com um token só de pontos (3 ou mais) junto de outros
+   tokens, ou um `…` em qualquer lugar; se não sobrar nenhum teste, `only_abbreviated_tests` (ou
+   `only_empty_or_abbreviated_tests`). Medido antes: **0** dos 47.492 textos de entrada e saída
+   dos testes do dataset casam essa regra; a regra frouxa (qualquer `...`) casaria 67, de
+   grades com `.` em 445_A e 452_A. Só vale para a predição (o template de solução não é tocado);
+   o registro já gravado não é relido.
+8. **O laço em andamento continua** até a troca (escolha da Milena); como `src/` é montado no
+   container, a primeira rodada que começar depois de trocar o arquivo do template recusa com
+   código 2 e o laço para; então os autores rodam o `change-template` e o laço de novo.
+
+**Testes**: `tests/ai_clients/test_template_change.py` (novo): troca com a `939_C`-like (tentativas
+13 e 14 e suíte movidas, registro gravado, combinação pendente na 13, refeita com a seed 49 e o
+hash novo); `--resume` aceitando o template novo depois da troca e recusando antes; troca
+interrompida terminada por um segundo comando; tentativa com hash antigo ou sem hash depois da
+troca = dano; troca recusada com combinação danificada, sem mudança, com o mesmo template e com
+outro comando rodando; pacote com `superseded/`; `cli check` da pasta. Parser:
+`tests/ai_clients/test_parser_prediction.py` (abreviados descartados e contados, só abreviados =
+não interpretável, grade com `...` mantida).
+
+**Alternativas rejeitadas**: começar uma execução nova (refaria 594 combinações por causa de 1);
+reescrever o `run.json` (todo registro é gravado uma vez); manter as tentativas antigas no lugar e
+só registrar a versão por tentativa (a mesma execução teria suítes de predição de duas versões);
+apagar as tentativas antigas (a banca não veria o que foi refeito); recusar qualquer `...` (grades
+legítimas do dataset).
+
+**O que de fato aconteceu** (medido nos arquivos em 2026-10-11):
+
+- A troca foi feita em **2026-10-08T11:49:11Z** (`template_changes/001.json`, template `prediction`,
+  `421adf86626a…` → `e52133f6ea0c…`) e moveu 3 arquivos da `939_C` caixa-preta para
+  `superseded/001/939_C/black_box/` (`suite.json`, `attempt_14` e `attempt_13`).
+- Só **2** combinações chegaram à predição em toda a execução, e as duas suítes finais vêm do
+  template **novo** (toda tentativa de predição em `problems/` tem `template_sha256` =
+  `e52133f6…`): `939_C` caixa-preta, refeita em 2026-10-08 — a 13 (seed 49) de novo até o teto
+  (5120 *tokens*, `length`, `unclosed_block:tests`, 413 s), a 14 (seed 50) `unclosed_block:test`, a
+  15 (seed 51) interpretada → `accepted_predicted`, 10 testes (o template novo não evitou a
+  degeneração na tentativa 13 dessa combinação); `237_A` caixa-branca, em 2026-10-09, só com o
+  template novo — a 13 `unclosed_block:test`, a 14 → `accepted_predicted`, 8 testes.
+- O motivo foi gravado por engano como `"..."` (o texto do exemplo do comando). **Corrigido em
+  2026-10-11, antes do `package`**: um script reescreveu só o campo `reason` de
+  `template_changes/001.json`, depois de conferir que o valor era exatamente `"..."` e que o
+  manifesto do pacote não existia; validou pelo schema `TemplateChange`, gravou de forma atômica e
+  conferiu que os outros campos ficaram iguais; o `report` foi refeito. Nenhum hash dependia do
+  campo. Texto gravado: "o template de predição gerava entradas longas e degeneradas (sequências
+  abreviadas com '...'), causando loop de repetição e timeout no túnel; o novo limita a 10
+  elementos por entrada e 5 a 12 testes".
+
+## R28 — Execução completa (2026-10-06 a 2026-10-09)
+
+**Configuração** (`data/suites/slm/run.json`, criado em 2026-10-06T23:37:55Z, o início do piloto 6,
+continuado com `--resume` como decidido em R23): `qwen2.5-coder:14b`, digest `9ec8897f747e…`, Q4_K_M,
+Ollama 0.35.0, `num_ctx` 8192, `num_predict` 5120; template de solução `fc9757e8bcb1…` (sem troca);
+template de predição trocado uma vez (R27); política de 5 fases (`config.ATTEMPT_POLICY`, R21/R22).
+Primeira chamada 2026-10-06T23:40:40Z, última 2026-10-09T17:40:40Z; vários `generate --resume`
+concorrentes, um por GPU (R24, R26), e um `execute`.
+
+**Resultado** (`manifests/slm_generation_report.json`, refeito em 2026-10-11):
+
+| Status | Total | Caixa-preta | Caixa-branca | Híbrido |
+|---|---|---|---|---|
+| `accepted` | 505 (84,2%) | 134 | 186 | 185 |
+| `accepted_fallback` | 93 (15,5%) | 65 | 13 | 15 |
+| `accepted_predicted` | 2 (0,3%) | 1 (`939_C`) | 1 (`237_A`) | 0 |
+| `discarded_manual` / aguardando / pendentes | 0 | 0 | 0 | 0 |
+
+- **Fases**: fechadas na fase 1 = 480, fase 2 = 25, fase 3 (reserva) = 93, fase 4 (predição) = 2;
+  355 na tentativa 1.
+- **Chamadas**: 2.185 (fase 1: 1.537; fase 2: 643; fase 4: 5); falhas 1.678 (76,8%) —
+  `public_test_failed` 1.554, `unparseable_response` 102, `repetition` 21, `all_inputs_failed` 1.
+  Respostas cortadas por `length`: 77 (caixa-preta 48, híbrido 26, caixa-branca 3).
+- **Entradas**: descartadas por `runtime_error` 282, `timeout` 47, `non_utf8` 0; repetidas mantidas
+  12; `<input>` vazio 1; cercas Markdown removidas 0; testes previstos vazios 0, abreviados 0.
+- **Tokens**: prompt 2.997.679, saída 1.879.362; maior prompt (`prompt_eval_count`) 2.499, dentro de
+  `num_ctx − num_predict` = 3.072.
+- **Tempo de modelo** (soma das chamadas): 134.843 s ≈ 37,5 h (fase 1 25,4 h; fase 2 11,8 h; fase 4
+  0,2 h). O tempo de relógio, com GPUs em paralelo, não é medido.
+- **Tamanho das suítes** (mediana 10 no total): `accepted` 1–33 (mediana 10); `accepted_fallback`
+  5–54 (mediana 10); `accepted_predicted` 8 e 10.
+- `python -m cli check`: OK (600/600 com `suite.json`, tentativas sem buraco, `superseded/` bate com
+  as trocas); único aviso, o manifesto do pacote que ainda não existe.
+
+**Decisões e registros** (Milena, 2026-10-11):
+
+1. **Etiqueta de hardware**: as 2.185 chamadas têm a etiqueta "GPU T4 - Google Colab, 16GB RAM",
+   mas parte da execução rodou no Kaggle (2×T4: o mesmo modelo de GPU, a mesma versão do Ollama e o
+   mesmo digest do modelo, conferidos pelo `--resume`). Os arquivos gravados **não** mudam (todo
+   registro é gravado uma vez); a divergência fica registrada aqui e na metodologia, sem impacto
+   nos resultados.
+2. **`close` não foi necessário**: nenhuma combinação ficou aguardando os autores; o comando segue
+   testado só com dados simulados.
+3. **Interrupção e retomada com o Ollama real (T045)**: os logs `data/logs/gpu0.log`, `gpu1.log` e
+   `gpu2.log` têm 44 linhas `interrupted; it is safe to run the command again` (18 + 22 + 4) de
+   `generate` interrompidos; cada vez o `--resume` continuou, e o estado final não tem perda nem
+   dano (`cli check` OK, 600/600, tentativas sem buraco, nenhuma combinação danificada no
+   relatório). Os mesmos logs têm 362 linhas `ollama unavailable` (repetições da mesma chamada por
+   falha de infraestrutura, sem gastar tentativa).
+4. **Relatórios dos pilotos 2 e 3** (`manifests/slm_generation_report.piloto2.json` e
+   `.piloto3.json`) ficam versionados em `manifests/` como registro.
+5. **Pendente**: `package`, `verify --extracted data/suites/slm` e `cli check --deep` sobre o pacote
+   ainda não foram rodados.

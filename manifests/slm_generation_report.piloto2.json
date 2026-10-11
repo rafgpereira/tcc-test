@@ -1,0 +1,286 @@
+{
+  "attempt_failures": {
+    "all_inputs_failed": {
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0
+    },
+    "public_test_failed": {
+      "1": 13,
+      "2": 14,
+      "3": 11,
+      "4": 11,
+      "5": 8,
+      "6": 6
+    },
+    "repetition": {
+      "1": 0,
+      "2": 0,
+      "3": 1,
+      "4": 0,
+      "5": 0,
+      "6": 0
+    },
+    "unparseable_response": {
+      "1": 1,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 1
+    }
+  },
+  "attempts": {
+    "failed": 66,
+    "total": 74
+  },
+  "combinations": {
+    "black_box": {
+      "accepted": 1,
+      "discarded": 4,
+      "pending_execution": 0,
+      "pending_generation": 195,
+      "total": 200
+    },
+    "hybrid": {
+      "accepted": 4,
+      "discarded": 1,
+      "pending_execution": 0,
+      "pending_generation": 195,
+      "total": 200
+    },
+    "total": {
+      "accepted": 8,
+      "discarded": 7,
+      "pending_execution": 0,
+      "pending_generation": 585,
+      "total": 600
+    },
+    "white_box": {
+      "accepted": 3,
+      "discarded": 2,
+      "pending_execution": 0,
+      "pending_generation": 195,
+      "total": 200
+    }
+  },
+  "dataset_manifest_sha256": "a092d987bffc42c9fa5b0c54196ff6060ffc74187503521048aaaf199e47c02c",
+  "discard_rate": {
+    "black_box": 0.02,
+    "hybrid": 0.005,
+    "total": 0.011666666666666667,
+    "white_box": 0.01
+  },
+  "done_reason_length": {
+    "black_box": 1,
+    "hybrid": 0,
+    "total": 2,
+    "white_box": 1
+  },
+  "duplicate_inputs": 13,
+  "duration_s_total": 2576.005303118,
+  "empty_inputs": {
+    "black_box": 0,
+    "hybrid": 0,
+    "total": 1,
+    "white_box": 1
+  },
+  "hardware": {
+    "GPU T4 - Google Colab, 16GB RAM": 74
+  },
+  "input_discards": {
+    "non_utf8_output": 0,
+    "runtime_error": 9,
+    "timeout": 0
+  },
+  "markdown_fences_removed": {
+    "black_box": 0,
+    "hybrid": 4,
+    "total": 4,
+    "white_box": 0
+  },
+  "model": "qwen2.5-coder:7b",
+  "model_digest": "dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364",
+  "ollama_version": "0.35.0",
+  "options": {
+    "num_ctx": 8192,
+    "num_predict": 5120,
+    "repeat_penalty": 1.05,
+    "temperature": 0.7,
+    "top_k": 20,
+    "top_p": 0.8
+  },
+  "prompt_template_sha256": "061b7427d8a9dfa3bf6ed79300ba267f650085ba0313d5aaaeea140f1fe734bc",
+  "schema_version": 1,
+  "seed_base": 42,
+  "seeds": {
+    "1000_B/black_box": [
+      43,
+      44,
+      45,
+      46,
+      47,
+      48
+    ],
+    "1000_B/hybrid": [
+      43,
+      44,
+      45,
+      46,
+      47
+    ],
+    "1000_B/white_box": [
+      43,
+      44,
+      45,
+      46
+    ],
+    "1005_C/black_box": [
+      43,
+      44,
+      45,
+      46,
+      47,
+      48
+    ],
+    "1005_C/hybrid": [
+      43,
+      44,
+      45
+    ],
+    "1005_C/white_box": [
+      43,
+      44,
+      45,
+      46,
+      47,
+      48
+    ],
+    "1008_B/black_box": [
+      43,
+      44,
+      45,
+      46,
+      47,
+      48
+    ],
+    "1008_B/hybrid": [
+      43,
+      44,
+      45
+    ],
+    "1008_B/white_box": [
+      43,
+      44,
+      45,
+      46,
+      47
+    ],
+    "1_B/black_box": [
+      43,
+      44,
+      45,
+      46,
+      47,
+      48
+    ],
+    "1_B/hybrid": [
+      43,
+      44,
+      45,
+      46,
+      47,
+      48
+    ],
+    "1_B/white_box": [
+      43,
+      44,
+      45,
+      46,
+      47,
+      48
+    ],
+    "61_B/black_box": [
+      43,
+      44,
+      45,
+      46,
+      47,
+      48
+    ],
+    "61_B/hybrid": [
+      43
+    ],
+    "61_B/white_box": [
+      43,
+      44,
+      45,
+      46,
+      47
+    ]
+  },
+  "suite_size": {
+    "black_box": {
+      "count": 1,
+      "histogram": {
+        "4": 1
+      },
+      "max": 4,
+      "median": 4.0,
+      "min": 4,
+      "p25": 4.0,
+      "p75": 4.0
+    },
+    "hybrid": {
+      "count": 4,
+      "histogram": {
+        "20": 1,
+        "4": 1,
+        "5": 1,
+        "6": 1
+      },
+      "max": 20,
+      "median": 5.5,
+      "min": 4,
+      "p25": 4.75,
+      "p75": 9.5
+    },
+    "total": {
+      "count": 8,
+      "histogram": {
+        "13": 1,
+        "20": 1,
+        "25": 1,
+        "4": 2,
+        "5": 1,
+        "6": 2
+      },
+      "max": 25,
+      "median": 6.0,
+      "min": 4,
+      "p25": 4.75,
+      "p75": 14.75
+    },
+    "white_box": {
+      "count": 3,
+      "histogram": {
+        "13": 1,
+        "25": 1,
+        "6": 1
+      },
+      "max": 25,
+      "median": 13.0,
+      "min": 6,
+      "p25": 9.5,
+      "p75": 19.0
+    }
+  },
+  "tokens": {
+    "eval_total": 58869,
+    "prompt_max": 2170,
+    "prompt_total": 99679
+  }
+}

@@ -212,4 +212,43 @@ tudo o que falta é `[FALHA]`, inclusive a pasta não descompactada.
 
 `data/slm_suites.zip`: raiz `suites/slm/problems/…` (para `unzip data/slm_suites.zip -d data/` cair
 no caminho que os comandos leem), todos os arquivos de cada combinação, **sem** `.lock`; `run.json`
-entra (proveniência). Datas, permissões e compressão fixas de `dataset.integrity.packaging`.
+entra (proveniência), e também `template_changes/` e `superseded/` (desde 2026-10-07, R27; o
+manifesto aceita esses caminhos). Datas, permissões e compressão fixas de `dataset.integrity.packaging`.
+
+## 8. Trocas de template (desde 2026-10-07, research R27)
+
+```
+data/suites/slm/
+├── run.json                                   # nunca reescrito
+├── template_changes/001.json                  # TemplateChange (data-model §3.7)
+├── superseded/001/<id>/<cenário>/             # o que a troca 001 tirou de problems/ (§3.8)
+│   ├── suite.json
+│   ├── attempt_14.generation.json
+│   └── attempt_13.generation.json
+└── problems/<id>/<cenário>/attempt_13.generation.json   # refeita: "template_sha256" = o novo
+```
+
+```json
+{
+  "schema_version": 2,
+  "number": 1,
+  "template": "prediction",
+  "from_sha256": "421adf86…",
+  "to_sha256": "…",
+  "changed_at": "2026-10-07T23:10:00Z",
+  "reason": "…",
+  "superseded": [
+    {"problem_id": "939_C", "scenario": "black_box",
+     "files": ["suite.json", "attempt_14.generation.json", "attempt_13.generation.json"]}
+  ]
+}
+```
+
+`files` está na ordem em que os arquivos são movidos (suíte e fechamento manual primeiro, depois as
+tentativas da maior para a menor). `attempt_<n>.generation.json` ganha `"template_sha256"` (o hash
+do template usado; ausente nas tentativas anteriores a 2026-10-07) e `PredictionParse` ganha
+`"abbreviated_tests"` (ausente = 0). O relatório ganha `template_changes` (número, template, hashes,
+data, motivo, combinações e arquivos movidos) e `abbreviated_tests` por cenário. Na camada
+`slm_suites` do `cli check`, uma linha `INFO` (trocas, combinações refeitas, arquivos guardados) e
+uma linha `superseded/ bate com as trocas de template` (`OK` ou `FALHA` listando o arquivo ainda
+não movido, ausente ou que nenhuma troca lista).

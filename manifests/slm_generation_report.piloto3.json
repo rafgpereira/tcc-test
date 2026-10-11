@@ -1,0 +1,242 @@
+{
+  "attempt_failures": {
+    "all_inputs_failed": {
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0
+    },
+    "public_test_failed": {
+      "1": 11,
+      "2": 11,
+      "3": 10,
+      "4": 0,
+      "5": 0,
+      "6": 0
+    },
+    "repetition": {
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0
+    },
+    "unparseable_response": {
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0
+    }
+  },
+  "attempts": {
+    "failed": 32,
+    "total": 37
+  },
+  "combinations": {
+    "black_box": {
+      "accepted": 2,
+      "discarded": 0,
+      "pending_execution": 0,
+      "pending_generation": 198,
+      "total": 200
+    },
+    "hybrid": {
+      "accepted": 2,
+      "discarded": 0,
+      "pending_execution": 0,
+      "pending_generation": 198,
+      "total": 200
+    },
+    "total": {
+      "accepted": 5,
+      "discarded": 0,
+      "pending_execution": 0,
+      "pending_generation": 595,
+      "total": 600
+    },
+    "white_box": {
+      "accepted": 1,
+      "discarded": 0,
+      "pending_execution": 0,
+      "pending_generation": 199,
+      "total": 200
+    }
+  },
+  "dataset_manifest_sha256": "a092d987bffc42c9fa5b0c54196ff6060ffc74187503521048aaaf199e47c02c",
+  "discard_rate": {
+    "black_box": 0.0,
+    "hybrid": 0.0,
+    "total": 0.0,
+    "white_box": 0.0
+  },
+  "done_reason_length": {
+    "black_box": 0,
+    "hybrid": 0,
+    "total": 0,
+    "white_box": 0
+  },
+  "duplicate_inputs": 6,
+  "duration_s_total": 1246.64523984,
+  "empty_inputs": {
+    "black_box": 0,
+    "hybrid": 0,
+    "total": 0,
+    "white_box": 0
+  },
+  "hardware": {
+    "GPU T4 - Google Colab, 16GB RAM": 37
+  },
+  "input_discards": {
+    "non_utf8_output": 0,
+    "runtime_error": 0,
+    "timeout": 0
+  },
+  "markdown_fences_removed": {
+    "black_box": 1,
+    "hybrid": 0,
+    "total": 2,
+    "white_box": 1
+  },
+  "model": "qwen2.5-coder:7b",
+  "model_digest": "dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364",
+  "ollama_version": "0.35.0",
+  "options": {
+    "num_ctx": 8192,
+    "num_predict": 5120,
+    "repeat_penalty": 1.05,
+    "temperature": 0.7,
+    "top_k": 20,
+    "top_p": 0.8
+  },
+  "prompt_template_sha256": "336634f7b898c6b1910b3a15383254d6765bcd9dff79742481031c0aaad6ba29",
+  "schema_version": 1,
+  "seed_base": 42,
+  "seeds": {
+    "1000_B/black_box": [
+      43,
+      44,
+      45
+    ],
+    "1000_B/hybrid": [
+      43,
+      44,
+      45
+    ],
+    "1000_B/white_box": [
+      43,
+      44,
+      45
+    ],
+    "1005_C/black_box": [
+      43
+    ],
+    "1005_C/hybrid": [
+      43
+    ],
+    "1005_C/white_box": [
+      43,
+      44,
+      45
+    ],
+    "1008_B/black_box": [
+      43,
+      44,
+      45
+    ],
+    "1008_B/hybrid": [
+      43,
+      44,
+      45
+    ],
+    "1008_B/white_box": [
+      43,
+      44,
+      45
+    ],
+    "1_B/black_box": [
+      43,
+      44,
+      45
+    ],
+    "1_B/hybrid": [
+      43,
+      44,
+      45
+    ],
+    "1_B/white_box": [
+      43,
+      44,
+      45
+    ],
+    "61_B/black_box": [
+      43
+    ],
+    "61_B/hybrid": [
+      43,
+      44,
+      45
+    ],
+    "61_B/white_box": [
+      43
+    ]
+  },
+  "suite_size": {
+    "black_box": {
+      "count": 2,
+      "histogram": {
+        "16": 1,
+        "17": 1
+      },
+      "max": 17,
+      "median": 16.5,
+      "min": 16,
+      "p25": 16.25,
+      "p75": 16.75
+    },
+    "hybrid": {
+      "count": 2,
+      "histogram": {
+        "16": 2
+      },
+      "max": 16,
+      "median": 16.0,
+      "min": 16,
+      "p25": 16.0,
+      "p75": 16.0
+    },
+    "total": {
+      "count": 5,
+      "histogram": {
+        "16": 3,
+        "17": 1,
+        "19": 1
+      },
+      "max": 19,
+      "median": 16.0,
+      "min": 16,
+      "p25": 16.0,
+      "p75": 17.0
+    },
+    "white_box": {
+      "count": 1,
+      "histogram": {
+        "19": 1
+      },
+      "max": 19,
+      "median": 19.0,
+      "min": 19,
+      "p25": 19.0,
+      "p75": 19.0
+    }
+  },
+  "tokens": {
+    "eval_total": 39290,
+    "prompt_max": 2393,
+    "prompt_total": 60478
+  }
+}

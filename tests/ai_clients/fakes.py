@@ -78,7 +78,7 @@ def predicted_response(
     tests: Iterable[tuple[str, str]],
     analysis: str = "Edge cases: smallest and largest n.",
 ) -> str:
-    """A prediction answer (attempts 21 to 23): the two blocks in order, as the template asks."""
+    """A prediction answer (attempts 13 to 15): the two blocks in order, as the template asks."""
     blocks = "".join(
         f"<test>\n<input>\n{given}</input>\n<output>\n{expected}</output>\n</test>\n"
         for given, expected in tests

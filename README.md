@@ -10,22 +10,19 @@ teste unitários em C++.
 > "Módulos e estado", abaixo); este documento é o ponto de partida e o índice, não o detalhe de
 > cada módulo.
 >
-> **Estado atual (2026-10-07)**: os módulos `dataset` (extração, validação e empacotamento do
+> **Estado atual (2026-10-11)**: os módulos `dataset` (extração, validação e empacotamento do
 > dataset), `sandbox` (motor de execução isolada de C++) e `mutation` (100 mutantes por problema)
 > estão **implementados**, e os dois primeiros artefatos do experimento já foram gerados de verdade
 > e estão neste repositório: o dataset (`data/dataset.zip`, 200 problemas) e os mutantes
 > (`data/mutants.zip`, 20.000 mutantes), cada um com o seu manifesto de integridade. Quem clona o
 > projeto só precisa descompactar e conferir, não precisa gerar nada. Um comando na raiz,
-> `python -m cli check`, confere se dataset, mutantes e suítes estão completos e 1:1. A geração de suítes
-> de teste pelo modelo local (Qwen2.5-Coder-14B, módulo `ai_clients`) está em implementação:
-> todos os comandos (geração, execução das soluções Python, relatório, pacote e verificação)
-> existem e são testados com um modelo simulado; cinco pilotos reais foram feitos (4 e 5 problemas).
-> Os pedidos seguem uma tabela fixa de seeds e temperaturas (até 12 com solução, depois até 3 em
-> que o modelo escreve as saídas); no sexto piloto, com essa tabela, os 15 problemas e cenários
-> terminaram com suíte, e a configuração ficou congelada. A execução completa continua essa mesma
-> execução, com duas máquinas de Ollama gerando ao mesmo tempo (dois `generate` em paralelo, um
-> laço pronto no README do módulo) e ainda não terminou; os demais módulos (chamadas aos dois modelos comerciais, avaliação, métricas,
-> orquestrador) ainda não têm especificação nem código; a tabela "Módulos e estado" marca isso.
+> `python -m cli check`, confere se dataset, mutantes e suítes estão completos e 1:1. A geração de
+> suítes de teste pelo modelo local (Qwen2.5-Coder-14B, módulo `ai_clients`) **terminou** em
+> 2026-10-09: as 600 combinações de problema e cenário têm suíte (505 `accepted`, 93
+> `accepted_fallback`, 2 `accepted_predicted`, nenhuma fechada à mão); falta gerar e conferir o
+> pacote (`package` e `verify`), por isso o módulo segue em implementação. Os demais módulos
+> (chamadas aos dois modelos comerciais, avaliação, métricas, orquestrador) ainda não têm
+> especificação nem código; a tabela "Módulos e estado" marca isso.
 
 ## O que o experimento responde
 
@@ -87,7 +84,7 @@ na avaliação, para que nenhum código do dataset falhe no motor só durante o 
 | `src/dataset/` | extrai, valida e empacota o dataset experimental | seção 1 | **implementado**: dataset real gerado, validado e empacotado (200 problemas, ~12 MiB) | [README](src/dataset/README.md) |
 | `src/sandbox/` | motor de execução isolada de C++, usado pelo `dataset` | seções 1.4 e 4 | **implementado**: motor, isolamento e auto-checagem testados | [README](src/sandbox/README.md) |
 | `src/mutation/` | gera 100 mutantes por problema e os empacota | seção 2 | **implementado**: 200 problemas, 20.000 mutantes, pacote versionado (~9 MiB) | [README](src/mutation/README.md) |
-| `src/ai_clients/` | chamadas stateless aos 3 modelos | seção 3 | **em implementação** para o modelo local (SLM): todos os comandos disponíveis e pilotos reais feitos, execução completa ainda por fazer; os dois modelos comerciais ainda sem especificação | [README](src/ai_clients/README.md) |
+| `src/ai_clients/` | chamadas stateless aos 3 modelos | seção 3 | **em implementação** para o modelo local (SLM): execução completa feita (600 de 600 combinações com suíte), pacote ainda por gerar; os dois modelos comerciais ainda sem especificação | [README](src/ai_clients/README.md) |
 | avaliação | injeta as suítes geradas e registra vereditos em CSV | seção 4 | **sem spec** | a criar |
 | `src/metrics/` | TDF, MS, TFP, IIC | seção 5 | **sem spec** (IIC ainda não operacionalizado) | a criar |
 | `src/cli/` | comandos que cruzam módulos (hoje `check`) e, no futuro, o orquestrador do experimento | — | **em implementação**: `check` pronto; o orquestrador ainda sem especificação | [README](src/cli/README.md) |
@@ -246,7 +243,7 @@ Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
 | `sandbox` | sem uso direto: é a biblioteca de execução isolada; só se opera diretamente para conferir a saúde do motor | [README do módulo](src/sandbox/README.md) |
 | `mutation` | obter os mutantes (descompactar e conferir) ou gerá-los do zero | [README do módulo](src/mutation/README.md) |
 | `cli` | conferir se dataset, mutantes e suítes do modelo local estão consistentes entre si | [README do módulo](src/cli/README.md) |
-| `ai_clients` | gerar as suítes de teste do modelo local (em implementação: comandos prontos e pilotos feitos, execução completa por fazer) | [README do módulo](src/ai_clients/README.md) |
+| `ai_clients` | gerar as suítes de teste do modelo local (execução completa feita, pacote por gerar; a preparação do Ollama, com o exemplo de um notebook do Kaggle com duas placas, está no README do módulo) | [README do módulo](src/ai_clients/README.md) |
 | avaliação, `metrics` | ainda não implementados | sem README ainda |
 
 ## Conferir se os artefatos estão consistentes entre si
@@ -294,7 +291,7 @@ está no README dele; `--help` de qualquer comando lista as opções de fato dis
 | Comando | Serviço | O que faz / variações |
 |---|---|---|
 | `docker compose build` | (nenhum) | constrói a imagem; repita depois de mudar o `Dockerfile` ou o `uv.lock` |
-| `docker compose run --rm sandbox pytest` | `sandbox` | todos os testes do projeto; `pytest tests/<pasta>` roda uma parte: `tests/dataset`, `tests/sandbox`, `tests/mutation`, `tests/cli` ou `tests/docs` |
+| `docker compose run --rm sandbox pytest` | `sandbox` | todos os testes do projeto; `pytest tests/<pasta>` roda uma parte: `tests/dataset`, `tests/sandbox`, `tests/mutation`, `tests/ai_clients`, `tests/cli` ou `tests/docs` |
 | `docker compose run --rm app ruff check .` | `app` | análise estática; `--fix` corrige o que for automático |
 | `docker compose run --rm app black --check .` | `app` | confere a formatação; sem `--check` reformata os arquivos |
 | `docker compose run --rm app python scripts/check_docs_sync.py` | `app` | verifica se a documentação está sincronizada (READMEs, links, metodologia); `--module src/<módulo>` confere só um módulo |
@@ -324,14 +321,17 @@ está no README dele; `--help` de qualquer comando lista as opções de fato dis
 
 ### Módulo `ai_clients` ([README](src/ai_clients/README.md))
 
-Em implementação: todos os comandos existem e já rodaram em pilotos com o modelo real; a execução completa ainda não foi feita. A geração precisa de `OLLAMA_BASE_URL` e
-`OLLAMA_HARDWARE_LABEL` no `.env` (ver `.env.example`).
+Em implementação: `generate`, `execute`, `change-template` e `report` rodaram na execução completa
+(600 de 600 combinações com suíte); `package` e `verify` ainda não rodaram, porque o pacote ainda não
+foi gerado. A geração precisa de `OLLAMA_BASE_URL` e `OLLAMA_HARDWARE_LABEL` no `.env` (ver
+`.env.example`) e de um servidor Ollama no ar (preparação no README do módulo).
 
 | Comando | Serviço | O que faz / variações |
 |---|---|---|
 | `docker compose run --rm app python -m ai_clients generate` | `app` | pede ao modelo local (Ollama) as entradas de teste e a solução Python de cada problema e cenário pendente e grava as respostas em `data/suites/slm/`, até 12 pedidos com solução (seed e temperatura de uma tabela fixa) e depois até 3 de predição (o modelo escreve as saídas); recusa com código `2` uma pasta com execução de versão anterior (mova-a antes); `--resume` (obrigatório depois da primeira execução), `--dry-run` (só lista os pedidos, sem Ollama e sem gravar), `--limit N`, `--problem ID`, `--scenario S`; se o Ollama não responde, repete a mesma chamada sem gastar tentativa até `OLLAMA_MAX_INFRA_RETRIES` vezes e para com código `3` (o `token repeat limit reached` do modelo, ao contrário, gasta a tentativa e segue para a próxima seed); sai com `4`, listando cada um com o comando `close`, se algum problema e cenário aguarda os autores; retoma sem perda se interrompido; vários `generate --resume` (um por máquina de Ollama, cada um com `-e OLLAMA_BASE_URL=...` e todos os problemas) rodam juntos, e o problema e cenário em uso por outro é pulado e contado (`skipped`), o que divide o trabalho entre as máquinas; o primeiro `generate` roda sozinho |
 | `docker compose run --rm sandbox python -m ai_clients execute` | `sandbox` | roda, sem internet, a solução Python de cada resposta lida, sobre os testes públicos e as entradas geradas, e grava as saídas esperadas e o `suite.json` de cada problema e cenário que termina; exige o `generate` antes; `--dry-run`, `--limit N`, `--problem ID`, `--scenario S`; termina com `next: ...generate --resume`, com os mesmos `--problem`/`--scenario`, enquanto houver tentativa à espera de novo pedido ao modelo (alternar os dois até sumir); sai com `4` como o `generate`; retoma sem perda se interrompido; roda junto com `generate --resume`, mas só um `execute` por vez |
 | `docker compose run --rm app python -m ai_clients close --problem ID --scenario S --reason "TEXTO"` | `app` | fecha à mão um problema e cenário que aguarda os autores (os 15 pedidos não deram suíte): grava o motivo e a data e o `suite.json` com `status: discarded_manual`; `--dry-run` só mostra o que seria gravado; recusa (`1`) se outro comando estiver rodando |
+| `docker compose run --rm app python -m ai_clients change-template --template prediction --reason "TEXTO"` | `app` | depois de os autores editarem um texto-base no meio da execução: grava a troca e move para `data/suites/slm/superseded/` os pedidos feitos com o texto antigo, que o `generate --resume` refaz com o texto novo e as mesmas seeds (uma execução nunca mistura duas versões); `--dry-run` só lista; rodar de novo termina uma troca interrompida; recusa (`1`) se outro comando estiver rodando |
 | `docker compose run --rm app python -m ai_clients report` | `app` | grava `manifests/slm_generation_report.json` (contagens e proporção de cada `status` de suíte por cenário, tamanho das suítes de cada `status`, falhas por motivo e tentativa, *tokens*, máquinas, seeds), lendo só `data/suites/slm/`; pode rodar no meio da execução |
 | `docker compose run --rm app python -m ai_clients package` | `app` | gera `data/slm_suites.zip`, `manifests/slm_suites.manifest.json` e o relatório; recusa se algum problema e cenário não tem `suite.json` (inclusive os que aguardam os autores) ou se outro comando estiver rodando |
 | `docker compose run --rm app python -m ai_clients verify` | `app` | confere o zip contra o manifesto; `--extracted data/suites/slm` confere também a pasta descompactada |
@@ -347,9 +347,8 @@ Em implementação: todos os comandos existem e já rodaram em pilotos com o mod
 
 O motor não tem comando próprio: é uma biblioteca usada pelo `dataset` e pelo `mutation` (e, no
 futuro, pela avaliação). `docker compose run --rm sandbox pytest tests/sandbox` roda os testes dele,
-e `python -m dataset selfcheck` (acima) confere a saúde do motor. Os comandos que faltam no
-`ai_clients` e os módulos ainda não implementados (avaliação, `metrics`) entram aqui quando
-existirem.
+e `python -m dataset selfcheck` (acima) confere a saúde do motor. Os comandos dos módulos ainda não
+implementados (clientes dos modelos comerciais, avaliação, `metrics`) entram aqui quando existirem.
 
 ## Glossário
 

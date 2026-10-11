@@ -21,7 +21,9 @@ TCC de dupla — Milena e Rafael, UnB.
   no futuro, os das IAs) e como um módulo novo o estende
 - `src/dataset/` — extração e validação do dataset (code_contests)
 - `src/mutation/` — geração de mutantes
-- `src/ai_clients/` — orquestração das chamadas aos 3 modelos
+- `src/ai_clients/` — suítes de teste do modelo local (SLM, Qwen2.5-Coder-14B via Ollama); os
+  clientes dos 2 modelos comerciais ainda sem especificação
+- `src/prompt_templates/` — texto-base dos pedidos ao SLM (solução e predição)
 - `src/sandbox/` — compilação e execução isolada em C++
 - `src/metrics/` — TDF, MS, TFP, IIC
 - `src/cli/` — comandos que cruzam módulos (hoje `check`) e, no futuro, o orquestrador que amarra tudo
@@ -32,6 +34,11 @@ TCC de dupla — Milena e Rafael, UnB.
   integridade do dataset. Fica **fora de `data/`** (que é ignorado pelo Git,
   exceto o zip) e é versionado; `manifests/extraction_report.json` traz o
   relatório final da extração
+- `data/mutants.zip` + `manifests/mutants.manifest.json` — mutantes da execução final e seus
+  hashes
+- `data/slm_suites.zip` + `manifests/slm_suites.manifest.json` +
+  `manifests/slm_generation_report.json` — pacote da execução final do SLM (zip e manifesto
+  ainda a gerar; o relatório já existe)
 - `specs/NNN-nome/` — specs do spec-kit, uma por módulo
 - `Dockerfile` / `docker-compose.yml` — ambiente de execução reprodutível
   (Constitution, Princípio II)
@@ -68,7 +75,9 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
   `... verify [--extracted data/suites/slm]`. Com duas máquinas de Ollama, vários `generate
   --resume` (cada um com `-e OLLAMA_BASE_URL=...` e todos os problemas, que eles dividem
   sozinhos) e um `execute` rodam juntos; `close`, `package` e o primeiro `generate` só rodam sozinhos (laço pronto no README do
-  módulo)
+  módulo). Trocar um texto-base no meio da execução só com `docker compose run --rm app python -m
+  ai_clients change-template --template prediction --reason "..."` (move os pedidos da versão
+  antiga para `superseded/` e eles são refeitos; nunca editar o template e seguir)
 - Conferir a consistência entre artefatos (dataset descompactado × mutantes × suítes do modelo
   local, 1:1, com contagens; só lê): `docker compose run --rm app python -m cli check [--deep]`. Todo módulo que
   passa a produzir uma pasta por problema MUST entrar nele (`docs/verificacao-consistencia.md`)

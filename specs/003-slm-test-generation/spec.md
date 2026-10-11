@@ -23,6 +23,9 @@ decisões D1–D3 estão em Divergências.
 Fora do escopo: clientes do GPT-5.4-mini e do Gemini 3.5 Flash, execução das suítes contra
 WA/mutantes e cálculo das métricas."
 
+*(Nota de 2026-10-11: o Qwen2.5-Coder-7B do texto acima é histórico; o modelo final é o
+`qwen2.5-coder:14b` desde 2026-10-06, FR-001 e `research.md` R20.)*
+
 ## Clarifications
 
 ### Session 2026-09-29
@@ -137,7 +140,7 @@ tratamento manual e o fechamento continuam valendo.)*
   pilotos 4 e 5; diverge do Qwen2.5-Coder-7B do texto do TCC.
 - Q: Como as métricas tratam as suítes que não vêm de uma solução aprovada (FR-023)? → A: as
   `accepted_fallback` entram como as `accepted`; `accepted_low_confidence` e `accepted_predicted`
-  ficam separadas por status.
+  ficam separadas por status. *(`accepted_low_confidence` deixou de existir no mesmo dia, R21.)*
 - Q: A temperatura e a seed base podem variar? → A: só num piloto (o 6) que compara
   configurações, pelo `.env` (`OLLAMA_TEMPERATURE`, `OLLAMA_SEED_BASE`); os valores entram no
   `run.json` e uma execução nunca mistura dois (FR-020, FR-025). A temperatura do experimento sai
@@ -209,6 +212,48 @@ dividem o trabalho sozinhos, sem código novo no módulo.
 - Q: Uma combinação pulada por estar em uso fica sem tratamento nessa rodada? → A: Não: quem a
   tem a trata; o `skipped` passa a ser o esperado com duas máquinas (cada linha é uma combinação
   feita pelo outro processo), e a próxima rodada só retoma o que ainda faltar (FR-026a).
+
+### Session 2026-10-07 (troca do template de predição, `research.md` R27)
+
+Pedido da Milena: o template de predição gerou entradas degeneradas (`1 1 1 ...` até o teto de
+5120 tokens na tentativa 13 de `939_C` caixa-preta; na 14, aceita, uma entrada abreviada
+`1 1 1 ... 1 (100000 ones)`). O STEP 2 do template é trocado por um texto que limita cada entrada
+a 10 elementos e 10 linhas e proíbe sequências longas. Medido antes da troca: 1 combinação das 594
+pastas passou pela predição (a `939_C` caixa-preta, `accepted_predicted`); o hash do template
+entra no `run.json` e o `--resume` recusa (código 2) qualquer mudança dele.
+
+- Q: Como trocar o template sem misturar versões na mesma execução? → A: Por um comando explícito
+  (`change-template`) que registra a troca (hash antigo, hash novo, data, motivo) e tira das
+  combinações as tentativas feitas com o template antigo, a partir da primeira delas, com o
+  `suite.json` e o `manual_close.json`; o `generate --resume` as refaz com o template novo e as
+  mesmas seeds. Cada tentativa nova grava o hash do template que usou (FR-022e).
+- Q: Onde ficam as tentativas e a suíte tiradas da execução? → A: Numa pasta à parte
+  (`data/suites/slm/superseded/<número da troca>/`), que entra no pacote; o `cli check` a confere
+  à parte, e nada dela entra nas métricas (FR-022e).
+- Q: Uma entrada abreviada (`1 1 1 ... 1`) deve ser recusada ao ler uma predição? → A: Sim: o
+  teste com entrada ou saída abreviada é descartado sozinho e contado, como o teste vazio; se não
+  sobrar nenhum, a resposta não é interpretável e a próxima seed é tentada (FR-022c).
+- Q: O laço em andamento para enquanto isso? → A: Não; ele segue com o template antigo até a
+  troca, e o `change-template` refaz também as combinações que chegarem à predição nesse meio
+  tempo.
+
+### Session 2026-10-11 (resultado da execução completa, `research.md` R27 e R28)
+
+Execução completa terminada em 2026-10-09 (`manifests/slm_generation_report.json`): das 600
+combinações, 505 `accepted` (84,2%), 93 `accepted_fallback` (15,5%), 2 `accepted_predicted`
+(0,3%: `939_C` caixa-preta e `237_A` caixa-branca), 0 `discarded_manual`, 0 aguardando os
+autores; 2.185 chamadas, 1.678 falhas. A troca de template (R27) foi feita em 2026-10-08: as 2
+combinações que chegaram à predição têm a suíte final do template novo (`e52133f6…`, antes
+`421adf86…`); a `939_C` foi refeita. O motivo, gravado por engano como `"..."`, foi corrigido em
+2026-10-11, antes do pacote. O pacote final (FR-028) ainda não foi gerado.
+
+- Q: A etiqueta de hardware (FR-003a) de todas as chamadas é "GPU T4 - Google Colab, 16GB RAM",
+  mas parte rodou no Kaggle. Corrigir? → A: Não: os arquivos gravados não mudam; a divergência
+  (mesma GPU T4, mesma versão do Ollama, mesmo digest do modelo) fica registrada em R28 e na
+  metodologia, sem impacto nos resultados.
+- Q: O `close` (FR-022d) foi usado? → A: Não foi necessário: nenhuma combinação ficou aguardando
+  os autores.
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
@@ -247,9 +292,9 @@ rodado.
    **Then** o sistema registra essa tentativa como falha de interpretação (uma das razões de
    descarte de tentativa de FR-018), sem produzir uma suíte a partir dela.
 3. **Given** um problema e um cenário cuja tentativa anterior falhou, **When** uma nova
-   tentativa é disparada, **Then** o sistema usa a próxima seed prevista (seed base + número da
-   tentativa) e envia uma chamada nova e independente, sem qualquer contexto da tentativa
-   anterior.
+   tentativa é disparada, **Then** o sistema usa a seed e a temperatura da próxima linha da
+   tabela de FR-020 (`config.ATTEMPT_POLICY`; até 2026-10-06, seed base + número da tentativa) e
+   envia uma chamada nova e independente, sem qualquer contexto da tentativa anterior.
 
 ---
 
@@ -317,8 +362,8 @@ demais.
 
 Ao interromper a geração ou a execução por qualquer motivo (queda de rede, falha do Ollama,
 interrupção manual) e rodar o comando de novo, os autores recebem exatamente a continuação do
-que faltava — os problemas × cenários já concluídos (com suíte aceita ou já descartada
-definitivamente) não são reprocessados, e nenhum arquivo fica parcialmente escrito ou
+que faltava — os problemas × cenários já concluídos (com suíte, em qualquer um dos status de
+FR-023, ou fechados pelos autores como `discarded_manual`) não são reprocessados, e nenhum arquivo fica parcialmente escrito ou
 inconsistente.
 
 **Why this priority**: sem isso, uma interrupção no meio da execução completa (200 × 3
@@ -336,8 +381,8 @@ execução ininterrupta sobre a mesma entrada e as mesmas seeds.
    sem duplicar tentativas já persistidas nem perder o que já foi concluído para os demais
    problemas × cenários.
 2. **Given** uma execução da fase de execução interrompida no meio da avaliação de uma
-   tentativa, **When** o comando é executado de novo, **Then** o resultado final (suíte aceita
-   ou descartada, com o mesmo conjunto de entradas e o mesmo `expected_output`) é idêntico ao de
+   tentativa, **When** o comando é executado de novo, **Then** o resultado final (o mesmo status
+   da combinação, o mesmo conjunto de entradas e o mesmo `expected_output`) é idêntico ao de
    uma execução ininterrupta sobre a mesma entrada.
 
 ---
@@ -345,8 +390,9 @@ execução ininterrupta sobre a mesma entrada e as mesmas seeds.
 ### User Story 4 - Relatório de geração para sustentar o texto do TCC (Priority: P3)
 
 Ao final de uma execução completa, os autores precisam de um relatório versionado com os números
-agregados da geração de suítes pelo SLM (taxa de descarte por problema × cenário, distribuição
-do tamanho das suítes aceitas, seeds usadas e motivo de cada falha, hardware em que o Ollama
+agregados da geração de suítes pelo SLM (contagem por status — `accepted`, `accepted_fallback`,
+`accepted_predicted`, `discarded_manual` e aguardando os autores — por cenário, fase e tentativa em
+que cada combinação ficou com a suíte, distribuição do tamanho das suítes, seeds usadas e motivo de cada falha, hardware em que o Ollama
 rodou), para citar no texto escrito sem precisar reabrir os arquivos-fonte das suítes.
 
 **Why this priority**: é a mesma exigência de documentação viva já aplicada aos módulos
@@ -355,14 +401,15 @@ auditável, e o tamanho variável da suíte (variável de confusão conhecida) n
 analisado.
 
 **Independent Test**: pode ser testado isoladamente conferindo que o relatório gerado ao final
-de uma execução de teste contém os campos exigidos e que os totais (aceitas, descartadas,
+de uma execução de teste contém os campos exigidos e que os totais (combinações por status,
 tentativas por razão) somam corretamente.
 
 **Acceptance Scenarios**:
 
 1. **Given** uma execução completa das fases de geração e execução sobre um conjunto de
-   problemas × cenários, **When** ela termina, **Then** o sistema grava um relatório com a taxa
-   de descarte, a distribuição do tamanho das suítes aceitas, o funil de falha de tentativa por
+   problemas × cenários, **When** ela termina, **Then** o sistema grava um relatório com a
+   contagem por status (os 4 status de FR-023 e aguardando os autores), a fase e a tentativa em
+   que cada combinação ficou com a suíte, a distribuição do tamanho das suítes, o funil de falha de tentativa por
    razão, todas as seeds usadas por problema × cenário e o hardware registrado para cada chamada
    ao Ollama.
 
@@ -472,7 +519,12 @@ tentativas por razão) somam corretamente.
   relatório (decididas em 2026-10-04): uma cerca Markdown que envolve o `<reference_py>` inteiro
   (primeira linha ```` ```python ````, ```` ```py ```` ou ```` ``` ````; última ```` ``` ````) MUST
   ser removida, e nenhuma outra; um `<input>` vazio MUST ser descartado sozinho, e só a resposta
-  com todos os `<input>` vazios é falha de interpretação.
+  com todos os `<input>` vazios é falha de interpretação. Na predição (FR-022c), desde 2026-10-06
+  (`research.md` R22, item 7), a mesma regra vale para cada `<input>` e `<output>`: uma cerca que
+  envolve o bloco inteiro (primeira linha exatamente ```` ``` ````, ```` ```text ````,
+  ```` ```txt ```` ou ```` ```plaintext ````; última ```` ``` ````) MUST ser removida e contada em
+  `markdown_fences_removed`, e um `<test>` com entrada ou saída vazia é descartado sozinho
+  (`empty_tests`).
 - **FR-011**: A suíte persistida (depois de interpretada e, na fase de execução, com
   `expected_output` preenchido) MUST seguir um schema JSON formal e versionado (Constitution,
   Princípio IV), independentemente de a resposta crua do modelo não ser JSON.
@@ -569,16 +621,33 @@ tentativas por razão) somam corretamente.
   segundo template (`src/prompt_templates/slm_predict_prompt.txt`), com a mesma composição de
   cenários (FR-004) e o mesmo exemplo (FR-005), que pede entradas **e** saídas esperadas
   diretamente, sem solução Python, em dois blocos: `<edge_cases_analysis>` e `<tests>` (cada
-  `<test>` com um `<input>` e um `<output>`). As regras de entrada são as do template principal
-  (restrições, casos-limite, tamanho máximo, sem entrada vazia ou repetida). Não há validação pelos
+  `<test>` com um `<input>` e um `<output>`). As regras de entrada eram, até 2026-10-08, as do
+  template principal (restrições, casos-limite, tamanho máximo, sem entrada vazia ou repetida);
+  desde a troca de template de R27 (2026-10-08), o template de predição tem limites próprios: no
+  máximo 10 números ou elementos e 10 linhas por entrada (valores grandes permitidos, mas poucos
+  elementos, nunca uma sequência longa como `1 2 3 4 ...`), de 5 a 12 testes diferentes, e parar
+  depois de `</tests>`. Não há validação pelos
   testes públicos (não existe programa a validar). Uma nova tentativa MUST acontecer só por
   resposta não interpretável, até 3 (tentativas 13 a 15, seeds 49 a 51, temperatura 0,7; FR-020).
-  A suíte recebe status `accepted_predicted`. Decidido em 2026-10-06.
+  A suíte recebe status `accepted_predicted`. Decidido em 2026-10-06. Desde 2026-10-07 (R27), um
+  teste cuja entrada ou saída é abreviada (uma linha com um `...` ou `…` entre outros valores,
+  ou um `…` em qualquer lugar) MUST ser descartado sozinho e contado, como o teste vazio; se
+  nenhum teste sobrar, a resposta não é interpretável.
 - **FR-022d**: Uma combinação aguardando tratamento manual (FR-022) só MUST sair desse estado por
   um comando explícito dos autores, que a fecha com o status `discarded_manual` e um motivo
   obrigatório, gravados com a data no resultado da combinação. Esse é o único caminho para uma
   combinação terminar sem suíte; ela continua contando no N = 200 e é reportada à parte (FR-023).
   Decidido em 2026-10-06.
+- **FR-022e**: Uma execução MUST usar uma única versão de cada template. Trocar um template no
+  meio da execução MUST passar por um comando explícito dos autores (`change-template`, com
+  motivo obrigatório), que registra a troca (template, hash antigo e novo, data, motivo,
+  combinações atingidas) e move para `data/suites/slm/superseded/<número>/` as tentativas feitas
+  com a versão antiga, a partir da primeira delas em cada combinação, com o `suite.json` e o
+  `manual_close.json`; a combinação volta a ficar pendente nessa tentativa e é refeita com as
+  mesmas seeds. Cada tentativa MUST registrar o hash do template que usou, e uma tentativa com
+  hash diferente do template corrente da execução (ou sem hash, quando o template já foi
+  trocado) torna a combinação danificada. O pacote leva as trocas e a pasta `superseded/`; nada
+  dela entra nas métricas. Decidido em 2026-10-07 (R27).
 - **FR-023**: O relatório MUST contar as combinações por status (`accepted`, `accepted_fallback`,
   `accepted_predicted`, `discarded_manual` e aguardando tratamento manual), por cenário e no total,
   e mostrar, por cenário, em qual fase e em qual tentativa cada combinação ficou com a suíte. Nas
@@ -599,19 +668,24 @@ tentativas por razão) somam corretamente.
   momento sem duplicar nem corromper dados já persistidos (Constitution, Princípio VII).
 - **FR-026a**: Vários `generate --resume` e um `execute` MUST poder rodar ao mesmo tempo sobre a
   mesma execução (por exemplo, dois `generate` com todos os problemas, cada um ligado a um servidor
-  Ollama, que assim dividem o trabalho sozinhos, R26), sem duplicar nem corromper nada: cada combinação é tratada por um processo de cada vez
+  Ollama, que assim dividem o trabalho sozinhos, R26), sem duplicar nem corromper nada: cada
+  combinação é tratada por um processo de cada vez
   (trava exclusiva por combinação); uma combinação em uso por outro processo MUST ser pulada e
   contada no resumo final, nunca esperada; `package` e `close` MUST continuar exigindo que nenhum
   outro comando esteja rodando (recusa com código 1), assim como o `generate` que começa a execução
   (sem `--resume`); um segundo `execute` MUST ser recusado com código 1 (o *slot* do motor é um
-  só). Decidido em 2026-10-07 (R24).
+  só). Decidido em 2026-10-07 (R24). Corrigido em 2026-10-08: todo arquivo de trava criado pelo
+  `execute` (que roda como root no serviço `sandbox`) MUST ser entregue ao usuário do host, para o
+  `generate` do serviço `app` conseguir abri-lo.
 - **FR-027**: O sistema MUST produzir um relatório versionável, agregando: a contagem por status
   e a fase e tentativa em que cada combinação ficou com a suíte (FR-023), distribuição do tamanho das suítes aceitas, funil de falha de tentativa
   por razão (não interpretável, falha em teste público, falha — erro de execução e/ou timeout —
   em 100% das entradas, falha do modelo por repetição), seeds usadas por combinação e hardware
   registrado por chamada; e, por cenário, as respostas cortadas pelo teto de saída
   (`done_reason = "length"`), as cercas Markdown removidas e os `<input>` vazios descartados
-  (FR-010).
+  (FR-010), os testes previstos vazios (`empty_tests`) e abreviados (`abbreviated_tests`) descartados
+  na predição (FR-022c); por fase, as chamadas, as tentativas falhas, os *tokens* e o tempo de
+  modelo (`per_phase`); e as trocas de template (`template_changes`, FR-022e).
 - **FR-028**: Ao final da execução completa que sustenta os números publicados do experimento, o
   sistema MUST poder compactar as suítes SLM de todos os problemas × cenários em um pacote
   único, acompanhado de um manifesto de integridade SHA-256, no mesmo formato já usado para o
@@ -646,8 +720,9 @@ tentativas por razão) somam corretamente.
   aceita, mas saídas esperadas possivelmente erradas.
 - **Suíte por predição** (`accepted_predicted`): entradas e saídas esperadas escritas diretamente
   pelo modelo com o segundo template, sem solução Python nem validação (FR-022c).
-- **Relatório de geração de suítes SLM**: dado quantitativo agregado (taxa de descarte,
-  distribuição de tamanho de suíte, funil de falha por razão, seeds e hardware), para citação no
+- **Relatório de geração de suítes SLM**: dado quantitativo agregado (contagem por status —
+  `accepted`, `accepted_fallback`, `accepted_predicted`, `discarded_manual` e aguardando os
+  autores —, fase e tentativa da suíte, distribuição de tamanho de suíte, funil de falha por razão, seeds e hardware), para citação no
   texto do TCC sem reabrir os arquivos-fonte das suítes.
 
 ## Success Criteria *(mandatory)*
@@ -659,10 +734,15 @@ tentativas por razão) somam corretamente.
   `accepted_predicted`, com o tamanho, a fase e a tentativa usada registrados
   — ou, só por decisão explícita dos autores, `discarded_manual` com motivo (FR-022d); nunca um
   estado intermediário ou ambíguo no pacote final.
-- **SC-002**: 100% dos casos de teste mantidos em suítes aceitas têm `expected_output`
-  calculado por execução real da solução Python sobre a entrada, nunca por previsão do modelo.
+- **SC-002**: 100% dos casos de teste mantidos em suítes `accepted` e `accepted_fallback` têm
+  `expected_output` calculado por execução real da solução Python sobre a entrada, nunca por
+  previsão do modelo. As `accepted_predicted` (FR-022c) são a única exceção — saídas escritas pelo
+  modelo, não vindas de execução — e ficam separadas no relatório e nas métricas (FR-023).
 - **SC-003**: A proporção de suítes de cada status é medida e reportada separadamente, por cenário
   e no total, sem reduzir silenciosamente o N = 200 usado pelas demais métricas do experimento.
+  Medido na execução completa (SC-001 e SC-003): 600 de 600 combinações em estado final, 505
+  `accepted`, 93 `accepted_fallback`, 2 `accepted_predicted`, 0 `discarded_manual` (sessão de
+  2026-10-11; por cenário em `research.md` R28).
 - **SC-004**: Interromper a geração ou a execução em qualquer ponto e retomar produz o mesmo
   resultado final (mesmas suítes aceitas, mesmo conteúdo, mesmas entradas descartadas) que uma
   execução ininterrupta sobre a mesma entrada e as mesmas seeds, sem arquivo duplicado ou
@@ -716,12 +796,16 @@ tentativas por razão) somam corretamente.
   nesta especificação. **Fixados em 2026-09-30** (`plan.md`, `research.md` R3 e R7): `num_ctx =
   8192` e `num_predict = 4096`, a partir do maior prompt medido (7.870 caracteres, híbrido de
   `61_B`; remedido com o prompt real em 2026-09-30: 8.118), com guarda de truncamento em tempo de execução; tempo da solução Python = limite do
-  problema × 10 e memória = limite do problema × 4 (ambos a confirmar no piloto).
+  problema × 10 e memória = limite do problema × 4 (fatores mantidos depois dos pilotos e usados
+  na execução completa, `research.md` R28).
   **Revisado em 2026-10-04** (`research.md` R13, depois do piloto 1): `num_predict = 5120`, com a
   razão mínima medida de 3,32 caracteres por *token*; maior prompt com o template novo: 8.074. Temperatura e
   demais parâmetros de amostragem (FR-025) decididos em 2026-09-30 (`research.md` R4): `temperature
   0.7`, `top_p 0.8`, `top_k 20`, `repeat_penalty 1.05`, seed base 42. O template do prompt foi
-  ajustado no mesmo dia para cumprir FR-007 (`research.md` R5a).
+  ajustado no mesmo dia para cumprir FR-007 (`research.md` R5a). **Política final** (desde
+  2026-10-06, R21/R22): `top_p`, `top_k` e `repeat_penalty` continuam; a seed base 42 e a
+  temperatura única saíram — seed e temperatura de cada uma das 15 tentativas vêm da tabela de
+  FR-020 (`config.ATTEMPT_POLICY`), a mesma usada em toda a execução completa.
 - **Versionamento das suítes SLM**: como decidido nesta sessão (ver Divergências, D3), a
   identidade de uma suíte depende de uma chamada real e não estritamente reprodutível a uma API
   de IA — o mesmo caso já coberto pela exceção do Princípio II (Constitution, emenda 1.6.0). Ao
@@ -751,7 +835,8 @@ registradas em Clarifications), fecham essa pendência.
   `format: json`, igual aos dois modelos comerciais. Na prática, pedir ao SLM uma solução Python
   inteira dentro de um campo JSON expõe o pipeline a erros de escape de aspas, quebras de linha
   e barras invertidas dentro do código gerado — risco que os dois modelos de fronteira mitigam
-  melhor, mas que um modelo de 7B tende a errar com mais frequência. **Decisão**: o Qwen
+  melhor, mas que um modelo de 7B tende a errar com mais frequência (histórico; o modelo final é o
+  14B desde 2026-10-06, e a justificativa vale igualmente para ele). **Decisão**: o Qwen
   responde em texto plano com 3 blocos marcados por tags (`<edge_cases_analysis>`, `<reference_py>`,
   `<inputs>` com vários `<input>`; ordem de R17, 2026-10-06), interpretados deterministicamente pelo pipeline; a suíte
   persistida depois da interpretação continua sendo JSON com schema formal e versionado

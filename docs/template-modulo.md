@@ -37,8 +37,10 @@
    carimbada quando o comando é executado. A revisão é a saída de `git rev-parse --short=7 HEAD` no
    host, obtida depois de commitar o código e antes de rodar o comando, com o sufixo `+dirty` se
    `src/`, `scripts/`, `pyproject.toml`, `uv.lock`, `Dockerfile` ou os arquivos do compose tiverem
-   alterações não commitadas; o fechamento da feature rejeita `+dirty`. A tabela tem só `Comando |
-   Verificado em | Revisão`.
+   alterações não commitadas; o fechamento da feature rejeita `+dirty`. Um comando que a execução
+   real nunca precisou (por exemplo, fechar à mão quando nada aguardou os autores) é registrado
+   como `não necessário (<motivo>)`, com revisão `—`. A tabela tem só `Comando | Verificado em |
+   Revisão`.
 8. **Idioma**: português. Nomes de comandos, arquivos, campos e código ficam como no código, em
    inglês.
 9. **Sincronização**: o README é atualizado no mesmo ciclo de trabalho em que o módulo muda.
@@ -173,5 +175,5 @@ Mantenha esta tabela atualizada ao criar ou concluir módulos (ver também a tab
 | `src/sandbox/` | [README](../src/sandbox/README.md) | implementado (motor de execução compartilhado) |
 | `src/mutation/` | [README](../src/mutation/README.md) | implementado: `generate`, `report`, `package` e `verify` documentados e carimbados |
 | `src/cli/` | [README](../src/cli/README.md) | em implementação: `check` (consistência entre artefatos) pronto; o orquestrador do experimento ainda sem especificação |
-| `src/ai_clients/` | [README](../src/ai_clients/README.md) | em implementação: geração de suítes pelo modelo local (SLM), comandos ainda `pendente`; os dois modelos comerciais ainda sem especificação |
+| `src/ai_clients/` | [README](../src/ai_clients/README.md) | em implementação: suítes do modelo local (SLM) geradas na execução completa, pacote ainda por gerar (`package` e `verify` `pendente`); os dois modelos comerciais ainda sem especificação |
 | `src/metrics/` | a criar na feature própria | ainda sem especificação (IIC pendente, metodologia seção 5.4) |

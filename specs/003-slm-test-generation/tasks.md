@@ -197,7 +197,12 @@ final que uma execução ininterrupta; `--resume` recusa configuração alterada
 - [X] T042 [US3] Implement a detecção de dano em `src/ai_clients/store.py` (`DamagedCombination` com a lista `missing:`/`changed:`/`inconsistent:`) e seu uso em `generate`/`execute` (makes T040 pass)
 - [X] T043 [US3] Implement a comparação de configuração do `--resume` em `src/ai_clients/generation.py` / `__main__.py` (`RunConfig` atual × `run.json`, todos os campos exceto `created_at`, research R8) (makes T039 pass)
 - [X] T044 [US3] Update `src/ai_clients/README.md`: linha da tabela de comandos sobre interrupção e retomada (`Ctrl+C`/`docker stop` → 130, é seguro rodar de novo; `--resume` recusa se modelo, template, opções ou dataset mudaram) e `check_docs_sync.py --module src/ai_clients ...` sai `0`
-- [ ] T045 [US3] 📌 PROPAGAR — Validação real de retomada (quickstart, Nível 5): `Ctrl+C` no `generate` durante uma chamada e no `execute` no meio de uma tentativa; retomar; confirmar sem duplicata/truncamento e mesma seed refeita; registrar em `research.md` (R8) e na metodologia (seção 3 + seção 8)
+- [X] T045 [US3] 📌 PROPAGAR — Validação real de retomada (quickstart, Nível 5): `Ctrl+C` no `generate` durante uma chamada e no `execute` no meio de uma tentativa; retomar; confirmar sem duplicata/truncamento e mesma seed refeita; registrar em `research.md` (R8) e na metodologia (seção 3 + seção 8)
+  *(2026-10-11: observada na execução completa — os logs `data/logs/gpu0.log`, `gpu1.log` e
+  `gpu2.log` têm 44 linhas `interrupted; it is safe to run the command again` (18 + 22 + 4) de
+  `generate` interrompidos; cada vez o `--resume` continuou, e o estado final não tem perda nem
+  dano (`cli check` OK, 600/600, tentativas sem buraco). Registrado em `research.md` R28, item 3, e
+  na metodologia)*
 
 **Checkpoint**: interromper e retomar é seguro nas duas fases. *(2026-10-01: T038–T044 feitas com fakes — 258
 testes em `tests/ai_clients` passando. T041 não precisou de código novo: nada era gravado antes de
@@ -260,9 +265,13 @@ mutantes (o data-model §3.6 dizia `zip`))*
 exceto `EXE002` em todos os arquivos do repositório, inclusive os não tocados — artefato do bind
 mount do Windows, que mostra todo arquivo como executável; `ruff check . --extend-ignore EXE002`
 limpo)*
-- [ ] T055 📌 PROPAGAR — Execução completa real. **Primeiro passo, obrigatório (Constitution, Princípio II)**: `docker compose run --rm app python -m cli check --deep` sai `0`; se não sair, parar. Depois alternar `docker compose run --rm app python -m ai_clients generate --resume` e `docker compose run --rm sandbox python -m ai_clients execute` até o `execute` não imprimir `next:`; depois `report`. Registrar em `research.md`, `spec.md` (SC-001, SC-003) e na metodologia (seção 3, nova subseção de resultado + seção 8): 600 combinações terminais, taxa de descarte por cenário e total, distribuição do tamanho das suítes, funil por razão e tentativa, *tokens*, tempo total medido, hardware
+- [X] T055 📌 PROPAGAR — Execução completa real. **Primeiro passo, obrigatório (Constitution, Princípio II)**: `docker compose run --rm app python -m cli check --deep` sai `0`; se não sair, parar. Depois alternar `docker compose run --rm app python -m ai_clients generate --resume` e `docker compose run --rm sandbox python -m ai_clients execute` até o `execute` não imprimir `next:`; depois `report`. Registrar em `research.md`, `spec.md` (SC-001, SC-003) e na metodologia (seção 3, nova subseção de resultado + seção 8): 600 combinações terminais, contagem por status (`accepted`, `accepted_fallback`, `accepted_predicted`, `discarded_manual`, aguardando) por cenário e total, fase e tentativa da suíte, distribuição do tamanho das suítes, funil por razão e tentativa, *tokens*, tempo de modelo medido, hardware
+  *(2026-10-11: execução completa feita de 2026-10-06 a 2026-10-09, como continuação do piloto 6 —
+  505 `accepted`, 93 `accepted_fallback`, 2 `accepted_predicted`, 0 `discarded_manual`, 0
+  aguardando; registrada em `research.md` R28, na spec (sessão de 2026-10-11, SC-003) e na
+  metodologia)*
 - [ ] T056 Run the full suite: `docker compose run --rm sandbox pytest` (inclusive os `integration`); registrar a contagem no relatório final
-- [ ] T057 Package the real result: `python -m ai_clients package` e `python -m ai_clients verify --extracted data/suites/slm`, depois `docker compose run --rm app python -m cli check --deep` (`OK`); confirmar que `git status --short` mostra como novidade só `data/slm_suites.zip`, `manifests/slm_suites.manifest.json` e `manifests/slm_generation_report.json` — commitar é decisão do autor (Princípio X); carimbar `report`, `package`, `verify` no README do módulo
+- [ ] T057 Package the real result: `python -m ai_clients package` e `python -m ai_clients verify --extracted data/suites/slm`, depois `docker compose run --rm app python -m cli check --deep` (`OK`); confirmar que `git status --short` mostra como novidade só `data/slm_suites.zip`, `manifests/slm_suites.manifest.json` e `manifests/slm_generation_report.json` (além dos relatórios dos pilotos 2 e 3 em `manifests/`, versionados como registro), e que o zip leva `template_changes/` e `superseded/` (a troca de 2026-10-08) — commitar é decisão do autor (Princípio X); carimbar `report`, `package`, `verify` no README do módulo
 - [ ] T058 Execute `quickstart.md` Níveis 0 a 6 e registrar o resultado de cada um (comandos, saída, data) numa seção "Resultado da validação" ao final do arquivo
 - [ ] T059 Final update of the root `README.md`: linha de `src/ai_clients/` na tabela "Módulos e estado" (`implementado` para o SLM, link para o README do módulo), "Referência de comandos" com os cinco comandos de `ai_clients` e o serviço de cada, "Estado atual" reescrito com a data, passo do `.env` (`OLLAMA_BASE_URL`, `OLLAMA_HARDWARE_LABEL`) no guia de preparação; `CLAUDE.md` ("Comandos do dia a dia") com os comandos novos; `check_docs_sync.py --only C2,C3,C4` sai `0`
 - [ ] T060 Documentation conformity: `src/ai_clients/README.md` → `Status: implementado`; `docker compose run --rm app python scripts/check_docs_sync.py --closing --module src/ai_clients --cli "python -m ai_clients" --cli-owner src/ai_clients` sai `0` (sem linha `pendente`, sem `+dirty`)
@@ -387,10 +396,10 @@ Antes da execução completa (T055). Mesmos 5 problemas × 3 cenários (`--probl
 configuração (antes de cada uma, `mv data/suites/slm data/suites/slm-piloto6-<config>`; o piloto 5
 já está em `data/suites/slm-piloto5` e vale como temperatura 0,7 com seed base 42).
 
-- [ ] T075 `OLLAMA_TEMPERATURE` e `OLLAMA_SEED_BASE` opcionais no `.env` (`src/ai_clients/__main__.py`, `generation.current_run_config`), gravados no `run.json` e comparados no `--resume`; seed conferida pelo `store` contra a `seed_base` do `run.json`; `config.MODEL = "qwen2.5-coder:14b"`; testes em `tests/ai_clients/test_cli_generate.py`, `test_schemas.py` e `test_damage.py` per R20, decisões 1 e 4
-- [ ] T076 📌 PROPAGAR — Rodar as temperaturas 0,2; 0,3; 0,4; 0,5; 0,6 com seed base 42 (`OLLAMA_TEMPERATURE` no `.env`; primeiro passo de cada uma: `docker compose run --rm app python -m cli check --deep` sai `0`); para cada uma, registrar suítes por status, tentativas aceitas/feitas, falhas por veredito, tempo por chamada e total de modelo
-- [ ] T077 📌 PROPAGAR — Repetir a melhor temperatura de T076 e a 0,7 com `OLLAMA_SEED_BASE` 1042 e 2042; escolher a configuração pelo critério de R20 (mais `accepted`, depois acerto por tentativa, depois tempo) e registrar a escolha e a variação entre seeds em `research.md` (R21), na metodologia (seção 3 + seção 8) e na spec
-- [ ] T078 Fixar a temperatura escolhida em `src/ai_clients/config.py` (`TEMPERATURE`), com os testes que dependem dela, antes de T055; tirar `OLLAMA_TEMPERATURE`/`OLLAMA_SEED_BASE` do `.env` da execução completa
+- [X] T075 *(cancelada em 2026-10-11: fase substituída pela política de 5 fases)* `OLLAMA_TEMPERATURE` e `OLLAMA_SEED_BASE` opcionais no `.env` (`src/ai_clients/__main__.py`, `generation.current_run_config`), gravados no `run.json` e comparados no `--resume`; seed conferida pelo `store` contra a `seed_base` do `run.json`; `config.MODEL = "qwen2.5-coder:14b"`; testes em `tests/ai_clients/test_cli_generate.py`, `test_schemas.py` e `test_damage.py` per R20, decisões 1 e 4
+- [X] T076 *(cancelada em 2026-10-11: fase substituída pela política de 5 fases)* 📌 PROPAGAR — Rodar as temperaturas 0,2; 0,3; 0,4; 0,5; 0,6 com seed base 42 (`OLLAMA_TEMPERATURE` no `.env`; primeiro passo de cada uma: `docker compose run --rm app python -m cli check --deep` sai `0`); para cada uma, registrar suítes por status, tentativas aceitas/feitas, falhas por veredito, tempo por chamada e total de modelo
+- [X] T077 *(cancelada em 2026-10-11: fase substituída pela política de 5 fases)* 📌 PROPAGAR — Repetir a melhor temperatura de T076 e a 0,7 com `OLLAMA_SEED_BASE` 1042 e 2042; escolher a configuração pelo critério de R20 (mais `accepted`, depois acerto por tentativa, depois tempo) e registrar a escolha e a variação entre seeds em `research.md` (R21), na metodologia (seção 3 + seção 8) e na spec
+- [X] T078 *(cancelada em 2026-10-11: fase substituída pela política de 5 fases)* Fixar a temperatura escolhida em `src/ai_clients/config.py` (`TEMPERATURE`), com os testes que dependem dela, antes de T055; tirar `OLLAMA_TEMPERATURE`/`OLLAMA_SEED_BASE` do `.env` da execução completa
 
 ## Phase 11: Convergence
 
@@ -443,3 +452,30 @@ Valem as regras do topo (teste antes, 📌 PROPAGAR); tudo conferido com
 - [X] T100 Teste em `tests/ai_clients/test_concurrency.py`: dois `generate` com todos os problemas, cada um parado numa combinação diferente, pulam a do outro e dividem a fila; cada primeira tentativa feita uma vez só per FR-026a, R26 item 4 (missing)
 - [X] T101 Laço do `src/ai_clients/README.md` sem as metades (`half0.args`/`half1.args`): os dois `generate --resume` sem `--problem`; texto, tabela de comandos e "Se algo der errado" (o `skipped` é o esperado) per R26 itens 1–2 (missing)
 - [X] T102 📌 PROPAGAR — `README.md` da raiz ("Referência de comandos"), `CLAUDE.md`, contrato `cli.md`, quickstart Nível 7, metodologia (seção 3 + seção 8), R26 e S17 implementados; `check_docs_sync.py` sai `0` per Constitution XI (missing)
+
+## Phase 15: Convergence
+
+Troca do template de predição numa execução em andamento (spec FR-022c e FR-022e, sessão
+2026-10-07; research R27; data-model §3.2, §3.7 e §3.8; contratos). Valem as regras do topo (teste
+antes, 📌 PROPAGAR); tudo conferido com
+`docker compose run --rm sandbox pytest tests/ai_clients tests/cli`.
+
+- [X] T103 📌 PROPAGAR — Registrar o achado (1 combinação na predição, a `939_C` caixa-preta, com entrada abreviada aceita; o hash no `run.json`) e as decisões em `research.md` R27, na spec e na metodologia (seção 3 + seção 8) per R27 (missing)
+- [X] T104 Testes do parser em `tests/ai_clients/test_parser_prediction.py`: teste com entrada ou saída abreviada descartado e contado (`abbreviated_tests`); só abreviados → `only_abbreviated_tests`; vazios e abreviados → `only_empty_or_abbreviated_tests`; grade com `...` mantida; depois `src/ai_clients/parser.py` e `PredictionParse.abbreviated_tests` per FR-022c, R27 item 7 (missing)
+- [X] T105 `GenerationRecord.template_sha256` (opcional) gravado pelo `generate`; `store.read_run` aplica as trocas (`template_changes/`) e confere a cadeia; `store._load` recusa tentativa com hash diferente do template corrente, ou sem hash quando o template já foi trocado; testes em `tests/ai_clients/test_template_change.py` per FR-022e, R27 itens 3 e 5 (missing)
+- [X] T106 `src/ai_clients/template_change.py` e o comando `change-template` (`--template`, `--reason`, `--dry-run`; trava exclusiva; recusa com dano, com o mesmo template e com outro comando; termina uma troca interrompida); a recusa do `--resume` por hash de template diz como trocar; testes per FR-022e, R27 itens 2 e 4 (missing)
+- [X] T107 Pacote (recusa troca pela metade; leva `superseded/` e `template_changes/`), relatório (`template_changes`, `abbreviated_tests`) e `cli check` (pasta `superseded/` conferida à parte) com testes per FR-022e, R27 item 6 (missing)
+- [X] T108 STEP 2 novo em `src/prompt_templates/slm_predict_prompt.txt` (texto da Milena), por último, para a rodada seguinte do laço recusar com código 2 até a troca per R27 item 1 (missing)
+- [X] T109 📌 PROPAGAR — `src/ai_clients/README.md` (o comando na tabela, o passo da troca, "Se algo der errado"), `README.md` da raiz ("Referência de comandos"), `CLAUDE.md`, contratos (`cli.md`, `file-formats.md`, `ai-clients-api.md`), data-model, plan S18, R27 implementado; `check_docs_sync.py` sai `0` per Constitution XI (missing)
+- [X] T110 Correção de R24 (2026-10-08): arquivo de trava criado pelo `execute` (root, `sandbox`) entregue ao usuário do host (`store._open_lock`), senão o `generate` (`app`) para com `PermissionError`; teste em `tests/ai_clients/test_store.py`; R24 e metodologia (seção 8) per FR-026a (missing)
+
+## Phase 16: Fechamento da documentação da execução completa (2026-10-11)
+
+Registro da execução completa (research R28) e alinhamento dos documentos ao modelo e à política
+finais, antes do pacote (T057). Nenhum código de comportamento muda.
+
+- [X] T111 📌 PROPAGAR — Artefatos de `specs/003-slm-test-generation/`: spec (14B como vigente, FR-010, FR-022c, FR-026a, FR-027, SC-002, User Stories 3 e 4 sem "descarte", sessão de 2026-10-11), plan (S19, data, árvore de código), research (R4 marcado como substituído, R27 com o que aconteceu, R28 novo), tasks (T045, T055, T075–T078), data-model, contratos e quickstart (14B, 15 tentativas)
+- [X] T112 📌 PROPAGAR — `docs/metodologia-referencia.md`: resultado da execução completa (seção 3 + seção 8), etiqueta de hardware, `close` não usado, troca de template e relatórios dos pilotos 2 e 3
+- [X] T113 📌 PROPAGAR — `src/ai_clients/README.md`, `README.md` da raiz, `CLAUDE.md` e `.env.example` com o 14B e o estado atual; "Comandos verificados" (`close` não necessário)
+- [X] T114 Corrigir o `reason` de `template_changes/001.json` (gravado como `"..."`) antes do `package`: só esse campo, conferido valor antigo e ausência do manifesto, validado pelo schema `TemplateChange`, gravação atômica; `report` refeito (R27)
+- [X] T115 `--help` de `python -m ai_clients` (`src/ai_clients/__main__.py`) cita o Qwen2.5-Coder-14B

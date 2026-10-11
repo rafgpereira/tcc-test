@@ -476,6 +476,19 @@ def test_cv_dirty_revision_is_accepted_normally_and_rejected_when_closing(sync, 
     assert run(sync, tmp_path, "--module", "src/sandbox", "--only", "CV", "--closing") == 1
 
 
+def test_cv_a_command_not_needed_passes_even_when_closing(sync, tmp_path):
+    """`close` with 0 combinations awaiting the authors: stamped as not needed, never `pendente`."""
+    rows = [("`alpha`", "não necessário (0 combinações aguardando os autores)", "—")]
+    make_repo(tmp_path, sandbox_readme=module_readme(status="implementado", rows=rows))
+    assert run(sync, tmp_path, "--module", "src/sandbox", "--only", "CV", "--closing") == 0
+
+
+def test_cv_a_command_not_needed_has_no_revision(sync, tmp_path):
+    rows = [("`alpha`", "não necessário (nada a fechar)", "a1b2c3d")]
+    make_repo(tmp_path, sandbox_readme=module_readme(rows=rows))
+    assert run(sync, tmp_path, "--module", "src/sandbox", "--only", "CV") == 1
+
+
 def test_cv_every_documented_subcommand_must_be_listed_in_the_table(sync, tmp_path, capsys):
     rows = [("`alpha`",) + ROW_PENDING]
     make_repo(tmp_path, dataset_readme=module_readme(commands=("alpha", "beta"), rows=rows))

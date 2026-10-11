@@ -12,7 +12,7 @@ Roteiro de aceite, do mais barato ao mais caro. Os comandos só existem depois d
   dependência Python nova**).
 - `data/dataset/` descompactado e conferido: `docker compose run --rm app python -m cli check --only dataset --deep`.
 - Para os níveis 3 em diante: um Ollama acessível com o modelo baixado (`ollama pull
-  qwen2.5-coder:7b`) e, no `.env`, `OLLAMA_BASE_URL` e `OLLAMA_HARDWARE_LABEL` (research R12). Se o
+  qwen2.5-coder:14b`; o 7B só nos pilotos 1 a 4) e, no `.env`, `OLLAMA_BASE_URL` e `OLLAMA_HARDWARE_LABEL` (research R12). Se o
   Ollama está na própria máquina Linux, o serviço `app` precisa do `extra_hosts` de research R12.
 
 ## Nível 0 — Interpretador isolado disponível ao slot
@@ -120,3 +120,21 @@ GPU, todos os problemas nos dois, logs separados), um único `execute`, repetido
 tratada pelo outro `generate`), os dois `generate` terminando perto um do outro em cada rodada,
 e cada tentativa gravada uma vez só (`cli check --deep` com saída 0 no fim); a contagem de
 chamadas por etiqueta de hardware soma as duas GPUs (a etiqueta é a mesma nos dois processos).
+
+## Nível 8 — Troca do template de predição (desde 2026-10-07, research R27)
+
+Com o laço parado (a primeira rodada depois de editar `src/prompt_templates/slm_predict_prompt.txt`
+recusa com `2`):
+
+```bash
+docker compose run --rm app python -m ai_clients change-template --template prediction --reason "..." --dry-run
+docker compose run --rm app python -m ai_clients change-template --template prediction --reason "..."
+docker compose run --rm app python -m cli check
+```
+
+Esperado: o `--dry-run` lista cada combinação que passou pela predição (em 2026-10-07, só `939_C
+black_box: suite.json, attempt_14.generation.json, attempt_13.generation.json`), sem mover nada; a
+troca grava `template_changes/001.json`, move esses arquivos para `superseded/001/` e imprime
+`next: ...generate --resume`; o `cli check` mostra `superseded/ bate com as trocas de template` `OK`.
+Depois, o laço de novo: a `939_C` caixa-preta é refeita na tentativa 13 (seed 49) com o template
+novo, e a tentativa grava o `template_sha256` novo.

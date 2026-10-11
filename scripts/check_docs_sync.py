@@ -33,7 +33,9 @@ C8  operational READMEs (root and every module) never cite the specification pro
     ``docs/metodologia-referencia.md`` and in ``specs/``.
 CV  "Comandos verificados" table of each module README: stamps are well formed, ``pendente`` rows
     are not allowed once the module is implemented (or with --closing), every documented
-    subcommand is listed, and with --closing a ``+dirty`` revision is rejected.
+    subcommand is listed, and with --closing a ``+dirty`` revision is rejected. A command the
+    real run never needed (for example ``close`` with nothing awaiting the authors) is stamped
+    ``não necessário (<why>)`` with revision ``—``; it never blocks the closing.
 
 Selection: ``--only`` wins; otherwise ``--closing`` runs everything; otherwise ``--module`` runs
 C1, C2, C3, C7, C8 and CV for those modules; otherwise everything except C6.
@@ -602,6 +604,9 @@ def check_c8(ctx: Context) -> list[Finding]:
     return findings
 
 
+NOT_NEEDED = "não necessário"  # a command the real run never needed, with the reason after it
+
+
 def check_cv(ctx: Context) -> list[Finding]:
     findings = []
     for module in ctx.modules:
@@ -635,6 +640,10 @@ def _verified_row_findings(
         if status == "implementado" or ctx.closing:
             reason = "the module is implemented" if status == "implementado" else "closing"
             return [Finding("CV", rel, f"{command} is still `pendente` ({reason})")]
+        return []
+    if date.lower().startswith(NOT_NEEDED):
+        if revision.strip() not in ("—", "-"):
+            return [Finding("CV", rel, f"{command}: not needed, so its revision is `—`")]
         return []
     out = []
     if not DATE_RE.match(date):

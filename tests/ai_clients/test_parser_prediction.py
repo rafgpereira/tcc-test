@@ -1,4 +1,4 @@
-"""Reading a prediction answer (attempts 21 to 23): two blocks, strict, never "fixing" it."""
+"""Reading a prediction answer (attempts 13 to 15): two blocks, strict, never "fixing" it."""
 
 import pytest
 
