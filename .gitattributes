@@ -1,0 +1,8 @@
+# Every text file is stored and checked out with LF line endings, on Linux, WSL and Windows alike
+# (a Windows editor or Python that writes CRLF no longer turns a small edit into a whole-file diff).
+* text=auto eol=lf
+
+# Byte for byte as generated: their SHA-256 is recorded elsewhere (run.json keeps the hash of the
+# dataset manifest), so git must never rewrite their line endings.
+manifests/** -text
+*.zip binary
