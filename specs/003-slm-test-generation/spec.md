@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-29
 
-**Status**: Draft
+**Status**: Implemented (2026-10-11)
 
 **Input**: User description: "Módulo 003 — geração de suítes de teste pelo SLM
 (Qwen2.5-Coder-7B, local via Ollama). Para cada um dos 200 problemas do dataset e para cada um

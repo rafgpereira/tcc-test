@@ -115,7 +115,7 @@ de custo: o custo real depende das taxas medidas no piloto.
 | VII. Retomada | Arquivos imutáveis, escrita atômica, estado derivado dos arquivos, `suite.json` função pura, `flock` da execução e, desde 2026-10-07, por combinação (vários processos sem corromper, R24) | ✅ |
 | VIII. Custo/uso de IA | SLM local, sem custo por chamada; mesmo assim *tokens*, durações e `done_reason` gravados por chamada e somados no relatório; nenhuma chamada paga | ✅ |
 | IX. Simplicidade | Sem dependência nova, sem paralelismo dentro de um processo (desde R24, processos concorrentes coordenados por travas de arquivo), sem abstração multi-modelo além do `Protocol` usado pelo falso | ✅ |
-| X. Revisão humana | Nenhuma operação de Git pelo agente; tudo fica `modified`/`untracked` | ✅ |
+| X. Revisão humana | Nenhuma operação de Git pelo agente; tudo fica `modified`/`untracked`; o código gerado com apoio de IA foi revisado por Milena em 2026-10-11, antes do fechamento | ✅ |
 | XI. Documentação viva | Metodologia, `spec.md` e `sync-matrix.json` atualizados neste ciclo; `tasks.md` terá as tarefas de `src/ai_clients/README.md`, README da raiz (tabela de módulos, "Referência de comandos", `.env`), `docs/verificacao-consistencia.md` e `.env.example` | ✅ |
 
 **Reavaliação pós-Fase 1**: sem violação. Duas dependências entre módulos, justificadas abaixo.
@@ -147,8 +147,7 @@ mensagem (`messages: [{role: user, ...}]`), sem `context` nem histórico (confer
 multiplicados por `PY_TIME_FACTOR`/`PY_MEMORY_FACTOR` (`oracle.py:96-97`) ou repassados deles; nenhum
 limite absoluto. VI — suíte completa `1498 passed`. VII — 44 interrupções reais retomadas sem perda
 (R28). II — pacote, manifesto e `cli check --deep` `OK` (R28). X — nenhuma operação de Git pelo
-agente; a revisão humana do código gerado com apoio de IA cabe aos autores e é registrada em
-`tasks.md` (T062).
+agente; o código gerado com apoio de IA foi revisado por Milena em 2026-10-11 (T062).
 
 ## Project Structure
 

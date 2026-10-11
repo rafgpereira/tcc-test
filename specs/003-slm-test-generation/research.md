@@ -1418,4 +1418,5 @@ concorrentes, um por GPU (R24, R26), e um `execute`.
    data/suites/slm` saiu `OK`, e `cli check --deep` saiu `Resultado: OK (0 falha(s), 0 aviso(s))`,
    com o SHA-256 dos 4.850 arquivos e do zip conferido.
 6. **Fechamento (2026-10-11)**: suíte completa `1498 passed`; quickstart validado (seção "Resultado da
-   validação"); Constitution Check refeito em `plan.md`.
+   validação"); Constitution Check refeito em `plan.md`; código revisado por Milena em 2026-10-11;
+   spec `Implemented (2026-10-11)`.
