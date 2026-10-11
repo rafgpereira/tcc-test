@@ -1391,7 +1391,7 @@ concorrentes, um por GPU (R24, R26), e um `execute`.
 - **Tamanho das suítes** (mediana 10 no total): `accepted` 1–33 (mediana 10); `accepted_fallback`
   5–54 (mediana 10); `accepted_predicted` 8 e 10.
 - `python -m cli check`: OK (600/600 com `suite.json`, tentativas sem buraco, `superseded/` bate com
-  as trocas); único aviso, o manifesto do pacote que ainda não existe.
+  as trocas); antes do pacote, único aviso: o manifesto do pacote ainda não existia.
 
 **Decisões e registros** (Milena, 2026-10-11):
 
@@ -1410,5 +1410,12 @@ concorrentes, um por GPU (R24, R26), e um `execute`.
    falha de infraestrutura, sem gastar tentativa).
 4. **Relatórios dos pilotos 2 e 3** (`manifests/slm_generation_report.piloto2.json` e
    `.piloto3.json`) ficam versionados em `manifests/` como registro.
-5. **Pendente**: `package`, `verify --extracted data/suites/slm` e `cli check --deep` sobre o pacote
-   ainda não foram rodados.
+5. **Pacote (2026-10-11)**: `python -m ai_clients package` rodou sobre o código de `f43d95c` e
+   gerou `data/slm_suites.zip` (6.597.040 bytes, SHA-256
+   `b73d27507f74bf3d3fad64826947809fef76258ae2697f521cb474e86f974a2f`) com 4.850 arquivos: 4.845 das
+   600 combinações, o `run.json`, `template_changes/001.json` e os 3 arquivos de `superseded/001/`;
+   o manifesto e o relatório foram refeitos junto (commit `c967f97`). `verify --extracted
+   data/suites/slm` saiu `OK`, e `cli check --deep` saiu `Resultado: OK (0 falha(s), 0 aviso(s))`,
+   com o SHA-256 dos 4.850 arquivos e do zip conferido.
+6. **Fechamento (2026-10-11)**: suíte completa `1498 passed`; quickstart validado (seção "Resultado da
+   validação"); Constitution Check refeito em `plan.md`.

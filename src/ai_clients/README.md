@@ -1,6 +1,6 @@
 # Módulo `ai_clients` (geração de suítes de teste pelo modelo local)
 
-> **Status**: em implementação · **Metodologia**: `docs/metodologia-referencia.md`, seção 3
+> **Status**: implementado (modelo local) · **Metodologia**: `docs/metodologia-referencia.md`, seção 3
 
 ## (a) Propósito
 
@@ -14,8 +14,8 @@ e tenha o dataset descompactado em `data/dataset/`
 ([README do módulo `dataset`](../dataset/README.md), Cenário B).
 
 **Estado (2026-10-11)**: a execução completa terminou em 2026-10-09, com suíte em 600 de 600
-combinações de problema e cenário (números em (f)); o pacote `data/slm_suites.zip` ainda não foi
-gerado, então o Cenário B ainda não está disponível.
+combinações de problema e cenário (números em (f)), e o pacote `data/slm_suites.zip` está no
+repositório: para usar as suítes, siga o Cenário B.
 
 Para cada problema e cada cenário — **caixa-preta** (o modelo vê só o enunciado), **caixa-branca**
 (só a solução de referência em C++) e **híbrido** (os dois) — o modelo recebe um único pedido, sem
@@ -212,7 +212,7 @@ ou de configuração do Ollama, `4` terminou, mas alguma combinação aguarda os
 | `damaged: <id> <cenário>: missing: ... / changed: ... / inconsistent: ...` (`1`) | arquivos daquela combinação alterados ou apagados; o comando segue com as demais. Avise os autores antes de mexer |
 | `manual: <id> <cenário>: 3 prediction attempts unparseable; close it with: ...` (`4`) | os autores decidem e rodam o `close` impresso, com o motivo |
 | `error: N of 600 combinations have no suite.json ...` (`1`, no `package`) | termine a execução (passo 3) antes de empacotar |
-| `error: another python -m ai_clients command is already running ...` (`1`) | `close`, `package`, `change-template` e o primeiro `generate` só rodam sozinhos; espere o outro terminar |
+| `error: another ... is already running over data/suites/slm/` (`1`) | `close`, `package`, `change-template` e o primeiro `generate` só rodam sozinhos; espere o outro terminar |
 | `<id> <cenário>: skipped (in use by another command)` | esperado com duas máquinas: a combinação está com o outro comando |
 | `infrastructure failure: cannot prepare the workdir ...` (`3`, no `execute`) | use o serviço `sandbox`: `docker compose run --rm sandbox ...` |
 | `FAIL` no `verify` | algum arquivo mudou depois do pacote: apague `data/suites/slm` e descompacte de novo |
@@ -248,7 +248,8 @@ ou de configuração do Ollama, `4` terminou, mas alguma combinação aguarda os
 
 - **Resultado da execução completa** (600 combinações, 2026-10-06 a 2026-10-09): 505 `accepted`
   (84,2%), 93 `accepted_fallback` (15,5%), 2 `accepted_predicted` (0,3%), 0 `discarded_manual`;
-  2.185 chamadas ao modelo. Um texto-base (o de predição) foi trocado uma vez no meio da execução;
+  2.185 chamadas ao modelo. Pacote: `data/slm_suites.zip`, 6.597.040 bytes, 4.850 arquivos. Um
+  texto-base (o de predição) foi trocado uma vez no meio da execução;
   as duas suítes `accepted_predicted` vêm do texto novo.
 - A solução Python só é validada pelos testes públicos; se errar numa entrada que nenhum teste
   público cobre, a saída esperada daquela entrada fica errada.
@@ -273,11 +274,11 @@ ou de configuração do Ollama, `4` terminou, mas alguma combinação aguarda os
 
 | Comando | Verificado em | Revisão |
 |---|---|---|
-| `generate --dry-run` (200 problemas) | 2026-09-30 | 2e679ae+dirty |
+| `generate --dry-run` (200 problemas) | 2026-10-11 | c967f97 |
 | `generate` (inclusive interrupção e retomada, duas máquinas em paralelo) | 2026-10-09 | 968c5ba |
 | `execute` | 2026-10-09 | 968c5ba |
 | `close` | não necessário (0 combinações aguardando os autores) | — |
 | `change-template` | 2026-10-08 | 968c5ba |
 | `report` | 2026-10-09 | 968c5ba |
-| `package` | pendente | — |
-| `verify` | pendente | — |
+| `package` | 2026-10-11 | f43d95c |
+| `verify` (inclusive `--extracted data/suites/slm`) | 2026-10-11 | c967f97 |

@@ -11,16 +11,15 @@ teste unitários em C++.
 > cada módulo.
 >
 > **Estado atual (2026-10-11)**: os módulos `dataset` (extração, validação e empacotamento do
-> dataset), `sandbox` (motor de execução isolada de C++) e `mutation` (100 mutantes por problema)
-> estão **implementados**, e os dois primeiros artefatos do experimento já foram gerados de verdade
-> e estão neste repositório: o dataset (`data/dataset.zip`, 200 problemas) e os mutantes
-> (`data/mutants.zip`, 20.000 mutantes), cada um com o seu manifesto de integridade. Quem clona o
-> projeto só precisa descompactar e conferir, não precisa gerar nada. Um comando na raiz,
-> `python -m cli check`, confere se dataset, mutantes e suítes estão completos e 1:1. A geração de
-> suítes de teste pelo modelo local (Qwen2.5-Coder-14B, módulo `ai_clients`) **terminou** em
-> 2026-10-09: as 600 combinações de problema e cenário têm suíte (505 `accepted`, 93
-> `accepted_fallback`, 2 `accepted_predicted`, nenhuma fechada à mão); falta gerar e conferir o
-> pacote (`package` e `verify`), por isso o módulo segue em implementação. Os demais módulos
+> dataset), `sandbox` (motor de execução isolada de C++), `mutation` (100 mutantes por problema) e
+> `ai_clients` para o modelo local (suítes de teste do Qwen2.5-Coder-14B) estão **implementados**,
+> e os três artefatos do experimento já foram gerados de verdade e estão neste repositório, cada
+> um com o seu manifesto de integridade: o dataset (`data/dataset.zip`, 200 problemas), os mutantes
+> (`data/mutants.zip`, 20.000 mutantes) e as suítes do modelo local (`data/slm_suites.zip`, 600
+> combinações de problema e cenário, todas com suíte: 505 `accepted`, 93 `accepted_fallback`, 2
+> `accepted_predicted`, nenhuma fechada à mão). Quem clona o projeto só precisa descompactar e
+> conferir, não precisa gerar nada. Um comando na raiz, `python -m cli check`, confere se dataset,
+> mutantes e suítes estão completos e 1:1. Os demais módulos
 > (chamadas aos dois modelos comerciais, avaliação, métricas, orquestrador) ainda não têm
 > especificação nem código; a tabela "Módulos e estado" marca isso.
 
@@ -84,7 +83,7 @@ na avaliação, para que nenhum código do dataset falhe no motor só durante o 
 | `src/dataset/` | extrai, valida e empacota o dataset experimental | seção 1 | **implementado**: dataset real gerado, validado e empacotado (200 problemas, ~12 MiB) | [README](src/dataset/README.md) |
 | `src/sandbox/` | motor de execução isolada de C++, usado pelo `dataset` | seções 1.4 e 4 | **implementado**: motor, isolamento e auto-checagem testados | [README](src/sandbox/README.md) |
 | `src/mutation/` | gera 100 mutantes por problema e os empacota | seção 2 | **implementado**: 200 problemas, 20.000 mutantes, pacote versionado (~9 MiB) | [README](src/mutation/README.md) |
-| `src/ai_clients/` | chamadas stateless aos 3 modelos | seção 3 | **em implementação** para o modelo local (SLM): execução completa feita (600 de 600 combinações com suíte), pacote ainda por gerar; os dois modelos comerciais ainda sem especificação | [README](src/ai_clients/README.md) |
+| `src/ai_clients/` | chamadas stateless aos 3 modelos | seção 3 | **implementado** para o modelo local (SLM): 600 de 600 combinações com suíte, pacote versionado (6.597.040 bytes); os dois modelos comerciais ainda sem especificação | [README](src/ai_clients/README.md) |
 | avaliação | injeta as suítes geradas e registra vereditos em CSV | seção 4 | **sem spec** | a criar |
 | `src/metrics/` | TDF, MS, TFP, IIC | seção 5 | **sem spec** (IIC ainda não operacionalizado) | a criar |
 | `src/cli/` | comandos que cruzam módulos (hoje `check`) e, no futuro, o orquestrador do experimento | — | **em implementação**: `check` pronto; o orquestrador ainda sem especificação | [README](src/cli/README.md) |
@@ -243,7 +242,7 @@ Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
 | `sandbox` | sem uso direto: é a biblioteca de execução isolada; só se opera diretamente para conferir a saúde do motor | [README do módulo](src/sandbox/README.md) |
 | `mutation` | obter os mutantes (descompactar e conferir) ou gerá-los do zero | [README do módulo](src/mutation/README.md) |
 | `cli` | conferir se dataset, mutantes e suítes do modelo local estão consistentes entre si | [README do módulo](src/cli/README.md) |
-| `ai_clients` | gerar as suítes de teste do modelo local (execução completa feita, pacote por gerar; a preparação do Ollama, com o exemplo de um notebook do Kaggle com duas placas, está no README do módulo) | [README do módulo](src/ai_clients/README.md) |
+| `ai_clients` | obter as suítes de teste do modelo local (descompactar e conferir) ou gerá-las do zero (a preparação do Ollama, com o exemplo de um notebook do Kaggle com duas placas, está no README do módulo) | [README do módulo](src/ai_clients/README.md) |
 | avaliação, `metrics` | ainda não implementados | sem README ainda |
 
 ## Conferir se os artefatos estão consistentes entre si
@@ -321,9 +320,9 @@ está no README dele; `--help` de qualquer comando lista as opções de fato dis
 
 ### Módulo `ai_clients` ([README](src/ai_clients/README.md))
 
-Em implementação: `generate`, `execute`, `change-template` e `report` rodaram na execução completa
-(600 de 600 combinações com suíte); `package` e `verify` ainda não rodaram, porque o pacote ainda não
-foi gerado. A geração precisa de `OLLAMA_BASE_URL` e `OLLAMA_HARDWARE_LABEL` no `.env` (ver
+Implementado para o modelo local: a execução completa gerou as 600 combinações com suíte, e o
+pacote `data/slm_suites.zip` (com o manifesto e o relatório) está no repositório; para usá-lo, basta
+descompactar e rodar o `verify`. A geração precisa de `OLLAMA_BASE_URL` e `OLLAMA_HARDWARE_LABEL` no `.env` (ver
 `.env.example`) e de um servidor Ollama no ar (preparação no README do módulo).
 
 | Comando | Serviço | O que faz / variações |

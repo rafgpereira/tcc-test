@@ -138,3 +138,20 @@ troca grava `template_changes/001.json`, move esses arquivos para `superseded/00
 `next: ...generate --resume`; o `cli check` mostra `superseded/ bate com as trocas de template` `OK`.
 Depois, o laço de novo: a `939_C` caixa-preta é refeita na tentativa 13 (seed 49) com o template
 novo, e a tentativa grava o `template_sha256` novo.
+
+## Resultado da validação (2026-10-11, revisão `c967f97`)
+
+Os níveis 0 a 3 foram rodados de novo nesta data sobre o código commitado; os níveis 4 a 8 foram
+validados pela própria execução real (pilotos e execução completa), com a evidência indicada.
+
+| Nível | Como | Resultado |
+|---|---|---|
+| 0 | `docker compose run --rm sandbox pytest tests/ai_clients/test_oracle_integration.py -k interpreter` | `1 passed` |
+| 1 | `docker compose run --rm sandbox pytest` (suíte inteira, inclusive `tests/ai_clients`) | `1498 passed in 228.97s` |
+| 2 | `check_docs_sync.py`, `ruff check .`, `black --check .` | `OK: C1, C2, C3, C4, C5, C7, C8, CV passed`; `All checks passed!`; `185 files would be left unchanged.` |
+| 3 | `python -m ai_clients generate --dry-run` | `dry run: 0 calls planned` (a execução terminou; antes dela, 600 chamadas previstas, medido em 2026-09-30) |
+| 4 | pilotos 1 a 6 (research R13 a R23) | números de cada piloto na metodologia, seção 8; maior `prompt_eval_count` da execução completa 2.499 (a guarda de `num_ctx` nunca disparou) |
+| 5 | execução completa | 44 interrupções de `generate` (Ctrl+C ou `docker stop`) nos logs, todas retomadas com `--resume`; estado final sem arquivo duplicado, truncado ou danificado (`cli check` OK) — research R28 |
+| 6 | `report`, `package`, `verify --extracted data/suites/slm`, `cli check --deep` | 600 combinações terminais (505 / 93 / 2 / 0); `verify` `OK`; `cli check --deep` `Resultado: OK (0 falha(s), 0 aviso(s))`; `--closing` sem achados |
+| 7 | laço de duas máquinas do README do módulo | execução completa gerada assim; linhas `skipped` nos logs; cada tentativa gravada uma vez só (`cli check --deep` OK) |
+| 8 | `change-template --template prediction` (2026-10-08) | troca `001` gravada, 3 arquivos movidos para `superseded/001/`; a `939_C` caixa-preta refeita com o template novo; `cli check`: `superseded/ bate com as trocas de template` OK |

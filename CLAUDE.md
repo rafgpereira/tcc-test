@@ -37,8 +37,8 @@ TCC de dupla — Milena e Rafael, UnB.
 - `data/mutants.zip` + `manifests/mutants.manifest.json` — mutantes da execução final e seus
   hashes
 - `data/slm_suites.zip` + `manifests/slm_suites.manifest.json` +
-  `manifests/slm_generation_report.json` — pacote da execução final do SLM (zip e manifesto
-  ainda a gerar; o relatório já existe)
+  `manifests/slm_generation_report.json` — pacote da execução final do SLM, seu manifesto e o
+  relatório (gerados em 2026-10-11)
 - `specs/NNN-nome/` — specs do spec-kit, uma por módulo
 - `Dockerfile` / `docker-compose.yml` — ambiente de execução reprodutível
   (Constitution, Princípio II)

@@ -138,6 +138,18 @@ dependência; um módulo pequeno novo (`closing.py`). X — o fechamento manual 
 autores, com motivo gravado. XI — spec, research (R18, R19), data-model, contratos, quickstart e
 metodologia atualizados neste ciclo; o README do módulo muda junto com o código.
 
+
+**Reavaliação de fechamento (2026-10-11, contra o código de `c967f97`)**: sem violação nem desvio
+novo (nada a acrescentar em "Complexity Tracking"). III — `ollama.request_body` manda uma única
+mensagem (`messages: [{role: user, ...}]`), sem `context` nem histórico (conferido no código e por
+`grep`); a execução completa confirma o efeito (`prompt_eval_count` só do prompt). V — `grep -rn
+"memory_limit_bytes=\|time_limit_seconds=" src/ai_clients` só mostra os limites de `metadata.json`
+multiplicados por `PY_TIME_FACTOR`/`PY_MEMORY_FACTOR` (`oracle.py:96-97`) ou repassados deles; nenhum
+limite absoluto. VI — suíte completa `1498 passed`. VII — 44 interrupções reais retomadas sem perda
+(R28). II — pacote, manifesto e `cli check --deep` `OK` (R28). X — nenhuma operação de Git pelo
+agente; a revisão humana do código gerado com apoio de IA cabe aos autores e é registrada em
+`tasks.md` (T062).
+
 ## Project Structure
 
 ### Documentation (this feature)

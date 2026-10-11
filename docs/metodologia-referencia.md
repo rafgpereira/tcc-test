@@ -1256,7 +1256,7 @@ template confirmados por Milena no mesmo dia]**:
   dois modelos comerciais.
 - **Relatório, pacote e conferência [IMPLEMENTADO, 2026-10-01 — `research.md` R10]**:
   `python -m ai_clients report` grava `manifests/slm_generation_report.json` a qualquer momento (a
-  taxa de descarte é sempre sobre todo problema × cenário do dataset; quartis por interpolação
+  proporção de cada status é sempre sobre todo problema × cenário do dataset; quartis por interpolação
   linear; entradas descartadas contadas em todas as tentativas executadas, duplicatas só nas
   suítes aceitas); `package` só empacota a execução inteira, sem dano, em `data/slm_suites.zip`
   determinístico com manifesto; `python -m cli check` ganhou a camada `slm_suites`. **Divergência
@@ -1267,9 +1267,11 @@ template confirmados por Milena no mesmo dia]**:
   15 tentativas ou execução depois da 12ª — política de 5 fases, desde 2026-10-06; antes 23 com R19,
   12 com R16 e 6 até 2026-10-05 —, arquivo estranho, pasta sem problema, `superseded/` que não bate
   com as trocas de template) é falha desde o início. **Execução completa (2026-10-11)**: `cli
-  check` OK (600/600 com `suite.json`, tentativas sem buraco, `superseded/` igual às trocas), com um
-  único aviso: o manifesto do pacote ainda não existe. O `package`, o `verify --extracted` e o
-  `cli check --deep` sobre o pacote continuam **pendentes**.
+  check` OK (600/600 com `suite.json`, tentativas sem buraco, `superseded/` igual às trocas).
+  **Pacote (2026-10-11)**: `data/slm_suites.zip` com 6.597.040 bytes (SHA-256 `b73d2750…`) e 4.850
+  arquivos (as 600 combinações, o `run.json`, a troca de template e os 3 arquivos que ela tirou de
+  `problems/`), manifesto `manifests/slm_suites.manifest.json`; `verify --extracted` `OK` e `cli check
+  --deep` `OK` sem aviso, com o SHA-256 de cada arquivo e do zip conferido.
 - **Leitura do problema**: composta localmente no módulo `ai_clients` a partir dos leitores já
   existentes do dataset (`Metadata`, `Testes`) e da leitura direta de `enunciado.md`/`AC_ref.cpp`;
   nenhum leitor novo no módulo `dataset` (decidido em 2026-09-30).
@@ -1542,8 +1544,9 @@ template confirmados por Milena no mesmo dia]**:
   134.843 s ≈ 37,5 h (fase 1 25,4 h; fase 2 11,8 h; fase 4 0,2 h); o tempo de relógio não é
   medido. Tamanho das suítes: mediana 10 (`accepted` de 1 a 33, mediana 10; `accepted_fallback` de
   5 a 54, mediana 10; `accepted_predicted` 8 e 10). Uma troca de template (acima). `cli check` OK;
-  `close` não foi necessário (0 combinações aguardando os autores). Pendentes: `package`,
-  `verify --extracted` e `cli check --deep` sobre o pacote.
+  `close` não foi necessário (0 combinações aguardando os autores). Pacote gerado em 2026-10-11:
+  `data/slm_suites.zip` (6.597.040 bytes, SHA-256 `b73d2750…`, 4.850 arquivos), com
+  `verify --extracted` e `cli check --deep` `OK`.
   **Nota sobre a etiqueta de hardware [DECIDIDO, 2026-10-11 — Milena]**: os arquivos gravados
   **não mudam**. Todas as 2.185 chamadas estão etiquetadas "GPU T4 - Google Colab, 16GB RAM", mas
   parte da execução rodou no Kaggle (2×T4: o mesmo modelo de GPU, a mesma versão do Ollama e o
@@ -1831,6 +1834,7 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-10-11 | **Pacote do SLM gerado e módulo `ai_clients` (modelo local) fechado (`research.md` R28)**: `python -m ai_clients package` sobre o código de `f43d95c` gerou `data/slm_suites.zip` (6.597.040 bytes, SHA-256 `b73d27507f74…`, 4.850 arquivos: as 600 combinações, o `run.json`, a troca de template `001` e os 3 arquivos de `superseded/001/`), `manifests/slm_suites.manifest.json` e o relatório final (commit `c967f97`); `verify --extracted data/suites/slm` `OK`; `cli check --deep` `OK` sem aviso (SHA-256 dos 4.850 arquivos e do zip conferido); suíte completa `1498 passed`; quickstart validado; Constitution Check refeito; `check_docs_sync.py --closing` do módulo e da feature sem achados. README do módulo `implementado` | 3, 8 |
 | 2026-10-11 | **Fechamento da documentação do SLM**: seção 3 reescrita com o desenho final no texto principal (modelo `qwen2.5-coder:14b` no lugar do 7B, que fica só como histórico dos pilotos 1 a 3; política de 5 fases com os status e as 4 razões de falha; `cli check` até 15 tentativas); promessas "medir no piloto" fechadas com os valores medidos (maior `prompt_eval_count` 2.499; chamada mais longa 446 s, contada nos arquivos de tentativa, pois o relatório só traz a soma; `runtime_error` 282 sem separar RE de MLE, por não ser separado no relatório; `Ctrl+C`/`--resume` com o Ollama real observado: 44 interrupções nos logs, estado final sem perda nem dano); regras anteriores marcadas como substituídas, não apagadas. **Correção do motivo da troca de template**: o `reason` de `template_changes/001.json` estava gravado por engano como `"..."` e foi reescrito antes do `package` (só esse campo, conferido pelo schema, gravação atômica, demais campos iguais; nenhum hash dependia dele); `report` refeito. **Nota de hardware (decisão de Milena)**: os arquivos não mudam; as 2.185 chamadas têm a etiqueta "GPU T4 - Google Colab, 16GB RAM", mas parte rodou no Kaggle (2×T4, mesmo modelo de GPU, mesma versão do Ollama e mesmo digest), sem impacto nos resultados. Seção 6: itens 2, 26 e 31 atualizados; seção 7: itens 28/29 atualizados para o desenho final, item 30 duplicado renumerado (31) e itens 32–40 novos; relatórios dos pilotos 2 e 3 versionados em `manifests/` | 0, 3, 6, 7, 8 |
 | 2026-10-11 | **Execução completa do SLM terminada (`research.md` R28; `manifests/slm_generation_report.json`)**: continuação da execução do piloto 6 (primeira chamada 2026-10-06T23:40:40Z, última 2026-10-09T17:40:40Z), `qwen2.5-coder:14b` digest `9ec8897f…`, Ollama 0.35.0, templates `fc9757e8…` (solução) e `421adf86…` → `e52133f6…` (predição). **600 de 600 com suíte**: 505 `accepted` (84,2%), 93 `accepted_fallback` (15,5%; 65 na caixa-preta), 2 `accepted_predicted` (`939_C` caixa-preta, `237_A` caixa-branca), 0 `discarded_manual`, 0 aguardando (o `close` não foi necessário). Fases: 480 / 25 / 93 / 2 (355 na tentativa 1). 2.185 chamadas, 1.678 falhas (76,8%: `public_test_failed` 1.554, `unparseable_response` 102, `repetition` 21, `all_inputs_failed` 1); 77 cortadas por `length`; entradas descartadas: `runtime_error` 282, `timeout` 47; maior `prompt_eval_count` 2.499; ≈ 37,5 h de modelo (tempo de relógio não medido); suítes com mediana 10. Uma troca de template (2026-10-08, `939_C` caixa-preta refeita: tentativa 13 de novo até o teto, 15 aceita com 10 testes). `cli check` OK; `package`, `verify --extracted` e `cli check --deep` pendentes | 3, 6, 7 |
 | 2026-10-08 | **Troca do template de predição executada (`research.md` R27/R28)**: `change-template` às 11:49:11Z (`421adf86…` → `e52133f6…`) moveu 3 arquivos da `939_C` caixa-preta para `superseded/001/`; refeita no mesmo dia com as seeds 49 a 51 (13 até o teto de 5.120 *tokens*, 14 não interpretada, 15 `accepted_predicted` com 10 testes) | 3 |

@@ -245,7 +245,9 @@ combinações, 505 `accepted` (84,2%), 93 `accepted_fallback` (15,5%), 2 `accept
 autores; 2.185 chamadas, 1.678 falhas. A troca de template (R27) foi feita em 2026-10-08: as 2
 combinações que chegaram à predição têm a suíte final do template novo (`e52133f6…`, antes
 `421adf86…`); a `939_C` foi refeita. O motivo, gravado por engano como `"..."`, foi corrigido em
-2026-10-11, antes do pacote. O pacote final (FR-028) ainda não foi gerado.
+2026-10-11, antes do pacote. O pacote final (FR-028) foi gerado em 2026-10-11 (`data/slm_suites.zip`,
+6.597.040 bytes, SHA-256 `b73d2750…`, 4.850 arquivos, inclusive `template_changes/` e
+`superseded/`); `verify --extracted` e `cli check --deep` saíram `OK` (R28).
 
 - Q: A etiqueta de hardware (FR-003a) de todas as chamadas é "GPU T4 - Google Colab, 16GB RAM",
   mas parte rodou no Kaggle. Corrigir? → A: Não: os arquivos gravados não mudam; a divergência

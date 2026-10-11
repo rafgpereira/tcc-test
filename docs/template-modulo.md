@@ -175,5 +175,5 @@ Mantenha esta tabela atualizada ao criar ou concluir módulos (ver também a tab
 | `src/sandbox/` | [README](../src/sandbox/README.md) | implementado (motor de execução compartilhado) |
 | `src/mutation/` | [README](../src/mutation/README.md) | implementado: `generate`, `report`, `package` e `verify` documentados e carimbados |
 | `src/cli/` | [README](../src/cli/README.md) | em implementação: `check` (consistência entre artefatos) pronto; o orquestrador do experimento ainda sem especificação |
-| `src/ai_clients/` | [README](../src/ai_clients/README.md) | em implementação: suítes do modelo local (SLM) geradas na execução completa, pacote ainda por gerar (`package` e `verify` `pendente`); os dois modelos comerciais ainda sem especificação |
+| `src/ai_clients/` | [README](../src/ai_clients/README.md) | implementado para o modelo local (SLM): 600 suítes geradas e empacotadas (`data/slm_suites.zip`); os dois modelos comerciais ainda sem especificação |
 | `src/metrics/` | a criar na feature própria | ainda sem especificação (IIC pendente, metodologia seção 5.4) |
