@@ -1,0 +1,542 @@
+# Feature Specification: Geração de Suítes de Teste pelos LLMs Comerciais
+
+**Feature Branch**: `004-llm-test-generation`
+
+**Created**: 2026-10-13
+
+**Status**: Draft
+
+**Input**: User description: "Módulo 004 — geração de suítes de teste pelos LLMs comerciais
+(GPT-5.4-mini via API da OpenAI e Gemini 3.5 Flash via API do Google). Para cada um dos 200
+problemas do dataset, cada um dos 3 cenários de contexto e cada um dos 2 modelos, gerar uma suíte
+de casos de teste (entradas e saídas esperadas) e persisti-la no mesmo formato de `suite.json`
+usado pelas suítes do SLM (módulo 003), para que a etapa de avaliação leia os dois do mesmo jeito.
+Ideia central (oráculo por predição): ao contrário do SLM, que calcula as saídas executando uma
+solução Python, os LLMs preveem diretamente a saída esperada de cada entrada; essa é a única
+diferença intencional entre os modelos, todo o resto deve ser igual ao SLM. Decisões já tomadas:
+mesmo dataset, cenários e `<context_data>` do 003; few-shot com o primeiro teste público; regras
+de geração das entradas idênticas às do prompt principal do SLM; prompt em inglês com a estrutura
+XML do PDF e `edge_cases_analysis` antes dos testes; JSON com schema estrito; chamadas stateless;
+esforço de raciocínio `medium` e temperatura no padrão de cada API; novas tentativas só por falha
+de formato, até um limite fixo, sem validação pelos testes públicos; falha de infraestrutura não
+conta como tentativa; resposta crua, modelo e versão sempre registrados; tokens, custo e tempo
+por chamada, dry-run com estimativa de custo e lote pago só com confirmação explícita; chaves só
+no `.env`; retomada segura por combinação; relatório, pacote e camada no `cli check`. A decidir no
+clarify: limite de tentativas e o que acontece ao esgotar; tamanho máximo das entradas;
+reprodutibilidade sem seed/temperatura; onde o código fica; paralelismo e rate limit. Fora do
+escopo: o SLM, a execução das suítes contra AC/WA/mutantes e o cálculo das métricas."
+
+## Clarifications
+
+### Session 2026-10-13
+
+- Q: Quantas novas tentativas uma combinação recebe por falha de formato e o que acontece quando
+  elas acabam? → A: 3 tentativas (as mesmas da predição do SLM); esgotadas, a combinação fica
+  aguardando os autores, o comando segue com as demais e termina com código próprio listando-as,
+  o pacote é recusado, e só um fechamento explícito dos autores com motivo
+  (`discarded_manual`) tira a combinação desse estado (A1; FR-015, FR-016).
+- Q: Qual o tamanho máximo de cada entrada que os LLMs devem gerar? → A: O mesmo do prompt
+  principal do SLM ("at most about 50 elements and 20 lines"), sem número fixo de testes, para
+  a única diferença entre os modelos ser o oráculo; o limite menor do template de predição do SLM
+  não é usado (A2; FR-007).
+- Q: Que status as suítes dos LLMs recebem no `suite.json`? → A: `accepted_predicted` em todas:
+  o status diz a origem da saída esperada (`accepted`/`accepted_fallback` = calculada por um
+  programa; `accepted_predicted` = escrita pelo modelo), com o mesmo significado nos 3 modelos;
+  as métricas comparam por modelo, e só dentro do SLM as suítes previstas ficam separadas das
+  calculadas (A6; FR-017; metodologia, seção 6, item 31).
+- Q: Em que pacote do código fica o cliente dos dois LLMs comerciais? → A: Dentro de
+  `src/ai_clients/`, com os comandos do SLM escolhendo o modelo por uma opção (por exemplo,
+  `python -m ai_clients generate --model gpt`) e os dados em uma pasta por modelo em
+  `data/suites/`; o SLM continua funcionando sem mudança de comportamento (A4; FR-029).
+- Q: Como as chamadas aos dois modelos comerciais devem ser paralelizadas e protegidas contra o
+  limite de requisições da API? → A: Chamadas simultâneas dentro de um processo, em número
+  configurável por modelo no `.env` (padrão baixo, 4, ajustado depois do piloto), com a trava
+  por combinação do SLM; o HTTP 429 é falha de infraestrutura, com espera crescente e respeito
+  ao tempo de espera indicado pela API; os dois modelos podem rodar ao mesmo tempo, em processos
+  separados (A5; FR-012, FR-024).
+
+## Decisões em aberto (para o `/speckit-clarify`)
+
+Os autores pediram que estes pontos sejam decididos no `/speckit-clarify`, e não nesta
+especificação. Os requisitos abaixo já os citam pelo rótulo (A1 a A6) no lugar exato em que a
+decisão entra; a sugestão de cada um é só um ponto de partida para a conversa. As decididas ficam
+marcadas e registradas em Clarifications. Situação depois do clarify de 2026-10-13: A1, A2, A4,
+A5 e A6 decididas; A3 adiada para o planejamento técnico, porque depende do que a documentação
+oficial de cada API diz sobre seed e temperatura (`research.md`).
+
+- **A1 — Limite de tentativas por falha de formato e o que acontece ao esgotar** — **DECIDIDA
+  em 2026-10-13**: 3 tentativas; ao esgotar, aguardar os autores e fechamento manual com motivo
+  (`discarded_manual`), como no SLM (FR-022 e FR-022d do 003).
+- **A2 — Tamanho máximo de cada entrada** — **DECIDIDA em 2026-10-13**: o mesmo do prompt
+  principal do SLM ("at most about 50 elements and 20 lines"), sem número fixo de testes; o
+  limite do template de predição do SLM (10 elementos e 10 linhas, 5 a 12 testes) foi rejeitado
+  porque mudaria as entradas entre os modelos.
+- **A3 — Reprodutibilidade quando a API não aceita seed ou temperatura** (FR-019) — **ADIADA
+  para o `/speckit-plan`** (depende da documentação oficial de cada API). Sugestão:
+  gravar todos os parâmetros enviados, o identificador do modelo devolvido pela API, o
+  identificador da resposta e qualquer impressão digital de versão que a API devolva; seed só
+  quando a API a aceitar, com o mesmo esquema de seeds do SLM; registrar a não reprodutibilidade
+  como limitação.
+- **A4 — Onde o código fica** — **DECIDIDA em 2026-10-13**: dentro de `src/ai_clients/`,
+  reaproveitando a leitura do problema, a composição do prompt, o schema da suíte, as travas, o
+  relatório, o pacote, o `close` e o `change-template` do SLM (FR-029).
+- **A5 — Paralelismo e controle de rate limit** — **DECIDIDA em 2026-10-13**: chamadas
+  simultâneas dentro de um processo, em número configurável por modelo no `.env` (padrão 4), com
+  as travas por combinação do SLM; HTTP 429 é falha de infraestrutura, com espera crescente e
+  respeito ao tempo de espera indicado pela API (FR-012, FR-024).
+- **A6 — Status das suítes dos LLMs no `suite.json`** (levantada nesta especificação, não estava
+  na lista dos autores) — **DECIDIDA em 2026-10-13**: `accepted_predicted` em toda suíte dos
+  LLMs; o status diz a origem da saída esperada, com o mesmo significado nos 3 modelos, e a
+  regra das métricas (metodologia, seção 6, item 31) é reescrita para não tratar esse status como
+  exceção ao comparar modelos.
+
+## User Scenarios & Testing *(mandatory)*
+
+<!--
+  Os "usuários" deste módulo são os dois autores do TCC, que precisam de uma suíte de testes por
+  problema × cenário × modelo comercial, no mesmo formato das suítes do SLM, para a etapa de
+  avaliação (execução contra AC/WA/mutantes e cálculo de TDF/MS/TFP/IIC). Diferente do SLM, cada
+  chamada custa dinheiro, então saber o custo antes e nunca pagar duas vezes pela mesma resposta
+  faz parte do valor entregue.
+-->
+
+### User Story 1 - Gerar a suíte de uma combinação com um modelo comercial (Priority: P1)
+
+Para um problema, um cenário (caixa-preta: só `enunciado.md`; caixa-branca: só `AC_ref.cpp`;
+híbrido: os dois) e um modelo (GPT-5.4-mini ou Gemini 3.5 Flash), os autores disparam a geração,
+que envia uma única chamada *stateless* com o prompt do experimento, recebe uma resposta em JSON
+com a análise de casos-limite e a lista de testes (entrada e saída esperada prevista pelo modelo),
+persiste a resposta crua e grava a suíte no mesmo formato de `suite.json` do SLM.
+
+**Why this priority**: é a capacidade mínima do módulo; sem ela não há suíte de LLM para avaliar,
+e a comparação entre os 3 modelos, objetivo do TCC, não existe.
+
+**Independent Test**: rodar a geração para 1 problema × 1 cenário × 1 modelo (ou com respostas
+gravadas, sem chamar a API) e conferir que a pasta da combinação tem a resposta crua, os metadados
+da chamada (modelo devolvido, tokens, custo, tempo) e um `suite.json` que o leitor de suítes do
+SLM aceita sem mudança.
+
+**Acceptance Scenarios**:
+
+1. **Given** um problema completo do dataset, um cenário e um modelo, **When** a geração roda,
+   **Then** o sistema envia exatamente uma requisição autocontida (sem histórico, sem conversa
+   guardada pelo provedor), com o modelo, o esforço de raciocínio `medium` e o schema de saída
+   estrito, e persiste a resposta crua antes de interpretá-la.
+2. **Given** uma resposta JSON válida com pelo menos um teste utilizável, **When** ela é
+   interpretada, **Then** o sistema grava o `suite.json` da combinação com os testes no contrato
+   `input`/`output` do projeto, o status `accepted_predicted`, o modelo e o tamanho da suíte.
+3. **Given** uma resposta vazia, que não é JSON, que viola o schema, cortada pelo teto de saída
+   ou que é uma recusa do modelo, **When** ela é interpretada, **Then** a tentativa é registrada
+   como falha de formato, com a razão, e uma nova chamada independente é feita, até 3 tentativas;
+   depois delas a combinação aguarda os autores (FR-016).
+4. **Given** os 3 cenários de um mesmo problema, **When** os prompts são montados, **Then** só o
+   conteúdo de `<context_data>` muda entre eles, e o texto é o mesmo para os 2 modelos.
+
+---
+
+### User Story 2 - Saber o custo antes e nunca pagar sem confirmar (Priority: P1)
+
+Antes de qualquer chamada paga, os autores rodam um dry-run que monta todos os prompts pedidos e
+mostra, por modelo e no total, o número de chamadas e o custo estimado; o lote pago só começa com
+uma confirmação explícita de quem executa, e cada chamada feita registra tokens, custo estimado e
+tempo de resposta.
+
+**Why this priority**: é exigência do projeto (custo observável, lote pago só com confirmação) e
+protege o orçamento da dupla; uma execução de 1.200 combinações disparada por engano, ou repetida
+por um erro de retomada, é um custo que não volta.
+
+**Independent Test**: rodar o dry-run sobre todos os problemas e conferir que nenhuma chamada à
+API foi feita e que a estimativa aparece por modelo e no total; rodar a geração sem a confirmação
+e conferir que ela recusa sem chamar a API.
+
+**Acceptance Scenarios**:
+
+1. **Given** um dataset íntegro e os dois modelos configurados, **When** o dry-run roda, **Then**
+   o sistema lista as combinações pendentes, os tokens de entrada medidos dos prompts reais, a
+   suposição de tokens de saída usada e o custo estimado por modelo e no total, sem nenhuma chamada
+   paga.
+2. **Given** uma geração que faria chamadas pagas, **When** ela é disparada sem a confirmação
+   explícita, **Then** ela recusa antes da primeira chamada e diz como confirmar.
+3. **Given** uma chamada concluída, **When** ela é registrada, **Then** o registro tem os tokens de
+   entrada (e os servidos de cache, quando a API informar), os de saída (e os de raciocínio, quando
+   a API informar), o custo estimado pela tabela de preços da execução e o tempo de resposta.
+
+---
+
+### User Story 3 - Retomar sem duplicar, sem corromper e sem pagar de novo (Priority: P2)
+
+Ao interromper a geração (queda de rede, rate limit, falha do provedor, interrupção manual) e
+rodar de novo, os autores recebem exatamente a continuação do que faltava: combinações terminadas
+não são refeitas, nenhuma resposta já recebida é pedida de novo, e cada combinação problema ×
+cenário × modelo pode ser gerada ou retomada isoladamente.
+
+**Why this priority**: sem isso, uma interrupção obrigaria a recomeçar e pagar de novo; é também
+exigência do projeto (retomada segura).
+
+**Independent Test**: interromper uma geração pequena (com uma API simulada) no meio de uma
+chamada e no meio da gravação, retomar, e conferir que o resultado é igual ao de uma execução
+sem interrupção, sem arquivo duplicado ou parcial e sem chamada repetida de tentativa já gravada.
+
+**Acceptance Scenarios**:
+
+1. **Given** uma geração interrompida depois de receber e gravar algumas respostas, **When** ela
+   é retomada, **Then** nenhuma tentativa já gravada é pedida de novo e a contagem de tentativas
+   de cada combinação continua de onde parou.
+2. **Given** uma interrupção entre o envio de uma chamada e a gravação da resposta, **When** a
+   geração é retomada, **Then** só essa chamada é refeita (o custo dela pode ser pago duas vezes,
+   e isso é conhecido e aceito) e nada parcial dela fica no disco.
+3. **Given** um pedido restrito a um problema, um cenário e um modelo, **When** a geração roda,
+   **Then** só essa combinação é tratada, sem tocar nas demais.
+
+---
+
+### User Story 4 - Relatório, pacote e conferência para sustentar o TCC (Priority: P3)
+
+Ao final da execução completa, os autores precisam de um relatório versionado com os números da
+geração por modelo, cenário e status (tokens, custo, tempo, tamanho das suítes, falhas por razão),
+de um pacote único com manifesto de integridade, e de a conferência entre artefatos do projeto
+(`python -m cli check`) cobrir também as suítes dos LLMs.
+
+**Why this priority**: é o mesmo fechamento já exigido do SLM; sem relatório os números do TCC não
+têm proveniência, e sem a camada no `check` nada garante que as 1.200 suítes estão completas e 1:1
+com o dataset.
+
+**Independent Test**: gerar relatório, pacote e `check` sobre uma execução de teste pequena e
+conferir que os totais batem com os arquivos, que o manifesto confere com o pacote e que uma pasta
+faltando ou sobrando é apontada pelo `check`.
+
+**Acceptance Scenarios**:
+
+1. **Given** uma execução terminada, **When** o relatório é gerado, **Then** ele traz, por modelo
+   e por cenário, a contagem por status, as tentativas por razão de falha, a distribuição do
+   tamanho das suítes, os tokens (entrada, cache, saída, raciocínio), o custo estimado e o tempo,
+   e os identificadores de modelo efetivamente devolvidos pela API.
+2. **Given** uma execução com alguma combinação aguardando os autores, **When** o pacote é pedido,
+   **Then** ele é recusado e lista as combinações pendentes.
+3. **Given** suítes dos LLMs descompactadas, **When** `python -m cli check` roda, **Then** ele
+   confere que cada um dos 200 problemas tem exatamente 3 cenários × 2 modelos, sem sobrar nem
+   faltar, e em modo `--deep` que cada `suite.json` segue o schema.
+
+---
+
+### Edge Cases
+
+- **Resposta cortada pelo teto de saída** (o raciocínio e a resposta disputam o mesmo teto): é
+  falha de formato, contada à parte no relatório, como o `done_reason = "length"` do SLM.
+- **Recusa ou bloqueio de segurança** (a API devolve uma recusa ou bloqueia o prompt): é falha de
+  formato e consome tentativa; se o bloqueio se repetir nas 3 tentativas, a combinação fica
+  aguardando os autores (FR-016). O motivo informado pela API é gravado.
+- **Teste com entrada ou saída vazia, ou abreviada** (`...`, `…`, "repeated N times"): descartado
+  sozinho e contado, com as mesmas regras do template de predição do SLM (FR-010 e FR-022c do 003);
+  se nenhum teste sobrar, a resposta conta como falha de formato.
+- **Entradas repetidas na mesma resposta**: fica a primeira ocorrência e as repetidas são contadas;
+  se a mesma entrada aparece com saídas diferentes, a primeira fica e o conflito é contado à parte
+  (é sinal de oráculo inconsistente, útil para a análise de falsos positivos).
+- **Teste igual ao exemplo do few-shot**: mantido e contado (a regra "do not copy the example" é só
+  do prompt, como no SLM).
+- **Entrada que viola as restrições do enunciado**: o módulo não valida restrições numéricas, como
+  no SLM; o risco é registrado como limitação.
+- **Rate limit, erro 5xx, queda de rede, timeout de leitura**: falha de infraestrutura; a mesma
+  chamada é refeita sem gastar tentativa, até um teto de repetições seguidas configurável; ao
+  atingi-lo o comando para com erro de infraestrutura e a retomada refaz a mesma chamada.
+- **Erro que não passa sozinho** (chave inválida ou ausente, cota ou crédito esgotado, modelo
+  inexistente, pedido recusado pela API como malformado): o comando para na hora, sem gastar
+  tentativa e sem repetir, com uma mensagem que diz o que corrigir.
+- **Provedor muda a versão do modelo no meio da execução** (o identificador devolvido muda): cada
+  tentativa grava o identificador devolvido; o relatório lista todos os vistos por modelo; a
+  execução não para (a mudança fica registrada como limitação).
+- **Configuração mudou entre uma rodada e a retomada** (modelo pedido, esforço de raciocínio,
+  teto de saída, template, schema, limite de tentativas, dataset): a retomada recusa e lista o que
+  mudou, como o `--resume` do SLM; tabela de preços e opções de espera e paralelismo podem mudar
+  sem recusa, porque não mudam as respostas.
+- **Dataset local ausente ou diferente do manifesto**: a geração recusa antes de qualquer chamada,
+  como no SLM.
+- **Chave de API presente só para um dos modelos**: o modelo sem chave não roda; o outro roda
+  normalmente.
+
+## Requirements *(mandatory)*
+
+### Modelos e chamadas
+
+- **FR-001**: O sistema MUST, para cada um dos 200 problemas do dataset, cada um dos 3 cenários e
+  cada um dos 2 modelos comerciais (GPT-5.4-mini, pela API da OpenAI; Gemini 3.5 Flash, pela API do
+  Google), fazer chamadas até obter uma suíte ou esgotar as 3 tentativas de FR-015 — 1.200
+  combinações.
+- **FR-002**: Cada chamada MUST ser uma única requisição autocontida, sem histórico de nenhuma
+  chamada anterior e sem estado guardado pelo provedor: na OpenAI, sem armazenamento da resposta
+  (`store: false`) e sem referência a resposta anterior; no Gemini, uma chamada `generateContent`
+  de um turno só, sem sessão de chat nem conteúdo em cache criado pelo pipeline (Constitution,
+  Princípio III).
+- **FR-003**: Cada modelo MUST ser chamado com esforço de raciocínio `medium` (`reasoning_effort`
+  na OpenAI, `thinking_level` no Gemini) e com a temperatura no padrão da API (o parâmetro não é
+  enviado). O identificador pedido de cada modelo MUST ser o mais específico que o provedor
+  oferecer (versão datada quando existir, nunca um apelido que o provedor move sem aviso, se houver
+  alternativa) e MUST ficar na configuração da execução.
+- **FR-004**: A saída MUST ser pedida em JSON com schema estrito (Structured Outputs com
+  `strict: true` na OpenAI; tipo `application/json` com schema de resposta no Gemini), o mesmo
+  schema nos 2 modelos: um campo `edge_cases_analysis` (texto) antes de um campo `tests` (lista de
+  objetos com `input` e `output`, ambos texto).
+- **FR-005**: As chaves de API MUST ficar só no `.env` (nunca no Git, nem na imagem Docker, nem em
+  arquivo gravado pelo pipeline, nem em log); `.env.example` MUST documentar as variáveis novas sem
+  valor.
+
+### Prompt
+
+- **FR-006**: O prompt MUST ser um único texto-base em inglês, igual para os 2 modelos, com a
+  estrutura `<system_rules>`, `<context_data>`, `<few_shot_example>`, `<task>`; entre os cenários
+  MUST variar só `<context_data>`, com exatamente o mesmo conteúdo que o SLM recebe em cada cenário
+  (FR-004 do 003), e o `<few_shot_example>` MUST ser o primeiro teste público do próprio problema,
+  como no SLM (FR-005 do 003).
+- **FR-007**: As regras de geração de entradas do prompt MUST ser as do prompt principal do SLM
+  (`src/prompt_templates/slm_prompt.txt`, STEP 3): não copiar o exemplo; todo valor dentro das
+  restrições; nunca entrada vazia ou inválida; contagem de casos coerente com os casos que seguem;
+  cobertura do menor caso, das fronteiras, de valores extremos, de elementos repetidos, de dados
+  ordenados e invertidos e de casos médios irregulares; nunca truncar ou abreviar; sem entradas
+  repetidas; cada entrada um stdin completo; cada entrada curta, com no máximo cerca de 50
+  elementos e 20 linhas (o mesmo texto do SLM; A2, decidida em 2026-10-13), sem número fixo de
+  testes. A
+  única parte diferente é a do oráculo: o modelo escreve a saída esperada exata de cada entrada,
+  no formato exigido, calculada passo a passo antes de escrevê-la.
+- **FR-008**: O prompt MUST exigir a análise de casos-limite (`edge_cases_analysis`) antes dos
+  testes, com as mesmas instruções do STEP 1 do SLM (reescrever formato de entrada e restrições,
+  a regra que define a resposta correta com suas fronteiras, e conferir o exemplo à mão); a ordem
+  dos campos no schema MUST pôr a análise antes dos testes.
+- **FR-009**: Uma execução MUST usar uma única versão do texto-base; o hash do texto MUST ser
+  gravado na configuração da execução e em cada tentativa, e a retomada MUST recusar um texto
+  diferente. Trocar o texto no meio da execução MUST seguir a mesma regra do SLM (comando
+  explícito com motivo, tentativas da versão antiga movidas para fora da execução e refeitas;
+  FR-022e do 003).
+
+### Geração, persistência e interpretação
+
+- **FR-010**: A resposta crua de toda chamada (inclusive das que falharam por formato) MUST ser
+  persistida antes da interpretação, com gravação atômica, de modo que reinterpretar uma tentativa
+  nunca exija chamar a API de novo.
+- **FR-011**: Cada tentativa MUST registrar: problema, cenário, modelo pedido, identificador do
+  modelo devolvido pela API, identificador da resposta, número da tentativa, hash do prompt e do
+  texto-base, parâmetros enviados, seed (quando enviada, A3), motivo de término informado pela API,
+  tokens de entrada, de cache, de saída e de raciocínio (os que a API informar), custo estimado,
+  tempo de resposta e o resultado da interpretação.
+- **FR-012**: O pipeline MUST poder ser interrompido e retomado a qualquer momento sem duplicar nem
+  corromper nada e sem refazer uma chamada cuja resposta já foi gravada; cada combinação problema ×
+  cenário × modelo MUST poder ser pedida e retomada isoladamente; chamadas e processos simultâneos
+  (FR-024) MUST nunca tratar a mesma combinação ao mesmo tempo (Constitution, Princípio VII).
+- **FR-013**: A interpretação MUST ser determinística e aplicar as regras do template de predição
+  do SLM a cada teste: cerca Markdown que envolve a entrada ou a saída inteira é removida e contada;
+  teste com entrada ou saída vazia é descartado e contado; teste com entrada ou saída abreviada é
+  descartado e contado; entradas repetidas e conflitos de saída são tratados como em Edge Cases. Uma
+  tentativa só gera suíte se sobrar ao menos um teste.
+- **FR-014**: Não há validação das saídas previstas pelos testes públicos nem por qualquer
+  execução: não existe programa a validar, e o `AC_ref.cpp` MUST NOT ser usado para aprovar,
+  corrigir ou descartar um teste ou uma suíte (mesma regra do SLM, FR-017 do 003). Nenhum código é
+  executado por este módulo.
+
+### Tentativas e falhas
+
+- **FR-015**: Uma tentativa MUST ser marcada como falha de formato, consumindo uma das **3
+  tentativas** da combinação (A1), quando a resposta está vazia, não é JSON, viola o schema, foi
+  cortada pelo teto de
+  saída, é uma recusa ou um bloqueio de segurança, ou não sobra nenhum teste depois de FR-013. A
+  razão MUST ser gravada com uma das razões fixas. Cada nova tentativa é uma chamada nova e
+  independente; nenhuma outra razão (nem a qualidade das saídas) gera nova tentativa.
+- **FR-016**: Uma combinação cujas 3 tentativas falharam por formato MUST ficar marcada como
+  aguardando os autores: o comando MUST continuar com as demais combinações e, no fim, sair com um
+  código de saída próprio listando todas as marcadas; o relatório MUST contá-las à parte e o pacote
+  (FR-026) MUST ser recusado enquanto existir alguma. Só um comando explícito dos autores tira a
+  combinação desse estado, fechando-a com o status `discarded_manual` e um motivo obrigatório,
+  gravados com a data; ela continua contando no N = 200. Nenhuma combinação termina sem suíte de
+  outro jeito (mesma regra do SLM, FR-022 e FR-022d do 003; A1, decidida em 2026-10-13).
+- **FR-017**: A suíte MUST ser gravada no mesmo `suite.json` do SLM (`SlmSuite`, contrato de
+  `specs/003-slm-test-generation/contracts/file-formats.md`, seção 4): os mesmos campos de
+  identificação, o mesmo `tests` no contrato `input`/`output` e a mesma lista de tentativas, para
+  que a avaliação leia as suítes dos 3 modelos sem ramificar por modelo. O status de toda suíte
+  dos LLMs MUST ser `accepted_predicted` (A6, decidida em 2026-10-13): o status diz a origem da
+  saída esperada, com o mesmo significado nos 3 modelos, e nas métricas a comparação é por
+  modelo, sem tratar esse status como exceção (só dentro do SLM as previstas ficam separadas);
+  campos que só fazem sentido para o SLM (fase, temperatura, hardware, reserva) ficam com valor
+  nulo ou fixo documentado, e qualquer campo novo MUST ser uma mudança deliberada e versionada do
+  schema (Constitution, Princípio IV), compatível com as suítes do SLM já empacotadas.
+- **FR-018**: Uma falha de infraestrutura (rede, timeout de leitura, rate limit, erro 5xx do
+  provedor, resposta interrompida) MUST NOT consumir tentativa: a mesma chamada MUST ser refeita,
+  com espera crescente e respeitando o tempo de espera indicado pela API, até um teto de
+  repetições seguidas configurável no `.env`; atingir o teto encerra o comando com erro de
+  infraestrutura, sem gravar a tentativa. Erros que não passam sozinhos (autenticação, cota ou
+  crédito esgotado, modelo inexistente, pedido recusado como malformado) MUST encerrar o comando na
+  hora, sem repetir e sem gastar tentativa.
+
+### Reprodutibilidade e custo
+
+- **FR-019**: A configuração de cada execução (modelos pedidos, parâmetros, schema, hash do
+  texto-base, limite de tentativas, teto de saída, hash do manifesto do dataset) MUST ficar num
+  arquivo da execução por modelo, comparado pela retomada. A seed é enviada e registrada quando a
+  API a aceitar; o que registrar quando ela não aceitar seed ou temperatura é decidido no
+  planejamento técnico (A3, adiada). A não reprodutibilidade bit a bit das respostas e a possível
+  troca de versão do modelo pelo provedor MUST ficar registradas como limitações (Assumptions e
+  metodologia).
+- **FR-020**: Toda chamada MUST registrar tokens consumidos, custo estimado e tempo de resposta
+  (Constitution, Princípio VIII). O custo estimado MUST vir de uma tabela de preços por modelo
+  (entrada, entrada servida de cache, saída; tokens de raciocínio cobrados como saída) com a data e
+  a fonte dos preços, gravada na configuração da execução; uma mudança de preço não invalida a
+  retomada, mas MUST ficar registrada.
+- **FR-021**: MUST existir um dry-run que, sem nenhuma chamada paga, monta os prompts das
+  combinações pedidas e mostra, por modelo e no total, o número de chamadas, os tokens de entrada
+  medidos e o custo estimado, com a suposição de tokens de saída declarada (de medições reais
+  quando existirem, senão o teto de saída, como limite superior).
+- **FR-022**: A geração MUST NOT fazer nenhuma chamada paga sem a confirmação explícita de quem
+  executa, dada a cada invocação (nunca guardada de uma rodada para outra); sem ela, o comando
+  recusa antes da primeira chamada. Uma restrição de escopo (`--problem`, `--scenario`, modelo,
+  limite de combinações) MUST valer também para a estimativa mostrada antes da confirmação.
+- **FR-023**: O teto de tokens de saída de cada modelo MUST ser fixo e gravado na configuração; o
+  valor é fixado no planejamento técnico, a partir de medição num piloto pequeno, grande o bastante
+  para o raciocínio e a resposta das maiores combinações.
+- **FR-024**: Um processo de geração MUST poder fazer chamadas simultâneas a um modelo, em número
+  configurável por modelo no `.env` (padrão 4, ajustado depois do piloto; A5, decidida em
+  2026-10-13), cada chamada de uma combinação diferente, protegida pela trava exclusiva por
+  combinação do SLM (FR-026a do 003); os dois modelos MUST poder rodar ao mesmo tempo em
+  processos separados. O HTTP 429 é falha de infraestrutura (FR-018), com espera crescente e
+  respeito ao tempo de espera indicado pela API. O paralelismo MUST NOT mudar o conteúdo de
+  nenhuma chamada nem o número de tentativas de nenhuma combinação, e o número de chamadas
+  simultâneas não entra na comparação da retomada.
+
+### Relatório, pacote e conferência
+
+- **FR-025**: O sistema MUST produzir um relatório versionável com, por modelo e por cenário: a
+  contagem por status; as tentativas por razão de falha; a distribuição do tamanho das suítes; os
+  testes descartados por razão (vazios, abreviados, cercas removidas, repetidos, conflitos); as
+  respostas cortadas pelo teto; os tokens (entrada, cache, saída, raciocínio); o custo estimado; o
+  tempo total e por chamada; e os identificadores de modelo devolvidos pela API.
+- **FR-026**: Ao final da execução completa que sustenta os números publicados, o sistema MUST
+  poder compactar as suítes dos LLMs (respostas cruas, metadados de cada tentativa, `suite.json`,
+  configuração das execuções) num pacote com manifesto SHA-256 próprio, no mesmo formato do dataset,
+  dos mutantes e das suítes do SLM; o pacote MUST ser recusado enquanto alguma combinação aguardar
+  os autores. Um comando de verificação MUST conferir o pacote e, opcionalmente, a pasta
+  descompactada contra o manifesto.
+- **FR-027**: O `python -m cli check` MUST ganhar a camada das suítes dos LLMs: 200 problemas ×
+  3 cenários × 2 modelos, 1:1 com o dataset, sem sobrar nem faltar; em `--deep`, cada `suite.json`
+  e cada tentativa validados pelo schema (Constitution, Princípio II;
+  `docs/verificacao-consistencia.md`).
+
+### Onde o código fica
+
+- **FR-029**: O módulo MUST ficar dentro de `src/ai_clients/` (A4, decidida em 2026-10-13): os
+  comandos existentes (`generate`, `report`, `package`, `verify`, `close`, `change-template`)
+  MUST passar a aceitar a escolha do modelo, mantendo o SLM como está quando nenhum modelo
+  comercial é pedido; as suítes de cada modelo ficam numa pasta própria em `data/suites/`, com
+  configuração de execução, travas, relatório e manifesto próprios; o código do SLM é
+  reaproveitado, não copiado. O README do módulo MUST passar a descrever os 3 modelos.
+
+### Fora do escopo desta especificação
+
+- **FR-028**: Este módulo MUST NOT alterar o comportamento nem os artefatos do SLM (módulo 003),
+  nem executar as suítes contra AC/WA/mutantes, nem calcular TDF, MS, TFP ou IIC. Mudanças de schema
+  compartilhado (FR-017) MUST manter as suítes do SLM já empacotadas válidas sem regravá-las.
+
+### Key Entities *(include if feature involves data)*
+
+- **Combinação**: problema × cenário × modelo comercial; 1.200 no total; unidade de geração,
+  retomada, trava e conferência.
+- **Tentativa**: uma chamada autocontida a um modelo para uma combinação, com a resposta crua, os
+  metadados da chamada (modelo devolvido, identificador da resposta, tokens, custo, tempo, motivo de
+  término) e o resultado da interpretação (testes mantidos e descartados, ou a razão da falha de
+  formato).
+- **Suíte LLM**: os testes mantidos da tentativa aceita, no mesmo `suite.json` do SLM, com o status
+  `accepted_predicted` (ou `discarded_manual`, FR-016), o modelo, o tamanho e a lista de
+  tentativas.
+- **Configuração da execução**: por modelo; parâmetros, schema, hash do texto-base, limite de
+  tentativas, teto de saída, hash do dataset e tabela de preços; o que a retomada compara.
+- **Tabela de preços**: preço por milhão de tokens de entrada, de entrada em cache e de saída, por
+  modelo, com data e fonte; base do custo estimado.
+- **Estimativa de custo (dry-run)**: chamadas, tokens de entrada medidos, suposição de saída e custo
+  estimado por modelo e no total, antes de qualquer chamada paga.
+- **Relatório de geração LLM**: os agregados de FR-025, para citação no TCC.
+
+## Success Criteria *(mandatory)*
+
+### Measurable Outcomes
+
+- **SC-001**: Ao fim da execução completa, cada uma das 1.200 combinações está em exatamente um
+  estado final (com suíte, ou, só por decisão explícita dos autores, `discarded_manual` com
+  motivo), sem nenhum estado intermediário ou
+  ambíguo no pacote.
+- **SC-002**: 100% das chamadas são autocontidas: nenhuma reaproveita histórico nem estado guardado
+  pelo provedor.
+- **SC-003**: 100% das chamadas feitas têm tokens, custo estimado e tempo de resposta registrados, e
+  o custo total do relatório é exatamente a soma dos custos das chamadas.
+- **SC-004**: Zero chamadas pagas acontecem sem confirmação explícita (verificado por teste: sem a
+  confirmação, nenhuma requisição sai), e o dry-run nunca faz chamada paga.
+- **SC-005**: Interromper e retomar em qualquer ponto não refaz nenhuma tentativa já gravada, não
+  deixa arquivo parcial e produz as mesmas suítes que uma execução sem interrupção daria a partir
+  das mesmas respostas gravadas; só uma chamada em andamento no momento da interrupção pode ser
+  paga duas vezes.
+- **SC-006**: Uma falha de infraestrutura nunca é contada como tentativa em nenhuma execução
+  observada.
+- **SC-007**: O leitor de suítes usado para o SLM lê 100% dos `suite.json` dos LLMs sem
+  tratamento por modelo, e 100% das suítes do SLM já empacotadas continuam válidas.
+- **SC-008**: `python -m cli check --deep` sai `OK` com dataset, mutantes, suítes do SLM e suítes
+  dos LLMs descompactados, e `scripts/check_docs_sync.py --closing` termina com código 0 ao fechar
+  a feature.
+- **SC-009**: O relatório permite comparar o custo real com a estimativa do dry-run, por modelo, e a
+  diferença fica registrada na metodologia.
+
+## Assumptions
+
+- **Usuários**: os dois autores executam o módulo em contêiner, com rede, usando chaves próprias de
+  contas com faturamento ativo nas duas APIs; não há usuários externos.
+- **Dependência do dataset**: este módulo consome `data/dataset` (descompactado de
+  `data/dataset.zip`) exatamente como o SLM: `enunciado.md`, `AC_ref.cpp` e `testes.json` (primeiro
+  teste público no few-shot); nenhuma mudança no dataset. Antes de rodar, `cli check --deep` MUST
+  passar (Constitution, Princípio II).
+- **Nada executado**: o módulo não compila nem executa código; roda inteiro no serviço com rede.
+- **Cache de prompt do provedor**: as duas APIs podem reaproveitar, do lado delas, o processamento
+  de um início de prompt igual entre chamadas (cobrando menos por esses tokens). Isso não leva
+  conteúdo de uma chamada para outra (cada resposta depende só do seu próprio prompt), então não
+  fere o isolamento de FR-002; os tokens servidos de cache são registrados por causa do custo.
+- **Nomes e preços dos modelos**: `GPT-5.4-mini` e `Gemini 3.5 Flash` são os modelos do desenho do
+  TCC; o identificador exato de cada API, a disponibilidade de versão datada, a aceitação de seed e
+  os preços vigentes são conferidos na documentação oficial dos provedores no planejamento técnico
+  (`research.md`), nunca supostos.
+- **Onde o código fica**: em `src/ai_clients/` (A4, FR-029), que o README da raiz já apresenta
+  como o módulo das chamadas aos 3 modelos; o README do módulo passa a cobrir os 3 modelos.
+- **Sem conferência das saídas previstas**: uma saída prevista errada vira um falso positivo na
+  avaliação; é exatamente o que a Taxa de Falsos Positivos mede, e por isso não há filtro aqui.
+- **Tamanho da suíte**: sem número fixo de testes por suíte, como no SLM; o tamanho é registrado.
+  A regra de tamanho/normalização entre os 3 modelos continua pendente (metodologia, seção 6, item
+  26); como as entradas seguem o mesmo limite do SLM (A2), o tamanho das entradas não é uma
+  diferença entre os modelos.
+- **Piloto**: antes da execução completa, um piloto pequeno (por exemplo, os mesmos 5 problemas dos
+  pilotos do SLM, nos 3 cenários e 2 modelos) mede tokens de saída, tempo, custo e taxa de falha
+  de formato, e fixa o teto de saída (FR-023); o custo do piloto também passa pela confirmação.
+- **Versionamento**: as suítes dos LLMs seguem a mesma exceção de versionamento do SLM
+  (Constitution, Princípio II, emenda 1.6.0): só o pacote da execução final é commitado.
+
+## Divergências e Decisões sobre a Metodologia
+
+<!--
+  Registro exigido pela Constitution (Princípio I): divergências ou preenchimentos de lacunas em
+  relação a docs/metodologia-referencia.md, para atualizar o texto final do TCC.
+-->
+
+A seção 3 da metodologia dá só a parametrização dos dois modelos comerciais (`reasoning_effort:
+medium`, JSON estrito, `store: false`; `thinking_level: medium`, `generateContent`, JSON) e a marca
+como pendente. Esta especificação preenche as lacunas abaixo; as decisões ainda em aberto estão em
+A1 a A6.
+
+- **D1 — Oráculo por predição como única diferença intencional (decidido pelos autores)**: as
+  regras de entrada, o contexto de cada cenário e o few-shot são os do SLM, e só o oráculo muda
+  (predição pelo modelo × execução de uma solução Python). Preenche uma lacuna: a metodologia
+  dizia que os modelos de fronteira "preveem o `expected_output`", sem dizer que o resto do prompt
+  seria igual ao do SLM.
+- **D2 — Novas tentativas só por falha de formato, sem validação pelos testes públicos (decidido
+  pelos autores)**: o SLM valida a solução nos testes públicos; aqui não existe programa a validar,
+  e a predição de entradas novas não pode ser conferida pelos exemplos. Saídas previstas erradas
+  ficam na suíte e aparecem como falsos positivos na avaliação.
+- **D3 — Temperatura no padrão da API (decidido pelos autores)**: diferente do SLM (temperatura
+  fixa por tentativa, FR-020 do 003); a metodologia não fixava temperatura para os modelos
+  comerciais.
+- **D4 — Mesmo `suite.json` do SLM (decidido pelos autores)**: a avaliação lê as suítes dos 3
+  modelos do mesmo jeito; estende a decisão de 2026-09-30 (contrato `TestCase`, metodologia seção 6,
+  item 29) ao arquivo inteiro da suíte.
+- **D5 — Custo observável com dry-run e confirmação a cada invocação (decidido pelos autores)**:
+  operacionaliza o Princípio VIII para este módulo.
+- **D6 — Few-shot e versionamento iguais ao SLM (já decididos em 2026-09-29, D2 e D3 do 003)**:
+  aplicados aqui como a metodologia já previa.

@@ -1057,16 +1057,18 @@ inclui a espera na fila e não deve ser citado (R21).
 **[PARCIALMENTE DECIDIDO — a parte do SLM (geração de suítes) foi fechada em
 `specs/003-slm-test-generation/spec.md` (2026-09-29) e executada por completo entre
 2026-10-06 e 2026-10-09 (600 de 600 combinações com suíte; ver "Execução completa do SLM"
-abaixo, `research.md` R28); a parametrização exata dos dois
-modelos comerciais (GPT-5.4-mini, Gemini 3.5 Flash) e a orquestração deles continuam
-pendentes, a especificar em módulo futuro.]**
+abaixo, `research.md` R28); a parte dos dois modelos comerciais (GPT-5.4-mini, Gemini 3.5
+Flash) está em especificação em `specs/004-llm-test-generation/spec.md` (Draft, 2026-10-13; ver
+"Particularidade dos LLMs comerciais" abaixo); clarify feito em 2026-10-13, com uma decisão
+(A3) deixada para o plano (seção 6, item 32).]**
 
 **Modelos avaliados**:
 - GPT-5.4-mini (OpenAI, API) — `reasoning_effort: medium`, saída travada em JSON
-  (`strict: true`), sem retenção de histórico (`store: false`). **[PENDENTE — fora do
-  escopo de `003-slm-test-generation`; especificado em módulo futuro.]**
+  (`strict: true`), sem retenção de histórico (`store: false`), temperatura no padrão da API.
+  **[EM ESPECIFICAÇÃO, 2026-10-13 — `specs/004-llm-test-generation/spec.md`.]**
 - Gemini 3.5 Flash (Google, API) — `thinking_level: medium`, `generateContent`
-  (stateless nativo), saída `mimeType: application/json`. **[PENDENTE — idem.]**
+  (stateless nativo), saída `mimeType: application/json` com schema de resposta, temperatura no
+  padrão da API. **[EM ESPECIFICAÇÃO, 2026-10-13 — idem.]**
 - Qwen2.5-Coder-14B (local, via Ollama: `qwen2.5-coder:14b`, digest `9ec8897f747e…`,
   quantização Q4_K_M, Ollama 0.35.0) **[DECIDIDO, 2026-10-06 — `research.md` R20]**; o
   Qwen2.5-Coder-7B (`qwen2.5-coder:7b`) do texto do TCC foi o modelo só dos pilotos 1 a 3
@@ -1553,6 +1555,26 @@ template confirmados por Milena no mesmo dia]**:
   mesmo digest do modelo, conferidos pelo `--resume`), sem impacto nos resultados. A etiqueta,
   portanto, não distingue as máquinas, e o determinismo entre GPUs não foi medido.
 
+**Particularidade dos LLMs comerciais — oráculo por predição [ESPECIFICADO, 2026-10-13 —
+`specs/004-llm-test-generation/spec.md`, D1 a D6; A1, A2, A4, A5 e A6 decididas no clarify de
+2026-10-13 e A3 pendente para o plano, seção 6, item 32]**:
+GPT-5.4-mini e Gemini 3.5 Flash recebem o mesmo `<context_data>` de cada cenário, o mesmo
+few-shot e as mesmas regras de geração de entradas do prompt principal do SLM, e respondem em JSON
+com schema estrito (`edge_cases_analysis` antes de `tests`, cada teste com `input` e `output`);
+a **única diferença intencional** em relação ao SLM é o oráculo: o próprio modelo prevê a saída
+esperada de cada entrada, sem programa executado e sem validação pelos testes públicos (o
+`AC_ref.cpp` também não é usado). Uma nova tentativa só acontece por falha de formato (resposta
+vazia, não JSON, fora do schema, cortada pelo teto de saída, recusa ou bloqueio, ou nenhum teste
+utilizável), até **3 tentativas**; esgotadas, a combinação aguarda os autores e só fecha como
+`discarded_manual` com motivo; falha de infraestrutura (rede, rate limit, 5xx) é repetida sem
+contar. Cada entrada tem no máximo cerca de 50 elementos e 20 linhas, o mesmo limite do prompt
+principal do SLM. A suíte é gravada no mesmo `suite.json` do SLM, com o status
+`accepted_predicted` (seção 6, item 31), para a avaliação ler os 3 modelos do mesmo jeito; o
+código fica em `src/ai_clients/`. Toda chamada registra tokens, custo estimado e tempo; um dry-run estima o custo antes, e
+nenhuma chamada paga sai sem confirmação explícita a cada invocação. Limitações: as respostas não
+são reproduzíveis bit a bit, e o provedor pode trocar a versão do modelo (cada tentativa grava o
+identificador devolvido pela API).
+
 **Template de prompt**: estrutura única em inglês, com marcação XML (`<system_rules>`,
 `<context_data>`, `<few_shot_example>`, `<task>`), combinando Few-Shot Prompting +
 Chain-of-Thought. Antes de gerar os testes, o modelo é obrigado a preencher um campo
@@ -1738,7 +1760,25 @@ diretamente ao objetivo específico de mapear desempenho por categoria algorítm
     `accepted_low_confidence` foi SUBSTITUÍDA em 2026-10-06 por R21/R22: a baixa confiança deixou
     de existir na política de 5 fases; continua valendo: `accepted_fallback` como `accepted`,
     `accepted_predicted` separada.]** O relatório da geração já conta cada status à parte
-    (execução completa: 505 / 93 / 2).
+    (execução completa: 505 / 93 / 2). **[Reescrito em 2026-10-13 — `specs/004-llm-test-generation/`,
+    A6]**: `accepted_predicted` passa a ser também o status de **toda** suíte dos LLMs
+    comerciais, e o status diz a origem da saída esperada com o mesmo significado nos 3
+    modelos (`accepted`/`accepted_fallback` = calculada por um programa; `accepted_predicted`
+    = escrita pelo modelo). Nas métricas, a comparação é **por modelo**, sem tratar esse status
+    como exceção; só **dentro do SLM** as 2 suítes previstas ficam separadas das calculadas.
+32. **[DECIDIDO EM PARTE, 2026-10-13 — `/speckit-clarify` de `specs/004-llm-test-generation/`]**
+    Decisões do módulo dos LLMs comerciais: **A1** 3 tentativas por falha de formato; esgotadas,
+    a combinação aguarda os autores (código de saída próprio, pacote recusado) e só fecha como
+    `discarded_manual` com motivo, como no SLM; **A2** cada entrada com no máximo cerca de 50
+    elementos e 20 linhas, o mesmo do prompt principal do SLM, sem número fixo de testes (o
+    tamanho das entradas não é diferença entre os modelos; item 26 continua pendente para o
+    tamanho da suíte); **A4** o código fica em `src/ai_clients/`, com os comandos existentes
+    escolhendo o modelo e uma pasta por modelo em `data/suites/`; **A5** chamadas simultâneas
+    dentro de um processo, em número configurável por modelo no `.env` (padrão 4, ajustado
+    depois do piloto), trava por combinação, HTTP 429 como falha de infraestrutura com espera
+    crescente e respeito ao tempo indicado pela API; **A6** `accepted_predicted` em toda suíte
+    dos LLMs (item 31 reescrito). **[PENDENTE — `/speckit-plan`]** **A3** o que registrar quando
+    a API não aceita seed ou temperatura (depende da documentação oficial de cada API).
 4. ~~**[PROPOSTA]** Extrair dos três splits combinados~~ — **RESOLVIDO** (ver 1.1).
 5. ~~**[PROPOSTA]** Adicionar `is_description_translated == false` como critério de
    elegibilidade~~ — **RESOLVIDO** (ver 1.2).
@@ -1829,11 +1869,13 @@ e da execução completa do SLM, de 2026-10-04 a 2026-10-11, R13 a R28 (itens 28
 
 Registro datado de cada atualização, para conduzir a revisão do texto escrito do TCC
 (Constitution, princípio XI). Origem: `specs/001-dataset-extraction/` (spec, plano, pesquisa),
-`specs/002-mutant-generation/` (a partir de 2026-09-23) e `specs/003-slm-test-generation/`
-(a partir de 2026-09-29).
+`specs/002-mutant-generation/` (a partir de 2026-09-23), `specs/003-slm-test-generation/`
+(a partir de 2026-09-29) e `specs/004-llm-test-generation/` (a partir de 2026-10-13).
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-10-13 | **Clarify dos LLMs comerciais (`specs/004-llm-test-generation/spec.md`, Clarifications)**: A1 — 3 tentativas por falha de formato; esgotadas, a combinação aguarda os autores e só fecha como `discarded_manual` com motivo; A2 — entradas com no máximo cerca de 50 elementos e 20 linhas, o mesmo do prompt principal do SLM, sem número fixo de testes; A4 — código em `src/ai_clients/`, com escolha do modelo nos comandos existentes; A5 — chamadas simultâneas configuráveis por modelo (padrão 4), trava por combinação, 429 como falha de infraestrutura; A6 — `accepted_predicted` em toda suíte dos LLMs, com o item 31 reescrito (comparação por modelo; só dentro do SLM as previstas ficam separadas). A3 (seed e temperatura) fica para o plano | 3, 6 |
+| 2026-10-13 | **Spec dos LLMs comerciais (`/speckit.specify` de `004-llm-test-generation`, Draft)**: GPT-5.4-mini e Gemini 3.5 Flash, 200 problemas × 3 cenários × 2 modelos (1.200 combinações); oráculo por predição como única diferença intencional em relação ao SLM (mesmo `<context_data>`, few-shot e regras de entrada do prompt principal do SLM; D1); novas tentativas só por falha de formato, sem validação pelos testes públicos (D2); temperatura no padrão de cada API e esforço de raciocínio `medium` (D3); mesmo `suite.json` do SLM (D4); dry-run de custo e confirmação explícita a cada invocação (D5); few-shot e versionamento como no SLM (D6). Seis decisões abertas para o clarify (A1 a A6, seção 6, item 32) | 3, 6 |
 | 2026-10-11 | **Pacote do SLM gerado e módulo `ai_clients` (modelo local) fechado (`research.md` R28)**: `python -m ai_clients package` sobre o código de `f43d95c` gerou `data/slm_suites.zip` (6.597.040 bytes, SHA-256 `b73d27507f74…`, 4.850 arquivos: as 600 combinações, o `run.json`, a troca de template `001` e os 3 arquivos de `superseded/001/`), `manifests/slm_suites.manifest.json` e o relatório final (commit `c967f97`); `verify --extracted data/suites/slm` `OK`; `cli check --deep` `OK` sem aviso (SHA-256 dos 4.850 arquivos e do zip conferido); suíte completa `1498 passed`; quickstart validado; Constitution Check refeito; `check_docs_sync.py --closing` do módulo e da feature sem achados; código gerado com apoio de IA revisado por Milena em 2026-10-11. README do módulo `implementado` e spec `Implemented` | 3, 8 |
 | 2026-10-11 | **Fechamento da documentação do SLM**: seção 3 reescrita com o desenho final no texto principal (modelo `qwen2.5-coder:14b` no lugar do 7B, que fica só como histórico dos pilotos 1 a 3; política de 5 fases com os status e as 4 razões de falha; `cli check` até 15 tentativas); promessas "medir no piloto" fechadas com os valores medidos (maior `prompt_eval_count` 2.499; chamada mais longa 446 s, contada nos arquivos de tentativa, pois o relatório só traz a soma; `runtime_error` 282 sem separar RE de MLE, por não ser separado no relatório; `Ctrl+C`/`--resume` com o Ollama real observado: 44 interrupções nos logs, estado final sem perda nem dano); regras anteriores marcadas como substituídas, não apagadas. **Correção do motivo da troca de template**: o `reason` de `template_changes/001.json` estava gravado por engano como `"..."` e foi reescrito antes do `package` (só esse campo, conferido pelo schema, gravação atômica, demais campos iguais; nenhum hash dependia dele); `report` refeito. **Nota de hardware (decisão de Milena)**: os arquivos não mudam; as 2.185 chamadas têm a etiqueta "GPU T4 - Google Colab, 16GB RAM", mas parte rodou no Kaggle (2×T4, mesmo modelo de GPU, mesma versão do Ollama e mesmo digest), sem impacto nos resultados. Seção 6: itens 2, 26 e 31 atualizados; seção 7: itens 28/29 atualizados para o desenho final, item 30 duplicado renumerado (31) e itens 32–40 novos; relatórios dos pilotos 2 e 3 versionados em `manifests/` | 0, 3, 6, 7, 8 |
 | 2026-10-11 | **Execução completa do SLM terminada (`research.md` R28; `manifests/slm_generation_report.json`)**: continuação da execução do piloto 6 (primeira chamada 2026-10-06T23:40:40Z, última 2026-10-09T17:40:40Z), `qwen2.5-coder:14b` digest `9ec8897f…`, Ollama 0.35.0, templates `fc9757e8…` (solução) e `421adf86…` → `e52133f6…` (predição). **600 de 600 com suíte**: 505 `accepted` (84,2%), 93 `accepted_fallback` (15,5%; 65 na caixa-preta), 2 `accepted_predicted` (`939_C` caixa-preta, `237_A` caixa-branca), 0 `discarded_manual`, 0 aguardando (o `close` não foi necessário). Fases: 480 / 25 / 93 / 2 (355 na tentativa 1). 2.185 chamadas, 1.678 falhas (76,8%: `public_test_failed` 1.554, `unparseable_response` 102, `repetition` 21, `all_inputs_failed` 1); 77 cortadas por `length`; entradas descartadas: `runtime_error` 282, `timeout` 47; maior `prompt_eval_count` 2.499; ≈ 37,5 h de modelo (tempo de relógio não medido); suítes com mediana 10. Uma troca de template (2026-10-08, `939_C` caixa-preta refeita: tentativa 13 de novo até o teto, 15 aceita com 10 testes). `cli check` OK; `package`, `verify --extracted` e `cli check --deep` pendentes | 3, 6, 7 |

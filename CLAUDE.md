@@ -22,7 +22,7 @@ TCC de dupla — Milena e Rafael, UnB.
 - `src/dataset/` — extração e validação do dataset (code_contests)
 - `src/mutation/` — geração de mutantes
 - `src/ai_clients/` — suítes de teste do modelo local (SLM, Qwen2.5-Coder-14B via Ollama); os
-  clientes dos 2 modelos comerciais ainda sem especificação
+  clientes dos 2 modelos comerciais em especificação (`specs/004-llm-test-generation/`)
 - `src/prompt_templates/` — texto-base dos pedidos ao SLM (solução e predição)
 - `src/sandbox/` — compilação e execução isolada em C++
 - `src/metrics/` — TDF, MS, TFP, IIC
