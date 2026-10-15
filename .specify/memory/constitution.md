@@ -1,3 +1,10 @@
+<!-- Sync Impact Report
+Version: 1.7.0 → 1.7.1 (PATCH: troca de nome, sem mudança de regra)
+Princípio modificado: III (Isolamento Sem Estado) — só o nome do modelo
+Seções adicionadas/removidas: nenhuma
+Templates: nenhum precisa de mudança
+TODOs: nenhum
+-->
 # Geração de Casos de Teste com Modelos de Linguagem (TCC) Constitution
 
 ## Contexto do Projeto
@@ -85,7 +92,7 @@ comando no mesmo ciclo de trabalho em que é implementado.
 
 ### III. Isolamento Sem Estado nas Chamadas de IA
 
-Nenhuma chamada aos modelos (GPT-5.4-mini, Gemini 3.5 Flash, Qwen2.5-Coder)
+Nenhuma chamada aos modelos (GPT-5.4-mini, Gemini 3.8 Flash, Qwen2.5-Coder)
 pode reter histórico de chamadas anteriores. Cada requisição MUST ser
 autocontida, conforme exigido pela metodologia — isso é regra de arquitetura
 do código, não só de configuração de prompt.
@@ -302,6 +309,11 @@ Este documento tem precedência sobre decisões pontuais de implementação.
   (Princípio XI). Qualquer violação intencional MUST ser justificada por
   escrito na feature correspondente.
 - **Histórico de emendas**:
+  - 1.7.1 (2026-10-15) — Princípio III, só de nome: "Gemini 3.5 Flash" passa a
+    "Gemini 3.8 Flash". Nenhuma regra muda. Justificativa: o Google descontinuou o
+    `gemini-3.5-flash` em 2026-10-08, e os autores escolheram o Flash GA mais
+    recente em vez do 3.6 "previous-generation" (`specs/004-llm-test-generation/
+    research.md`, A3; metodologia, seção 7, item 41).
   - 1.7.0 (2026-09-25) — Princípios II e XI. II: a coerência entre os artefatos
     (dataset descompactado × mutantes, 1:1, com todos os arquivos de cada
     problema) passa a ser conferida por um comando próprio, `python -m cli
@@ -418,4 +430,4 @@ Este documento tem precedência sobre decisões pontuais de implementação.
     ajustada para admitir essa exceção.
   - 1.0.0 (2026-09-18) — Ratificação inicial.
 
-**Version**: 1.7.0 | **Ratified**: 2026-09-18 | **Last Amended**: 2026-09-25
+**Version**: 1.7.1 | **Ratified**: 2026-09-18 | **Last Amended**: 2026-10-15

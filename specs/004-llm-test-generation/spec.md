@@ -55,6 +55,25 @@ escopo: o SLM, a execução das suítes contra AC/WA/mutantes e o cálculo das m
   ao tempo de espera indicado pela API; os dois modelos podem rodar ao mesmo tempo, em processos
   separados (A5; FR-012, FR-024).
 
+### Session 2026-10-15
+
+- Q: As suítes dos dois LLMs comerciais viram um pacote único ou um pacote por modelo? → A: Um
+  pacote por modelo, cada um com manifesto e relatório próprios; o pacote de um modelo só é
+  recusado pelas combinações pendentes desse modelo, e o pacote do SLM não muda (FR-026, FR-029).
+- Q: A geração tem um teto de gasto que interrompe a execução quando o custo acumulado passa de
+  um valor? → A: Sim, teto obrigatório por invocação, informado junto com a confirmação; ao
+  atingi-lo nenhuma chamada nova sai, as já enviadas terminam e são gravadas, o comando sai com
+  código próprio e a retomada continua de onde parou (FR-022a).
+- Q: As respostas pagas do piloto podem ser aproveitadas na execução completa? → A: Não; o
+  piloto é uma execução separada, com relatório próprio versionado como registro do piloto, e a
+  execução completa começa do zero, como nos pilotos 1 a 5 do SLM; o piloto 6 do SLM foi a
+  exceção e entrou na execução final (metodologia, seção 7, item 40) (FR-023a; Assumptions,
+  "Piloto").
+- Q: O schema de saída deve ter, em cada teste, um campo para o modelo escrever o cálculo da
+  saída esperada? → A: Não; o cálculo passo a passo fica no raciocínio interno do modelo
+  (esforço `medium`), e o schema continua `edge_cases_analysis` + `tests[{input, output}]`
+  (FR-004, FR-007).
+
 ## Decisões em aberto (para o `/speckit-clarify`)
 
 Os autores pediram que estes pontos sejam decididos no `/speckit-clarify`, e não nesta
@@ -62,7 +81,10 @@ especificação. Os requisitos abaixo já os citam pelo rótulo (A1 a A6) no lug
 decisão entra; a sugestão de cada um é só um ponto de partida para a conversa. As decididas ficam
 marcadas e registradas em Clarifications. Situação depois do clarify de 2026-10-13: A1, A2, A4,
 A5 e A6 decididas; A3 adiada para o planejamento técnico, porque depende do que a documentação
-oficial de cada API diz sobre seed e temperatura (`research.md`).
+oficial de cada API diz sobre seed e temperatura (`research.md`). O clarify de 2026-10-15
+levantou e decidiu mais quatro pontos (A7 a A10), que não estavam na lista dos autores, e os
+autores decidiram a A3 no mesmo dia, depois de conferida a documentação oficial (`research.md`,
+A3). Nenhuma decisão em aberto.
 
 - **A1 — Limite de tentativas por falha de formato e o que acontece ao esgotar** — **DECIDIDA
   em 2026-10-13**: 3 tentativas; ao esgotar, aguardar os autores e fechamento manual com motivo
@@ -71,12 +93,18 @@ oficial de cada API diz sobre seed e temperatura (`research.md`).
   principal do SLM ("at most about 50 elements and 20 lines"), sem número fixo de testes; o
   limite do template de predição do SLM (10 elementos e 10 linhas, 5 a 12 testes) foi rejeitado
   porque mudaria as entradas entre os modelos.
-- **A3 — Reprodutibilidade quando a API não aceita seed ou temperatura** (FR-019) — **ADIADA
-  para o `/speckit-plan`** (depende da documentação oficial de cada API). Sugestão:
-  gravar todos os parâmetros enviados, o identificador do modelo devolvido pela API, o
-  identificador da resposta e qualquer impressão digital de versão que a API devolva; seed só
-  quando a API a aceitar, com o mesmo esquema de seeds do SLM; registrar a não reprodutibilidade
-  como limitação.
+- **A3 — Reprodutibilidade sem seed nem temperatura** (FR-003, FR-019) — **DECIDIDA em
+  2026-10-15 pelos autores** (`research.md`, A3, com as fontes oficiais): nenhum dos dois modelos
+  recebe seed, temperatura ou outro parâmetro de amostragem. O GPT é chamado pelo snapshot datado
+  `gpt-5.4-mini-2026-03-17`, na Responses API, com `store: false`, `reasoning.effort: "medium"`
+  enviado explicitamente (o padrão do modelo é `none`) e `text.format` `json_schema` com
+  `strict: true`. O Gemini é chamado como `gemini-3.8-flash`, por `generateContent`, com
+  `thinking_level: "medium"` enviado explicitamente, sem temperatura e com saída JSON com schema.
+  O `gemini-3.5-flash` do desenho aprovado foi descontinuado em 2026-10-08. Entre os substitutos,
+  os autores escolheram o 3.8 Flash, GA e o Flash mais recente, em vez do 3.6, que o Google
+  descreve como "previous-generation" (revisto no mesmo dia; o 3.6 foi a primeira escolha). Cada
+  tentativa grava o modelo e a versão devolvidos, os parâmetros enviados e a resposta crua; a não
+  reprodutibilidade bit a bit é limitação declarada.
 - **A4 — Onde o código fica** — **DECIDIDA em 2026-10-13**: dentro de `src/ai_clients/`,
   reaproveitando a leitura do problema, a composição do prompt, o schema da suíte, as travas, o
   relatório, o pacote, o `close` e o `change-template` do SLM (FR-029).
@@ -89,6 +117,15 @@ oficial de cada API diz sobre seed e temperatura (`research.md`).
   LLMs; o status diz a origem da saída esperada, com o mesmo significado nos 3 modelos, e a
   regra das métricas (metodologia, seção 6, item 31) é reescrita para não tratar esse status como
   exceção ao comparar modelos.
+- **A7 — Pacote único ou por modelo** — **DECIDIDA em 2026-10-15**: um pacote por modelo, com
+  manifesto e relatório próprios; as pendências de um modelo não bloqueiam o pacote do outro
+  (FR-026).
+- **A8 — Teto de gasto** — **DECIDIDA em 2026-10-15**: obrigatório por invocação, junto com a
+  confirmação; ao atingi-lo nenhuma chamada nova sai e o comando sai com código próprio (FR-022a).
+- **A9 — Piloto aproveitado ou descartado** — **DECIDIDA em 2026-10-15**: descartado; a execução
+  completa começa do zero e só o relatório do piloto é versionado (FR-023a).
+- **A10 — Campo de cálculo por teste no schema** — **DECIDIDA em 2026-10-15**: não há; o cálculo
+  da saída fica no raciocínio interno do modelo (FR-004, FR-007).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -103,7 +140,7 @@ oficial de cada API diz sobre seed e temperatura (`research.md`).
 ### User Story 1 - Gerar a suíte de uma combinação com um modelo comercial (Priority: P1)
 
 Para um problema, um cenário (caixa-preta: só `enunciado.md`; caixa-branca: só `AC_ref.cpp`;
-híbrido: os dois) e um modelo (GPT-5.4-mini ou Gemini 3.5 Flash), os autores disparam a geração,
+híbrido: os dois) e um modelo (GPT-5.4-mini ou Gemini 3.8 Flash), os autores disparam a geração,
 que envia uma única chamada *stateless* com o prompt do experimento, recebe uma resposta em JSON
 com a análise de casos-limite e a lista de testes (entrada e saída esperada prevista pelo modelo),
 persiste a resposta crua e grava a suíte no mesmo formato de `suite.json` do SLM.
@@ -156,8 +193,13 @@ e conferir que ela recusa sem chamar a API.
    suposição de tokens de saída usada e o custo estimado por modelo e no total, sem nenhuma chamada
    paga.
 2. **Given** uma geração que faria chamadas pagas, **When** ela é disparada sem a confirmação
-   explícita, **Then** ela recusa antes da primeira chamada e diz como confirmar.
-3. **Given** uma chamada concluída, **When** ela é registrada, **Then** o registro tem os tokens de
+   explícita ou sem o teto de gasto, **Then** ela recusa antes da primeira chamada e diz como
+   confirmar e informar o teto.
+3. **Given** uma geração confirmada com um teto de gasto, **When** o custo acumulado da
+   invocação atinge o teto, **Then** nenhuma chamada nova é enviada, as já em andamento terminam
+   e são gravadas, o comando sai com o código próprio do teto mostrando o gasto, e uma nova
+   invocação com `--resume` continua de onde parou.
+4. **Given** uma chamada concluída, **When** ela é registrada, **Then** o registro tem os tokens de
    entrada (e os servidos de cache, quando a API informar), os de saída (e os de raciocínio, quando
    a API informar), o custo estimado pela tabela de preços da execução e o tempo de resposta.
 
@@ -194,7 +236,7 @@ sem interrupção, sem arquivo duplicado ou parcial e sem chamada repetida de te
 
 Ao final da execução completa, os autores precisam de um relatório versionado com os números da
 geração por modelo, cenário e status (tokens, custo, tempo, tamanho das suítes, falhas por razão),
-de um pacote único com manifesto de integridade, e de a conferência entre artefatos do projeto
+de um pacote por modelo com manifesto de integridade, e de a conferência entre artefatos do projeto
 (`python -m cli check`) cobrir também as suítes dos LLMs.
 
 **Why this priority**: é o mesmo fechamento já exigido do SLM; sem relatório os números do TCC não
@@ -211,8 +253,9 @@ faltando ou sobrando é apontada pelo `check`.
    e por cenário, a contagem por status, as tentativas por razão de falha, a distribuição do
    tamanho das suítes, os tokens (entrada, cache, saída, raciocínio), o custo estimado e o tempo,
    e os identificadores de modelo efetivamente devolvidos pela API.
-2. **Given** uma execução com alguma combinação aguardando os autores, **When** o pacote é pedido,
-   **Then** ele é recusado e lista as combinações pendentes.
+2. **Given** uma execução de um modelo com alguma combinação desse modelo aguardando os autores,
+   **When** o pacote desse modelo é pedido, **Then** ele é recusado e lista as combinações
+   pendentes; o pacote do outro modelo, sem pendências, é gerado normalmente.
 3. **Given** suítes dos LLMs descompactadas, **When** `python -m cli check` roda, **Then** ele
    confere que cada um dos 200 problemas tem exatamente 3 cenários × 2 modelos, sem sobrar nem
    faltar, e em modo `--deep` que cada `suite.json` segue o schema.
@@ -247,8 +290,11 @@ faltando ou sobrando é apontada pelo `check`.
   execução não para (a mudança fica registrada como limitação).
 - **Configuração mudou entre uma rodada e a retomada** (modelo pedido, esforço de raciocínio,
   teto de saída, template, schema, limite de tentativas, dataset): a retomada recusa e lista o que
-  mudou, como o `--resume` do SLM; tabela de preços e opções de espera e paralelismo podem mudar
-  sem recusa, porque não mudam as respostas.
+  mudou, como o `--resume` do SLM; tabela de preços, teto de gasto e opções de espera e
+  paralelismo podem mudar sem recusa, porque não mudam as respostas.
+- **Teto de gasto atingido no meio da execução**: nenhuma chamada nova sai; as em andamento
+  terminam e são gravadas (o gasto pode passar um pouco do teto, e o excesso é mostrado); o comando
+  sai com código próprio e a retomada continua com um teto novo (FR-022a).
 - **Dataset local ausente ou diferente do manifesto**: a geração recusa antes de qualquer chamada,
   como no SLM.
 - **Chave de API presente só para um dos modelos**: o modelo sem chave não roda; o outro roda
@@ -259,23 +305,30 @@ faltando ou sobrando é apontada pelo `check`.
 ### Modelos e chamadas
 
 - **FR-001**: O sistema MUST, para cada um dos 200 problemas do dataset, cada um dos 3 cenários e
-  cada um dos 2 modelos comerciais (GPT-5.4-mini, pela API da OpenAI; Gemini 3.5 Flash, pela API do
-  Google), fazer chamadas até obter uma suíte ou esgotar as 3 tentativas de FR-015 — 1.200
-  combinações.
+  cada um dos 2 modelos comerciais (GPT-5.4-mini, pela API da OpenAI; Gemini 3.8 Flash, pela API do
+  Google, no lugar do Gemini 3.5 Flash do desenho do TCC, descontinuado; A3), fazer chamadas até
+  obter uma suíte ou esgotar as 3 tentativas de FR-015 — 1.200 combinações.
 - **FR-002**: Cada chamada MUST ser uma única requisição autocontida, sem histórico de nenhuma
   chamada anterior e sem estado guardado pelo provedor: na OpenAI, sem armazenamento da resposta
   (`store: false`) e sem referência a resposta anterior; no Gemini, uma chamada `generateContent`
   de um turno só, sem sessão de chat nem conteúdo em cache criado pelo pipeline (Constitution,
   Princípio III).
-- **FR-003**: Cada modelo MUST ser chamado com esforço de raciocínio `medium` (`reasoning_effort`
-  na OpenAI, `thinking_level` no Gemini) e com a temperatura no padrão da API (o parâmetro não é
-  enviado). O identificador pedido de cada modelo MUST ser o mais específico que o provedor
-  oferecer (versão datada quando existir, nunca um apelido que o provedor move sem aviso, se houver
-  alternativa) e MUST ficar na configuração da execução.
-- **FR-004**: A saída MUST ser pedida em JSON com schema estrito (Structured Outputs com
-  `strict: true` na OpenAI; tipo `application/json` com schema de resposta no Gemini), o mesmo
+- **FR-003**: Cada modelo MUST ser chamado com esforço de raciocínio `medium` **enviado
+  explicitamente** (`reasoning.effort` na Responses API da OpenAI, cujo padrão para o modelo é
+  `none`; `thinking_level` no Gemini) e MUST NOT receber seed, temperatura nem outro parâmetro de
+  amostragem (`temperature`, `top_p`, `top_k`, `seed`); a temperatura fica no padrão de cada API
+  (A3, decidida em 2026-10-15). O identificador pedido de cada modelo MUST ser o mais específico
+  que o provedor oferecer e MUST ficar na configuração da execução: `gpt-5.4-mini-2026-03-17`
+  (snapshot datado, nunca o apelido `gpt-5.4-mini`) e `gemini-3.8-flash`. O Google não oferece
+  versão datada do 3.8 Flash, então a versão que respondeu é conhecida pelo `modelVersion` gravado
+  em cada tentativa (FR-011). O 3.8 Flash substitui o `gemini-3.5-flash`, descontinuado, por ser o
+  Flash GA mais recente; o `gemini-3.6-flash`, para onde o 3.5 é redirecionado, é descrito pelo
+  Google como "previous-generation".
+- **FR-004**: A saída MUST ser pedida em JSON com schema estrito (`text.format` do tipo
+  `json_schema` com `strict: true` na OpenAI; `responseMimeType: application/json` com schema de
+  resposta no Gemini), o mesmo
   schema nos 2 modelos: um campo `edge_cases_analysis` (texto) antes de um campo `tests` (lista de
-  objetos com `input` e `output`, ambos texto).
+  objetos com `input` e `output`, ambos texto, sem nenhum outro campo).
 - **FR-005**: As chaves de API MUST ficar só no `.env` (nunca no Git, nem na imagem Docker, nem em
   arquivo gravado pelo pipeline, nem em log); `.env.example` MUST documentar as variáveis novas sem
   valor.
@@ -296,7 +349,9 @@ faltando ou sobrando é apontada pelo `check`.
   elementos e 20 linhas (o mesmo texto do SLM; A2, decidida em 2026-10-13), sem número fixo de
   testes. A
   única parte diferente é a do oráculo: o modelo escreve a saída esperada exata de cada entrada,
-  no formato exigido, calculada passo a passo antes de escrevê-la.
+  no formato exigido, calculada passo a passo antes de escrevê-la. Esse cálculo acontece no
+  raciocínio interno do modelo (FR-003), não na resposta: o schema MUST NOT ter campo de cálculo
+  ou justificativa por teste (decidido em 2026-10-15).
 - **FR-008**: O prompt MUST exigir a análise de casos-limite (`edge_cases_analysis`) antes dos
   testes, com as mesmas instruções do STEP 1 do SLM (reescrever formato de entrada e restrições,
   a regra que define a resposta correta com suas fronteiras, e conferir o exemplo à mão); a ordem
@@ -314,7 +369,8 @@ faltando ou sobrando é apontada pelo `check`.
   nunca exija chamar a API de novo.
 - **FR-011**: Cada tentativa MUST registrar: problema, cenário, modelo pedido, identificador do
   modelo devolvido pela API, identificador da resposta, número da tentativa, hash do prompt e do
-  texto-base, parâmetros enviados, seed (quando enviada, A3), motivo de término informado pela API,
+  texto-base, todos os parâmetros efetivamente enviados (sem seed; A3), motivo de término
+  informado pela API,
   tokens de entrada, de cache, de saída e de raciocínio (os que a API informar), custo estimado,
   tempo de resposta e o resultado da interpretação.
 - **FR-012**: O pipeline MUST poder ser interrompido e retomado a qualquer momento sem duplicar nem
@@ -368,9 +424,10 @@ faltando ou sobrando é apontada pelo `check`.
 
 - **FR-019**: A configuração de cada execução (modelos pedidos, parâmetros, schema, hash do
   texto-base, limite de tentativas, teto de saída, hash do manifesto do dataset) MUST ficar num
-  arquivo da execução por modelo, comparado pela retomada. A seed é enviada e registrada quando a
-  API a aceitar; o que registrar quando ela não aceitar seed ou temperatura é decidido no
-  planejamento técnico (A3, adiada). A não reprodutibilidade bit a bit das respostas e a possível
+  arquivo da execução por modelo, comparado pela retomada. Não há seed (A3, decidida em
+  2026-10-15): a proveniência de cada resposta é o identificador do modelo e da versão devolvidos
+  pela API (`model` na OpenAI, `modelVersion` no Gemini), os parâmetros enviados e a resposta crua,
+  gravados em cada tentativa (FR-010, FR-011). A não reprodutibilidade bit a bit das respostas e a possível
   troca de versão do modelo pelo provedor MUST ficar registradas como limitações (Assumptions e
   metodologia).
 - **FR-020**: Toda chamada MUST registrar tokens consumidos, custo estimado e tempo de resposta
@@ -386,9 +443,25 @@ faltando ou sobrando é apontada pelo `check`.
   executa, dada a cada invocação (nunca guardada de uma rodada para outra); sem ela, o comando
   recusa antes da primeira chamada. Uma restrição de escopo (`--problem`, `--scenario`, modelo,
   limite de combinações) MUST valer também para a estimativa mostrada antes da confirmação.
+- **FR-022a**: Toda invocação que faz chamadas pagas MUST receber, junto com a confirmação, um
+  teto de gasto em dólares para aquela invocação (decidido em 2026-10-15); sem o teto, o comando
+  recusa antes da primeira chamada, como sem a confirmação. O gasto acumulado é a soma dos custos
+  estimados (FR-020) das chamadas concluídas na invocação. Ao atingir ou passar o teto, o sistema
+  MUST NOT enviar nenhuma chamada nova; as chamadas já enviadas (FR-024) terminam e são gravadas
+  normalmente, por isso o gasto final pode passar do teto em até o custo dessas chamadas em
+  andamento, e esse excesso MUST ser mostrado. O comando então sai com um código de saída próprio,
+  diferente do de combinações aguardando os autores e do de erro de infraestrutura, informando o
+  gasto da invocação; a retomada continua de onde parou, com um teto novo. O teto MUST NOT entrar
+  na comparação da retomada, porque não muda as respostas.
 - **FR-023**: O teto de tokens de saída de cada modelo MUST ser fixo e gravado na configuração; o
   valor é fixado no planejamento técnico, a partir de medição num piloto pequeno, grande o bastante
   para o raciocínio e a resposta das maiores combinações.
+- **FR-023a**: O piloto MUST ser uma execução separada da execução completa (decidido em
+  2026-10-15): suas respostas MUST NOT ser reaproveitadas na execução completa, mesmo que a
+  configuração não tenha mudado, e a execução completa MUST começar do zero, com uma única
+  configuração para as 1.200 combinações. O relatório do piloto MUST ser versionado como registro
+  do piloto (como os relatórios dos pilotos do SLM); as respostas do piloto não entram no pacote
+  (FR-026).
 - **FR-024**: Um processo de geração MUST poder fazer chamadas simultâneas a um modelo, em número
   configurável por modelo no `.env` (padrão 4, ajustado depois do piloto; A5, decidida em
   2026-10-13), cada chamada de uma combinação diferente, protegida pela trava exclusiva por
@@ -406,11 +479,13 @@ faltando ou sobrando é apontada pelo `check`.
   respostas cortadas pelo teto; os tokens (entrada, cache, saída, raciocínio); o custo estimado; o
   tempo total e por chamada; e os identificadores de modelo devolvidos pela API.
 - **FR-026**: Ao final da execução completa que sustenta os números publicados, o sistema MUST
-  poder compactar as suítes dos LLMs (respostas cruas, metadados de cada tentativa, `suite.json`,
-  configuração das execuções) num pacote com manifesto SHA-256 próprio, no mesmo formato do dataset,
-  dos mutantes e das suítes do SLM; o pacote MUST ser recusado enquanto alguma combinação aguardar
-  os autores. Um comando de verificação MUST conferir o pacote e, opcionalmente, a pasta
-  descompactada contra o manifesto.
+  poder compactar as suítes de **cada modelo comercial separadamente** (respostas cruas, metadados
+  de cada tentativa, `suite.json`, configuração da execução) num pacote por modelo, cada um com
+  manifesto SHA-256 e relatório próprios, no mesmo formato do dataset, dos mutantes e das suítes do
+  SLM (decidido em 2026-10-15); o pacote de um modelo MUST ser recusado enquanto alguma combinação
+  **desse modelo** aguardar os autores, e as pendências de um modelo MUST NOT bloquear o pacote do
+  outro. O pacote do SLM não é refeito. Um comando de verificação MUST conferir o pacote de um
+  modelo e, opcionalmente, a pasta descompactada contra o manifesto dele.
 - **FR-027**: O `python -m cli check` MUST ganhar a camada das suítes dos LLMs: 200 problemas ×
   3 cenários × 2 modelos, 1:1 com o dataset, sem sobrar nem faltar; em `--deep`, cada `suite.json`
   e cada tentativa validados pelo schema (Constitution, Princípio II;
@@ -464,6 +539,9 @@ faltando ou sobrando é apontada pelo `check`.
   o custo total do relatório é exatamente a soma dos custos das chamadas.
 - **SC-004**: Zero chamadas pagas acontecem sem confirmação explícita (verificado por teste: sem a
   confirmação, nenhuma requisição sai), e o dry-run nunca faz chamada paga.
+- **SC-004a**: Nenhuma chamada é enviada depois que o gasto acumulado da invocação atinge o teto
+  (verificado por teste com API simulada e preços artificiais); o gasto final passa do teto em, no
+  máximo, o custo das chamadas que já estavam em andamento.
 - **SC-005**: Interromper e retomar em qualquer ponto não refaz nenhuma tentativa já gravada, não
   deixa arquivo parcial e produz as mesmas suítes que uma execução sem interrupção daria a partir
   das mesmas respostas gravadas; só uma chamada em andamento no momento da interrupção pode ser
@@ -492,9 +570,12 @@ faltando ou sobrando é apontada pelo `check`.
   conteúdo de uma chamada para outra (cada resposta depende só do seu próprio prompt), então não
   fere o isolamento de FR-002; os tokens servidos de cache são registrados por causa do custo.
 - **Nomes e preços dos modelos**: `GPT-5.4-mini` e `Gemini 3.5 Flash` são os modelos do desenho do
-  TCC; o identificador exato de cada API, a disponibilidade de versão datada, a aceitação de seed e
-  os preços vigentes são conferidos na documentação oficial dos provedores no planejamento técnico
-  (`research.md`), nunca supostos.
+  TCC. Conferidos na documentação oficial em 2026-10-15 (`research.md`, A3), os identificadores são
+  `gpt-5.4-mini-2026-03-17` e `gemini-3.8-flash`. O 3.8 Flash substitui o `gemini-3.5-flash`
+  descontinuado: é o Flash GA mais recente, e o 3.6 é "previous-generation". Os preços vigentes da
+  tabela da execução são fixados no planejamento técnico com data e fonte (FR-020), nunca supostos.
+  O preço do 3.8 Flash dobra em 2027-01-01 (fim do preço introdutório); se a execução atravessar
+  essa data, a mudança fica registrada (FR-020).
 - **Onde o código fica**: em `src/ai_clients/` (A4, FR-029), que o README da raiz já apresenta
   como o módulo das chamadas aos 3 modelos; o README do módulo passa a cobrir os 3 modelos.
 - **Sem conferência das saídas previstas**: uma saída prevista errada vira um falso positivo na
@@ -505,7 +586,12 @@ faltando ou sobrando é apontada pelo `check`.
   diferença entre os modelos.
 - **Piloto**: antes da execução completa, um piloto pequeno (por exemplo, os mesmos 5 problemas dos
   pilotos do SLM, nos 3 cenários e 2 modelos) mede tokens de saída, tempo, custo e taxa de falha
-  de formato, e fixa o teto de saída (FR-023); o custo do piloto também passa pela confirmação.
+  de formato, e fixa o teto de saída (FR-023); o custo do piloto também passa pela confirmação e
+  pelo teto de gasto (FR-022a). O piloto é descartado para a execução completa, que começa do
+  zero; só o seu relatório é versionado (FR-023a). O piloto também confere a A3: que toda
+  tentativa do GPT traz tokens de raciocínio maiores que 0 (o `medium` chegou de fato), que o
+  `model` devolvido é o snapshot pedido, e, no Gemini 3.8 Flash, o `modelVersion` devolvido e se
+  o `thoughtsTokenCount` vem maior que 0.
 - **Versionamento**: as suítes dos LLMs seguem a mesma exceção de versionamento do SLM
   (Constitution, Princípio II, emenda 1.6.0): só o pacote da execução final é commitado.
 
@@ -518,8 +604,8 @@ faltando ou sobrando é apontada pelo `check`.
 
 A seção 3 da metodologia dá só a parametrização dos dois modelos comerciais (`reasoning_effort:
 medium`, JSON estrito, `store: false`; `thinking_level: medium`, `generateContent`, JSON) e a marca
-como pendente. Esta especificação preenche as lacunas abaixo; as decisões ainda em aberto estão em
-A1 a A6.
+como pendente. Esta especificação preenche as lacunas abaixo; as decisões tomadas no clarify e
+depois dele estão em A1 a A10.
 
 - **D1 — Oráculo por predição como única diferença intencional (decidido pelos autores)**: as
   regras de entrada, o contexto de cada cenário e o few-shot são os do SLM, e só o oráculo muda
@@ -540,3 +626,14 @@ A1 a A6.
   operacionaliza o Princípio VIII para este módulo.
 - **D6 — Few-shot e versionamento iguais ao SLM (já decididos em 2026-09-29, D2 e D3 do 003)**:
   aplicados aqui como a metodologia já previa.
+- **D7 — Nomes atuais dos parâmetros e troca do Gemini (decidido pelos autores em 2026-10-15,
+  A3)**: os nomes da Tabela 2 do texto do TCC mudaram nas APIs. Na OpenAI, `reasoning_effort`
+  virou `reasoning.effort` (Responses API), e o JSON estrito agora se pede por `text.format`
+  `json_schema` com `strict: true`. No Google, o `Gemini 3.5 Flash` foi descontinuado em
+  2026-10-08 (as chamadas a ele são redirecionadas para o `gemini-3.6-flash`). O modelo pedido
+  passa a ser o `gemini-3.8-flash`, o Flash GA mais recente, porque o 3.6 é descrito pelo Google
+  como "previous-generation" (o 3.6 chegou a ser escolhido e foi revisto no mesmo dia). O
+  `mimeType` do texto é o `responseMimeType`. Também ficam explícitos: o `reasoning.effort`
+  enviado sempre (o padrão do GPT-5.4-mini é `none`), o snapshot datado do GPT e a ausência de
+  seed e temperatura. O texto final do TCC deve trazer os nomes atuais e o modelo efetivamente
+  usado.
