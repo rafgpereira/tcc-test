@@ -137,14 +137,14 @@ def _tree(base: Path) -> list[Path]:
     return found
 
 
-def build_zip(root: Path, zip_path: Path) -> PackageResult:
-    """Build the zip atomically (temporary file + ``os.replace``) from a finished run."""
-    root, zip_path = Path(root), Path(zip_path)
-    statuses = check_finished(root)
-    base = root / config.SUITES_DIR
-    entries: list[tuple[str, Path | None]] = [(f"{config.ZIP_ROOT}/", None)]
+def zip_tree(base: Path, zip_root: str, zip_path: Path) -> int:
+    """Zip every entry of ``base`` under ``zip_root/``, deterministically and atomically (temporary
+    file + ``os.replace``); the size of the zip. The core of every suites package (SLM and the
+    commercial models)."""
+    base, zip_path = Path(base), Path(zip_path)
+    entries: list[tuple[str, Path | None]] = [(f"{zip_root}/", None)]
     for path in _tree(base):
-        name = f"{config.ZIP_ROOT}/{path.relative_to(base).as_posix()}"
+        name = f"{zip_root}/{path.relative_to(base).as_posix()}"
         entries.append((f"{name}/", None) if path.is_dir() else (name, path))
     entries.sort(key=lambda entry: entry[0])
     tmp_path = zip_path.with_name(f".{zip_path.name}.tmp")
@@ -161,15 +161,21 @@ def build_zip(root: Path, zip_path: Path) -> PackageResult:
     except BaseException:
         tmp_path.unlink(missing_ok=True)
         raise
-    size = zip_path.stat().st_size
+    return zip_path.stat().st_size
+
+
+def build_zip(root: Path, zip_path: Path) -> PackageResult:
+    """Build the zip atomically (temporary file + ``os.replace``) from a finished run."""
+    root, zip_path = Path(root), Path(zip_path)
+    statuses = check_finished(root)
+    size = zip_tree(root / config.SUITES_DIR, config.ZIP_ROOT, zip_path)
     return PackageResult(
         zip_path, size, sum(statuses.values()), statuses, size > SIZE_WARNING_BYTES
     )
 
 
-def build_manifest(zip_path: Path) -> SlmSuitesManifest:
-    """Recompute every hash straight from ``zip_path``; never trusts a previous manifest."""
-    zip_path = Path(zip_path)
+def manifest_entries(zip_path: Path) -> list[FileHash]:
+    """The hash and size of every file member of ``zip_path``, sorted by path."""
     entries = []
     with zipfile.ZipFile(zip_path) as archive:
         for info in archive.infolist():
@@ -180,6 +186,13 @@ def build_manifest(zip_path: Path) -> SlmSuitesManifest:
                 FileHash(path=info.filename, size=len(data), sha256=sha256_of_bytes(data))
             )
     entries.sort(key=lambda item: item.path)
+    return entries
+
+
+def build_manifest(zip_path: Path) -> SlmSuitesManifest:
+    """Recompute every hash straight from ``zip_path``; never trusts a previous manifest."""
+    zip_path = Path(zip_path)
+    entries = manifest_entries(zip_path)
     return SlmSuitesManifest(
         slm_suites_zip=FileHash(
             path=config.ZIP_PATH.as_posix(),
@@ -198,7 +211,11 @@ def write_manifest(root: Path, manifest: SlmSuitesManifest) -> Path:
 
 
 def _check_zip(zip_path: Path, manifest: SlmSuitesManifest, result: VerifyResult) -> None:
-    entry = manifest.slm_suites_zip
+    check_zip(zip_path, manifest.slm_suites_zip, manifest.files, result)
+
+
+def check_zip(zip_path: Path, entry: FileHash, files: list[FileHash], result: VerifyResult) -> None:
+    """Compare the zip with its manifest entry and every member with the manifest files."""
     if not zip_path.is_file():
         result.missing.append(entry.path)
         return
@@ -209,7 +226,7 @@ def _check_zip(zip_path: Path, manifest: SlmSuitesManifest, result: VerifyResult
     # was edited (not the zip) is caught as well.
     with zipfile.ZipFile(zip_path) as archive:
         inside = {i.filename: i for i in archive.infolist() if not i.is_dir()}
-        for item in manifest.files:
+        for item in files:
             member = inside.get(item.path)
             if member is None:
                 result.missing.append(item.path)
@@ -218,12 +235,19 @@ def _check_zip(zip_path: Path, manifest: SlmSuitesManifest, result: VerifyResult
                 or sha256_of_bytes(archive.read(member)) != item.sha256
             ):
                 result.changed.append(item.path)
-        result.extra.extend(sorted(set(inside) - {item.path for item in manifest.files}))
+        result.extra.extend(sorted(set(inside) - {item.path for item in files}))
 
 
 def _check_extracted(extracted: Path, manifest: SlmSuitesManifest, result: VerifyResult) -> None:
-    prefix = f"{config.ZIP_ROOT}/"
-    expected = {item.path.removeprefix(prefix): item for item in manifest.files}
+    check_extracted(extracted, manifest.files, config.ZIP_ROOT, result)
+
+
+def check_extracted(
+    extracted: Path, files: list[FileHash], zip_root: str, result: VerifyResult
+) -> None:
+    """Compare the extracted tree (``data/suites/<x>``) with the manifest files, file by file."""
+    prefix = f"{zip_root}/"
+    expected = {item.path.removeprefix(prefix): item for item in files}
     for rel, item in expected.items():
         path = extracted / rel
         if not path.is_file():

@@ -19,6 +19,7 @@ from pathlib import Path
 from ai_clients import (
     closing,
     config,
+    errors,
     execution,
     generation,
     oracle,
@@ -30,6 +31,9 @@ from ai_clients import (
     template_change,
 )
 from ai_clients.errors import ConfigurationError, InfrastructureError
+from ai_clients.llm import cli as llm_cli
+from ai_clients.llm import config as llm_config
+from ai_clients.llm import store as llm_store
 from ai_clients.ollama import OllamaClient
 from dataset.persistence import store as files
 from mutation import dataset_gate as gate
@@ -41,11 +45,13 @@ EXIT_DATA_FAILURE = 1
 EXIT_USAGE = 2
 EXIT_INFRA = 3
 EXIT_MANUAL = 4  # the command finished, but some combination awaits manual handling
+EXIT_SPEND_CAP = 5  # a commercial model reached the spend cap of the invocation
+EXIT_NO_REASONING = 6  # an answer of a commercial model reported no reasoning (barred)
 EXIT_INTERRUPTED = 130
+MODELS = ("slm", *llm_config.MODELS)
 
 
-class UsageError(Exception):
-    """A wrong option or environment variable: exit code 2."""
+UsageError = errors.UsageError  # also raised by ai_clients.llm
 
 
 @dataclass(frozen=True)
@@ -82,6 +88,30 @@ def _positive_int(text: str) -> int:
     if value <= 0:
         raise argparse.ArgumentTypeError("must be a positive integer")
     return value
+
+
+def _positive_amount(text: str) -> float:
+    try:
+        value = float(text)
+    except ValueError:
+        value = 0.0
+    if not value > 0:
+        raise argparse.ArgumentTypeError("must be a positive amount of US$")
+    return value
+
+
+def add_model_option(parser: argparse.ArgumentParser) -> None:
+    """``--model``: the local model (default) or one of the commercial models."""
+    parser.add_argument(
+        "--model",
+        choices=MODELS,
+        default="slm",
+        help="slm (the local model, default), gpt (GPT-5.4-mini) or gemini (Gemini 3.8 Flash)",
+    )
+
+
+def commercial(args: argparse.Namespace) -> bool:
+    return getattr(args, "model", "slm") != "slm"
 
 
 def add_common_options(parser: argparse.ArgumentParser) -> None:
@@ -192,6 +222,11 @@ def finish(damaged: list[store.DamagedCombination], awaiting: list[tuple[str, st
     return EXIT_MANUAL if awaiting else EXIT_OK
 
 
+def combine_codes(codes) -> int:
+    """The exit code of a command that met several situations: 130 > 3 > 6 > 1 > 5 > 4 > 0."""
+    return llm_cli.combine(codes)
+
+
 def skipped_note(skipped: int) -> str:
     """The end of a summary line: the combinations left to another command running together."""
     return f"; {skipped} skipped (in use by another command)" if skipped else ""
@@ -251,10 +286,20 @@ def change_command(kind: str) -> str:
 
 def _configure_generate(parser: argparse.ArgumentParser) -> None:
     add_common_options(parser)
+    add_model_option(parser)
     parser.add_argument(
         "--resume",
         action="store_true",
-        help="continue the run already started in data/suites/slm (required once run.json exists)",
+        help="continue the run already started in data/suites/<model> (required once run.json "
+        "exists)",
+    )
+    parser.add_argument(
+        "--confirm-spend",
+        type=_positive_amount,
+        metavar="USD",
+        help="commercial models only: confirm the paid calls of this invocation and stop sending "
+        "new ones once this many US$ were spent (required to call gpt or gemini; the cap is per "
+        "process, so two generate --resume of the same model may spend the sum of their caps)",
     )
 
 
@@ -294,6 +339,10 @@ def _dry_run_generate(root: Path, combinations, templates: dict, limit: int | No
 
 
 def _run_generate(args: argparse.Namespace) -> int:
+    if commercial(args):
+        return llm_cli.run_generate(args)
+    if args.confirm_spend is not None:
+        raise UsageError("--confirm-spend is only for --model gpt or --model gemini")
     root = Path(".")
     failed = dataset_gate(root)
     if failed is not None:
@@ -429,6 +478,8 @@ def _dry_run_execute(root: Path, combinations, limit: int | None) -> int:
 
 
 def _run_execute(args: argparse.Namespace) -> int:
+    if commercial(args):
+        raise UsageError("the commercial models run nothing: there is no execute step")
     root = Path(".")
     failed = dataset_gate(root)
     if failed is not None:
@@ -489,9 +540,12 @@ def _configure_close(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="only show the manual_close.json that would be written; writes nothing",
     )
+    add_model_option(parser)
 
 
 def _run_close(args: argparse.Namespace) -> int:
+    if commercial(args):
+        return llm_cli.run_close(args)
     root = Path(".")
     failed = dataset_gate(root)
     if failed is not None:
@@ -545,8 +599,9 @@ def _configure_change_template(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--template",
         required=True,
-        choices=tuple(TEMPLATE_FIELDS),
-        help="the template whose file was edited (prediction: slm_predict_prompt.txt)",
+        choices=(*TEMPLATE_FIELDS, llm_config.TEMPLATE_KIND),
+        help="the template whose file was edited (prediction: slm_predict_prompt.txt; llm: "
+        "llm_prompt.txt, with --model gpt or gemini)",
     )
     parser.add_argument(
         "--reason", required=True, metavar="TEXT", help="why the authors change it (required)"
@@ -556,9 +611,16 @@ def _configure_change_template(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="only list the combinations that would be made again; writes and moves nothing",
     )
+    add_model_option(parser)
 
 
 def _run_change_template(args: argparse.Namespace) -> int:
+    if commercial(args):
+        if args.template != llm_config.TEMPLATE_KIND:
+            raise UsageError(f"--model {args.model} has only the template llm (llm_prompt.txt)")
+        return llm_cli.run_change_template(args)
+    if args.template == llm_config.TEMPLATE_KIND:
+        raise UsageError("the template llm is of --model gpt or --model gemini")
     root = Path(".")
     failed = dataset_gate(root)
     if failed is not None:
@@ -636,6 +698,8 @@ register(
 
 
 def _run_report(args: argparse.Namespace) -> int:
+    if commercial(args):
+        return llm_cli.run_report(args)
     root = Path(".")
     if not store.run_exists(root):
         raise UsageError("data/suites/slm/run.json does not exist; run generate first")
@@ -652,6 +716,8 @@ def _run_report(args: argparse.Namespace) -> int:
 
 
 def _run_package(args: argparse.Namespace) -> int:
+    if commercial(args):
+        return llm_cli.run_package(args)
     root = Path(".")
     failed = dataset_gate(root)
     if failed is not None:
@@ -686,6 +752,7 @@ def _run_package(args: argparse.Namespace) -> int:
 
 
 def _configure_verify(parser: argparse.ArgumentParser) -> None:
+    add_model_option(parser)
     parser.add_argument(
         "--extracted",
         default=None,
@@ -695,6 +762,8 @@ def _configure_verify(parser: argparse.ArgumentParser) -> None:
 
 
 def _run_verify(args: argparse.Namespace) -> int:
+    if commercial(args):
+        return llm_cli.run_verify(args)
     root = Path(".")
     manifest_path = root / config.MANIFEST_PATH
     if not manifest_path.is_file():
@@ -714,8 +783,8 @@ def _run_verify(args: argparse.Namespace) -> int:
 
 register(
     "package",
-    "zip a finished run into data/slm_suites.zip with its manifest and report (app service)",
-    lambda parser: None,
+    "zip a finished run into data/<model>_suites.zip with its manifest and report (app service)",
+    add_model_option,
     _run_package,
 )
 
@@ -728,16 +797,22 @@ register(
 
 register(
     "report",
-    "write manifests/slm_generation_report.json from data/suites/slm (any time; reads only)",
-    lambda parser: None,
+    "write manifests/<model>_generation_report.json from data/suites/<model> (any time; reads "
+    "only the suites)",
+    add_model_option,
     _run_report,
 )
+
+
+def _configure_execute(parser: argparse.ArgumentParser) -> None:
+    add_common_options(parser)
+    add_model_option(parser)
 
 
 register(
     "execute",
     "run the Python solution of every attempt pending execution (run it in the sandbox service)",
-    add_common_options,
+    _configure_execute,
     _run_execute,
 )
 
@@ -752,7 +827,8 @@ def _raise_interrupt(signum: int, frame: object) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m ai_clients",
-        description="Test suites generated by the local model (Qwen2.5-Coder-14B via Ollama).",
+        description="Test suites generated by the local model (Qwen2.5-Coder-14B via Ollama) "
+        "and by the commercial models (GPT-5.4-mini and Gemini 3.8 Flash, --model).",
     )
     subparsers = parser.add_subparsers(dest="command")
     for name in sorted(_REGISTRY):
@@ -784,7 +860,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     except store.IncompatibleRunError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_USAGE
-    except (store.AlreadyRunningError, store.DamagedRunError) as exc:
+    except (store.AlreadyRunningError, store.DamagedRunError, llm_store.DamagedRunError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_DATA_FAILURE
     except ConfigurationError as exc:

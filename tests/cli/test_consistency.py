@@ -100,9 +100,48 @@ def write_slm(root, ids=IDS, *, package=True):
         )
 
 
-def build(root, *, mutants=True, package=True, slm=True):
-    """A consistent repository: 3 problems, 105 files each, 100 mutants each, the SLM suites of
-    each problem × scenario, and the three manifests."""
+LLM_FILES = ["attempt_1.json", "suite.json"]
+
+
+def write_llm(root, model, ids=IDS, *, package=True):
+    """A finished run of a commercial model: every problem × scenario accepted at attempt 1."""
+    files: list[dict] = []
+    base = root / "data/suites" / model
+    base.mkdir(parents=True, exist_ok=True)
+    (base / "run.json").write_text("run", encoding="utf-8")
+    (base / ".lock").write_text("", encoding="utf-8")
+    files.append({"path": f"suites/{model}/run.json", "size": 3, "sha256": sha("run")})
+    for pid in ids:
+        for scenario in SCENARIOS:
+            folder = base / "problems" / pid / scenario
+            folder.mkdir(parents=True)
+            for name in LLM_FILES:
+                text = f"{model}/{pid}/{scenario}/{name}"
+                (folder / name).write_text(text, encoding="utf-8")
+                path = f"suites/{model}/problems/{pid}/{scenario}/{name}"
+                files.append({"path": path, "size": len(text), "sha256": sha(text)})
+    zip_text = f"zip-{model}"
+    (root / "data" / f"{model}_suites.zip").write_bytes(zip_text.encode())
+    if package:
+        (root / "manifests" / f"{model}_suites.manifest.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "model_key": model,
+                    "suites_zip": {
+                        "path": f"data/{model}_suites.zip",
+                        "size": len(zip_text),
+                        "sha256": sha(zip_text),
+                    },
+                    "files": sorted(files, key=lambda f: f["path"]),
+                }
+            )
+        )
+
+
+def build(root, *, mutants=True, package=True, slm=True, llm=True):
+    """A consistent repository: 3 problems, 105 files each, 100 mutants each, the suites of the
+    three models for each problem × scenario, and their manifests."""
     (root / "manifests").mkdir(parents=True)
     files: list[dict] = []
     write_tree(root, "data/dataset/problems", "dataset/problems/", IDS, DATASET_FILES, files)
@@ -137,6 +176,9 @@ def build(root, *, mutants=True, package=True, slm=True):
             )
     if slm:
         write_slm(root, package=package)
+    if llm:
+        for model in ("gpt", "gemini"):
+            write_llm(root, model, package=package)
     return root
 
 
@@ -542,3 +584,81 @@ def test_only_slm_suites(check, repo, capsys):
     shutil.rmtree(repo / "data/mutants")
     code, out = run(check, repo, "--only", "dataset,slm_suites", capsys=capsys)
     assert code == 0 and "Mutant_" not in out and "slm_suites" in out
+
+
+# ----------------------------------------------------------------- gpt_suites and gemini_suites
+
+
+def llm_folder(root, model, pid="1000_B", scenario=None):
+    base = root / "data/suites" / model / "problems" / pid
+    return base / scenario if scenario else base
+
+
+@pytest.mark.parametrize("model", ["gpt", "gemini"])
+def test_a_finished_llm_run_passes_with_its_counts(check, repo, capsys, model):
+    code, out = run(check, repo, "--deep", "--only", f"{model}_suites", capsys=capsys)
+    assert code == 0
+    assert "tentativas numeradas sem buraco, no máximo 3: 9/9" in out
+    assert "suite.json em cada cenário: 9/9" in out
+    code, everything = run(check, repo, "--deep", capsys=capsys)
+    assert code == 0 and f"todo problema de dataset tem pasta em {model}_suites: 3/3" in everything
+    assert "nomes dos arquivos batem com o manifesto (19 arquivos)" in out
+    assert f"data/{model}_suites.zip: hash confere" in out
+
+
+def test_no_llm_run_yet_is_only_a_warning(check, tmp_path, capsys):
+    build(tmp_path, llm=False)
+    code, out = run(check, tmp_path, capsys=capsys)
+    assert code == 0
+    assert "[AVISO] a pasta data/suites/gpt/problems ainda não existe" in out
+    assert "[AVISO] a pasta data/suites/gemini/problems ainda não existe" in out
+
+
+def test_an_llm_run_in_progress_is_a_warning(check, repo, capsys):
+    (repo / "manifests" / "gpt_suites.manifest.json").unlink()
+    (llm_folder(repo, "gpt", "2_A", "hybrid") / "suite.json").unlink()
+    code, out = run(check, repo, "--only", "gpt_suites", capsys=capsys)
+    assert code == 0 and "[AVISO] suite.json em cada cenário: 8/9" in out
+
+
+def test_after_the_package_of_one_model_its_suites_must_be_there(check, repo, capsys):
+    (llm_folder(repo, "gemini", "2_A", "hybrid") / "suite.json").unlink()
+    code, out = run(check, repo, capsys=capsys)
+    assert code == 1 and "[FALHA] suite.json em cada cenário: 8/9" in out
+
+
+@pytest.mark.parametrize(
+    "files, message",
+    [
+        (["attempt_4.json"], "tentativas numeradas sem buraco, no máximo 3: 8/9"),
+        (["attempt_3.json"], "tentativas numeradas sem buraco, no máximo 3: 8/9"),
+        (["notes.txt"], "1 arquivo(s) estranho(s) num cenário"),
+        (["attempt_1.generation.json"], "1 arquivo(s) estranho(s) num cenário"),
+    ],
+)
+def test_attempts_beyond_three_gaps_and_strange_files_always_fail(
+    check, repo, capsys, files, message
+):
+    (repo / "manifests" / "gpt_suites.manifest.json").unlink()
+    for name in files:
+        (llm_folder(repo, "gpt", "1000_B", "black_box") / name).write_text("x")
+    code, out = run(check, repo, "--only", "gpt_suites", capsys=capsys)
+    assert code == 1 and f"[FALHA] {message}" in out
+
+
+def test_barred_answers_are_checked_apart(check, repo, capsys):
+    (repo / "manifests" / "gpt_suites.manifest.json").unlink()
+    barred = repo / "data/suites/gpt/barred"
+    (barred / "1000_B" / "hybrid").mkdir(parents=True)
+    (barred / "1000_B" / "hybrid" / "1.json").write_text("{}")
+    code, out = run(check, repo, "--only", "gpt_suites", capsys=capsys)
+    assert code == 0 and "respostas barradas por falta de raciocínio: 1" in out
+    (barred / "9_Z" / "hybrid").mkdir(parents=True)
+    (barred / "9_Z" / "hybrid" / "1.json").write_text("{}")
+    code, out = run(check, repo, "--only", "gpt_suites", capsys=capsys)
+    assert code == 1 and "[FALHA] barred/ só tem respostas de problema e cenário existentes" in out
+
+
+def test_the_old_layers_keep_their_output(check, repo, capsys):
+    code, out = run(check, repo, "--only", "slm_suites", capsys=capsys)
+    assert code == 0 and "gpt" not in out and "gemini" not in out

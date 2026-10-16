@@ -1,11 +1,13 @@
 # Experiment data is never versioned as loose files (Constitution, Principle II).
-# The only exceptions are the packaged dataset, and the packaged mutants and SLM test suites of the
-# final run (amendment 1.6.0); what day-to-day development generates stays under data/mutants/ and
-# data/suites/, ignored.
+# The only exceptions are the packaged dataset, and the packaged mutants and test suites (SLM, GPT,
+# Gemini) of the final run (amendment 1.6.0); what day-to-day development generates stays under
+# data/mutants/ and data/suites/, ignored.
 data/*
 !data/dataset.zip
 !data/mutants.zip
 !data/slm_suites.zip
+!data/gpt_suites.zip
+!data/gemini_suites.zip
 
 # Secrets: only .env.example is versioned.
 .env

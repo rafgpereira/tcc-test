@@ -19,9 +19,10 @@ teste unitários em C++.
 > combinações de problema e cenário, todas com suíte: 505 `accepted`, 93 `accepted_fallback`, 2
 > `accepted_predicted`, nenhuma fechada à mão). Quem clona o projeto só precisa descompactar e
 > conferir, não precisa gerar nada. Um comando na raiz, `python -m cli check`, confere se dataset,
-> mutantes e suítes estão completos e 1:1. As chamadas aos dois modelos comerciais estão sendo
-> especificadas, ainda sem código; os demais módulos (avaliação, métricas, orquestrador) ainda não
-> têm especificação nem código; a tabela "Módulos e estado" marca isso.
+> mutantes e suítes estão completos e 1:1. As chamadas aos dois modelos comerciais (GPT-5.4-mini e
+> Gemini 3.8 Flash) têm código e testes prontos e ainda não fizeram nenhuma chamada paga (o próximo
+> passo é o piloto); os demais módulos (avaliação, métricas, orquestrador) ainda não têm
+> especificação nem código; a tabela "Módulos e estado" marca isso.
 
 ## O que o experimento responde
 
@@ -83,7 +84,7 @@ na avaliação, para que nenhum código do dataset falhe no motor só durante o 
 | `src/dataset/` | extrai, valida e empacota o dataset experimental | seção 1 | **implementado**: dataset real gerado, validado e empacotado (200 problemas, ~12 MiB) | [README](src/dataset/README.md) |
 | `src/sandbox/` | motor de execução isolada de C++, usado pelo `dataset` | seções 1.4 e 4 | **implementado**: motor, isolamento e auto-checagem testados | [README](src/sandbox/README.md) |
 | `src/mutation/` | gera 100 mutantes por problema e os empacota | seção 2 | **implementado**: 200 problemas, 20.000 mutantes, pacote versionado (~9 MiB) | [README](src/mutation/README.md) |
-| `src/ai_clients/` | chamadas stateless aos 3 modelos | seção 3 | **implementado** para o modelo local (SLM): 600 de 600 combinações com suíte, pacote versionado (6.597.040 bytes); os dois modelos comerciais ainda não implementados | [README](src/ai_clients/README.md) |
+| `src/ai_clients/` | chamadas stateless aos 3 modelos | seção 3 | **implementado** para o modelo local (SLM): 600 de 600 combinações com suíte, pacote versionado (6.597.040 bytes); **em implementação** para os dois modelos comerciais: código e testes prontos, piloto pago pendente | [README](src/ai_clients/README.md) |
 | avaliação | injeta as suítes geradas e registra vereditos em CSV | seção 4 | **sem spec** | a criar |
 | `src/metrics/` | TDF, MS, TFP, IIC | seção 5 | **sem spec** (IIC ainda não operacionalizado) | a criar |
 | `src/cli/` | comandos que cruzam módulos (hoje `check`) e, no futuro, o orquestrador do experimento | — | **em implementação**: `check` pronto; o orquestrador ainda sem especificação | [README](src/cli/README.md) |
@@ -175,8 +176,9 @@ O comando abaixo cria o `.env` já com os seus números (e não sobrescreve um `
 cat .env      # confira: HOST_UID e HOST_GID devem ser iguais à saída de `id -u` e `id -g`
 ```
 
-A alternativa manual é `cp .env.example .env` e editar os números. Quando os módulos que chamam
-modelos comerciais existirem, as chaves de API também vão neste arquivo (e só nele).
+A alternativa manual é `cp .env.example .env` e editar os números. As chaves de API dos modelos
+comerciais (`OPENAI_API_KEY` e `GEMINI_API_KEY`) também vão neste arquivo, e só nele; elas só são
+necessárias para gerar as suítes desses modelos (ver o README do módulo `ai_clients`).
 
 ### Passo 3: criar a pasta `data/`
 
@@ -249,8 +251,8 @@ Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
 
 Cada módulo confere o seu próprio artefato contra o manifesto (`dataset verify`, `mutation verify`).
 Para conferir o **conjunto** — se o dataset descompactado tem os 200 problemas e todos os arquivos
-de cada um, se os mutantes têm exatamente 100 por problema, se as suítes do modelo local têm os 3
-cenários de cada problema e se **não sobra nem falta nada** em
+de cada um, se os mutantes têm exatamente 100 por problema, se as suítes de cada modelo (o local,
+o GPT e o Gemini) têm os 3 cenários de cada problema e se **não sobra nem falta nada** em
 nenhum dos lados —, há um comando que percorre as pastas de verdade e imprime um resumo com as
 contagens:
 
@@ -323,7 +325,9 @@ está no README dele; `--help` de qualquer comando lista as opções de fato dis
 Implementado para o modelo local: a execução completa gerou as 600 combinações com suíte, e o
 pacote `data/slm_suites.zip` (com o manifesto e o relatório) está no repositório; para usá-lo, basta
 descompactar e rodar o `verify`. A geração precisa de `OLLAMA_BASE_URL` e `OLLAMA_HARDWARE_LABEL` no `.env` (ver
-`.env.example`) e de um servidor Ollama no ar (preparação no README do módulo).
+`.env.example`) e de um servidor Ollama no ar (preparação no README do módulo). Os dois modelos
+comerciais usam os mesmos comandos com `--model gpt` ou `--model gemini`, precisam da chave de API
+no `.env` e nunca fazem uma chamada paga sem `--confirm-spend <US$>`, que também é o teto de gasto.
 
 | Comando | Serviço | O que faz / variações |
 |---|---|---|
@@ -334,13 +338,19 @@ descompactar e rodar o `verify`. A geração precisa de `OLLAMA_BASE_URL` e `OLL
 | `docker compose run --rm app python -m ai_clients report` | `app` | grava `manifests/slm_generation_report.json` (contagens e proporção de cada `status` de suíte por cenário, tamanho das suítes de cada `status`, falhas por motivo e tentativa, *tokens*, máquinas, seeds), lendo só `data/suites/slm/`; pode rodar no meio da execução |
 | `docker compose run --rm app python -m ai_clients package` | `app` | gera `data/slm_suites.zip`, `manifests/slm_suites.manifest.json` e o relatório; recusa se algum problema e cenário não tem `suite.json` (inclusive os que aguardam os autores) ou se outro comando estiver rodando |
 | `docker compose run --rm app python -m ai_clients verify` | `app` | confere o zip contra o manifesto; `--extracted data/suites/slm` confere também a pasta descompactada |
-| `unzip data/slm_suites.zip -d data/` | (host) | descompacta as suítes em `data/suites/slm/` |
+| `docker compose run --rm app python -m ai_clients generate --model gpt` (ou `--model gemini`) | `app` | modelos comerciais: um pedido sem memória por problema e cenário pendente, até 3 se a resposta não puder ser lida; grava a resposta inteira, os *tokens*, o custo e o tempo em `data/suites/<modelo>/`, e a primeira resposta lida vira o `suite.json`; **exige `--confirm-spend <US$>`** (sem ele mostra a estimativa e sai com `2`) e para de enviar ao atingir esse gasto (código `5`); `--dry-run` estima o custo sem chamar nada e sem chave; `--resume`, `--limit N`, `--problem ID`, `--scenario S`; até 4 pedidos ao mesmo tempo (`OPENAI_MAX_CONCURRENCY`/`GEMINI_MAX_CONCURRENCY`); API fora do ar ou limite de pedidos: repete sem gastar tentativa e para com `3`; resposta sem raciocínio: guardada à parte e saída `6`; `4` se algum problema e cenário aguarda os autores |
+| `docker compose run --rm app python -m ai_clients close --model gpt --problem ID --scenario S --reason "TEXTO"` | `app` | como o `close` do modelo local, para um modelo comercial (3 respostas que não puderam ser lidas) |
+| `docker compose run --rm app python -m ai_clients change-template --model gpt --template llm --reason "TEXTO"` | `app` | como o `change-template` do modelo local, para o texto-base dos modelos comerciais (`src/prompt_templates/llm_prompt.txt`) |
+| `docker compose run --rm app python -m ai_clients report --model gpt` | `app` | grava `manifests/gpt_generation_report.json` (ou `gemini_...`): contagens por `status` e cenário, falhas por motivo, *tokens*, custo total (a soma exata dos pedidos), tempo, versões do modelo e respostas barradas |
+| `docker compose run --rm app python -m ai_clients package --model gpt` | `app` | gera `data/gpt_suites.zip` (ou `gemini_...`), o manifesto e o relatório; recusa se algum problema e cenário **desse** modelo não tem `suite.json` |
+| `docker compose run --rm app python -m ai_clients verify --model gpt` | `app` | confere o pacote do modelo contra o manifesto; `--extracted data/suites/gpt` confere também a pasta |
+| `unzip data/slm_suites.zip -d data/` | (host) | descompacta as suítes em `data/suites/slm/` (`gpt_suites.zip` e `gemini_suites.zip` da mesma forma, quando existirem) |
 
 ### Módulo `cli` ([README](src/cli/README.md))
 
 | Comando | Serviço | O que faz / variações |
 |---|---|---|
-| `docker compose run --rm app python -m cli check` | `app` | confere, pelas pastas de verdade, se dataset, mutantes e suítes do modelo local estão completos e 1:1 (200 problemas, 100 mutantes cada, 3 cenários cada, nada sobrando; suítes ainda em geração são só aviso); `--deep` confere também os hashes; `--only dataset` (ou `mutants`, ou `slm_suites`) confere só uma camada |
+| `docker compose run --rm app python -m cli check` | `app` | confere, pelas pastas de verdade, se dataset, mutantes e suítes dos três modelos estão completos e 1:1 (200 problemas, 100 mutantes cada, 3 cenários cada, nada sobrando; suítes ainda em geração são só aviso); `--deep` confere também os hashes; `--only dataset` (ou `mutants`, `slm_suites`, `gpt_suites`, `gemini_suites`) confere só uma camada |
 
 ### Módulo `sandbox` ([README](src/sandbox/README.md))
 

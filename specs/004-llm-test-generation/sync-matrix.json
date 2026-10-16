@@ -1,0 +1,61 @@
+{
+ "rows": [
+  {
+   "id": "D1",
+   "methodology_section": "3",
+   "needles": [
+    "única diferença intencional"
+   ],
+   "source": "spec.md#D1"
+  },
+  {
+   "id": "D2",
+   "methodology_section": "3",
+   "needles": [
+    "sem validação pelos testes públicos"
+   ],
+   "source": "spec.md#D2"
+  },
+  {
+   "id": "D3",
+   "methodology_section": "3",
+   "needles": [
+    "sem `temperature`, `top_p` nem `seed`"
+   ],
+   "source": "spec.md#D3"
+  },
+  {
+   "id": "D4",
+   "methodology_section": "3",
+   "needles": [
+    "mesmo `suite.json` do SLM"
+   ],
+   "source": "spec.md#D4"
+  },
+  {
+   "id": "D5",
+   "methodology_section": "3",
+   "needles": [
+    "confirmação explícita"
+   ],
+   "source": "spec.md#D5"
+  },
+  {
+   "id": "D6",
+   "methodology_section": "3",
+   "needles": [
+    "o mesmo few-shot"
+   ],
+   "source": "spec.md#D6"
+  },
+  {
+   "id": "D7",
+   "methodology_section": "3, 7",
+   "needles": [
+    "Nomes dos parâmetros mudaram desde o texto do TCC"
+   ],
+   "source": "spec.md#D7"
+  }
+ ],
+ "schema_version": 1
+}

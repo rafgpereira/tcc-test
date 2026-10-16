@@ -17,13 +17,15 @@ TCC de dupla — Milena e Rafael, UnB.
 - `docs/metodologia-referencia.md` — desenho experimental **corrente**, com
   histórico de atualizações datado; `docs/template-modulo.md` — formato do
   README de cada módulo; `docs/verificacao-consistencia.md` — o que
-  `python -m cli check` confere entre os artefatos (dataset, mutantes e,
-  no futuro, os das IAs) e como um módulo novo o estende
+  `python -m cli check` confere entre os artefatos (dataset, mutantes e as
+  suítes dos 3 modelos) e como um módulo novo o estende
 - `src/dataset/` — extração e validação do dataset (code_contests)
 - `src/mutation/` — geração de mutantes
-- `src/ai_clients/` — suítes de teste do modelo local (SLM, Qwen2.5-Coder-14B via Ollama); os
-  clientes dos 2 modelos comerciais em especificação (`specs/004-llm-test-generation/`)
-- `src/prompt_templates/` — texto-base dos pedidos ao SLM (solução e predição)
+- `src/ai_clients/` — suítes de teste do modelo local (SLM, Qwen2.5-Coder-14B via Ollama) e, em
+  `src/ai_clients/llm/`, dos 2 modelos comerciais (GPT-5.4-mini e Gemini 3.8 Flash, `--model gpt|gemini`;
+  `specs/004-llm-test-generation/`: código e testes prontos, piloto pago pendente)
+- `src/prompt_templates/` — texto-base dos pedidos ao SLM (solução e predição) e aos 2 modelos
+  comerciais (`llm_prompt.txt`)
 - `src/sandbox/` — compilação e execução isolada em C++
 - `src/metrics/` — TDF, MS, TFP, IIC
 - `src/cli/` — comandos que cruzam módulos (hoje `check`) e, no futuro, o orquestrador que amarra tudo
@@ -39,6 +41,9 @@ TCC de dupla — Milena e Rafael, UnB.
 - `data/slm_suites.zip` + `manifests/slm_suites.manifest.json` +
   `manifests/slm_generation_report.json` — pacote da execução final do SLM, seu manifesto e o
   relatório (gerados em 2026-10-11)
+- `data/gpt_suites.zip`, `data/gemini_suites.zip` + `manifests/<modelo>_suites.manifest.json` +
+  `manifests/<modelo>_generation_report.json` — pacotes da execução final de cada modelo
+  comercial (ainda não gerados)
 - `specs/NNN-nome/` — specs do spec-kit, uma por módulo
 - `Dockerfile` / `docker-compose.yml` — ambiente de execução reprodutível
   (Constitution, Princípio II)
@@ -78,8 +83,16 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
   módulo). Trocar um texto-base no meio da execução só com `docker compose run --rm app python -m
   ai_clients change-template --template prediction --reason "..."` (move os pedidos da versão
   antiga para `superseded/` e eles são refeitos; nunca editar o template e seguir)
-- Conferir a consistência entre artefatos (dataset descompactado × mutantes × suítes do modelo
-  local, 1:1, com contagens; só lê): `docker compose run --rm app python -m cli check [--deep]`. Todo módulo que
+- Suítes dos modelos comerciais (precisa de `OPENAI_API_KEY`/`GEMINI_API_KEY` no `.env`; **cada
+  chamada custa**): estimar com `docker compose run --rm app python -m ai_clients generate --model
+  gpt --dry-run` (não chama nada), gerar com `... generate --model gpt --confirm-spend <US$>` (a
+  confirmação é o teto de gasto da invocação; sem ela, nenhuma chamada sai; código `5` = teto
+  atingido, `6` = resposta sem raciocínio, investigar) e continuar com `--resume`; os mesmos
+  `close`, `change-template --template llm`, `report`, `package` e `verify` com `--model gpt` ou
+  `--model gemini`. Os dois modelos podem rodar juntos, um por terminal. O agente nunca roda uma
+  geração paga sem pedido explícito dos autores
+- Conferir a consistência entre artefatos (dataset descompactado × mutantes × suítes dos 3
+  modelos, 1:1, com contagens; só lê): `docker compose run --rm app python -m cli check [--deep]`. Todo módulo que
   passa a produzir uma pasta por problema MUST entrar nele (`docs/verificacao-consistencia.md`)
 - Lint/formatação: `docker compose run --rm app ruff check .` /
   `docker compose run --rm app black .`

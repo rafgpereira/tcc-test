@@ -40,14 +40,18 @@ __all__ = [
     "State",
     "attempt_files",
     "awaiting_manual",
+    "busy_message",
     "claim",
+    "claim_in",
     "combination_dir",
     "combination_state",
     "count_in_state",
     "ensure_suites_dir",
+    "ensure_tree",
     "exclusive_run",
     "expected_suite",
     "finalize",
+    "lock_tree",
     "read_execution",
     "read_generation",
     "read_run",
@@ -60,6 +64,7 @@ __all__ = [
     "write_execution",
     "write_generation",
     "write_manual_close",
+    "write_once",
     "write_run",
     "write_template_change",
 ]
@@ -177,11 +182,54 @@ def claim(root: Path, problem_id: str, scenario: str) -> Iterator[bool]:
             fcntl.flock(handle, fcntl.LOCK_UN)
 
 
+def busy_message(tree: Path) -> str:
+    """The refusal when another command holds the lock of ``tree`` (``data/suites/<model>``)."""
+    return f"another python -m ai_clients command is already running over {Path(tree).as_posix()}/"
+
+
+def ensure_tree(root: Path, tree: Path) -> Path:
+    """Create ``tree`` (relative to ``root``) and its ``problems/``, one level at a time."""
+    current = Path(root)
+    for part in Path(tree).parts:
+        current = store.make_private_dir(current / part)
+    store.make_private_dir(current / "problems")
+    return current
+
+
+@contextmanager
+def lock_tree(root: Path, tree: Path, mode: int) -> Iterator[None]:
+    """``exclusive_run``/``shared_run`` over another tree of suites (the commercial models)."""
+    base = ensure_tree(root, tree)
+    with _flock(base / config.LOCK_FILE, mode, busy_message(tree)):
+        yield
+
+
+@contextmanager
+def claim_in(root: Path, tree: Path, problem_id: str, scenario: str) -> Iterator[bool]:
+    """``claim`` over another tree of suites. ``flock`` locks an open file, so two threads of one
+    process that each open the lock file also exclude each other."""
+    locks = store.make_private_dir(ensure_tree(root, tree) / config.COMBINATION_LOCKS_DIR)
+    name = f"{problem_id}__{getattr(scenario, 'value', scenario)}.lock"
+    with _open_lock(locks / name) as handle:
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            yield False
+            return
+        try:
+            yield True
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
 def _write_once(path: Path, record) -> Path:
     if path.exists():
         raise FileExistsError(f"{path} already exists; records are never rewritten")
     store.atomic_write_json(path, record)
     return path
+
+
+write_once = _write_once  # public for ai_clients.llm: a record is written once, atomically
 
 
 def write_generation(root: Path, record: GenerationRecord) -> Path:

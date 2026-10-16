@@ -182,10 +182,11 @@ SLM_CHANGES_DIR = "template_changes"  # ai_clients.config.TEMPLATE_CHANGES_DIR
 SLM_SUPERSEDED_DIR = "superseded"  # ai_clients.config.SUPERSEDED_DIR
 
 
-def _slm_superseded_lines(root: Path) -> list[Line]:
+def _slm_superseded_lines(root: Path, tree: Path = SLM_DIR) -> list[Line]:
     """The attempts a template change moved aside (``superseded/<NNN>/``, ai_clients R27): each
-    file a change lists is there and no longer in ``problems/``, and nothing else is there."""
-    base = root / SLM_DIR
+    file a change lists is there and no longer in ``problems/``, and nothing else is there. The same
+    rule for the trees of the commercial models (``tree``)."""
+    base = root / tree
     changes, kept = base / SLM_CHANGES_DIR, base / SLM_SUPERSEDED_DIR
     if not changes.is_dir() and not kept.is_dir():
         return []
@@ -260,9 +261,135 @@ SLM_SUITES_LAYER = Layer(
     extra_checks=_slm_lines,
 )
 
+# The commercial models (specs/004-llm-test-generation, research R11): one tree per model, at most
+# 3 attempts (`attempt_<n>.json`) per scenario, and the answers barred for reporting no reasoning
+# in `barred/<id>/<scenario>/<n>.json`, out of the attempts.
+LLM_MAX_ATTEMPTS = 3  # ai_clients.llm.config.MAX_ATTEMPTS
+LLM_ATTEMPT_FILE = re.compile(r"^attempt_(\d+)\.json$")
+LLM_BARRED_FILE = re.compile(r"^\d+\.json$")
+
+
+def _llm_attempt_lines(
+    root: Path, layer: Layer, problems: dict[str, set[str]], in_progress: bool
+) -> list[Line]:
+    """Inside each scenario: only ``suite.json``, ``manual_close.json`` and ``attempt_1..k.json``,
+    numbered without a gap, k <= 3."""
+    base = root / layer.root
+    scenarios = 0
+    broken, suites_missing, strange = [], [], []
+    for problem_id in sorted(problems):
+        for scenario in SLM_SCENARIOS:
+            folder = base / problem_id / scenario
+            if not folder.is_dir():
+                continue
+            scenarios += 1
+            names = {p.name for p in folder.iterdir() if not p.name.startswith(".")}
+            numbers = set()
+            for name in sorted(names - SLM_OTHER_FILES):
+                match = LLM_ATTEMPT_FILE.match(name)
+                if match is None:
+                    strange.append(f"{problem_id}/{scenario}: {name}")
+                    continue
+                numbers.add(int(match[1]))
+            last = max(numbers, default=0)
+            if last > LLM_MAX_ATTEMPTS or numbers != set(range(1, last + 1)):
+                broken.append(f"{problem_id}/{scenario}")
+            if "suite.json" not in names:
+                suites_missing.append(f"{problem_id}/{scenario}")
+    lines = [
+        Line(
+            OK if not broken else FAIL,
+            f"tentativas numeradas sem buraco, no máximo {LLM_MAX_ATTEMPTS}: "
+            f"{scenarios - len(broken)}/{scenarios}",
+            _listed(broken),
+        ),
+        Line(
+            OK if not suites_missing else (WARN if in_progress else FAIL),
+            f"suite.json em cada cenário: {scenarios - len(suites_missing)}/{scenarios}",
+            _listed(suites_missing),
+        ),
+    ]
+    if strange:
+        lines.append(
+            Line(FAIL, f"{len(strange)} arquivo(s) estranho(s) num cenário", _listed(strange))
+        )
+    return lines
+
+
+def _llm_barred_lines(root: Path, tree: Path, problems: dict[str, set[str]]) -> list[Line]:
+    """The answers barred for reporting no reasoning: ``barred/<problem>/<scenario>/<n>.json``,
+    only of problems and scenarios that exist (they never count in the metrics)."""
+    base = root / tree / "barred"
+    if not base.is_dir():
+        return []
+    count, wrong = 0, []
+    for path in sorted(base.rglob("*")):
+        parts = path.relative_to(base).parts
+        if any(part.startswith(".") for part in parts) or not path.is_file():
+            continue
+        rel = "/".join(parts)
+        if (
+            len(parts) != 3
+            or parts[0] not in problems
+            or parts[1] not in SLM_SCENARIOS
+            or not LLM_BARRED_FILE.match(parts[2])
+        ):
+            wrong.append(rel)
+        else:
+            count += 1
+    return [
+        Line(INFO, f"respostas barradas por falta de raciocínio: {count} (fora das métricas)"),
+        Line(
+            OK if not wrong else FAIL,
+            "barred/ só tem respostas de problema e cenário existentes",
+            _listed(wrong),
+        ),
+    ]
+
+
+def _llm_lines_for(model: str) -> Callable[..., list[Line]]:
+    tree = Path("data/suites") / model
+
+    def lines(root: Path, layer: Layer, problems: dict[str, set[str]], in_progress: bool):
+        return (
+            _llm_attempt_lines(root, layer, problems, in_progress)
+            + _llm_barred_lines(root, tree, problems)
+            + _slm_superseded_lines(root, tree)
+        )
+
+    return lines
+
+
+def _llm_layer(model: str, title: str) -> Layer:
+    return Layer(
+        key=f"{model}_suites",
+        title=f"Suítes do {title} (data/suites/{model}/problems)",
+        root=f"data/suites/{model}/problems",
+        groups=(Group("black_box, white_box e hybrid", frozenset(SLM_SCENARIOS)),),
+        allowed_extra=frozenset(),
+        manifest=f"manifests/{model}_suites.manifest.json",
+        manifest_required=False,  # it only exists after `ai_clients package --model <model>`
+        manifest_prefix=f"suites/{model}/",
+        zip_path=f"data/{model}_suites.zip",
+        zip_key="suites_zip",
+        files_root=f"data/suites/{model}",
+        in_progress_without_manifest=True,
+        extra_checks=_llm_lines_for(model),
+    )
+
+
+GPT_SUITES_LAYER = _llm_layer("gpt", "GPT-5.4-mini")
+GEMINI_SUITES_LAYER = _llm_layer("gemini", "Gemini 3.8 Flash")
+
 # The first layer is the reference: every other layer must be 1:1 with it. A later module adds its
 # own Layer here (for example the tests generated by the AIs) and the relation check covers it.
-LAYERS: tuple[Layer, ...] = (DATASET_LAYER, MUTANTS_LAYER, SLM_SUITES_LAYER)
+LAYERS: tuple[Layer, ...] = (
+    DATASET_LAYER,
+    MUTANTS_LAYER,
+    SLM_SUITES_LAYER,
+    GPT_SUITES_LAYER,
+    GEMINI_SUITES_LAYER,
+)
 
 
 # ---------------------------------------------------------------------------------------- report

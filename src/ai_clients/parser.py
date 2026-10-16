@@ -164,6 +164,12 @@ DATA_FENCE_OPENINGS = ("```", "```text", "```txt", "```plaintext")
 _DOTS = re.compile(r"^\.{3,}$")
 
 
+def strip_data_fence(text: str) -> tuple[str, bool]:
+    """A predicted input or output after rules 4 and 5: normalized (``""`` if blank), without a
+    data fence wrapping all of it, and whether one was removed. Also used by ``ai_clients.llm``."""
+    return _strip_fence(_normalize_block(text), DATA_FENCE_OPENINGS)
+
+
 def is_abbreviated(text: str) -> bool:
     """Whether a predicted input or output elides values (``1 1 ... 1``) instead of writing them."""
     if "…" in text:
@@ -213,7 +219,7 @@ def _tests(body: str) -> tuple[list[TestCase], int, int, int]:
             raise _Unparseable("nested_test")
         parts = []
         for part in _test(content):
-            text, removed = _strip_fence(_normalize_block(part), DATA_FENCE_OPENINGS)
+            text, removed = strip_data_fence(part)
             fences += removed
             parts.append(text)
         given, expected = parts

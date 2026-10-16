@@ -1,6 +1,10 @@
 """Errors shared by the commands of ``python -m ai_clients``."""
 
 
+class UsageError(Exception):
+    """A wrong option or environment variable: exit code 2."""
+
+
 class ConfigurationError(Exception):
     """The run cannot go on as configured (model missing, a changed digest, a truncated prompt).
 
