@@ -155,7 +155,7 @@ custo e tempo) e um `suite.json` que `read_suite_view` aceita.
 ### Tests for User Story 1 ⚠️
 
 - [X] T022 [P] [US1] Write tests in `tests/ai_clients/llm/test_providers.py`:
-  - **`request_body`:** igual, chave a chave, aos corpos de [contracts/providers.md](./contracts/providers.md) §2 e §3, nos dois modelos (inclui `"store": false`, `"reasoning": {"effort": "medium"}`, `"thinkingConfig": {"thinkingLevel": "medium"}`, `"strict": true`, `responseFormat.text`, o prompt inteiro numa única mensagem `user`) e sem nenhum campo proibido (SC-002, A11, A13).
+  - **`request_body`:** igual, chave a chave, aos corpos de [contracts/providers.md](./contracts/providers.md) §2 e §3, nos dois modelos (inclui `"store": false`, `"reasoning": {"effort": "medium"}`, `"thinkingConfig": {"thinkingLevel": "medium"}`, `"strict": true`, `responseFormat.text` com `mimeType: "APPLICATION_JSON"` (desde 2026-10-16, R3), o prompt inteiro numa única mensagem `user`) e sem nenhum campo proibido (SC-002, A11, A13).
   - **Leitura das respostas:** `model_returned`, `response_id`, `finish`, `usage` e `text` lidos dos corpos de T013; no Gemini, a saída cobrada é `candidatesTokenCount + thoughtsTokenCount` e as partes `thought: true` ficam fora de `text`.
   - **Classificação dos erros** (§2 e §3): 429 com `insufficient_quota` → `ProviderFatal`; outro 429, 5xx, 408 e *timeout* → `ProviderUnavailable`, com `Retry-After` e `retryDelay` lidos.
   - **Segredos:** a chave não aparece em nenhuma exceção nem em `raw_body` (FR-005).
@@ -324,7 +324,7 @@ T057). T055 a T060 dependem de chamadas pagas e de decisões dos autores.
   - **Primeiro passo, obrigatório:** `docker compose run --rm app python -m cli check --deep` sai `0`; se não sair, parar.
   - **Execução:** dry-run e depois `generate --model gpt` e `--model gemini`, em paralelo, com `--problem 1000_B --problem 1005_C --problem 1008_B --problem 1_B --problem 61_B` e `--confirm-spend <teto combinado com os autores>`.
   - **Conferir e registrar** (`research.md` A3, R3, R9, R12; metodologia seção 3, seção 6 item 32 e seção 8):
-    1. A primeira chamada de cada modelo foi aceita. Se o Gemini recusar `responseFormat` com HTTP 400, aplicar o plano B de R3 e registrar.
+    1. A primeira chamada de cada modelo foi aceita. (Já conferido para o Gemini em 2026-10-16 num pedido de teste: `responseFormat` com `"APPLICATION_JSON"`; R3.)
     2. Houve alguma resposta barrada (código 6)? Se sim, parar e investigar com os autores.
     3. O `model` do GPT foi `gpt-5.4-mini-2026-03-17`? Qual `modelVersion` o Gemini devolveu?
     4. Maior saída total por modelo (resposta + raciocínio) e quantas respostas foram `truncated`.

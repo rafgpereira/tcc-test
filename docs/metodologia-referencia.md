@@ -1075,8 +1075,9 @@ passo.]**
   estado), `thinking_level: "medium"` **enviado explicitamente** (níveis `low`, `medium` e `high`,
   padrão `medium`), sem `temperature`, `top_p` ou `top_k` (o Google recomenda manter o padrão nos
   Gemini 3 e, no 3.8, manda removê-los como descontinuados), sem `seed`, saída JSON com schema de
-  resposta (`generationConfig.responseFormat.text`, com `mimeType: application/json` e `schema`,
-  a forma REST atual; plano, R3). **[DECIDIDO, 2026-10-15 — idem; modelo revisto no
+  resposta (`generationConfig.responseFormat.text`, com `mimeType: "APPLICATION_JSON"` e
+  `schema`; conferido num pedido de teste em 2026-10-16, em que o valor `"application/json"` da
+  documentação foi recusado; plano, R3). **[DECIDIDO, 2026-10-15 — idem; modelo revisto no
   mesmo dia, de `gemini-3.6-flash` para `gemini-3.8-flash`.]** O texto do TCC previa o **Gemini
   3.5 Flash**, que o Google descontinuou em 2026-10-08, redirecionando as chamadas para o
   `gemini-3.6-flash`. Entre os substitutos, os autores escolheram o Flash GA mais recente, em vez do
@@ -1087,9 +1088,9 @@ passo.]**
 - **Nomes dos parâmetros mudaram desde o texto do TCC (Tabela 2 do PDF)**: na OpenAI,
   `reasoning_effort` virou `reasoning.effort` (Responses API), e o JSON estrito se pede por
   `text.format` `json_schema` com `strict: true`; no Gemini, o `mimeType: application/json` do
-  texto vai hoje em `generationConfig.responseFormat.text` (o `responseMimeType` das versões
-  anteriores da documentação é o plano B, se a API recusar a forma nova no piloto), e o nível de
-  raciocínio em `generationConfig.thinkingConfig.thinkingLevel`. O texto final deve trazer os nomes
+  texto vai em `generationConfig.responseFormat.text`, com o valor `"APPLICATION_JSON"`
+  (conferido na API em 2026-10-16: o valor `"application/json"` do exemplo da documentação foi
+  recusado), e o nível de raciocínio em `generationConfig.thinkingConfig.thinkingLevel`. O texto final deve trazer os nomes
   atuais. Nos dois modelos, cada tentativa
   grava o modelo e a versão devolvidos pela API (`model`; `modelVersion`), os parâmetros enviados
   e a resposta crua, e a **não reprodutibilidade bit a bit** é limitação declarada (não há seed).
@@ -1883,8 +1884,8 @@ diretamente ao objetivo específico de mapear desempenho por categoria algorítm
     para a avaliação; **S2** dry-run sem nenhuma chamada, com tokens estimados pela razão
     caracteres/token (3,0 antes do piloto, a medida depois); **S3** manter o `generateContent`,
     apesar do rótulo "Legacy", com risco registrado. **[A FIXAR NO PILOTO]** O teto de saída
-    (provisório: 32.768), a razão caracteres/token de cada modelo e a forma do JSON com schema
-    no Gemini (`responseFormat`, ou o plano B `responseMimeType`).
+    (provisório: 32.768) e a razão caracteres/token de cada modelo. A forma do JSON com schema
+    no Gemini já foi fixada em 2026-10-16 (`responseFormat.text` com `"APPLICATION_JSON"`).
 4. ~~**[PROPOSTA]** Extrair dos três splits combinados~~ — **RESOLVIDO** (ver 1.1).
 5. ~~**[PROPOSTA]** Adicionar `is_description_translated == false` como critério de
    elegibilidade~~ — **RESOLVIDO** (ver 1.2).
@@ -1969,7 +1970,7 @@ decisão A3 de 2026-10-15 (item 41).
 | 38 | Na predição, testes com valores **abreviados** (`1 2 ... 5`, `…`) são descartados e contados (R27); 0 na execução completa | 3 |
 | 39 | Geração em **GPUs T4** (Google Colab e Kaggle, este com 2×T4, cada GPU com seu Ollama, vários `generate --resume` em paralelo), com **uma etiqueta de hardware única** ("GPU T4 - Google Colab, 16GB RAM") em todas as 2.185 chamadas e **sem teste de determinismo entre GPUs**; modelo, digest e versão do Ollama conferidos pelo `--resume` (R23, R24, R26; decisão de 2026-10-11 de não reescrever os arquivos) | 3 |
 | 40 | O **piloto 6 conta dentro da execução final**: a execução completa é a continuação da mesma execução com `--resume`, e as 15 combinações do piloto entram no resultado (2026-10-07, R23) | 3 |
-| 41 | **Gemini 3.8 Flash (`gemini-3.8-flash`) em vez do Gemini 3.5 Flash** do texto do TCC (2026-10-15, `specs/004-llm-test-generation/research.md`, A3). O Google descontinuou o `gemini-3.5-flash` em 2026-10-08 e redireciona as chamadas a ele para o `gemini-3.6-flash`; entre os substitutos, os autores escolheram o Flash GA mais recente (GA desde 2026-09-02, recomendado pelo Google para projetos novos), e não o 3.6, que o próprio Google descreve como "previous-generation" (o 3.6 chegou a ser escolhido e foi revisto no mesmo dia). Também mudaram os nomes da Tabela 2 do PDF: `reasoning_effort` → `reasoning.effort` (Responses API), JSON estrito por `text.format` `json_schema` com `strict: true`; no Gemini, o `mimeType: application/json` vai em `generationConfig.responseFormat.text` (forma REST atual; plano, R3) e o nível de raciocínio em `generationConfig.thinkingConfig.thinkingLevel`. GPT pelo snapshot datado `gpt-5.4-mini-2026-03-17`; raciocínio `medium` enviado explicitamente nos dois modelos (o padrão do GPT-5.4-mini é `none`); sem seed nem temperatura | 3 |
+| 41 | **Gemini 3.8 Flash (`gemini-3.8-flash`) em vez do Gemini 3.5 Flash** do texto do TCC (2026-10-15, `specs/004-llm-test-generation/research.md`, A3). O Google descontinuou o `gemini-3.5-flash` em 2026-10-08 e redireciona as chamadas a ele para o `gemini-3.6-flash`; entre os substitutos, os autores escolheram o Flash GA mais recente (GA desde 2026-09-02, recomendado pelo Google para projetos novos), e não o 3.6, que o próprio Google descreve como "previous-generation" (o 3.6 chegou a ser escolhido e foi revisto no mesmo dia). Também mudaram os nomes da Tabela 2 do PDF: `reasoning_effort` → `reasoning.effort` (Responses API), JSON estrito por `text.format` `json_schema` com `strict: true`; no Gemini, o `mimeType: application/json` vai em `generationConfig.responseFormat.text`, com o valor `"APPLICATION_JSON"` (conferido na API em 2026-10-16; plano, R3) e o nível de raciocínio em `generationConfig.thinkingConfig.thinkingLevel`. GPT pelo snapshot datado `gpt-5.4-mini-2026-03-17`; raciocínio `medium` enviado explicitamente nos dois modelos (o padrão do GPT-5.4-mini é `none`); sem seed nem temperatura | 3 |
 
 ---
 
@@ -1982,6 +1983,7 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-10-16 | **Forma do JSON com schema no Gemini conferida na API (`specs/004-llm-test-generation/research.md` R3; plano, S4)**: antes do piloto, um pedido "hello world" com a configuração do experimento. A forma `generationConfig.responseFormat.text` da documentação atual, com o valor `"application/json"` do exemplo, foi recusada (HTTP 400, não cobrado: o `mimeType` é uma lista fixa de valores); a mesma forma com `"APPLICATION_JSON"` foi aceita, com JSON no schema, `finishReason` `STOP`, 309 *tokens* de raciocínio e `modelVersion` `gemini-3.8-flash`. O código usa essa forma (o plano B não foi necessário); a resposta real virou um teste | 3, 6, 7 |
 | 2026-10-15 | **Implementação dos LLMs comerciais (`/speckit-implement` de `specs/004-llm-test-generation/`, T001 a T054)**: subpacote `src/ai_clients/llm/` (clientes HTTP da biblioteca padrão, interpretação, custo, estado por arquivos, coordenador com *threads*, teto de gasto, barreira de raciocínio, `close`, `change-template`, relatório, pacote, `verify`), `--model {slm,gpt,gemini}` nos comandos, leitor comum `SuiteView`, camadas `gpt_suites` e `gemini_suites` do `cli check`, `llm_prompt.txt` aprovado pelos autores; 1.765 testes passando, sem regressão no SLM; leitor comum conferido nas 600 suítes reais do SLM. Decisões da implementação: no `Ctrl+C` as chamadas em andamento são gravadas; texto que não é UTF-8 válido vira `schema_violation`. Dry-run real: 600 combinações por modelo, ~824 mil *tokens* de entrada (razão 3,0), maior prompt 7.459 caracteres, GPT US$ 89,09–267,28 e Gemini US$ 74,35–223,04 com a saída no teto. Pendentes: piloto pago (T055), decisão com os autores (T056), execução completa (T057) e fechamento | 3 |
 | 2026-10-15 | **Análise de consistência dos LLMs comerciais (`/speckit-analyze` de `specs/004-llm-test-generation/`) e correções aplicadas**: a ausência de seed nos LLMs passa a constar no plano como desvio do Princípio II, justificado por escrito ("Complexity Tracking"); o teto de gasto vale por processo (dois `generate --resume` do mesmo modelo podem gastar a soma dos dois tetos; FR-022a); o pacote recusado por pendência é só o do modelo dela (FR-016); a tabela de preços não entra na comparação da retomada (entidade da spec); troca de texto-base dos LLMs com schema próprio (`LlmTemplateChange`), sem mudar o `AttemptKind` do SLM; tarefas novas de teste da barreira com chamadas em andamento, de leitura das 600 suítes reais do SLM pelo leitor comum (SC-007) e de verificação de que o módulo não executa código | 3 |
 | 2026-10-15 | **Plano dos LLMs comerciais (`/speckit-plan` de `specs/004-llm-test-generation/`; `plan.md`, `research.md` R0 a R14, `data-model.md`, `contracts/`, `quickstart.md`)**: código em `src/ai_clients/llm/`, reaproveitando o SLM por importação sem mudar o comportamento dele; clientes HTTP da biblioteca padrão, sem SDK; `--model {slm,gpt,gemini}` nos comandos existentes; S1 — `LlmSuite` com as mesmas chaves de topo do SLM e leitor comum `SuiteView` (FR-017 e SC-007 reescritos); S2 — dry-run sem nenhuma chamada, tokens estimados pela razão caracteres/token (3,0 antes do piloto; FR-021 reescrito); S3 — `generateContent` mantido apesar do rótulo "Legacy" (risco registrado); forma REST atual do JSON com schema no Gemini (`generationConfig.responseFormat.text`, com o plano B `responseMimeType`); `--confirm-spend US$` como confirmação e teto de gasto; códigos de saída 5 (teto) e 6 (sem raciocínio); teto de saída provisório de 32.768; tabela de preços por data de validade; pacotes, manifestos, relatórios e camadas do `cli check` por modelo | 3, 6 |

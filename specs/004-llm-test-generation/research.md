@@ -24,7 +24,7 @@ amostragem. A configuração segue a Tabela 2 do TCC, com os nomes atuais dos pa
 | Estado no provedor | `store: false`, sem `previous_response_id` | nenhum (a chamada é sem estado; sem `previous_interaction_id`) |
 | Raciocínio | `reasoning.effort: "medium"`, **enviado explicitamente** (o padrão do modelo é `none`) | `thinking_level: "medium"`, **enviado explicitamente** (é também o padrão do 3.8 Flash; enviar evita depender dele) |
 | Amostragem | sem `temperature`, `top_p` ou `seed` | sem `temperature`, `top_p`, `top_k` ou `seed` |
-| Saída | `text.format` do tipo `json_schema` com `strict: true` | JSON com schema: `generationConfig.responseFormat.text` com `mimeType: application/json` e `schema` (forma REST atual da documentação do `generateContent`; R3) |
+| Saída | `text.format` do tipo `json_schema` com `strict: true` | JSON com schema: `generationConfig.responseFormat.text` com `mimeType: "APPLICATION_JSON"` e `schema` (conferido na API em 2026-10-16: o `mimeType` é uma lista fixa de valores, e `"application/json"`, como na documentação, foi recusado; R3) |
 | Prompt (A11) | o texto inteiro numa única mensagem de usuário, sem `instructions` nem mensagem `developer` | o texto inteiro numa única mensagem de usuário, sem `system_instruction` |
 | Filtros de segurança (A13) | não há ajuste equivalente na chamada | `safetySettings` não é enviado (padrão da API); bloqueios gravados com a categoria |
 | Barreira de raciocínio (A12) | `reasoning_tokens` igual a 0 ou ausente para o comando | `thoughtsTokenCount` igual a 0 ou ausente para o comando |
@@ -68,7 +68,8 @@ Gemini mudaram desde que o texto foi escrito:
 - Gemini: o PDF diz **Gemini 3.5 Flash**, e o modelo usado é o **`gemini-3.8-flash`**, porque o
   3.5 foi descontinuado e o 3.8 é o Flash mais recente (ver Motivo). O `thinking_level` fica, na API
   REST, em `generationConfig.thinkingConfig.thinkingLevel`, e o `mimeType: application/json` do
-  texto vai hoje em `generationConfig.responseFormat.text`, junto com o `schema` (R3).
+  texto vai em `generationConfig.responseFormat.text`, com o valor `"APPLICATION_JSON"` e o
+  `schema` (R3, conferido na API em 2026-10-16).
 
 O texto final do TCC deve trazer os nomes atuais, o modelo efetivamente usado e a nota da troca do
 Gemini.
@@ -146,7 +147,15 @@ ativo (Assumptions da spec), não da camada gratuita.
   `generationConfig.thinkingConfig.thinkingLevel`.
 - **Schema de resposta:** a documentação atual do `generateContent` pede JSON em
   `generationConfig.responseFormat.text` (`mimeType` + `schema`). O par `responseMimeType` +
-  `responseSchema` aparece só em páginas mais antigas (guia de migração).
+  `responseSchema` aparece só em páginas mais antigas (guia de migração). **Conferido na API em
+  2026-10-16, antes do piloto, com um pedido "hello world" de cada forma**: a forma da documentação
+  com o valor `"application/json"` foi recusada (HTTP 400, não cobrado: `Invalid value at
+  'generation_config.response_format.text.mime_type'`, o campo é uma lista fixa de valores,
+  `TextResponseFormat.MimeType`), e a mesma forma com o valor `"APPLICATION_JSON"` foi aceita:
+  JSON no schema, `finishReason` `STOP`, `thoughtsTokenCount` 309, `modelVersion`
+  `gemini-3.8-flash`. O código usa essa forma; o plano B (`responseMimeType` +
+  `responseJsonSchema`) não foi necessário. A resposta real está em
+  `tests/ai_clients/llm/fixtures/gemini_hello_world_2026-10-16.json`.
 
 O nome `responseMimeType` usado acima, na tabela da Tabela 2, é o do texto do PDF. A primeira
 chamada do piloto confirma a forma aceita: um HTTP 400 não é cobrado e para o comando com o
@@ -276,7 +285,7 @@ O corpo é exatamente este:
 {"contents": [{"role": "user", "parts": [{"text": "<prompt inteiro>"}]}],
  "generationConfig": {"thinkingConfig": {"thinkingLevel": "medium"},
                       "maxOutputTokens": <teto>,
-                      "responseFormat": {"text": {"mimeType": "application/json",
+                      "responseFormat": {"text": {"mimeType": "APPLICATION_JSON",
                                                   "schema": <schema de R4>}}}}
 ```
 - Nunca vão `systemInstruction`, `cachedContent`, `safetySettings` (A13), `temperature`, `topP`,
@@ -305,7 +314,9 @@ para os 2 modelos em tudo o que não é nome de campo.
   as the ordering of keys in the schema"; `incomplete_details.reason` `"content_filter"`.
 - [Reasoning](https://developers.openai.com/api/docs/guides/reasoning) (A3).
 - [Structured outputs do generateContent](https://ai.google.dev/gemini-api/docs/generate-content/structured-output):
-  `generationConfig.responseFormat.text` (`mimeType`, `schema`); "the model will produce outputs
+  `generationConfig.responseFormat.text` (`mimeType`, `schema`; o exemplo usa
+  `"application/json"`, que a API recusou em 2026-10-16: o valor aceito é `"APPLICATION_JSON"`,
+  ver acima); "the model will produce outputs
   in the same order as the keys in the schema"; palavras aceitas: `properties`, `required`,
   `additionalProperties`, `items`, `minItems`, `maxItems`, entre outras, e **não** `minLength`.
 - [Thinking do generateContent](https://ai.google.dev/gemini-api/docs/generate-content/thinking):

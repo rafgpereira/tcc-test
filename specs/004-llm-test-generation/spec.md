@@ -354,9 +354,9 @@ faltando ou sobrando é apontada pelo `check`.
   Google como "previous-generation".
 - **FR-004**: A saída MUST ser pedida em JSON com schema estrito (`text.format` do tipo
   `json_schema` com `strict: true` na OpenAI; `generationConfig.responseFormat.text` com
-  `mimeType: application/json` e `schema` no Gemini, a forma REST atual do `generateContent`,
-  que o texto do PDF chama de `responseMimeType`; plano B em `research.md` R3), o mesmo schema
-  nos 2 modelos: um campo `edge_cases_analysis` (texto) antes de um campo `tests` (lista de
+  `mimeType: "APPLICATION_JSON"` e `schema` no Gemini, conferido na API em 2026-10-16, que recusou
+  o valor `"application/json"` da documentação; `research.md` R3), o mesmo schema nos 2
+  modelos: um campo `edge_cases_analysis` (texto) antes de um campo `tests` (lista de
   objetos com `input` e `output`, ambos texto, sem nenhum outro campo).
 - **FR-005**: As chaves de API MUST ficar só no `.env` (nunca no Git, nem na imagem Docker, nem em
   arquivo gravado pelo pipeline, nem em log); `.env.example` MUST documentar as variáveis novas sem
@@ -703,8 +703,8 @@ depois dele estão em A1 a A13.
   2026-10-08 (as chamadas a ele são redirecionadas para o `gemini-3.6-flash`). O modelo pedido
   passa a ser o `gemini-3.8-flash`, o Flash GA mais recente, porque o 3.6 é descrito pelo Google
   como "previous-generation" (o 3.6 chegou a ser escolhido e foi revisto no mesmo dia). O
-  `mimeType: application/json` do texto vai hoje em `generationConfig.responseFormat.text`
-  (`research.md` R3). Também ficam explícitos: o `reasoning.effort`
+  `mimeType: application/json` do texto vai em `generationConfig.responseFormat.text`, com o
+  valor `"APPLICATION_JSON"` (`research.md` R3, conferido na API em 2026-10-16). Também ficam explícitos: o `reasoning.effort`
   enviado sempre (o padrão do GPT-5.4-mini é `none`), o snapshot datado do GPT e a ausência de
   seed e temperatura. O texto final do TCC deve trazer os nomes atuais e o modelo efetivamente
   usado.

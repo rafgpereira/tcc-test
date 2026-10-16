@@ -68,8 +68,8 @@ docker compose run --rm app python -m ai_clients generate --model gpt \
 ```
 
 **O que conferir e registrar** (em research A3 e R12, e na metodologia):
-1. **A primeira chamada de cada modelo é aceita pela API.** Um HTTP 400 no Gemini por causa de
-   `responseFormat` aciona o plano B de R3.
+1. **A primeira chamada de cada modelo é aceita pela API.** (No Gemini, a forma do JSON com
+   schema já foi conferida em 2026-10-16 com um pedido de teste; R3.)
 2. **Nenhuma resposta barrada.** Se houver código 6, investigar antes de seguir (A12).
 3. **O `model` do GPT** é `gpt-5.4-mini-2026-03-17`, e o **`modelVersion` do Gemini** fica
    registrado (A3).

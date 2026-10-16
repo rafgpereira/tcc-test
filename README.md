@@ -10,7 +10,7 @@ teste unitários em C++.
 > "Módulos e estado", abaixo); este documento é o ponto de partida e o índice, não o detalhe de
 > cada módulo.
 >
-> **Estado atual (2026-10-15)**: os módulos `dataset` (extração, validação e empacotamento do
+> **Estado atual (2026-10-16)**: os módulos `dataset` (extração, validação e empacotamento do
 > dataset), `sandbox` (motor de execução isolada de C++), `mutation` (100 mutantes por problema) e
 > `ai_clients` para o modelo local (suítes de teste do Qwen2.5-Coder-14B) estão **implementados**,
 > e os três artefatos do experimento já foram gerados de verdade e estão neste repositório, cada

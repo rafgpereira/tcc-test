@@ -93,7 +93,10 @@ def request_body(model: str, prompt: str) -> dict[str, Any]:
             "contents": [{"parts": [{"text": prompt}], "role": "user"}],
             "generationConfig": {
                 "maxOutputTokens": config.MAX_OUTPUT_TOKENS,
-                "responseFormat": {"text": {"mimeType": "application/json", "schema": schema}},
+                # Checked against the live API on 2026-10-16: `mimeType` is an enum
+                # (TextResponseFormat.MimeType): "application/json" is refused (HTTP 400),
+                # "APPLICATION_JSON" is accepted.
+                "responseFormat": {"text": {"mimeType": "APPLICATION_JSON", "schema": schema}},
                 "thinkingConfig": {"thinkingLevel": config.REASONING_LEVEL},
             },
         }

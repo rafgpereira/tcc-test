@@ -70,7 +70,7 @@ Cabeçalhos: `x-goog-api-key: $GEMINI_API_KEY` e `Content-Type: application/json
   "contents": [{"parts": [{"text": "<prompt inteiro>"}], "role": "user"}],
   "generationConfig": {
     "maxOutputTokens": 32768,
-    "responseFormat": {"text": {"mimeType": "application/json",
+    "responseFormat": {"text": {"mimeType": "APPLICATION_JSON",
                                 "schema": {"...": "research R4"}}},
     "thinkingConfig": {"thinkingLevel": "medium"}
   }
@@ -78,9 +78,9 @@ Cabeçalhos: `x-goog-api-key: $GEMINI_API_KEY` e `Content-Type: application/json
 ```
 
 Os campos são exatamente esses. Não vão `systemInstruction`, `cachedContent`, `safetySettings`,
-`temperature`, `topP`, `topK`, `seed` nem `tools`. Se a primeira chamada do piloto receber HTTP
-400 por causa de `responseFormat`, que não é cobrado e para com código 3, o plano B é
-`responseMimeType` + `responseJsonSchema` (research R3), registrado como decisão.
+`temperature`, `topP`, `topK`, `seed` nem `tools`. O `mimeType` é uma lista fixa de valores:
+`"APPLICATION_JSON"` foi aceito pela API em 2026-10-16, e `"application/json"`, como no exemplo da
+documentação, foi recusado com HTTP 400 (research R3).
 
 | Resposta | Leitura |
 |---|---|

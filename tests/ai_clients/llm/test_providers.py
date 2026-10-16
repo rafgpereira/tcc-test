@@ -44,7 +44,7 @@ def test_the_gemini_body_is_exactly_the_contract():
         "generationConfig": {
             "maxOutputTokens": 32768,
             "responseFormat": {
-                "text": {"mimeType": "application/json", "schema": response_schema()}
+                "text": {"mimeType": "APPLICATION_JSON", "schema": response_schema()}
             },
             "thinkingConfig": {"thinkingLevel": "medium"},
         },
@@ -245,3 +245,22 @@ def test_a_timeout_and_a_broken_connection_are_outages(monkeypatch):
     monkeypatch.setattr(providers.urllib.request, "urlopen", unreachable)
     with pytest.raises(ProviderUnavailable, match="cannot reach"):
         providers.make_provider("gemini", "k", timeout_s=1).call(PROMPT)
+
+
+def test_a_real_gemini_answer_of_2026_10_16_is_read():
+    """The answer of the live API to the request of this module (hello world prompt)."""
+    from pathlib import Path
+
+    from ai_clients.llm.interpret import interpret, needs_barrier
+    from dataset.schemas.testes import TestCase
+
+    raw = (Path(__file__).parent / "fixtures" / "gemini_hello_world_2026-10-16.json").read_text()
+    answer = answer_from_body("gemini", raw, 1.0)
+    assert (answer.model_returned, answer.finish.status) == ("gemini-3.8-flash", "STOP")
+    assert answer.usage.reasoning_tokens == 309 and answer.usage.output_tokens == 77 + 309
+    assert not needs_barrier(answer)
+    result = interpret(answer, TestCase(input="1\n", output="1\n"))
+    assert result.ok and result.empty_tests == 1
+    assert [(t.input, t.output) for t in result.tests] == [
+        ("unexpected input text\n", "Hello, World!\n")
+    ]
