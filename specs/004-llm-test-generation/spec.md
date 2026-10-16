@@ -508,7 +508,9 @@ faltando ou sobrando é apontada pelo `check`.
   tetos, e o comando MUST dizer isso na sua ajuda e no README.
 - **FR-023**: O teto de tokens de saída de cada modelo MUST ser fixo e gravado na configuração; o
   valor é fixado no planejamento técnico, a partir de medição num piloto pequeno, grande o bastante
-  para o raciocínio e a resposta das maiores combinações.
+  para o raciocínio e a resposta das maiores combinações. **Medido no piloto 1 do Gemini
+  (2026-10-16, `research.md` R15)**: maior saída de 3.551 *tokens* (resposta mais raciocínio); o
+  teto fica em 32.768, que só é cobrado pelo que se usa.
 - **FR-023a**: O piloto MUST ser uma execução separada da execução completa (decidido em
   2026-10-15): suas respostas MUST NOT ser reaproveitadas na execução completa, mesmo que a
   configuração não tenha mudado, e a execução completa MUST começar do zero, com uma única
@@ -520,9 +522,13 @@ faltando ou sobrando é apontada pelo `check`.
   2026-10-13), cada chamada de uma combinação diferente, protegida pela trava exclusiva por
   combinação do SLM (FR-026a do 003); os dois modelos MUST poder rodar ao mesmo tempo em
   processos separados. O HTTP 429 é falha de infraestrutura (FR-018), com espera crescente e
-  respeito ao tempo de espera indicado pela API. O paralelismo MUST NOT mudar o conteúdo de
-  nenhuma chamada nem o número de tentativas de nenhuma combinação, e o número de chamadas
-  simultâneas não entra na comparação da retomada.
+  respeito ao tempo de espera indicado pela API. Um limite opcional de inícios de pedido por
+  minuto, por modelo no `.env`, MUST espaçar os pedidos do processo (repetições incluídas) para
+  não estourar o limite do plano da API; um 429 de cota **diária** esgotada MUST encerrar o comando
+  na hora, como os erros que não passam sozinhos (FR-018), sem gravar nada (desde 2026-10-16, depois
+  da primeira tentativa do piloto na camada gratuita do Gemini; `research.md` R6, R7). O paralelismo
+  e o ritmo MUST NOT mudar o conteúdo de nenhuma chamada nem o número de tentativas de nenhuma
+  combinação, e não entram na comparação da retomada.
 
 ### Relatório, pacote e conferência
 

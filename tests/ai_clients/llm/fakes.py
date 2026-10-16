@@ -188,13 +188,25 @@ class FakeProvider:
 
 @dataclass
 class FakeClock:
-    """``sleep`` that only records; ``today`` fixed (the price row)."""
+    """Waits that only record (and advance the monotonic time); ``today`` fixed (the price row)."""
 
     sleeps: list = field(default_factory=list)
     now: str = "2026-10-20T12:00:00Z"
+    elapsed: float = 0.0
+    _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def sleep(self, seconds: float) -> None:
-        self.sleeps.append(seconds)
+        with self._lock:
+            self.sleeps.append(seconds)
+            self.elapsed += seconds
+
+    def wait(self, seconds: float, wake) -> None:
+        if not wake.is_set():
+            self.sleep(seconds)
+
+    def monotonic(self) -> float:
+        with self._lock:
+            return self.elapsed
 
     def utc_now(self) -> str:
         return self.now

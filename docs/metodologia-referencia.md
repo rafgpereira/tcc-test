@@ -1136,6 +1136,18 @@ passo.]**
     `61_B`); com a saída no teto de 32.768 nos dois extremos (antes do piloto), GPT de US$ 89,09 a
     267,28 e Gemini de US$ 74,35 a 223,04 (preço introdutório). O custo real tende a ser bem menor;
     o piloto mede a saída real.
+  - **Piloto 1 do Gemini [MEDIDO, 2026-10-16 — `research.md` R15]**: 15 combinações (os 5 problemas `1000_B`, `1005_C`, `1008_B`, `1_B` e `61_B` nos 3 cenários),
+    15 chamadas, todas com suíte na 1ª tentativa; nenhuma falha de formato, resposta cortada, resposta
+    barrada ou bloqueio de segurança; `finishReason` `STOP` e `modelVersion` `gemini-3.8-flash` nas 15;
+    saída por chamada (resposta mais raciocínio) média de 1.965 *tokens*, mediana 1.640, mínima 1.114 e
+    máxima 3.551 (11% do teto de 32.768), dos quais raciocínio médio de 1.206 (de 334 a 2.845) e a
+    resposta visível no máximo 894; 69.717 caracteres de prompt para 20.786 *tokens* de entrada
+    devolvidos pela API (3,354 caracteres por *token*; a estimativa usava 3,0); suítes de 7 a 12
+    testes (mediana 10), 2 testes descartados por entrada vazia; tempo por chamada mediano de 13,1 s e
+    máximo de 29,1 s; custo real US$ 0,126, contra US$ 1,86 a 5,58 estimados antes do piloto.
+    Com isso, a estimativa do Gemini passa a usar 3,354 caracteres por *token* e a saída média de
+    1.965 (execução completa: US$ 4,97 a 222,84), e o teto de saída fica em 32.768 nos dois
+    modelos. Relatório em `manifests/gemini_generation_report.piloto1.json`.
   - **Desvio da Constitution justificado:** a ausência de seed nos LLMs (A3) é um desvio do
     Princípio II ("seed fixa e documentada"), justificado por escrito no "Complexity Tracking" do
     `plan.md`. Nenhuma das APIs garante reprodução com seed, e os números publicados se apoiam no
@@ -1652,6 +1664,21 @@ próprio pacote, manifesto e relatório. Limitações: as respostas não
 são reproduzíveis bit a bit, e o provedor pode trocar a versão do modelo (cada tentativa grava o
 identificador devolvido pela API).
 
+**Expoentes perdidos nos enunciados [MEDIDO, 2026-10-16]**: em **71 dos 200** `enunciado.md`
+(35,5%) as potências de 10 perderam o expoente no texto do dataset de origem: `10^5` aparece como
+`105`, `10^9` como `109`, `10^6` como `106`, `10^18` como `1018` (por exemplo, `1_B`: "1 ≤ n ≤
+105" e "larger than 106"). Contagem por padrão de texto, conferida à mão por amostragem: um desses
+números logo depois de `≤`, `<`, `≥`, `>`, `·` ou `×` (68 enunciados; `105` 57 vezes, `109` 34,
+`106` 10, `1018` 2; incluídos os 2 com `103`, que pelo contexto são 10³) ou em "modulo ... (109 +
+7)", "from 1 to 106", "does not exceed 104" (3). Outros 53 enunciados preservam o expoente
+(`10^5` ou `10^{5}`) e 76 não têm potência de 10. **Efeito**: no cenário caixa-preta (e no
+híbrido, que também tem o enunciado) o modelo pode ler restrições erradas (`n ≤ 105` no lugar de
+`n ≤ 100000`) e gerar entradas pequenas demais ou valores que não testam os limites; nos cenários
+com código, o `AC_ref.cpp` costuma deixar os limites claros. Os 3 modelos recebem o mesmo texto,
+então a comparação entre modelos não é afetada, mas a comparação entre cenários pode ser: é uma
+limitação a registrar no TCC (e um fator a considerar na análise da caixa-preta). O dataset não é
+corrigido (seria mudar o artefato validado e versionado). Problemas afetados: 134_A, 143_C, 151_D, 161_A, 165_C, 178_A1, 182_B, 189_C, 18_C, 190_A, 192_B, 1_B, 204_B, 205_B, 220_A, 224_B, 231_C, 237_A, 256_A, 265_D, 270_B, 284_B, 285_B, 291_C, 334_B, 349_A, 352_A, 358_B, 365_A, 368_C, 372_A, 380_A, 413_B, 417_B, 446_A, 447_C, 455_A, 459_B, 493_B, 493_C, 518_B, 523_C, 534_C, 569_A, 570_A, 572_B, 630_J, 652_A, 670_D2, 675_A, 702_C, 70_B, 710_B, 713_A, 733_B, 734_C, 73_A, 747_C, 75_A, 770_C, 789_A, 79_A, 832_B, 847_H, 870_B, 876_B, 88_C, 893_C, 913_C, 91_B, 950_B.
+
 **Template de prompt**: estrutura única em inglês, com marcação XML (`<system_rules>`,
 `<context_data>`, `<few_shot_example>`, `<task>`), combinando Few-Shot Prompting +
 Chain-of-Thought. Antes de gerar os testes, o modelo é obrigado a preencher um campo
@@ -1886,6 +1913,14 @@ diretamente ao objetivo específico de mapear desempenho por categoria algorítm
     apesar do rótulo "Legacy", com risco registrado. **[A FIXAR NO PILOTO]** O teto de saída
     (provisório: 32.768) e a razão caracteres/token de cada modelo. A forma do JSON com schema
     no Gemini já foi fixada em 2026-10-16 (`responseFormat.text` com `"APPLICATION_JSON"`).
+    **[DECIDIDO, 2026-10-16 — Milena]** O Gemini usa conta com faturamento ativo no piloto e na
+    execução completa, como o plano previa (na camada gratuita o Google pode usar o conteúdo
+    enviado, e o limite de 20 pedidos por dia levaria a execução completa a 30 a 90 dias); a
+    primeira tentativa do piloto, feita na camada gratuita, não gravou nenhuma resposta.
+    **[MEDIDO, 2026-10-16]** Piloto 1 do Gemini: 15 de 15 suítes na 1ª tentativa, maior saída de
+    3.551 *tokens*, razão de 3,354 caracteres por *token*, US$ 0,126 (seção 3). **[DECIDIDO,
+    2026-10-16]** Teto de saída mantido em 32.768 (só se paga o que se usa). **[A FIXAR NO PILOTO
+    DO GPT]** A razão e a média de saída do GPT.
 4. ~~**[PROPOSTA]** Extrair dos três splits combinados~~ — **RESOLVIDO** (ver 1.1).
 5. ~~**[PROPOSTA]** Adicionar `is_description_translated == false` como critério de
    elegibilidade~~ — **RESOLVIDO** (ver 1.2).
@@ -1983,6 +2018,10 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-10-16 | **Expoentes perdidos nos enunciados (seção 3)**: contagem sobre os 200 `enunciado.md`: 71 (35,5%) perderam o expoente das potências de 10 no texto do dataset de origem (`10^5` → `105`, `10^9` → `109`), 53 o preservam e 76 não têm potência de 10. Afeta os cenários com enunciado (caixa-preta e híbrido) igualmente nos 3 modelos; limitação a registrar no TCC; o dataset não é corrigido. Achado ao inspecionar o prompt de `1_B` do piloto do Gemini | 1, 3 |
+| 2026-10-16 | **Piloto 1 do Gemini (`specs/004-llm-test-generation/research.md` R15; relatório versionado em `manifests/gemini_generation_report.piloto1.json`)**: 15 combinações (os 5 problemas `1000_B`, `1005_C`, `1008_B`, `1_B` e `61_B` nos 3 cenários), 15 chamadas, todas com suíte na 1ª tentativa; nenhuma falha de formato, resposta cortada, resposta barrada ou bloqueio de segurança; `finishReason` `STOP` e `modelVersion` `gemini-3.8-flash` nas 15; saída por chamada (resposta mais raciocínio) média de 1.965 *tokens*, mediana 1.640, mínima 1.114 e máxima 3.551 (11% do teto de 32.768), dos quais raciocínio médio de 1.206 (de 334 a 2.845) e a resposta visível no máximo 894; 69.717 caracteres de prompt para 20.786 *tokens* de entrada devolvidos pela API (3,354 caracteres por *token*; a estimativa usava 3,0); suítes de 7 a 12 testes (mediana 10), 2 testes descartados por entrada vazia; tempo por chamada mediano de 13,1 s e máximo de 29,1 s; custo real US$ 0,126, contra US$ 1,86 a 5,58 estimados antes do piloto. Decidido: teto de saída mantido em 32.768; estimativa do Gemini com 3,354 caracteres por *token* e saída média de 1.965 (execução completa: US$ 4,97 a 222,84). Falta o piloto do GPT | 3, 6 |
+| 2026-10-16 | **Conta paga no Gemini (decidido por Milena)**: o piloto e a execução completa do Gemini usam conta com faturamento ativo, como o plano previa; resolve a decisão em aberto da linha anterior sobre a camada gratuita (seção 6, item 32) | 3, 6 |
+| 2026-10-16 | **Ritmo de pedidos e cota diária (`specs/004-llm-test-generation/research.md` R6, R7; spec FR-024)**: a primeira tentativa do piloto do Gemini, numa chave da **camada gratuita** (5 pedidos por minuto, 20 por dia, 250 mil *tokens* por minuto), mandou 4 pedidos ao mesmo tempo e recebeu HTTP 503 ("high demand") e 429 de cota seguidos; nenhuma resposta, nada gravado além do `run.json`, interrompida com `Ctrl+C`. Mudanças: limite opcional de inícios de pedido por minuto por modelo (`GEMINI_MAX_REQUESTS_PER_MINUTE`, `OPENAI_MAX_REQUESTS_PER_MINUTE`), que espaça os pedidos do processo, repetições incluídas; 429 de cota **diária** (`QuotaFailure` com `PerDay`) encerra o comando com código 3 em vez de esgotar as repetições; toda espera acaba na hora quando a invocação para. **A decidir pelos autores**: usar a camada gratuita no experimento (o plano previa conta com faturamento ativo, porque na gratuita o Google pode usar o conteúdo enviado; com 20 pedidos por dia, as até 1.800 chamadas da execução completa de um modelo levariam de 30 a 90 dias) | 3, 6 |
 | 2026-10-16 | **Forma do JSON com schema no Gemini conferida na API (`specs/004-llm-test-generation/research.md` R3; plano, S4)**: antes do piloto, um pedido "hello world" com a configuração do experimento. A forma `generationConfig.responseFormat.text` da documentação atual, com o valor `"application/json"` do exemplo, foi recusada (HTTP 400, não cobrado: o `mimeType` é uma lista fixa de valores); a mesma forma com `"APPLICATION_JSON"` foi aceita, com JSON no schema, `finishReason` `STOP`, 309 *tokens* de raciocínio e `modelVersion` `gemini-3.8-flash`. O código usa essa forma (o plano B não foi necessário); a resposta real virou um teste | 3, 6, 7 |
 | 2026-10-15 | **Implementação dos LLMs comerciais (`/speckit-implement` de `specs/004-llm-test-generation/`, T001 a T054)**: subpacote `src/ai_clients/llm/` (clientes HTTP da biblioteca padrão, interpretação, custo, estado por arquivos, coordenador com *threads*, teto de gasto, barreira de raciocínio, `close`, `change-template`, relatório, pacote, `verify`), `--model {slm,gpt,gemini}` nos comandos, leitor comum `SuiteView`, camadas `gpt_suites` e `gemini_suites` do `cli check`, `llm_prompt.txt` aprovado pelos autores; 1.765 testes passando, sem regressão no SLM; leitor comum conferido nas 600 suítes reais do SLM. Decisões da implementação: no `Ctrl+C` as chamadas em andamento são gravadas; texto que não é UTF-8 válido vira `schema_violation`. Dry-run real: 600 combinações por modelo, ~824 mil *tokens* de entrada (razão 3,0), maior prompt 7.459 caracteres, GPT US$ 89,09–267,28 e Gemini US$ 74,35–223,04 com a saída no teto. Pendentes: piloto pago (T055), decisão com os autores (T056), execução completa (T057) e fechamento | 3 |
 | 2026-10-15 | **Análise de consistência dos LLMs comerciais (`/speckit-analyze` de `specs/004-llm-test-generation/`) e correções aplicadas**: a ausência de seed nos LLMs passa a constar no plano como desvio do Princípio II, justificado por escrito ("Complexity Tracking"); o teto de gasto vale por processo (dois `generate --resume` do mesmo modelo podem gastar a soma dos dois tetos; FR-022a); o pacote recusado por pendência é só o do modelo dela (FR-016); a tabela de preços não entra na comparação da retomada (entidade da spec); troca de texto-base dos LLMs com schema próprio (`LlmTemplateChange`), sem mudar o `AttemptKind` do SLM; tarefas novas de teste da barreira com chamadas em andamento, de leitura das 600 suítes reais do SLM pelo leitor comum (SC-007) e de verificação de que o módulo não executa código | 3 |

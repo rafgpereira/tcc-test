@@ -56,6 +56,13 @@ class SystemClock:
     def sleep(self, seconds: float) -> None:
         time.sleep(seconds)
 
+    def wait(self, seconds: float, wake: threading.Event) -> None:
+        """Wait ``seconds``, or less if ``wake`` is set (the invocation stops: Ctrl+C included)."""
+        wake.wait(timeout=seconds)
+
+    def monotonic(self) -> float:
+        return time.monotonic()
+
     def utc_now(self) -> str:
         return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -101,6 +108,7 @@ class _Coordinator:
         self.lock = threading.Lock()
         self.spend_cap = spend_cap
         self.result = GenerateResult()
+        self.wake = threading.Event()  # set when the invocation stops: every wait ends at once
 
     def stopped(self) -> bool:
         with self.lock:
@@ -110,6 +118,7 @@ class _Coordinator:
         with self.lock:
             if self.result.stop is None:
                 self.result.stop, self.result.stop_message = reason, message
+        self.wake.set()
 
     def spend(self, amount: float) -> None:
         with self.lock:
@@ -117,6 +126,26 @@ class _Coordinator:
             reached = self.spend_cap is not None and self.result.spent >= self.spend_cap
         if reached:
             self.stop("spend_cap")
+
+
+class _Pacer:
+    """At most ``per_minute`` request starts per minute in this process, retries included: the
+    starts are spaced by 60 / ``per_minute`` seconds, whatever the thread (the request limits of
+    the APIs, e.g. 5 per minute on the free tier of the Gemini API)."""
+
+    def __init__(self, per_minute: int | None) -> None:
+        self.interval = 60.0 / per_minute if per_minute else 0.0
+        self.lock = threading.Lock()
+        self.next_start: float | None = None
+
+    def delay(self, now: float) -> float:
+        """The wait before the next start (and that start booked)."""
+        if not self.interval:
+            return 0.0
+        with self.lock:
+            start = now if self.next_start is None else max(now, self.next_start)
+            self.next_start = start + self.interval
+        return start - now
 
 
 def _today(clock) -> date:
@@ -148,6 +177,7 @@ class _Context:
     echo: Callable[[str], None]
     max_infra_retries: int
     coordinator: _Coordinator
+    pacer: _Pacer
 
 
 def _call_with_retries(ctx: _Context, prompt: str, what: str) -> ProviderAnswer | None:
@@ -156,6 +186,11 @@ def _call_with_retries(ctx: _Context, prompt: str, what: str) -> ProviderAnswer 
     while True:
         if ctx.coordinator.stopped():
             return None
+        delay = ctx.pacer.delay(ctx.clock.monotonic())
+        if delay > 0:
+            ctx.clock.wait(delay, ctx.coordinator.wake)
+            if ctx.coordinator.stopped():
+                return None
         try:
             return ctx.provider.call(prompt)
         except ProviderUnavailable as exc:
@@ -173,7 +208,7 @@ def _call_with_retries(ctx: _Context, prompt: str, what: str) -> ProviderAnswer 
                 f"{ctx.model} unavailable ({exc.reason}); retrying the same call in {pause:g} s "
                 f"(retry {retries} of {ctx.max_infra_retries})"
             )
-            ctx.clock.sleep(pause)
+            ctx.clock.wait(pause, ctx.coordinator.wake)
             wait_s = min(wait_s * 2, config.BACKOFF_MAX_S)
         except ProviderFatal as exc:
             ctx.coordinator.stop("fatal", str(exc))
@@ -277,6 +312,7 @@ def generate(
     concurrency: int = 1,
     spend_cap: float | None = None,
     limit: int | None = None,
+    requests_per_minute: int | None = None,
 ) -> GenerateResult:
     """Generate the suites of ``combinations`` (canonical order) with up to ``concurrency``
     calls at a time; ``KeyboardInterrupt`` after the calls in flight are recorded."""
@@ -287,7 +323,18 @@ def generate(
         with lock:
             echo(message)
 
-    ctx = _Context(root, model, provider, template, run, clock, say, max_infra_retries, coordinator)
+    ctx = _Context(
+        root,
+        model,
+        provider,
+        template,
+        run,
+        clock,
+        say,
+        max_infra_retries,
+        coordinator,
+        _Pacer(requests_per_minute),
+    )
     loaded: dict = {}
     handed = 0
     slots = threading.Semaphore(concurrency)

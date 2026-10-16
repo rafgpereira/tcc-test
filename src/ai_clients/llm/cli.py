@@ -191,6 +191,8 @@ def run_generate(args) -> int:
         config.ENV_MAX_INFRA_RETRIES[model], config.DEFAULT_MAX_INFRA_RETRIES
     )
     timeout_s = _env_positive_int(config.ENV_HTTP_TIMEOUT_S, config.DEFAULT_HTTP_TIMEOUT_S)
+    per_minute_name = config.ENV_MAX_REQUESTS_PER_MINUTE[model]
+    per_minute = _env_positive_int(per_minute_name, 1) if os.environ.get(per_minute_name) else None
     exists = store.run_exists(root, model)
     if exists and not args.resume:
         raise UsageError(f"a run already exists in {_tree(model)}; use --resume to continue it")
@@ -244,6 +246,7 @@ def run_generate(args) -> int:
                 concurrency=concurrency,
                 spend_cap=args.confirm_spend,
                 limit=args.limit,
+                requests_per_minute=per_minute,
             )
         except KeyboardInterrupt:
             print(

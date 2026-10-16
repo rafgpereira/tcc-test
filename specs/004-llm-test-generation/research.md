@@ -459,9 +459,13 @@ reinterpretá-la nunca exige chamar a API de novo (o mesmo desenho do SLM).
 | rede, *timeout* de leitura, corpo cortado, 5xx, 408, 409, 429 (exceto cota esgotada) | infraestrutura (FR-018) | a mesma chamada é repetida, sem gravar nada |
 | 400 (pedido malformado, schema recusado), 401/403 (chave), 404 (modelo), 429 com `insufficient_quota` (OpenAI: cota ou crédito esgotado) | erro que não passa sozinho | para na hora com código 3, sem repetir e sem gastar tentativa |
 
-No Gemini, o 429 de cota (`RESOURCE_EXHAUSTED`) não se distingue com segurança do 429 de limite
-de requisições. Ele é repetido com espera crescente até o teto, e a mensagem final diz para
-conferir a cota. Isso fica registrado como limitação.
+No Gemini, o 429 de cota (`RESOURCE_EXHAUSTED`) era tratado igual ao 429 de limite de
+requisições. **Revisto em 2026-10-16, depois da primeira tentativa do piloto** (camada gratuita,
+limites de 5 pedidos por minuto e 20 por dia): o corpo do 429 traz um `google.rpc.QuotaFailure` com
+o `quotaId` da cota estourada; quando ele tem `PerDay`, a cota é diária, e repetir antes de ela
+renovar só gastaria as repetições, então é um erro que não passa sozinho (código 3, nada gravado,
+retomada com `--resume` depois). A cota por minuto continua sendo esperada, respeitando o
+`retryDelay`.
 
 ## R7 — Espera, repetições e tempo de leitura
 
@@ -473,6 +477,15 @@ conferir a cota. Isso fica registrado como limitação.
   `GEMINI_MAX_INFRA_RETRIES`, com padrão 30.
 - **Tempo de leitura:** `LLM_HTTP_TIMEOUT_S`, com padrão 900 s, porque uma resposta sem streaming
   só chega depois do raciocínio inteiro.
+- **Ritmo de pedidos (desde 2026-10-16):** `OPENAI_MAX_REQUESTS_PER_MINUTE` e
+  `GEMINI_MAX_REQUESTS_PER_MINUTE`, opcionais. Com N, os inícios de pedido do processo, repetições
+  incluídas e entre todas as *threads*, ficam espaçados por 60/N s. Motivo: a primeira tentativa do
+  piloto do Gemini, na camada gratuita (5 pedidos por minuto, 20 por dia), mandou 4 pedidos ao
+  mesmo tempo e recebeu 429 e 503 seguidos; a espera depois do erro não basta para não estourar o
+  limite.
+- **Esperas interrompíveis (desde 2026-10-16):** toda espera (a do ritmo e a de uma falha de
+  infraestrutura) acaba na hora quando a invocação para (teto de gasto, resposta barrada, erro que
+  não passa sozinho, `Ctrl+C`): antes, um `Ctrl+C` durante uma espera de 42 s esperava os 42 s.
 - Nenhum desses valores muda a resposta, e nenhum entra no `run.json`.
 
 ## R8 — Concorrência, teto de gasto e barreira: um processo, N chamadas
@@ -608,6 +621,37 @@ severidade da camada `slm_suites`:
 - **Depois do piloto:** o valor final é fixado com o maior total de saída medido (resposta mais
   raciocínio) e uma folga, ou mantido se nenhuma resposta passou perto. O valor entra no `run.json`,
   e mudá-lo depois do piloto significa uma execução nova, o que o FR-023a já exige.
+
+## R15 — Piloto 1 do Gemini **[MEDIDO, 2026-10-16]**
+
+Conta com faturamento ativo (decidido por Milena em 2026-10-16), revisão `94fec3a` com o ritmo de
+pedidos e a cota diária ainda não commitados, `GEMINI_MAX_CONCURRENCY=1`, relatório versionado em
+`manifests/gemini_generation_report.piloto1.json`, árvore arquivada em
+`data/suites/gemini-piloto1/`. Uma primeira tentativa na camada gratuita, no mesmo dia, recebeu
+só 503 e 429 e não gravou nenhuma resposta (R6, R7).
+
+**Medido**: 15 combinações (os 5 problemas `1000_B`, `1005_C`, `1008_B`, `1_B` e `61_B` nos 3 cenários),
+15 chamadas, todas com suíte na 1ª tentativa; nenhuma falha de formato, resposta cortada, resposta
+barrada ou bloqueio de segurança; `finishReason` `STOP` e `modelVersion` `gemini-3.8-flash` nas 15;
+saída por chamada (resposta mais raciocínio) média de 1.965 *tokens*, mediana 1.640, mínima 1.114 e
+máxima 3.551 (11% do teto de 32.768), dos quais raciocínio médio de 1.206 (de 334 a 2.845) e a
+resposta visível no máximo 894; 69.717 caracteres de prompt para 20.786 *tokens* de entrada
+devolvidos pela API (3,354 caracteres por *token*; a estimativa usava 3,0); suítes de 7 a 12
+testes (mediana 10), 2 testes descartados por entrada vazia; tempo por chamada mediano de 13,1 s e
+máximo de 29,1 s; custo real US$ 0,126, contra US$ 1,86 a 5,58 estimados antes do piloto.
+
+**O que muda**:
+- **Estimativa (R9):** `CHARS_PER_TOKEN` do Gemini passa a 3,354 e a média de saída medida,
+  1.965, vira o extremo de baixo da faixa. Dry-run da execução completa refeito em 2026-10-16:
+  cerca de 737 mil *tokens* de entrada, US$ 4,97 (uma chamada por combinação, saída média) a
+  US$ 222,84 (três chamadas no teto).
+- **Teto de saída (R12):** mantido em 32.768 nos dois modelos. A maior saída usou 11% dele, e só
+  se paga o que é usado; reduzir arriscaria cortar uma resposta longa (`truncated`) sem economia.
+  Fica no `run.json`; mudá-lo depois exige uma execução nova.
+- **Concorrência e ritmo:** sem 429 nem 503 na conta paga com uma chamada por vez; a execução
+  completa pode usar mais chamadas ao mesmo tempo, dentro do limite de pedidos por minuto da conta.
+
+Pendente: o piloto do GPT (T055) e a parte da decisão T056 que depende dele.
 
 ## R13 — `generateContent` rotulado "Legacy" **[DECIDIDO, 2026-10-15 — autores: manter]**
 

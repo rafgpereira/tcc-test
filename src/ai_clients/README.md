@@ -182,8 +182,13 @@ cada um tem a sua pasta (`data/suites/gpt/` e `data/suites/gemini/`).
 **1. Preencher o `.env`**: `OPENAI_API_KEY` (GPT) e `GEMINI_API_KEY` (Gemini), chaves de contas com
 faturamento ativo (na camada gratuita do Gemini o conteúdo pode ser usado pelo Google). Opcionais:
 `OPENAI_MAX_CONCURRENCY`/`GEMINI_MAX_CONCURRENCY` (pedidos ao mesmo tempo, padrão 4),
-`OPENAI_MAX_INFRA_RETRIES`/`GEMINI_MAX_INFRA_RETRIES` (padrão 30) e `LLM_HTTP_TIMEOUT_S` (padrão
-900). Um modelo sem chave não roda; o outro roda normalmente.
+`OPENAI_MAX_INFRA_RETRIES`/`GEMINI_MAX_INFRA_RETRIES` (padrão 30), `LLM_HTTP_TIMEOUT_S` (padrão
+900) e `OPENAI_MAX_REQUESTS_PER_MINUTE`/`GEMINI_MAX_REQUESTS_PER_MINUTE` (no máximo tantos pedidos
+começam por minuto, repetições incluídas, espaçados por igual; sem valor, não há espaçamento). Use o
+limite do seu plano: na camada gratuita do Gemini, 5 pedidos por minuto e 20 por dia, isto é,
+`GEMINI_MAX_REQUESTS_PER_MINUTE=5` e `GEMINI_MAX_CONCURRENCY=1`. Quando a cota diária acaba, o
+comando para com `3`, sem gravar nada; rode de novo com `--resume` depois que ela renovar. Um modelo
+sem chave não roda; o outro roda normalmente.
 
 **2. Estimar o custo, sem chamar nada.** O `--dry-run` monta os pedidos reais e estima, por cenário
 e no total, quantos pedidos e quanto custam; não precisa de chave, não chama nenhuma API e não
@@ -199,8 +204,10 @@ entrada estimados (caracteres ÷ `CHARS_PER_TOKEN`, valor e origem impressos) e 
 US$. Medido em 2026-10-15, antes do piloto, para os 200 problemas: 600 combinações por modelo,
 cerca de 824 mil *tokens* de entrada, maior pedido 7.459 caracteres (híbrido de `61_B`); faixa de
 US$ 89,09 a 267,28 no GPT e de US$ 74,35 a 223,04 no Gemini — os dois extremos supõem que cada
-chamada usa todo o teto de saída (32.768 *tokens*), porque antes do piloto não há medição; o
-piloto troca o extremo de baixo pela média medida.
+chamada usa todo o teto de saída (32.768 *tokens*), porque antes do piloto não há medição. Depois
+do piloto do Gemini (2026-10-16: 15 chamadas, saída média de 1.965 *tokens*, custo real US$ 0,126),
+a estimativa dele usa a razão e a média medidas: US$ 4,97 (uma chamada por combinação) a 222,84
+(três chamadas no teto) para os 200 problemas.
 
 **3. Rodar, sempre com um teto de gasto.** Nenhuma chamada paga sai sem `--confirm-spend <US$>`:
 sem ele, o comando mostra a estimativa e sai com `2`. O valor é a confirmação **e** o teto da
@@ -313,6 +320,8 @@ ou de configuração (Ollama ou API), `4` terminou, mas alguma combinação agua
 | `gpt unavailable (...); retrying the same call ...` | a API não respondeu ou pediu para esperar; o comando repete sozinho, sem gastar tentativa |
 | `configuration error: gpt: the API key in OPENAI_API_KEY was refused ...` ou `... quota or credit ...` (`3`) | corrija a chave ou o crédito da conta e rode `generate --model <modelo> --resume` |
 | `configuration error: gemini: the request was refused as malformed ...` (`3`) | a API recusou o formato do pedido (nada foi cobrado); avise os autores |
+| `configuration error: gemini: the daily request quota of the API is exhausted ...` (`3`) | a cota de pedidos do dia acabou (na camada gratuita, 20 por dia); nada foi gravado: rode `generate --model gemini --resume` depois que ela renovar |
+| `gemini unavailable (HTTP 429: ... quota ...)` ou `(HTTP 503: ... high demand ...)`, repetido | limite de pedidos por minuto ou modelo sobrecarregado; o comando espera e repete sozinho. Para não estourar o limite, defina `GEMINI_MAX_REQUESTS_PER_MINUTE` (e `GEMINI_MAX_CONCURRENCY=1` na camada gratuita) |
 
 ## (c) Entradas esperadas
 
@@ -323,7 +332,7 @@ ou de configuração (Ollama ou API), `4` terminou, mas alguma combinação agua
 | `src/prompt_templates/slm_prompt.txt` e `slm_predict_prompt.txt` | texto (inglês) | versionados; os textos-base dos pedidos 1 a 12 e 13 a 15, iguais nos três cenários exceto pelo bloco de contexto |
 | `OLLAMA_BASE_URL`, `OLLAMA_HARDWARE_LABEL` (opcionais `OLLAMA_HTTP_TIMEOUT_S`, `OLLAMA_MAX_INFRA_RETRIES`, `OLLAMA_MODEL`) | variáveis do `.env` | preenchidas pelo operador (ver `.env.example`) |
 | `src/prompt_templates/llm_prompt.txt` | texto (inglês) | versionado; o texto-base dos dois modelos comerciais, com as mesmas regras de entradas do modelo local |
-| `OPENAI_API_KEY`, `GEMINI_API_KEY` (opcionais `OPENAI_MAX_CONCURRENCY`, `GEMINI_MAX_CONCURRENCY`, `OPENAI_MAX_INFRA_RETRIES`, `GEMINI_MAX_INFRA_RETRIES`, `LLM_HTTP_TIMEOUT_S`) | variáveis do `.env` | preenchidas pelo operador; nunca gravadas em arquivo nem em mensagem |
+| `OPENAI_API_KEY`, `GEMINI_API_KEY` (opcionais `OPENAI_MAX_CONCURRENCY`, `GEMINI_MAX_CONCURRENCY`, `OPENAI_MAX_INFRA_RETRIES`, `GEMINI_MAX_INFRA_RETRIES`, `LLM_HTTP_TIMEOUT_S`, `OPENAI_MAX_REQUESTS_PER_MINUTE`, `GEMINI_MAX_REQUESTS_PER_MINUTE`) | variáveis do `.env` | preenchidas pelo operador; nunca gravadas em arquivo nem em mensagem |
 
 ## (d) Saídas produzidas
 
@@ -395,9 +404,11 @@ ou de configuração (Ollama ou API), `4` terminou, mas alguma combinação agua
 | `package` | 2026-10-11 | f43d95c |
 | `verify` (inclusive `--extracted data/suites/slm`) | 2026-10-11 | c967f97 |
 | `generate --model gpt --dry-run` e `generate --model gemini --dry-run` (200 problemas) | 2026-10-15 | 696da2c+dirty |
-| `generate --model gpt` / `--model gemini` (chamadas pagas) | pendente | — |
+| `generate --model gemini` (chamadas pagas; piloto de 5 problemas) | 2026-10-16 | 94fec3a+dirty |
+| `generate --model gpt` (chamadas pagas) | pendente | — |
 | `close --model ...` | pendente | — |
 | `change-template --model ... --template llm` | pendente | — |
-| `report --model ...` | pendente | — |
+| `report --model gemini` (piloto) | 2026-10-16 | 94fec3a+dirty |
+| `report --model gpt` | pendente | — |
 | `package --model ...` | pendente | — |
 | `verify --model ...` | pendente | — |

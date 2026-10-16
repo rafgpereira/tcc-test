@@ -32,7 +32,8 @@ def test_the_dry_run_calls_nothing_writes_nothing_and_needs_no_key(
     assert lines[-1] == "dry run: nothing was called nor recorded"
     total = next(line for line in lines if line.startswith(f"{model} total:"))
     assert "6 combinations, 6 calls (up to 18)" in total
-    assert "CHARS_PER_TOKEN=3 conservative, before the pilot" in total
+    ratio, origin = config.CHARS_PER_TOKEN[model], config.CHARS_PER_TOKEN_ORIGIN[model]
+    assert f"CHARS_PER_TOKEN={ratio:g} {origin}" in total
     assert f"output {config.MAX_OUTPUT_TOKENS} max" in total and "US$ " in total
     for scenario in config.SCENARIOS:
         assert any(line.startswith(f"{model} {scenario}: 2 combinations") for line in lines)

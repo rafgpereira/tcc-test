@@ -92,7 +92,8 @@ documentação, foi recusado com HTTP 400 (research R3).
 
 | Erro | Classe |
 |---|---|
-| rede, *timeout*, corpo cortado, HTTP 5xx, 408, 429 | `ProviderUnavailable` (`Retry-After` ou `retryDelay` do `google.rpc.RetryInfo`, se vier) |
+| rede, *timeout*, corpo cortado, HTTP 5xx, 408, 429 (exceto cota diária) | `ProviderUnavailable` (`Retry-After` ou `retryDelay` do `google.rpc.RetryInfo`, se vier) |
+| HTTP 429 com `google.rpc.QuotaFailure` cujo `quotaId` tem `PerDay` (cota diária esgotada) | `ProviderFatal`: repetir antes de a cota renovar seria inútil (desde 2026-10-16) |
 | HTTP 400, 401, 403, 404 | `ProviderFatal` |
 
 ## 4. Ordem das conferências de uma resposta 200 (research R6)

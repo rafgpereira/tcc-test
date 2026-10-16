@@ -1,0 +1,259 @@
+{
+  "attempts_by_number": {
+    "1": 15,
+    "2": 0,
+    "3": 0
+  },
+  "barred": {
+    "combinations": [],
+    "count": 0
+  },
+  "combinations": {
+    "black_box": {
+      "accepted_predicted": 5,
+      "awaiting_manual": 0,
+      "discarded_manual": 0,
+      "pending": 195,
+      "total": 200
+    },
+    "hybrid": {
+      "accepted_predicted": 5,
+      "awaiting_manual": 0,
+      "discarded_manual": 0,
+      "pending": 195,
+      "total": 200
+    },
+    "total": {
+      "accepted_predicted": 15,
+      "awaiting_manual": 0,
+      "discarded_manual": 0,
+      "pending": 585,
+      "total": 600
+    },
+    "white_box": {
+      "accepted_predicted": 5,
+      "awaiting_manual": 0,
+      "discarded_manual": 0,
+      "pending": 195,
+      "total": 200
+    }
+  },
+  "cost_usd": {
+    "barred_cost_usd": 0.0,
+    "by_group": {
+      "black_box": 0.0471465,
+      "hybrid": 0.0393375,
+      "total": 0.126132,
+      "white_box": 0.039648
+    },
+    "price_rows_used": [
+      {
+        "accessed_on": "2026-10-15",
+        "cached_input_per_mtok": 0.075,
+        "input_per_mtok": 0.75,
+        "model_key": "gemini",
+        "output_per_mtok": 3.75,
+        "source": "https://ai.google.dev/gemini-api/docs/pricing",
+        "valid_from": "2026-10-15"
+      }
+    ],
+    "total": 0.126132
+  },
+  "dataset_manifest_sha256": "a092d987bffc42c9fa5b0c54196ff6060ffc74187503521048aaaf199e47c02c",
+  "failures": {},
+  "latency_s": {
+    "calls": 15,
+    "max_s": 29.1,
+    "mean_s": 15.2126,
+    "median_s": 13.05,
+    "total_s": 228.189
+  },
+  "model_key": "gemini",
+  "model_requested": "gemini-3.8-flash",
+  "models_returned": {
+    "gemini-3.8-flash": 15
+  },
+  "request_parameters": {
+    "contents": [
+      {
+        "parts": [
+          {
+            "text": "<prompt>"
+          }
+        ],
+        "role": "user"
+      }
+    ],
+    "generationConfig": {
+      "maxOutputTokens": 32768,
+      "responseFormat": {
+        "text": {
+          "mimeType": "APPLICATION_JSON",
+          "schema": {
+            "additionalProperties": false,
+            "properties": {
+              "edge_cases_analysis": {
+                "type": "string"
+              },
+              "tests": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "output": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "input",
+                    "output"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "edge_cases_analysis",
+              "tests"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "thinkingConfig": {
+        "thinkingLevel": "medium"
+      }
+    }
+  },
+  "safety_blocks_by_category": {},
+  "schema_version": 1,
+  "suite_size": {
+    "black_box": {
+      "count": 5,
+      "histogram": {
+        "10": 2,
+        "12": 1,
+        "7": 1,
+        "8": 1
+      },
+      "max": 12,
+      "median": 10.0,
+      "min": 7,
+      "p25": 8.0,
+      "p75": 10.0
+    },
+    "hybrid": {
+      "count": 5,
+      "histogram": {
+        "10": 1,
+        "12": 2,
+        "7": 2
+      },
+      "max": 12,
+      "median": 10.0,
+      "min": 7,
+      "p25": 7.0,
+      "p75": 12.0
+    },
+    "total": {
+      "count": 15,
+      "histogram": {
+        "10": 4,
+        "11": 1,
+        "12": 4,
+        "7": 5,
+        "8": 1
+      },
+      "max": 12,
+      "median": 10.0,
+      "min": 7,
+      "p25": 7.0,
+      "p75": 11.5
+    },
+    "white_box": {
+      "count": 5,
+      "histogram": {
+        "10": 1,
+        "11": 1,
+        "12": 1,
+        "7": 2
+      },
+      "max": 12,
+      "median": 10.0,
+      "min": 7,
+      "p25": 7.0,
+      "p75": 11.0
+    }
+  },
+  "template_changes": [],
+  "template_sha256": "a0b8f42a8e4c3205c8bb29694749e87053cc73500299b7c44bde3740e6c70b5f",
+  "test_discards": {
+    "black_box": {
+      "abbreviated_tests": 0,
+      "conflicting_outputs": 0,
+      "duplicate_inputs": 0,
+      "empty_tests": 1,
+      "example_copies": 0,
+      "markdown_fences_removed": 0
+    },
+    "hybrid": {
+      "abbreviated_tests": 0,
+      "conflicting_outputs": 0,
+      "duplicate_inputs": 0,
+      "empty_tests": 1,
+      "example_copies": 0,
+      "markdown_fences_removed": 0
+    },
+    "total": {
+      "abbreviated_tests": 0,
+      "conflicting_outputs": 0,
+      "duplicate_inputs": 0,
+      "empty_tests": 2,
+      "example_copies": 0,
+      "markdown_fences_removed": 0
+    },
+    "white_box": {
+      "abbreviated_tests": 0,
+      "conflicting_outputs": 0,
+      "duplicate_inputs": 0,
+      "empty_tests": 0,
+      "example_copies": 0,
+      "markdown_fences_removed": 0
+    }
+  },
+  "tokens": {
+    "black_box": {
+      "cached_input": 0,
+      "input": 6152,
+      "output": 11342,
+      "reasoning": 7491
+    },
+    "hybrid": {
+      "cached_input": 0,
+      "input": 8845,
+      "output": 8721,
+      "reasoning": 4948
+    },
+    "total": {
+      "cached_input": 0,
+      "input": 20786,
+      "output": 29478,
+      "reasoning": 18083
+    },
+    "white_box": {
+      "cached_input": 0,
+      "input": 5789,
+      "output": 9415,
+      "reasoning": 5644
+    }
+  },
+  "truncated": {
+    "black_box": 0,
+    "hybrid": 0,
+    "total": 0,
+    "white_box": 0
+  }
+}

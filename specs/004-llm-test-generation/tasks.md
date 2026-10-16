@@ -320,7 +320,7 @@ Já feito de T060: o leitor comum leu as 600 suítes reais do SLM (os 1.200 dos 
 T057). T055 a T060 dependem de chamadas pagas e de decisões dos autores.
 
 - [X] T054 Rodar `docker compose run --rm app ruff check .` e `docker compose run --rm app black --check .`; corrigir o que aparecer
-- [ ] T055 📌 PROPAGAR — **Piloto** ([quickstart.md](./quickstart.md), nível 4; FR-023a).
+- [ ] T055 📌 PROPAGAR — **Piloto** ([quickstart.md](./quickstart.md), nível 4; FR-023a). *(Gemini feito e registrado em 2026-10-16, `research.md` R15: 15 de 15 suítes na 1ª tentativa, US$ 0,126; falta o GPT.)*
   - **Primeiro passo, obrigatório:** `docker compose run --rm app python -m cli check --deep` sai `0`; se não sair, parar.
   - **Execução:** dry-run e depois `generate --model gpt` e `--model gemini`, em paralelo, com `--problem 1000_B --problem 1005_C --problem 1008_B --problem 1_B --problem 61_B` e `--confirm-spend <teto combinado com os autores>`.
   - **Conferir e registrar** (`research.md` A3, R3, R9, R12; metodologia seção 3, seção 6 item 32 e seção 8):

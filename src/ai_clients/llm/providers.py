@@ -222,6 +222,23 @@ def _retry_after(headers, body: dict) -> float | None:
     return None
 
 
+def _daily_quota(body: dict) -> str | None:
+    """The quota id of an exhausted DAILY quota in a Gemini 429 (``google.rpc.QuotaFailure``
+    with ``PerDay`` in a ``quotaId``), or ``None``: retrying it before the quota resets is useless.
+    """
+    for detail in (body.get("error") or {}).get("details") or []:
+        if not isinstance(detail, dict) or not str(detail.get("@type", "")).endswith(
+            "QuotaFailure"
+        ):
+            continue
+        for violation in detail.get("violations") or []:
+            quota = str((violation or {}).get("quotaId", ""))
+            if "PerDay" in quota:
+                limit = (violation or {}).get("quotaValue")
+                return f"{quota}, limit {limit}" if limit else quota
+    return None
+
+
 def classify_http_error(model: str, code: int, text: str, headers=None) -> Exception:
     """The exception for an HTTP error of ``model`` (contracts/providers.md, the error tables)."""
     try:
@@ -236,6 +253,12 @@ def classify_http_error(model: str, code: int, text: str, headers=None) -> Excep
     key_name = config.ENV_API_KEY[model]
     if model == "gpt" and code == 429 and error.get("code") == "insufficient_quota":
         return ProviderFatal(f"{model}: the quota or credit of the account is exhausted ({detail})")
+    daily = _daily_quota(body) if code == 429 else None
+    if daily:
+        return ProviderFatal(
+            f"{model}: the daily request quota of the API is exhausted ({daily}); nothing was "
+            f"recorded; run generate --model {model} --resume after the quota resets"
+        )
     if code in (408, 409, 429) or code >= 500:
         return ProviderUnavailable(detail, retry_after_s=retry_after)
     if code in (401, 403):

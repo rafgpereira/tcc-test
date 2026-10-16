@@ -1,10 +1,3 @@
-<!-- Sync Impact Report
-Version: 1.7.0 → 1.7.1 (PATCH: troca de nome, sem mudança de regra)
-Princípio modificado: III (Isolamento Sem Estado) — só o nome do modelo
-Seções adicionadas/removidas: nenhuma
-Templates: nenhum precisa de mudança
-TODOs: nenhum
--->
 # Geração de Casos de Teste com Modelos de Linguagem (TCC) Constitution
 
 ## Contexto do Projeto

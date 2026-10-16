@@ -34,6 +34,7 @@ da invocação saem sempre.
 | `OPENAI_MAX_CONCURRENCY`, `GEMINI_MAX_CONCURRENCY` | não | `4` | chamadas simultâneas por processo (A5) |
 | `OPENAI_MAX_INFRA_RETRIES`, `GEMINI_MAX_INFRA_RETRIES` | não | `30` | repetições seguidas por falha de infraestrutura (FR-018) |
 | `LLM_HTTP_TIMEOUT_S` | não | `900` | maior espera pela resposta de uma chamada |
+| `OPENAI_MAX_REQUESTS_PER_MINUTE`, `GEMINI_MAX_REQUESTS_PER_MINUTE` | não | sem limite | no máximo tantos inícios de pedido por minuto no processo, repetições incluídas, espaçados por 60/N s (desde 2026-10-16; research R7) |
 
 Um valor que não é inteiro positivo dá código 2. Uma chave ausente dá código 2 só para o modelo
 dela (Edge Case: o outro modelo roda normalmente). Nenhuma chave aparece em arquivo gravado nem em

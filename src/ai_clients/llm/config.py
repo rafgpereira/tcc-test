@@ -41,13 +41,16 @@ BACKOFF_MAX_S = slm_config.BACKOFF_MAX_S
 
 # Characters per input token, to estimate the cost without calling anything (R9). 3.0 is
 # conservative (the SLM measured at least 3.32): conservative, before the pilot.
-CHARS_PER_TOKEN = {"gpt": 3.0, "gemini": 3.0}
+# Gemini: measured in its pilot 1 (2026-10-16, 15 calls): 69,717 prompt characters for 20,786
+# input tokens reported by the API.
+CHARS_PER_TOKEN = {"gpt": 3.0, "gemini": 3.354}
 CHARS_PER_TOKEN_ORIGIN = {
     "gpt": "conservative, before the pilot",
-    "gemini": "conservative, before the pilot",
+    "gemini": "measured in pilot 1, 2026-10-16",
 }
-# Mean output tokens per call measured in the pilot (None before it): the second estimate column.
-MEASURED_MEAN_OUTPUT_TOKENS: dict[str, int | None] = {"gpt": None, "gemini": None}
+# Mean output tokens per call (answer + reasoning) measured in the pilot (None before it): the
+# low end of the estimate. Gemini, pilot 1 (2026-10-16): 1,965 (median 1,640, max 3,551).
+MEASURED_MEAN_OUTPUT_TOKENS: dict[str, int | None] = {"gpt": None, "gemini": 1965}
 
 
 class Price(NamedTuple):
@@ -76,6 +79,11 @@ PRICE_TABLE = (
 ENV_API_KEY = {"gpt": "OPENAI_API_KEY", "gemini": "GEMINI_API_KEY"}
 ENV_MAX_CONCURRENCY = {"gpt": "OPENAI_MAX_CONCURRENCY", "gemini": "GEMINI_MAX_CONCURRENCY"}
 ENV_MAX_INFRA_RETRIES = {"gpt": "OPENAI_MAX_INFRA_RETRIES", "gemini": "GEMINI_MAX_INFRA_RETRIES"}
+# Optional: at most this many request starts per minute (retries included); unset = no pacing.
+ENV_MAX_REQUESTS_PER_MINUTE = {
+    "gpt": "OPENAI_MAX_REQUESTS_PER_MINUTE",
+    "gemini": "GEMINI_MAX_REQUESTS_PER_MINUTE",
+}
 ENV_HTTP_TIMEOUT_S = "LLM_HTTP_TIMEOUT_S"
 
 # Layout under the repository root; one tree per model.
