@@ -1664,6 +1664,42 @@ próprio pacote, manifesto e relatório. Limitações: as respostas não
 são reproduzíveis bit a bit, e o provedor pode trocar a versão do modelo (cada tentativa grava o
 identificador devolvido pela API).
 
+**Visualização do pedido enviado [PLANEJADA, 2026-10-16 — `specs/005-show-request/plan.md`]**:
+um comando de consulta (`show-request`) vai mostrar, sem chamar nenhuma API, o prompt e o corpo
+exatos de cada tentativa (ou a prévia do próximo pedido), reconstruídos dos mesmos arquivos e
+conferidos contra o `prompt_sha256` gravado, sem a resposta do modelo. Decidido pelos autores
+(2026-10-16): reconstruir e conferir o hash, sem passar a gravar o texto do prompt em cada
+tentativa (nada muda no que é gravado). **[DECIDIDO, 2026-10-16 — clarify]** B1: vale para os 3
+modelos (o SLM com o texto-base e a seed/temperatura de cada tentativa); B2: o `generate --dry-run`
+grava, numa pasta pedida, todos os pedidos que seriam enviados, com uma conferência de que o
+enunciado, o código e o exemplo dentro de cada prompt são idênticos ao dataset e um aviso nos
+enunciados com expoente perdido (que vem do próprio dataset); o `show-request` mostra no terminal e
+grava com `--output`; B3: mostra só o que é enviado, nunca a resposta do modelo; B4: com o
+texto-base mudado, busca no histórico do Git a versão com o hash gravado, e sem ela recusa.
+**[DECIDIDO, 2026-10-16 — plano]**:
+- **Git**: o serviço `app` passa a montar o `.git` somente leitura (só ele; o `sandbox` continua
+  sem), decidido por Milena (S1); a busca usa só `git log` e `git cat-file`, que não alteram o
+  histórico.
+- **Corpo de uma tentativa feita**: vem dos parâmetros gravados nela, não do código atual (o
+  `mimeType` do Gemini já mudou uma vez).
+- **Dry-run**: o `generate --dry-run --save-requests DIR` grava, por combinação pendente, **um
+  arquivo só**, `<id>.<cenário>.request.json`, com o corpo da requisição (o prompt vem dentro
+  dele), numa pasta plana por modelo, mais um `summary.json`. O arquivo é o mesmo JSON enviado,
+  indentado e com os caracteres não ASCII legíveis (`≤`), conferido por teste contra os bytes da
+  rede.
+- **`show-request`**: só grava o corpo num arquivo (`--output`, obrigatória) e confere a fidelidade
+  ao dataset; o pedido nunca é impresso no terminal, que mostra só o resultado das conferências.
+  O tempo não é medido.
+- **Gemini**: como a execução completa já começou, os autores conferem o Gemini num dry-run
+  separado; a calibração dos 71 expoentes é feita no GPT, com as 600 combinações pendentes. A pasta é plana para não ser "uma pasta por
+  problema", o que exigiria uma camada no `cli check` (constitution, Princípio II; analyze de
+  2026-10-16).
+- **Fidelidade**: conferida contra os bytes crus de `enunciado.md`, `AC_ref.cpp` e `testes.json`,
+  com a separação dos cenários (nada de código na caixa-preta, nada de enunciado na caixa-branca).
+- **Expoente**: o aviso usa as mesmas expressões da contagem abaixo e precisa reproduzir os 71
+  problemas.
+- **Árvores arquivadas**: os pilotos são lidos com `--suites-dir`.
+
 **Expoentes perdidos nos enunciados [MEDIDO, 2026-10-16]**: em **71 dos 200** `enunciado.md`
 (35,5%) as potências de 10 perderam o expoente no texto do dataset de origem: `10^5` aparece como
 `105`, `10^9` como `109`, `10^6` como `106`, `10^18` como `1018` (por exemplo, `1_B`: "1 ≤ n ≤
@@ -2018,6 +2054,11 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-10-16 | **Analyze da visualização do pedido, decisões de Milena (`specs/005-show-request`)**: o dry-run grava um arquivo só por combinação, o corpo da requisição (o prompt vem dentro), em JSON legível e igual ao enviado; o `show-request` só grava (`--output` obrigatória), confere a fidelidade ao dataset e não imprime o pedido no terminal; o Gemini, com a execução já começada, é conferido num dry-run separado e a calibração dos 71 expoentes fica no GPT; o tempo não é medido | 3 |
+| 2026-10-16 | **Analyze da visualização do pedido (`specs/005-show-request`, achado C1)**: a saída de `generate --dry-run --save-requests` passa a ser uma pasta plana por modelo (`<id>.<cenário>.prompt.txt` e `.request.json`), sem subpasta por problema; com subpasta, a regra da constitution exigiria uma camada no `cli check` para uma saída de consulta descartável | 3 |
+| 2026-10-16 | **Plano da visualização do pedido (`specs/005-show-request/plan.md`, research R0–R10)**: o serviço `app` monta o `.git` somente leitura para achar no histórico o texto-base pelo hash (S1, decidido por Milena; o `sandbox` continua sem `.git`); o corpo de uma tentativa feita vem dos `request_parameters` gravados; o `generate --dry-run --save-requests DIR` grava `.prompt.txt`, `.request.json` (bytes exatos) e `summary.json`, com fidelidade conferida contra os bytes crus do dataset e aviso de expoente calibrado nos 71 problemas; pilotos lidos com `--suites-dir`. A nota da seção 3 deixa de citar um resumo da resposta (B3) | 3 |
+| 2026-10-16 | **Clarify da visualização do pedido (`specs/005-show-request/spec.md`, Clarifications)**: B1 — os 3 modelos; B2 — o dry-run grava todos os pedidos numa pasta, com conferência de fidelidade ao dataset (enunciado, código e exemplo idênticos) e aviso de expoente perdido, e o `show-request` mostra no terminal ou grava com `--output`; B3 — só o que é enviado, sem a resposta do modelo; B4 — texto-base mudado: busca a versão antiga no Git pelo hash, senão recusa | 3 |
+| 2026-10-16 | **Spec da visualização do pedido (`/speckit.specify` de `specs/005-show-request/`, Draft)**: comando de consulta que mostra o prompt e o corpo exatos de cada tentativa, ou a prévia do próximo pedido, sem chamar API nem gravar nada, conferindo o hash do prompt reconstruído contra o gravado; decidido reconstruir em vez de gravar o texto do prompt (opção A dos autores); quatro decisões para o clarify (B1 a B4: SLM, saída, resposta crua, texto-base mudado) | 3 |
 | 2026-10-16 | **Expoentes perdidos nos enunciados (seção 3)**: contagem sobre os 200 `enunciado.md`: 71 (35,5%) perderam o expoente das potências de 10 no texto do dataset de origem (`10^5` → `105`, `10^9` → `109`), 53 o preservam e 76 não têm potência de 10. Afeta os cenários com enunciado (caixa-preta e híbrido) igualmente nos 3 modelos; limitação a registrar no TCC; o dataset não é corrigido. Achado ao inspecionar o prompt de `1_B` do piloto do Gemini | 1, 3 |
 | 2026-10-16 | **Piloto 1 do Gemini (`specs/004-llm-test-generation/research.md` R15; relatório versionado em `manifests/gemini_generation_report.piloto1.json`)**: 15 combinações (os 5 problemas `1000_B`, `1005_C`, `1008_B`, `1_B` e `61_B` nos 3 cenários), 15 chamadas, todas com suíte na 1ª tentativa; nenhuma falha de formato, resposta cortada, resposta barrada ou bloqueio de segurança; `finishReason` `STOP` e `modelVersion` `gemini-3.8-flash` nas 15; saída por chamada (resposta mais raciocínio) média de 1.965 *tokens*, mediana 1.640, mínima 1.114 e máxima 3.551 (11% do teto de 32.768), dos quais raciocínio médio de 1.206 (de 334 a 2.845) e a resposta visível no máximo 894; 69.717 caracteres de prompt para 20.786 *tokens* de entrada devolvidos pela API (3,354 caracteres por *token*; a estimativa usava 3,0); suítes de 7 a 12 testes (mediana 10), 2 testes descartados por entrada vazia; tempo por chamada mediano de 13,1 s e máximo de 29,1 s; custo real US$ 0,126, contra US$ 1,86 a 5,58 estimados antes do piloto. Decidido: teto de saída mantido em 32.768; estimativa do Gemini com 3,354 caracteres por *token* e saída média de 1.965 (execução completa: US$ 4,97 a 222,84). Falta o piloto do GPT | 3, 6 |
 | 2026-10-16 | **Conta paga no Gemini (decidido por Milena)**: o piloto e a execução completa do Gemini usam conta com faturamento ativo, como o plano previa; resolve a decisão em aberto da linha anterior sobre a camada gratuita (seção 6, item 32) | 3, 6 |

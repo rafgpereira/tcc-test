@@ -489,7 +489,9 @@ faltando ou sobrando é apontada pelo `check`.
   nem endpoint de contagem: os tokens de entrada são estimados a partir dos prompts reais pela
   razão caracteres/token de cada modelo (3,0, conservadora, antes do piloto; a razão medida no
   piloto depois dele), sempre declarada na saída (decidido no plano em 2026-10-15,
-  `research.md` R9).
+  `research.md` R9). O dry-run não grava nada, exceto, quando pedido com `--save-requests`, os
+  pedidos que seriam enviados numa pasta indicada pelos autores, fora de `data/suites/` (feature
+  `specs/005-show-request`, FR-011; planejado em 2026-10-16).
 - **FR-022**: A geração MUST NOT fazer nenhuma chamada paga sem a confirmação explícita de quem
   executa, dada a cada invocação (nunca guardada de uma rodada para outra); sem ela, o comando
   recusa antes da primeira chamada. Uma restrição de escopo (`--problem`, `--scenario`, modelo,

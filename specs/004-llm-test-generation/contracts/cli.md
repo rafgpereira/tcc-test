@@ -46,7 +46,7 @@ log (FR-005).
 |---|---|
 | `--problem ID` (repetível), `--scenario S` (repetível), `--limit N` | o mesmo do SLM; valem também para a estimativa (FR-022) |
 | `--resume` | obrigatória se `data/suites/<m>/run.json` existe; compara a configuração (data-model §3.1) e recusa com código 2, listando cada campo diferente |
-| `--dry-run` | não chama nenhuma API, não grava nada e não exige chave; imprime a estimativa (abaixo) e sai com 0 |
+| `--dry-run` | não chama nenhuma API, não grava nada e não exige chave; imprime a estimativa (abaixo) e sai com 0. Com `--save-requests DIR` (feature 005, `specs/005-show-request/contracts/cli.md`), grava também os pedidos que seriam enviados em `DIR/<modelo>/`, com a conferência contra o dataset, e só ali |
 | `--confirm-spend USD` | **a confirmação da invocação e o teto de gasto, juntos** (FR-022, FR-022a); número positivo em dólares. Sem ela, e fora do `--dry-run`, o comando imprime a estimativa e recusa com código 2 antes de qualquer chamada: `error: this would make up to K paid calls (estimated US$ X to Y); to confirm, run again with --confirm-spend <max US$ for this run>`. O teto vale **por processo**: dois `generate --resume` do mesmo modelo rodando juntos podem gastar até a soma dos dois tetos, e o `--help` e o README dizem isso |
 
 Antes de qualquer trabalho, inclusive no dry-run:
