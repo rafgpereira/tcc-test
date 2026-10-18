@@ -1,10 +1,11 @@
 # Development override, loaded automatically by `docker compose`.
 # Mounts the working tree so tests, black and ruff act on it without rebuilding the image.
 #
-# Explicit mounts only: .env and .git are NOT mounted. In the `sandbox` service third-party
-# code runs in the same container, and with .env mounted it could read the token and print it
-# into validacao.json, which is versioned. A dependency change (uv.lock) still needs
-# `docker compose build`.
+# Explicit mounts only: .env is NOT mounted. In the `sandbox` service third-party code runs in
+# the same container, and with .env mounted it could read the token and print it into
+# validacao.json, which is versioned. .git is not mounted here either (this map is shared with
+# sandbox by the *dev anchor): docker-compose.yml mounts it, read only, in the app service only.
+# A dependency change (uv.lock) still needs `docker compose build`.
 services:
   app: &dev
     environment:

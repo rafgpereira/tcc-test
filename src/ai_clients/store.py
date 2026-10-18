@@ -83,8 +83,14 @@ def ensure_suites_dir(root: Path) -> Path:
     return base
 
 
-def combination_dir(root: Path, problem_id: str, scenario: str) -> Path:
-    return Path(root) / config.PROBLEMS_DIR / problem_id / str(getattr(scenario, "value", scenario))
+def suites_tree(tree: Path | None = None) -> Path:
+    """The tree of suites read: ``data/suites/slm``, or ``tree`` (an archived run, read only)."""
+    return config.SUITES_DIR if tree is None else Path(tree)
+
+
+def combination_dir(root: Path, problem_id: str, scenario: str, tree: Path | None = None) -> Path:
+    scenario = str(getattr(scenario, "value", scenario))
+    return Path(root) / suites_tree(tree) / "problems" / problem_id / scenario
 
 
 def _ensure_combination_dir(root: Path, problem_id: str, scenario: str) -> Path:
@@ -248,9 +254,10 @@ def write_manual_close(root: Path, record: ManualClose) -> Path:
 
 
 def read_generation(
-    root: Path, problem_id: str, scenario: str, attempt: int
+    root: Path, problem_id: str, scenario: str, attempt: int, tree: Path | None = None
 ) -> GenerationRecord | None:
-    path = combination_dir(root, problem_id, scenario) / config.generation_file_name(attempt)
+    folder = combination_dir(root, problem_id, scenario, tree)
+    path = folder / config.generation_file_name(attempt)
     if not path.is_file():
         return None
     return GenerationRecord.model_validate_json(path.read_text(encoding="utf-8"))
@@ -268,12 +275,12 @@ def read_execution(
 # ----------------------------------------------------------------------------------- run.json
 
 
-def run_path(root: Path) -> Path:
-    return Path(root) / config.SUITES_DIR / config.RUN_FILE
+def run_path(root: Path, tree: Path | None = None) -> Path:
+    return Path(root) / suites_tree(tree) / config.RUN_FILE
 
 
-def run_exists(root: Path) -> bool:
-    return run_path(root).is_file()
+def run_exists(root: Path, tree: Path | None = None) -> bool:
+    return run_path(root, tree).is_file()
 
 
 def write_run(root: Path, run: RunConfig) -> Path:
@@ -295,19 +302,19 @@ class DamagedRunError(Exception):
     """The template changes of the run are not what ``change-template`` writes; never repaired."""
 
 
-def read_run(root: Path) -> RunConfig:
+def read_run(root: Path, tree: Path | None = None) -> RunConfig:
     """The run as it stands: ``run.json`` with its template changes applied in order (R27).
 
     ``IncompatibleRunError`` if ``run.json`` is not a run of this version (schema 2);
     ``DamagedRunError`` if a template change is unreadable, misnumbered or out of the chain.
     """
-    raw = run_path(root).read_bytes()
+    raw = run_path(root, tree).read_bytes()
     try:
         run = RunConfig.model_validate_json(raw)
     except ValueError as exc:  # also invalid JSON: never read a run half-way
         raise IncompatibleRunError(INCOMPATIBLE_RUN) from exc
     try:
-        return run.with_changes(template_changes(root))
+        return run.with_changes(template_changes(root, tree))
     except ValueError as exc:
         raise DamagedRunError(f"data/suites/slm/{config.TEMPLATE_CHANGES_DIR}: {exc}") from exc
 
@@ -315,8 +322,8 @@ def read_run(root: Path) -> RunConfig:
 # ---------------------------------------------------------------------------- template changes
 
 
-def template_changes_dir(root: Path) -> Path:
-    return Path(root) / config.SUITES_DIR / config.TEMPLATE_CHANGES_DIR
+def template_changes_dir(root: Path, tree: Path | None = None) -> Path:
+    return Path(root) / suites_tree(tree) / config.TEMPLATE_CHANGES_DIR
 
 
 def superseded_dir(root: Path, number: int, problem_id: str, scenario: str) -> Path:
@@ -326,9 +333,9 @@ def superseded_dir(root: Path, number: int, problem_id: str, scenario: str) -> P
     return Path(root) / config.SUITES_DIR / config.SUPERSEDED_DIR / name / problem_id / scenario
 
 
-def template_changes(root: Path) -> list[TemplateChange]:
+def template_changes(root: Path, tree: Path | None = None) -> list[TemplateChange]:
     """Every template change of the run, in order; ``ValueError`` if one is not well formed."""
-    folder = template_changes_dir(root)
+    folder = template_changes_dir(root, tree)
     if not folder.is_dir():
         return []
     names = sorted(p.name for p in folder.iterdir() if not p.name.startswith("."))
@@ -415,10 +422,12 @@ def _read_named(path: Path, schema, named_as: tuple, problems: list[str]):
     return record
 
 
-def _load(root: Path, problem_id: str, scenario: str, run: RunConfig | None) -> AttemptFiles:
+def _load(
+    root: Path, problem_id: str, scenario: str, run: RunConfig | None, tree: Path | None = None
+) -> AttemptFiles:
     """Read and cross-check every file of the combination; ``DamagedCombination`` if any diverges."""
     scenario = str(getattr(scenario, "value", scenario))
-    folder = combination_dir(root, problem_id, scenario)
+    folder = combination_dir(root, problem_id, scenario, tree)
     problems: list[str] = []
     found: dict[str, dict] = {"generation": {}, "execution": {}}
     suite = manual_close = None
@@ -595,7 +604,11 @@ def _state_of_attempts(files: AttemptFiles) -> State:
 
 
 def combination_state(
-    root: Path, problem_id: str, scenario: str, run: RunConfig | None = None
+    root: Path,
+    problem_id: str,
+    scenario: str,
+    run: RunConfig | None = None,
+    tree: Path | None = None,
 ) -> State:
     """The state of a problem × scenario, from the files present only (data-model.md, 4).
 
@@ -603,7 +616,7 @@ def combination_state(
     ``run``, also the ``model_digest`` of every attempt and, for a terminal combination, that
     ``suite.json`` is byte for byte what ``finalize`` writes from the attempt files.
     """
-    files = _load(root, problem_id, scenario, run)
+    files = _load(root, problem_id, scenario, run, tree)
     state = _state_of_attempts(files)
     if files.suite is None:
         return state
@@ -717,10 +730,14 @@ def _build_suite(files: AttemptFiles, problem_id: str, scenario: str, run: RunCo
 
 
 def attempt_files(
-    root: Path, problem_id: str, scenario: str, run: RunConfig | None = None
+    root: Path,
+    problem_id: str,
+    scenario: str,
+    run: RunConfig | None = None,
+    tree: Path | None = None,
 ) -> AttemptFiles:
     """The attempt records of a combination, cross-checked; ``DamagedCombination`` if damaged."""
-    return _load(root, problem_id, scenario, run)
+    return _load(root, problem_id, scenario, run, tree)
 
 
 def expected_suite(root: Path, problem_id: str, scenario: str, run: RunConfig) -> SlmSuite | None:

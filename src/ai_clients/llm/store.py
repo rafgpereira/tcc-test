@@ -43,8 +43,9 @@ def _scenario(scenario) -> str:
     return str(getattr(scenario, "value", scenario))
 
 
-def base_dir(root: Path, model: str) -> Path:
-    return Path(root) / config.suites_dir(model)
+def base_dir(root: Path, model: str, tree: Path | None = None) -> Path:
+    """``data/suites/<model>``, or ``tree`` (an archived run of the model, read only)."""
+    return Path(root) / (config.suites_dir(model) if tree is None else Path(tree))
 
 
 def ensure_suites_dir(root: Path, model: str) -> Path:
@@ -52,8 +53,8 @@ def ensure_suites_dir(root: Path, model: str) -> Path:
     return slm_store.ensure_tree(root, config.suites_dir(model))
 
 
-def combination_dir(root: Path, model: str, problem_id: str, scenario) -> Path:
-    return base_dir(root, model) / "problems" / problem_id / _scenario(scenario)
+def combination_dir(root: Path, model: str, problem_id: str, scenario, tree=None) -> Path:
+    return base_dir(root, model, tree) / "problems" / problem_id / _scenario(scenario)
 
 
 # Folders are created by several threads (two scenarios of one problem at the same time): one at
@@ -106,15 +107,15 @@ def write_attempt(root: Path, model: str, record: LlmAttempt) -> Path:
     return slm_store.write_once(folder / config.attempt_file_name(record.attempt), record)
 
 
-def barred_dir(root: Path, model: str, problem_id: str, scenario) -> Path:
-    return base_dir(root, model) / config.BARRED_DIR / problem_id / _scenario(scenario)
+def barred_dir(root: Path, model: str, problem_id: str, scenario, tree=None) -> Path:
+    return base_dir(root, model, tree) / config.BARRED_DIR / problem_id / _scenario(scenario)
 
 
 _BARRED_FILE = re.compile(r"^(\d+)\.json$")
 
 
-def barred_files(root: Path, model: str, problem_id: str, scenario) -> list[Path]:
-    folder = barred_dir(root, model, problem_id, scenario)
+def barred_files(root: Path, model: str, problem_id: str, scenario, tree=None) -> list[Path]:
+    folder = barred_dir(root, model, problem_id, scenario, tree)
     if not folder.is_dir():
         return []
     found = [p for p in folder.iterdir() if _BARRED_FILE.match(p.name)]
@@ -150,8 +151,9 @@ def write_manual_close(root: Path, model: str, record: ManualClose) -> Path:
     return slm_store.write_once(folder / config.MANUAL_CLOSE_FILE, record)
 
 
-def read_attempt(root: Path, model: str, problem_id: str, scenario, attempt: int):
-    path = combination_dir(root, model, problem_id, scenario) / config.attempt_file_name(attempt)
+def read_attempt(root: Path, model: str, problem_id: str, scenario, attempt: int, tree=None):
+    folder = combination_dir(root, model, problem_id, scenario, tree)
+    path = folder / config.attempt_file_name(attempt)
     if not path.is_file():
         return None
     return LlmAttempt.model_validate_json(path.read_bytes())
@@ -160,12 +162,12 @@ def read_attempt(root: Path, model: str, problem_id: str, scenario, attempt: int
 # ---------------------------------------------------------------------------------- run.json
 
 
-def run_path(root: Path, model: str) -> Path:
-    return base_dir(root, model) / config.RUN_FILE
+def run_path(root: Path, model: str, tree: Path | None = None) -> Path:
+    return base_dir(root, model, tree) / config.RUN_FILE
 
 
-def run_exists(root: Path, model: str) -> bool:
-    return run_path(root, model).is_file()
+def run_exists(root: Path, model: str, tree: Path | None = None) -> bool:
+    return run_path(root, model, tree).is_file()
 
 
 def write_run(root: Path, model: str, run: LlmRunConfig) -> Path:
@@ -181,9 +183,9 @@ def incompatible(model: str) -> str:
     )
 
 
-def read_run(root: Path, model: str) -> LlmRunConfig:
+def read_run(root: Path, model: str, tree: Path | None = None) -> LlmRunConfig:
     """The run as it stands: ``run.json`` with its template changes applied in order."""
-    raw = run_path(root, model).read_bytes()
+    raw = run_path(root, model, tree).read_bytes()
     try:
         run = LlmRunConfig.model_validate_json(raw)
     except ValueError as exc:
@@ -191,7 +193,7 @@ def read_run(root: Path, model: str) -> LlmRunConfig:
     if run.model_key != model:
         raise IncompatibleRunError(incompatible(model))
     try:
-        return run.with_changes(template_changes(root, model))
+        return run.with_changes(template_changes(root, model, tree))
     except ValueError as exc:
         tree = config.suites_dir(model).as_posix()
         raise DamagedRunError(f"{tree}/{config.TEMPLATE_CHANGES_DIR}: {exc}") from exc
@@ -200,8 +202,8 @@ def read_run(root: Path, model: str) -> LlmRunConfig:
 # --------------------------------------------------------------------------- template changes
 
 
-def template_changes_dir(root: Path, model: str) -> Path:
-    return base_dir(root, model) / config.TEMPLATE_CHANGES_DIR
+def template_changes_dir(root: Path, model: str, tree: Path | None = None) -> Path:
+    return base_dir(root, model, tree) / config.TEMPLATE_CHANGES_DIR
 
 
 def superseded_dir(root: Path, model: str, number: int, problem_id: str, scenario) -> Path:
@@ -214,8 +216,8 @@ def superseded_dir(root: Path, model: str, number: int, problem_id: str, scenari
     )
 
 
-def template_changes(root: Path, model: str) -> list[LlmTemplateChange]:
-    folder = template_changes_dir(root, model)
+def template_changes(root: Path, model: str, tree: Path | None = None) -> list[LlmTemplateChange]:
+    folder = template_changes_dir(root, model, tree)
     if not folder.is_dir():
         return []
     names = sorted(p.name for p in folder.iterdir() if not p.name.startswith("."))
@@ -273,9 +275,9 @@ def _read_named(path: Path, schema, named_as: tuple, problems: list[str]):
     return record
 
 
-def _load(root: Path, model: str, problem_id: str, scenario, run: LlmRunConfig | None):
+def _load(root: Path, model: str, problem_id: str, scenario, run: LlmRunConfig | None, tree=None):
     scenario = _scenario(scenario)
-    folder = combination_dir(root, model, problem_id, scenario)
+    folder = combination_dir(root, model, problem_id, scenario, tree)
     problems: list[str] = []
     found: dict[int, LlmAttempt] = {}
     suite = manual_close = None
@@ -398,16 +400,23 @@ def _build_suite(files: AttemptFiles, problem_id: str, scenario: str, run: LlmRu
     )
 
 
-def attempt_files(root: Path, model: str, problem_id: str, scenario, run=None) -> AttemptFiles:
-    return _load(root, model, problem_id, scenario, run)
+def attempt_files(
+    root: Path, model: str, problem_id: str, scenario, run=None, tree=None
+) -> AttemptFiles:
+    return _load(root, model, problem_id, scenario, run, tree)
 
 
 def combination_state(
-    root: Path, model: str, problem_id: str, scenario, run: LlmRunConfig | None = None
+    root: Path,
+    model: str,
+    problem_id: str,
+    scenario,
+    run: LlmRunConfig | None = None,
+    tree: Path | None = None,
 ) -> State:
     """The state of a problem x scenario from its files; ``DamagedCombination`` if they diverge."""
     scenario = _scenario(scenario)
-    files = _load(root, model, problem_id, scenario, run)
+    files = _load(root, model, problem_id, scenario, run, tree)
     state = _state_of_attempts(files)
     if files.suite is None:
         return state

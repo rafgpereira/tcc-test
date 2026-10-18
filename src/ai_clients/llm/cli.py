@@ -11,9 +11,9 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from ai_clients import prompt
+from ai_clients import prompt, requests_view
 from ai_clients.errors import UsageError
-from ai_clients.llm import closing, config, cost, generation, store
+from ai_clients.llm import closing, config, cost, generation, providers, store
 from ai_clients.llm.providers import make_provider
 from dataset.persistence import store as files
 
@@ -108,8 +108,12 @@ def manual_lines(model: str, awaiting) -> None:
 # ------------------------------------------------------------------------------ the estimate
 
 
-def _estimate(root: Path, model: str, combinations, template, limit, today: date):
-    """Print the estimate of the pending combinations (nothing is called); the totals."""
+def _estimate(root: Path, model: str, combinations, template, limit, today: date, collect=None):
+    """Print the estimate of the pending combinations (nothing is called); the totals.
+
+    With ``collect`` (a list), each pending combination is appended to it as
+    ``(problem_id, scenario, attempt, prompt)``: the requests ``--save-requests`` writes.
+    """
     run = _read_run_if_any(root, model)
     loaded, damaged = {}, []
     per_scenario = {s: cost.Estimate() for s in config.SCENARIOS}
@@ -130,7 +134,10 @@ def _estimate(root: Path, model: str, combinations, template, limit, today: date
             from ai_clients import problem as problems
 
             loaded[problem_id] = problems.load_problem(root, problem_id)
-        size = len(prompt.build_prompt(template, loaded[problem_id], scenario))
+        text = prompt.build_prompt(template, loaded[problem_id], scenario)
+        if collect is not None:
+            collect.append((problem_id, scenario, state.attempt, text))
+        size = len(text)
         per_scenario[scenario].add(problem_id, size)
         calls_left[scenario] += config.MAX_ATTEMPTS - state.attempt + 1
     total = cost.Estimate()
@@ -159,6 +166,38 @@ def _estimate(root: Path, model: str, combinations, template, limit, today: date
     return total, sum(calls_left.values()), low, high, damaged
 
 
+def _save(root: Path, model: str, collected, template, args, damaged, clock) -> int:
+    """``--save-requests``: write the body of every pending request; 1 if one is not faithful."""
+    from mutation import dataset_gate
+
+    pending = [
+        requests_view.PendingRequest(
+            problem_id=problem_id,
+            scenario=scenario,
+            attempt=attempt,
+            prompt=text,
+            body=providers.request_body(model, text),
+            template_sha256=template.sha256,
+        )
+        for problem_id, scenario, attempt, text in collected
+    ]
+    summary, lines = requests_view.save_requests(
+        root,
+        model,
+        pending,
+        args.save_requests,
+        force=args.force,
+        templates={"llm": template.sha256},
+        request_parameters=providers.request_parameters(model),
+        dataset_manifest_sha256=dataset_gate.dataset_manifest_sha256(root),
+        damaged=[str(exc) for exc in damaged],
+        now=clock.utc_now(),
+    )
+    for line in lines:
+        print(line, file=sys.stderr if line.startswith("unfaithful:") else sys.stdout)
+    return EXIT_OK if summary.faithful == summary.combinations else EXIT_DATA_FAILURE
+
+
 # ----------------------------------------------------------------------------------- generate
 
 
@@ -173,12 +212,20 @@ def run_generate(args) -> int:
     clock = make_clock()
     today = date.fromisoformat(clock.utc_now()[:10])
     if args.dry_run or args.confirm_spend is None:
+        save = getattr(args, "save_requests", None)
+        if save is not None:
+            requests_view.check_save_destination(root, save, model, force=args.force)
+        collected = [] if save is not None else None
         _, calls, low, high, damaged = _estimate(
-            root, model, combinations, template, args.limit, today
+            root, model, combinations, template, args.limit, today, collected
         )
         if args.dry_run:
-            print("dry run: nothing was called nor recorded")
-            return report_damage(model, damaged)
+            if save is None:
+                print("dry run: nothing was called nor recorded")
+                return report_damage(model, damaged)
+            print(f"dry run: nothing was called nor recorded, except the requests in {save}")
+            code = report_damage(model, damaged)
+            return combine([code, _save(root, model, collected, template, args, damaged, clock)])
         raise UsageError(
             f"this would make up to {calls} paid calls (estimated US$ {low:.2f} to {high:.2f}); "
             "to confirm, run again with --confirm-spend <max US$ for this run>"

@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from ai_clients.errors import ConfigurationError
+from ai_clients.prompt import wire_bytes
 
 
 @dataclass(frozen=True)
@@ -107,7 +108,7 @@ class OllamaClient:
         self.timeout_s = timeout_s
 
     def _open(self, method: str, path: str, body: dict | None = None):
-        data = json.dumps(body).encode("utf-8") if body is not None else None
+        data = wire_bytes(body) if body is not None else None
         request = urllib.request.Request(
             self.base_url + path,
             data=data,

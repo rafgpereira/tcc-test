@@ -7,6 +7,7 @@ before anything else, so a Windows checkout sends the same prompt and gets the s
 """
 
 import hashlib
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -68,3 +69,11 @@ def build_prompt(template: PromptTemplate, problem: ProblemInput, scenario: str)
 
 def prompt_sha256(prompt: str) -> str:
     return hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+
+
+def wire_bytes(body: dict) -> bytes:
+    """The bytes of a request body as both clients send it (Ollama and the commercial APIs).
+
+    One function for both, so that what ``show-request`` and the dry-run check is what is sent.
+    """
+    return json.dumps(body).encode("utf-8")

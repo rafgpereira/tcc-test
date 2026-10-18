@@ -28,6 +28,7 @@ from typing import Any, Protocol
 from ai_clients.errors import ConfigurationError
 from ai_clients.llm import config
 from ai_clients.llm.schemas import Finish, Usage, response_schema
+from ai_clients.prompt import wire_bytes
 
 PROMPT_PLACEHOLDER = "<prompt>"  # where the prompt goes, in the recorded request parameters
 
@@ -288,7 +289,7 @@ class _Client:
         return text.replace(self._api_key, "***") if self._api_key else text
 
     def call(self, prompt: str) -> ProviderAnswer:
-        data = json.dumps(self.request_body(prompt)).encode("utf-8")
+        data = wire_bytes(self.request_body(prompt))
         request = urllib.request.Request(
             config.ENDPOINT[self.key], data=data, method="POST", headers=self._headers()
         )

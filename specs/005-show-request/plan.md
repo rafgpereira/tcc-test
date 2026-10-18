@@ -108,6 +108,18 @@ e nada sobre tempo é afirmado.
 **Reavaliação pós-Fase 1**: sem violação. A montagem do `.git` e a chamada ao `git` estão
 justificadas em Complexity Tracking.
 
+**Reavaliação pós-implementação (2026-10-16, T034)**: sem violação.
+- **V:** `docker compose config` mostra `/app/.git` só no `app`, e o `sandbox` não o vê (conferido
+  também dentro dos dois contêineres; uma escrita em `/app/.git` no `app` falha com "Read-only
+  file system").
+- **X:** o único processo `git` está em `template_history.py`, com `log` e `cat-file`, e um teste
+  confere que nenhum outro subcomando é chamado.
+- **VIII/FR-002:** nenhuma rede nem chave nos dois módulos novos; os testes trocam o `socket` por um
+  que falha.
+- **IX:** `pyproject.toml` e `uv.lock` sem mudança.
+
+Pendente: a revisão do código por um dos autores (Princípio X).
+
 ## Project Structure
 
 ### Documentation (this feature)

@@ -76,9 +76,9 @@ Nenhuma dessas chamadas imprime o prompt no terminal.
   corpo tem a seed e a temperatura da tentativa 1 em `options`;
 - `--attempt 12`: a última tentativa com o texto-base de solução;
 - uma combinação que chegou à predição (tentativas 13 a 15), se houver: o texto-base de predição;
-- uma árvore de piloto antigo (`--suites-dir data/suites/slm-piloto2`), cujo texto-base mudou
-  depois: `warning: OLD TEMPLATE VERSION from git <commit>` se o texto-base daquela época foi
-  commitado; senão, código 1 com os dois hashes e nenhum arquivo criado.
+- os pilotos 1 a 5 do SLM (`--suites-dir data/suites/slm-piloto5`) são de um formato anterior e
+  são recusados com código 1 (medido em 2026-10-16). A busca de um texto-base antigo no Git é
+  coberta pelos testes e foi conferida no contêiner `app` sobre o histórico do `slm_prompt.txt`.
 
 **Não sobrescrever** (US3): repetir um `show-request` com o mesmo `--output` → código 2; com
 `--force` → sobrescreve.

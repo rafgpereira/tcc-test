@@ -279,7 +279,9 @@ pelos autores.
   dataset (600 de 600 num modelo cuja execução ainda não começou, como o GPT e o SLM do zero) e
   marca, entre os gravados, os enunciados com expoente perdido: os 71 da contagem de 2026-10-16
   quando todas as combinações estão pendentes; tudo sem nenhuma chamada a uma API. O Gemini é
-  conferido num dry-run separado pelos autores.
+  conferido num dry-run separado pelos autores. **Medido em 2026-10-16 (`research.md` R11)**: GPT
+  com 600 de 600 fiéis e exatamente os 71 problemas avisados; SC-001 conferido nas 15 tentativas
+  do piloto do Gemini e em tentativas de solução e de predição do SLM.
 
 ## Assumptions
 

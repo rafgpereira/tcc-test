@@ -91,6 +91,14 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
   `close`, `change-template --template llm`, `report`, `package` e `verify` com `--model gpt` ou
   `--model gemini`. Os dois modelos podem rodar juntos, um por terminal. O agente nunca roda uma
   geração paga sem pedido explícito dos autores
+- Ver o pedido enviado a um modelo (só lê, não chama nada, nunca imprime o pedido): `docker compose
+  run --rm app python -m ai_clients show-request --model gemini --problem ID --scenario S --output
+  data/requests/X.json [--attempt N | --barred N] [--suites-dir data/suites/gemini-piloto1]`
+  (grava o corpo, com o prompt dentro, conferido contra o hash gravado e o dataset; texto-base mudado:
+  busca a versão no Git, por isso só no `app`, que monta o `.git` somente leitura); todos os pedidos
+  pendentes de um modelo: `... generate --model gpt --dry-run --save-requests data/requests [--force]`
+  (um `<id>.<cenário>.request.json` por combinação e um `summary.json` com a fidelidade ao dataset e
+  os expoentes perdidos; `1` se algum prompt não for fiel)
 - Conferir a consistência entre artefatos (dataset descompactado × mutantes × suítes dos 3
   modelos, 1:1, com contagens; só lê): `docker compose run --rm app python -m cli check [--deep]`. Todo módulo que
   passa a produzir uma pasta por problema MUST entrar nele (`docs/verificacao-consistencia.md`)

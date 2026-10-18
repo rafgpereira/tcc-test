@@ -10,7 +10,9 @@ services:
     # Lets `http://host.docker.internal:11434` reach an Ollama running on the host (needed on Linux;
     # Docker Desktop already provides the name). Only here: `sandbox` stays without network.
     extra_hosts: ["host.docker.internal:host-gateway"]
-    volumes: ["./data:/app/data", "./manifests:/app/manifests"]
+    # The Git history, read only and only here (never in sandbox, which runs third-party code):
+    # show-request looks up an old prompt template by its hash with git log / git cat-file.
+    volumes: ["./data:/app/data", "./manifests:/app/manifests", "./.git:/app/.git:ro"]
     tmpfs: ["/tmp:size=2g"]
 
   sandbox:                   # runs third-party code: NO network

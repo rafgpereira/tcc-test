@@ -76,9 +76,9 @@ duas P1 (US1, ver uma tentativa feita; US4, dry-run com gravação), depois US2 
 
 **Purpose**: medir a linha de base e preparar o ambiente.
 
-- [ ] T001 Medir a linha de base: `docker compose run --rm sandbox pytest -q` e anotar, nesta tarefa, o número de testes que passam (o "mesmo número mais os novos" das regras gerais)
-- [ ] T002 Acrescentar `"./.git:/app/.git:ro"` à lista `volumes` do serviço `app` em `docker-compose.yml` (só nele; **não** no `docker-compose.override.yml`, onde `sandbox: *dev` repetiria o mapa — research R8) e atualizar o comentário do topo de `docker-compose.override.yml` para dizer que o `.git` é montado somente leitura e só no `app`, pelo `docker-compose.yml`, e que o `.env` continua fora. Conferir: `docker compose run --rm app git -c safe.directory=* -C /app log --oneline -1` imprime o último commit; `docker compose run --rm sandbox test -e /app/.git` sai diferente de 0
-- [ ] T003 [P] Esqueleto de `src/ai_clients/template_history.py` e `src/ai_clients/requests_view.py` com docstrings de módulo (o que fazem, que só leem, research R2 e R4–R7), sem lógica
+- [X] T001 Medir a linha de base: `docker compose run --rm sandbox pytest -q` e anotar, nesta tarefa, o número de testes que passam (o "mesmo número mais os novos" das regras gerais) *(2026-10-16: 1.777 passando; depois da implementação, 1.868)*
+- [X] T002 Acrescentar `"./.git:/app/.git:ro"` à lista `volumes` do serviço `app` em `docker-compose.yml` (só nele; **não** no `docker-compose.override.yml`, onde `sandbox: *dev` repetiria o mapa — research R8) e atualizar o comentário do topo de `docker-compose.override.yml` para dizer que o `.git` é montado somente leitura e só no `app`, pelo `docker-compose.yml`, e que o `.env` continua fora. Conferir: `docker compose run --rm app git -c safe.directory=* -C /app log --oneline -1` imprime o último commit; `docker compose run --rm sandbox test -e /app/.git` sai diferente de 0
+- [X] T003 [P] Esqueleto de `src/ai_clients/template_history.py` e `src/ai_clients/requests_view.py` com docstrings de módulo (o que fazem, que só leem, research R2 e R4–R7), sem lógica
 
 ---
 
@@ -91,29 +91,29 @@ hash, conferência de fidelidade, aviso de expoente e leitura de uma árvore esc
 
 ### Tests for Foundational ⚠️ (escrever primeiro; devem FALHAR)
 
-- [ ] T004 [P] Testes em `tests/ai_clients/test_template_history.py` (research R2, R9), num repositório Git temporário criado pelo teste (`git init` em `tmp_path`, `git -c user.name=t -c user.email=t@t commit`), com dois commits do mesmo `src/prompt_templates/llm_prompt.txt` (os 3 marcadores em cada versão):
+- [X] T004 [P] Testes em `tests/ai_clients/test_template_history.py` (research R2, R9), num repositório Git temporário criado pelo teste (`git init` em `tmp_path`, `git -c user.name=t -c user.email=t@t commit`), com dois commits do mesmo `src/prompt_templates/llm_prompt.txt` (os 3 marcadores em cada versão):
   - o hash do arquivo atual devolve `origin = "current"`, `commit = None`;
   - o hash da 1ª versão devolve `origin = "git"` e o commit curto da 1ª;
   - a versão gravada com `\r\n` no Git é achada pelo hash do texto com `\n` (mesma normalização do `load_template`);
   - um hash ausente levanta `TemplateNotFound` com `reason = "not_in_history"`, o hash usado e o atual;
   - sem `.git` → `reason = "no_repository"`; com `PATH` sem `git` (monkeypatch) → `reason = "git_unavailable"`;
   - a lista de arquivos e os `mtime` de `.git/` são os mesmos antes e depois (só leitura)
-- [ ] T005 [P] Testes em `tests/ai_clients/test_fidelity.py` (research R4, R5; data-model §2 e §3), com um problema mínimo escrito pelo teste:
+- [X] T005 [P] Testes em `tests/ai_clients/test_fidelity.py` (research R4, R5; data-model §2 e §3), com um problema mínimo escrito pelo teste:
   - os três cenários, prompt de `build_prompt` → `faithful`; `checked` é `["statement", "example_input", "example_output"]` na caixa-preta, `["code", ...]` na caixa-branca e os quatro no híbrido;
   - `enunciado.md` com `\r\n` no arquivo → `missing` com `piece = "statement"`, `file = "enunciado.md"` e `matched_chars < expected_chars`;
   - prompt cortado no meio do código → `missing` com `piece = "code"`;
   - entrada do exemplo terminando em `" \n"` cortada além do `\n` → divergência; só `\n` finais cortados → fiel;
   - caixa-preta contendo `<reference_solution_cpp>` → `scenario_leak`, e `faithful = false`;
   - expoente: marcados `1 ≤ n ≤ 105`, `a_i < 109`, `(109 + 7)` e `does not exceed 104`; não marcados `10^5`, `100000`, `modulo 1000000007` e `105 apples` (sem operador antes); `matches` com o trecho de até 30 caracteres ao redor, na ordem do texto; caixa-branca → nenhum aviso
-- [ ] T006 [P] Testes em `tests/ai_clients/test_wire_bytes.py`: `prompt.wire_bytes(body) == json.dumps(body).encode("utf-8")` para um corpo com `≤` (vira `≤`); o `OllamaClient._open` e o `_Client.call` dos comerciais enviam exatamente `wire_bytes(body)` (capturar o `data` do `urllib.request.Request` com monkeypatch de `urlopen`, sem rede)
-- [ ] T007 [P] Testes em `tests/ai_clients/test_tree_dir.py`: os leitores de `store` (SLM) e `llm/store` com a pasta da árvore explícita (`tree=tmp/x`) leem `run.json`, tentativas, barradas e estado de uma árvore copiada para outra pasta; sem o parâmetro, o caminho é o de hoje (`data/suites/slm`, `data/suites/<modelo>`)
+- [X] T006 [P] Testes em `tests/ai_clients/test_wire_bytes.py`: `prompt.wire_bytes(body) == json.dumps(body).encode("utf-8")` para um corpo com `≤` (vira `≤`); o `OllamaClient._open` e o `_Client.call` dos comerciais enviam exatamente `wire_bytes(body)` (capturar o `data` do `urllib.request.Request` com monkeypatch de `urlopen`, sem rede)
+- [X] T007 [P] Testes em `tests/ai_clients/test_tree_dir.py`: os leitores de `store` (SLM) e `llm/store` com a pasta da árvore explícita (`tree=tmp/x`) leem `run.json`, tentativas, barradas e estado de uma árvore copiada para outra pasta; sem o parâmetro, o caminho é o de hoje (`data/suites/slm`, `data/suites/<modelo>`)
 
 ### Implementation for Foundational
 
-- [ ] T008 `wire_bytes(body: dict) -> bytes` em `src/ai_clients/prompt.py` (`json.dumps(body).encode("utf-8")`, sem outras opções) e trocar a serialização em `src/ai_clients/ollama.py` (`_open`) e `src/ai_clients/llm/providers.py` (`_Client.call`) por ela; T006 passa e a suíte do SLM e da 004 continua passando
-- [ ] T009 [P] `src/ai_clients/template_history.py` (research R2; data-model §1): `TemplateSource(path, expected_sha256, origin, commit, template)`, `TemplateNotFound(path, expected_sha256, current_sha256, reason)` com `reason` em `"not_in_history" | "git_unavailable" | "no_repository"`, e `resolve(root, rel_path, expected_sha256) -> TemplateSource`: 1) arquivo atual por `prompt.load_template`; 2) `git -c safe.directory=* -C <root> log --all --format=%h --raw --no-abbrev -- <rel_path>` para os blobs (os dois lados de cada mudança, sem repetir) e o commit mais recente de cada um; `git ... cat-file --batch` para lê-los; normalizar como o `load_template` (UTF-8, `\r\n` → `\n`), conferir os 3 marcadores e o `sha256`; 3) senão, `TemplateNotFound`. `subprocess.run` com lista de argumentos, `check=True`, sem `shell`. T004 passa
-- [ ] T010 [P] Em `src/ai_clients/requests_view.py`: `check_fidelity(root, problem_id, scenario, prompt) -> FidelityResult` e `exponent_warning(root, problem_id, scenario) -> ExponentWarning | None`, com `MissingPiece(piece, file, matched_chars, expected_chars)`, lendo **os bytes crus** de `enunciado.md`, `AC_ref.cpp` e `testes.json` (nunca o `ProblemInput`), com os blocos da tabela de research R4 e as três expressões de research R5 copiadas literalmente. T005 passa
-- [ ] T011 [P] Parâmetro opcional com a pasta da árvore nos leitores de `src/ai_clients/store.py` e `src/ai_clients/llm/store.py` (`read_run`, `attempt_files`/`combination_state`, `barred_files`, `read_generation`/`read_attempt`), no mesmo estilo de `ensure_tree`/`lock_tree`; sem o parâmetro, comportamento idêntico. T007 passa e nenhuma outra assinatura pública muda de sentido
+- [X] T008 `wire_bytes(body: dict) -> bytes` em `src/ai_clients/prompt.py` (`json.dumps(body).encode("utf-8")`, sem outras opções) e trocar a serialização em `src/ai_clients/ollama.py` (`_open`) e `src/ai_clients/llm/providers.py` (`_Client.call`) por ela; T006 passa e a suíte do SLM e da 004 continua passando
+- [X] T009 [P] `src/ai_clients/template_history.py` (research R2; data-model §1): `TemplateSource(path, expected_sha256, origin, commit, template)`, `TemplateNotFound(path, expected_sha256, current_sha256, reason)` com `reason` em `"not_in_history" | "git_unavailable" | "no_repository"`, e `resolve(root, rel_path, expected_sha256) -> TemplateSource`: 1) arquivo atual por `prompt.load_template`; 2) `git -c safe.directory=* -C <root> log --all --format=%h --raw --no-abbrev -- <rel_path>` para os blobs (os dois lados de cada mudança, sem repetir) e o commit mais recente de cada um; `git ... cat-file --batch` para lê-los; normalizar como o `load_template` (UTF-8, `\r\n` → `\n`), conferir os 3 marcadores e o `sha256`; 3) senão, `TemplateNotFound`. `subprocess.run` com lista de argumentos, `check=True`, sem `shell`. T004 passa
+- [X] T010 [P] Em `src/ai_clients/requests_view.py`: `check_fidelity(root, problem_id, scenario, prompt) -> FidelityResult` e `exponent_warning(root, problem_id, scenario) -> ExponentWarning | None`, com `MissingPiece(piece, file, matched_chars, expected_chars)`, lendo **os bytes crus** de `enunciado.md`, `AC_ref.cpp` e `testes.json` (nunca o `ProblemInput`), com os blocos da tabela de research R4 e as três expressões de research R5 copiadas literalmente. T005 passa
+- [X] T011 [P] Parâmetro opcional com a pasta da árvore nos leitores de `src/ai_clients/store.py` e `src/ai_clients/llm/store.py` (`read_run`, `attempt_files`/`combination_state`, `barred_files`, `read_generation`/`read_attempt`), no mesmo estilo de `ensure_tree`/`lock_tree`; sem o parâmetro, comportamento idêntico. T007 passa e nenhuma outra assinatura pública muda de sentido
 
 **Checkpoint**: `docker compose run --rm sandbox pytest tests/ai_clients` passa com o número de T001 mais os novos.
 
@@ -133,7 +133,7 @@ nenhum outro arquivo é gravado.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T012 [P] [US1] Testes em `tests/ai_clients/llm/test_show_request.py` (gpt e gemini), com tentativas gravadas pela própria geração da 004 usando o `FakeProvider`:
+- [X] T012 [P] [US1] Testes em `tests/ai_clients/llm/test_show_request.py` (gpt e gemini), com tentativas gravadas pela própria geração da 004 usando o `FakeProvider`:
   - sem `--attempt` → a última tentativa (`attempt N (of N)` na linha do terminal); `--attempt 2` → a 2;
   - o hash confere, e `json.loads` do arquivo gravado é igual ao corpo que o `FakeProvider` recebeu (o prompt dentro: `input` no gpt, `contents[0].parts[0].text` no gemini);
   - o arquivo é `json.dumps(body, indent=2, ensure_ascii=False)` mais `\n` (contrato §0): um prompt com `≤` aparece com `≤` literal no arquivo;
@@ -142,11 +142,11 @@ nenhum outro arquivo é gravado.
   - nem o arquivo nem a saída do terminal contêm `raw_body`, `model_returned`, `usage` ou `cost` (B3), nem o valor de `OPENAI_API_KEY`/`GEMINI_API_KEY` definido no ambiente do teste;
   - **o prompt nunca aparece no stdout nem no stderr**;
   - `--suites-dir` lê uma árvore copiada
-- [ ] T013 [P] [US1] Testes em `tests/ai_clients/test_requests_view.py` (SLM). A tentativa 1 é gravada pela geração do SLM com o cliente falso do Ollama; as tentativas 13 e 15 podem ser construídas direto com os construtores de `GenerationRecord` dos testes do SLM:
+- [X] T013 [P] [US1] Testes em `tests/ai_clients/test_requests_view.py` (SLM). A tentativa 1 é gravada pela geração do SLM com o cliente falso do Ollama; as tentativas 13 e 15 podem ser construídas direto com os construtores de `GenerationRecord` dos testes do SLM:
   - tentativas 1, 13 e 15: o corpo gravado tem em `options` a seed e a temperatura daquela linha da política, e o `model` do `run.json`; 13 e 15 usam o texto-base de predição;
   - uma tentativa com `template_sha256 = null` usa o hash do `run.json` para o tipo (research R2, S5);
   - o hash confere, e `json.loads` do arquivo é o corpo que o cliente falso recebeu na tentativa 1
-- [ ] T014 [P] [US1] Testes de recusa e só leitura em `tests/ai_clients/test_show_request_refusals.py`:
+- [X] T014 [P] [US1] Testes de recusa e só leitura em `tests/ai_clients/llm/test_show_request_refusals.py` (na pasta `llm/`, que tem o provedor falso):
   - **SC-004**: texto-base alterado e não commitado (sem `.git`) → código 1, mensagem com os dois hashes, e o arquivo de saída **não** é criado;
   - texto-base antigo num repositório Git temporário (o `root` do teste com `git init`) → gravado, com `warning: OLD TEMPLATE VERSION from git <commit>`, código 0;
   - hash do prompt remontado diferente do gravado (registro editado no teste) → código 1, nada gravado;
@@ -158,10 +158,10 @@ nenhum outro arquivo é gravado.
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] `RequestView` e `build_view(root, model, problem_id, scenario, *, attempt=None, barred=None, tree=None) -> RequestView` em `src/ai_clients/requests_view.py` (data-model §4; research R1–R3): escolhe a tentativa (a maior atual, ou a pedida, ou a barrada), resolve o texto-base com `template_history.resolve`, monta o prompt com `prompt.build_prompt`, **recusa** se `prompt_sha256 != recorded_prompt_sha256` (exceção própria, código 1), monta o corpo (comerciais: `request_parameters` gravado com toda string igual a `PROMPT_PLACEHOLDER` trocada pelo prompt, e `parameters_changed` comparando com `providers.request_parameters(model)`; SLM: `ollama.request_body(run.model, prompt, generation.generation_options(run, n))`), e preenche `fidelity` e `exponent`. Invariantes do data-model §4: sem campo de resposta nem de chave
-- [ ] T016 [US1] Em `src/ai_clients/requests_view.py`: `body_text(body) -> str` (`json.dumps(body, indent=2, ensure_ascii=False) + "\n"`, contrato §0; usada também pelo dry-run), `write_output(path, text, *, force)` com a checagem de destino proibido (`data/suites/`, `data/dataset/`, `manifests/`) e de arquivo existente, compartilhada com T021, e `status_lines(view, path) -> list[str]` com a linha `written: …` e as linhas `warning:` exatas de [contracts/cli.md](./contracts/cli.md) §1 (nenhuma delas contém o prompt)
-- [ ] T017 [US1] Subcomando `show-request` em `src/ai_clients/__main__.py`: `--model {slm,gpt,gemini}`, `--problem`/`--scenario` e `--output ARQUIVO` obrigatórios (uma combinação), `--force`, `--attempt N`, `--barred N`, `--suites-dir DIR`; ordem de [contracts/cli.md](./contracts/cli.md) §1 (uso e destino → `dataset_gate` → `run.json`/combinação → texto-base → prompt → hash → corpo → conferências → gravação); códigos 0/1/2 de research R7 (prompt infiel com hash conferido: gravado e código 1); mensagens de recusa exatamente as do contrato, em stderr, sem gravar nada. T012 a T014 passam
-- [ ] T018 [US1] `src/ai_clients/README.md`: `show-request` (com `--output`, `--force`, `--attempt`, `--barred`, `--suites-dir`) na tabela única de comandos, no cenário "usar o que já existe", com o serviço `app` explicado (é o que lê o histórico do Git), o que o arquivo contém (o corpo, com o prompt dentro), que o terminal só mostra o resultado das conferências, e os códigos; linha `pendente` em "Comandos verificados"; `check_docs_sync.py --module ...` sai 0
+- [X] T015 [US1] `RequestView` e `build_view(root, model, problem_id, scenario, *, attempt=None, barred=None, tree=None) -> RequestView` em `src/ai_clients/requests_view.py` (data-model §4; research R1–R3): escolhe a tentativa (a maior atual, ou a pedida, ou a barrada), resolve o texto-base com `template_history.resolve`, monta o prompt com `prompt.build_prompt`, **recusa** se `prompt_sha256 != recorded_prompt_sha256` (exceção própria, código 1), monta o corpo (comerciais: `request_parameters` gravado com toda string igual a `PROMPT_PLACEHOLDER` trocada pelo prompt, e `parameters_changed` comparando com `providers.request_parameters(model)`; SLM: `ollama.request_body(run.model, prompt, generation.generation_options(run, n))`), e preenche `fidelity` e `exponent`. Invariantes do data-model §4: sem campo de resposta nem de chave
+- [X] T016 [US1] Em `src/ai_clients/requests_view.py`: `body_text(body) -> str` (`json.dumps(body, indent=2, ensure_ascii=False) + "\n"`, contrato §0; usada também pelo dry-run), `write_output(path, text, *, force)` com a checagem de destino proibido (`data/suites/`, `data/dataset/`, `manifests/`) e de arquivo existente, compartilhada com T021, e `status_lines(view, path) -> list[str]` com a linha `written: …` e as linhas `warning:` exatas de [contracts/cli.md](./contracts/cli.md) §1 (nenhuma delas contém o prompt)
+- [X] T017 [US1] Subcomando `show-request` em `src/ai_clients/__main__.py`: `--model {slm,gpt,gemini}`, `--problem`/`--scenario` e `--output ARQUIVO` obrigatórios (uma combinação), `--force`, `--attempt N`, `--barred N`, `--suites-dir DIR`; ordem de [contracts/cli.md](./contracts/cli.md) §1 (uso e destino → `dataset_gate` → `run.json`/combinação → texto-base → prompt → hash → corpo → conferências → gravação); códigos 0/1/2 de research R7 (prompt infiel com hash conferido: gravado e código 1); mensagens de recusa exatamente as do contrato, em stderr, sem gravar nada. T012 a T014 passam
+- [X] T018 [US1] `src/ai_clients/README.md`: `show-request` (com `--output`, `--force`, `--attempt`, `--barred`, `--suites-dir`) na tabela única de comandos, no cenário "usar o que já existe", com o serviço `app` explicado (é o que lê o histórico do Git), o que o arquivo contém (o corpo, com o prompt dentro), que o terminal só mostra o resultado das conferências, e os códigos; linha `pendente` em "Comandos verificados"; `check_docs_sync.py --module ...` sai 0
 
 **Checkpoint**: US1 funciona sozinha com `pytest tests/ai_clients` (MVP).
 
@@ -178,7 +178,7 @@ arquivos e o resumo, sem chamar API e sem tocar em `data/suites/`.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T019 [P] [US4] Testes em `tests/ai_clients/test_save_requests.py` (os três modelos, dataset mínimo do teste):
+- [X] T019 [P] [US4] Testes em `tests/ai_clients/llm/test_save_requests.py` (os três modelos, dataset mínimo do teste):
   - grava **só** `DIR/<modelo>/<id>.<cenário>.request.json` (nenhum `.prompt.txt`), numa pasta **plana**, sem nenhuma subpasta em `DIR/<modelo>/` (data-model §5), só das combinações pendentes; `json.loads` de cada um é igual ao dos bytes (`wire_bytes`) do corpo que o cliente falso receberia na próxima tentativa, e o texto é o de `body_text` (contrato §0); respeita `--problem`, `--scenario` e `--limit`;
   - `summary.json` valida no `RequestsSummary` e cumpre as três validações do data-model §5; um prompt infiel (dataset com `\r\n` no `enunciado.md`) entra em `unfaithful` e o código é 1, com a gravação até o fim;
   - a saída do dry-run de hoje continua impressa antes da linha `requests: N saved in ...` (contrato §2), e nenhum prompt é impresso;
@@ -189,10 +189,10 @@ arquivos e o resumo, sem chamar API e sem tocar em `data/suites/`.
 
 ### Implementation for User Story 4
 
-- [ ] T020 [P] [US4] `RequestsSummary`, `SavedRequest` e `UnfaithfulEntry` (Pydantic, `extra="forbid"`, `schema_version: Literal[1]`) em `src/ai_clients/requests_view.py`, com os campos e as validações literais do data-model §5 (`SavedRequest` com `request_file` e sem arquivo de prompt; "`faithful == sum(r.faithful for r in requests)`; `combinations == len(requests)`; os ids em `unfaithful` são exatamente os `requests` com `faithful = false`")
-- [ ] T021 [US4] `save_requests(root, model, pending, dest, *, force) -> RequestsSummary` em `src/ai_clients/requests_view.py` (research R6): a checagem de destino de T016 (pasta proibida; `DIR/<modelo>/` com arquivos), um arquivo por combinação, `<id>.<cenário>.request.json`, direto em `DIR/<modelo>/` (pasta plana, data-model §5; texto de `body_text`), `summary.json`, e as linhas de terminal do contrato §2 (`requests: …`, `unfaithful: …`, `exponent: …`)
-- [ ] T022 [US4] Ligar `--save-requests DIR` e `--force` ao dry-run: no SLM em `src/ai_clients/__main__.py` (`_dry_run_generate` passa as combinações pendentes com a próxima tentativa e o texto-base dela) e nos comerciais em `src/ai_clients/llm/cli.py` (`_estimate`/`run_generate`); código final combinado (1 se infiel ou danificado). T019 passa
-- [ ] T023 [US4] `src/ai_clients/README.md`: `generate --dry-run --save-requests` na tabela única (as duas variações `--force`; um arquivo por combinação com o corpo, que traz o prompt; `≤` legível no arquivo; a sugestão `data/requests`), linha `pendente` em "Comandos verificados"; `check_docs_sync.py --module ...` sai 0
+- [X] T020 [P] [US4] `RequestsSummary`, `SavedRequest` e `UnfaithfulEntry` (Pydantic, `extra="forbid"`, `schema_version: Literal[1]`) em `src/ai_clients/requests_view.py`, com os campos e as validações literais do data-model §5 (`SavedRequest` com `request_file` e sem arquivo de prompt; "`faithful == sum(r.faithful for r in requests)`; `combinations == len(requests)`; os ids em `unfaithful` são exatamente os `requests` com `faithful = false`")
+- [X] T021 [US4] `save_requests(root, model, pending, dest, *, force) -> RequestsSummary` em `src/ai_clients/requests_view.py` (research R6): a checagem de destino de T016 (pasta proibida; `DIR/<modelo>/` com arquivos), um arquivo por combinação, `<id>.<cenário>.request.json`, direto em `DIR/<modelo>/` (pasta plana, data-model §5; texto de `body_text`), `summary.json`, e as linhas de terminal do contrato §2 (`requests: …`, `unfaithful: …`, `exponent: …`)
+- [X] T022 [US4] Ligar `--save-requests DIR` e `--force` ao dry-run: no SLM em `src/ai_clients/__main__.py` (`_dry_run_generate` passa as combinações pendentes com a próxima tentativa e o texto-base dela) e nos comerciais em `src/ai_clients/llm/cli.py` (`_estimate`/`run_generate`); código final combinado (1 se infiel ou danificado). T019 passa
+- [X] T023 [US4] `src/ai_clients/README.md`: `generate --dry-run --save-requests` na tabela única (as duas variações `--force`; um arquivo por combinação com o corpo, que traz o prompt; `≤` legível no arquivo; a sugestão `data/requests`), linha `pendente` em "Comandos verificados"; `check_docs_sync.py --module ...` sai 0
 
 **Checkpoint**: US1 e US4 (as duas P1) funcionam; `pytest tests/ai_clients` passa.
 
@@ -208,7 +208,7 @@ imprime `written: … preview, not sent (next: attempt 1)` e sai com 0.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T024 [P] [US2] Testes em `tests/ai_clients/test_show_request_preview.py`:
+- [X] T024 [P] [US2] Testes em `tests/ai_clients/llm/test_show_request_preview.py` (junto com os de T027):
   - sem árvore (`data/suites/<modelo>` inexistente) e sem tentativa → prévia, com o corpo atual (`providers.request_body`; no SLM `config.MODEL`, `sampling_options()` e a seed/temperatura de `config.attempt_spec(1)`, sem chamar o Ollama);
   - combinação com 1 tentativa por formato e ainda pendente, sem `--attempt` → grava a tentativa 1 (a última feita), não a prévia;
   - sem tentativa e `--attempt 1` → código 2 (`has no attempt 1 (no attempt yet)`), nada gravado;
@@ -216,8 +216,8 @@ imprime `written: … preview, not sent (next: attempt 1)` e sai com 0.
 
 ### Implementation for User Story 2
 
-- [ ] T025 [US2] Ramo `kind = "preview"` em `build_view` e o trecho `preview, not sent (next: attempt N)` em `status_lines`, em `src/ai_clients/requests_view.py` (research R1 e R3); a mensagem de uso do contrato para `--attempt` sem tentativa em `src/ai_clients/__main__.py`. T024 passa
-- [ ] T026 [US2] `src/ai_clients/README.md`: a prévia na linha do `show-request` da tabela única (o que é gravado quando ainda não há tentativa); `check_docs_sync.py --module ...` sai 0
+- [X] T025 [US2] Ramo `kind = "preview"` em `build_view` e o trecho `preview, not sent (next: attempt N)` em `status_lines`, em `src/ai_clients/requests_view.py` (research R1 e R3); a mensagem de uso do contrato para `--attempt` sem tentativa em `src/ai_clients/__main__.py`. T024 passa
+- [X] T026 [US2] `src/ai_clients/README.md`: a prévia na linha do `show-request` da tabela única (o que é gravado quando ainda não há tentativa); `check_docs_sync.py --module ...` sai 0
 
 ---
 
@@ -231,12 +231,12 @@ numa pasta do experimento.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T027 [P] [US3] Testes em `tests/ai_clients/test_show_request_output.py`:
+- [X] T027 [P] [US3] Testes em `tests/ai_clients/llm/test_show_request_preview.py` (parte "the output file"):
   - arquivo existente sem `--force` → código 2 (`already exists; use --force`) e o arquivo não muda; com `--force` → sobrescrito;
   - caminho dentro de `data/suites/`, `data/dataset/` ou `manifests/` → código 2, nada criado;
   - nas recusas de código 1 (hash, texto-base), o arquivo **não** é criado, e um arquivo existente com `--force` também não é tocado
-- [ ] T028 [US3] Ajustes, se T027 apontar algum, em `write_output` (`src/ai_clients/requests_view.py`) e no `show-request` (`src/ai_clients/__main__.py`): a checagem do destino acontece antes de qualquer leitura, e a escrita só depois de todas as conferências. T027 passa
-- [ ] T029 [US3] `src/ai_clients/README.md`: o que `--force` faz e as pastas recusadas, na linha do `show-request`; `check_docs_sync.py --module ...` sai 0
+- [X] T028 [US3] Ajustes, se T027 apontar algum, em `write_output` (`src/ai_clients/requests_view.py`) e no `show-request` (`src/ai_clients/__main__.py`): a checagem do destino acontece antes de qualquer leitura, e a escrita só depois de todas as conferências. T027 passa
+- [X] T029 [US3] `src/ai_clients/README.md`: o que `--force` faz e as pastas recusadas, na linha do `show-request`; `check_docs_sync.py --module ...` sai 0
 
 ---
 
@@ -245,7 +245,7 @@ numa pasta do experimento.
 **Purpose**: rodar o [quickstart](./quickstart.md) no dataset e nas árvores reais, carimbar os
 comandos e propagar os números.
 
-- [ ] T030 📌 PROPAGAR — **Dry-run com gravação** (quickstart, nível 2; SC-005):
+- [X] T030 📌 PROPAGAR — **Dry-run com gravação** (quickstart, nível 2; SC-005):
   - **GPT**, antes da execução completa dele: `generate --model gpt --dry-run --save-requests data/requests` → 600 de 600 fiéis;
   - **SLM**: rodar o mesmo comando; registrar quantas combinações pendentes foram gravadas (a execução terminou, então devem ser 0);
   - **Gemini**: a execução completa já começou; os autores rodam um dry-run separado (decidido no analyze em 2026-10-16); registrar quantas combinações pendentes foram gravadas e que todas são fiéis;
@@ -254,25 +254,25 @@ comandos e propagar os números.
   - o tempo não é medido (SC-003);
   - registrar os números em `research.md` (R5, R6), no SC-005 de `spec.md` e na metodologia (seção 3 + seção 8);
   - carimbar `generate --dry-run --save-requests` no README e fazer a revisão de prosa por `grep`
-- [ ] T031 📌 PROPAGAR — **Tentativas feitas** (quickstart, nível 3; SC-001):
+- [X] T031 📌 PROPAGAR — **Tentativas feitas** (quickstart, nível 3; SC-001):
   - as 15 combinações de `data/suites/gemini-piloto1` com `--suites-dir` e `--output`: todas com código 0, hash conferido e `dataset: faithful`, e nenhum prompt no terminal;
   - o SLM (`data/suites/slm`): as tentativas 1 e 12 de `1000_B` caixa-preta e uma tentativa de predição (13 a 15), se houver; uma árvore de piloto antigo com o texto-base mudado (`--suites-dir data/suites/slm-piloto2` ou outra): versão antiga achada no Git, ou recusa com os dois hashes;
   - repetir um `--output` sem `--force` → código 2 (US3);
   - registrar os resultados (quantas conferidas, quantas pelo Git, quantas recusadas e por quê) em `research.md` R2 e na metodologia (seção 3 + seção 8); carimbar `show-request` no README e fazer a revisão de prosa por `grep`
-- [ ] T032 [P] **Prévia** (quickstart, nível 4): antes da execução completa do GPT, `show-request --model gpt --problem 1_B --scenario hybrid --output data/requests/1_B.hybrid.json` → `written: … preview, not sent (next: attempt 1)`, código 0; `--attempt 1` → código 2
-- [ ] T033 📌 PROPAGAR — **Documentação de uso**:
+- [X] T032 [P] **Prévia** (quickstart, nível 4): antes da execução completa do GPT, `show-request --model gpt --problem 1_B --scenario hybrid --output data/requests/1_B.hybrid.json` → `written: … preview, not sent (next: attempt 1)`, código 0; `--attempt 1` → código 2
+- [X] T033 📌 PROPAGAR — **Documentação de uso**:
   - **`README.md` da raiz:** "Referência de comandos" com `show-request` e `generate --dry-run --save-requests`; na preparação do ambiente, que o serviço `app` lê o histórico do Git (somente leitura) e o `sandbox` não;
   - **`CLAUDE.md`:** "Comandos do dia a dia" com os dois comandos;
   - **Metodologia:** marcar a nota da seção 3 como implementada, com uma linha na seção 8;
   - **Checagem:** `docker compose run --rm app python scripts/check_docs_sync.py` e o `--module ...` saem 0
-- [ ] T034 Constitution v1.7.1 compliance review: refazer a tabela "Constitution Check" de `plan.md` contra o código. Em especial:
+- [ ] T034 Constitution v1.7.1 compliance review: refazer a tabela "Constitution Check" de `plan.md` contra o código. *(2026-10-16: as quatro conferências abaixo passaram — o `.git` aparece só no `app`, o `git` só em `template_history.py` com `log` e `cat-file`, nada de rede ou chave nos dois módulos novos, `pyproject.toml` e `uv.lock` sem mudança; falta a revisão do código por um dos autores.)* Em especial:
   - **V:** `docker compose config` mostra `/app/.git` (`read_only: true`) só no `app`;
   - **X:** `grep -rn "subprocess\|\"git\"" src/ai_clients` mostra só `log` e `cat-file`, em `template_history.py`;
   - **VIII/FR-002:** `grep -rn "urlopen\|API_KEY\|OLLAMA_BASE_URL" src/ai_clients/requests_view.py src/ai_clients/template_history.py` não encontra nada;
   - **IX:** `pyproject.toml` e `uv.lock` sem mudança.
 
   Desvios vão em "Complexity Tracking". Um dos autores revisa o código gerado com apoio de IA (Princípio X); registrar quem e quando.
-- [ ] T035 Fechamento:
+- [ ] T035 Fechamento: *(2026-10-16: suíte inteira com 1.868 passando, `ruff` e `black --check` em 0, `check_docs_sync.py` e `--module` em 0. O `--closing` aponta 11 linhas de "Comandos verificados": 9 da feature 004, pendentes ou carimbadas em revisão suja, e as 2 desta, carimbadas em `d005d57+dirty`; estas 2 fecham ao rodar os dois comandos de novo depois do commit e carimbar a revisão limpa.)*
   - `docker compose run --rm sandbox pytest` (suíte inteira) passa, com o número de T001 mais os novos;
   - `docker compose run --rm app ruff check .` e `docker compose run --rm app black --check .` saem 0;
   - `docker compose run --rm app python scripts/check_docs_sync.py --closing --feature specs/005-show-request` sai 0;

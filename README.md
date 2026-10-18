@@ -20,9 +20,11 @@ teste unitários em C++.
 > `accepted_predicted`, nenhuma fechada à mão). Quem clona o projeto só precisa descompactar e
 > conferir, não precisa gerar nada. Um comando na raiz, `python -m cli check`, confere se dataset,
 > mutantes e suítes estão completos e 1:1. As chamadas aos dois modelos comerciais (GPT-5.4-mini e
-> Gemini 3.8 Flash) têm código e testes prontos e ainda não fizeram nenhuma chamada paga (o próximo
-> passo é o piloto); os demais módulos (avaliação, métricas, orquestrador) ainda não têm
-> especificação nem código; a tabela "Módulos e estado" marca isso.
+> Gemini 3.8 Flash) têm código e testes prontos; o Gemini fez o piloto de 5 problemas e o GPT ainda
+> não fez nenhuma chamada paga. O `show-request` e o `generate --dry-run --save-requests` gravam, sem
+> chamar nada, o pedido enviado (ou a enviar) a cada modelo, conferido contra o dataset. Os demais
+> módulos (avaliação, métricas, orquestrador) ainda não têm especificação nem código; a tabela
+> "Módulos e estado" marca isso.
 
 ## O que o experimento responde
 
@@ -131,8 +133,8 @@ Teste se o Docker está pronto: `docker run --rm hello-world`. Se aparecer `perm
 
 | Serviço | Acesso à internet | Para que serve |
 |---|---|---|
-| `app` | sim | baixar dados de origem, gerar relatórios, empacotar e verificar dados, lint e formatação |
-| `sandbox` | **não**, de propósito | compilar e executar código C++ de terceiros com segurança (o dataset e, no futuro, as suítes geradas por IA); também roda os testes do projeto |
+| `app` | sim | baixar dados de origem, gerar relatórios, empacotar e verificar dados, lint e formatação; é o único que vê o histórico do Git (a pasta `.git`, só para leitura), que o `show-request` usa para achar um texto-base antigo |
+| `sandbox` | **não**, de propósito | compilar e executar código C++ de terceiros com segurança (o dataset e, no futuro, as suítes geradas por IA); também roda os testes do projeto. Não vê o `.git` nem o `.env` |
 
 Como ler um comando do projeto:
 
@@ -344,6 +346,8 @@ no `.env` e nunca fazem uma chamada paga sem `--confirm-spend <US$>`, que també
 | `docker compose run --rm app python -m ai_clients report --model gpt` | `app` | grava `manifests/gpt_generation_report.json` (ou `gemini_...`): contagens por `status` e cenário, falhas por motivo, *tokens*, custo total (a soma exata dos pedidos), tempo, versões do modelo e respostas barradas |
 | `docker compose run --rm app python -m ai_clients package --model gpt` | `app` | gera `data/gpt_suites.zip` (ou `gemini_...`), o manifesto e o relatório; recusa se algum problema e cenário **desse** modelo não tem `suite.json` |
 | `docker compose run --rm app python -m ai_clients verify --model gpt` | `app` | confere o pacote do modelo contra o manifesto; `--extracted data/suites/gpt` confere também a pasta |
+| `docker compose run --rm app python -m ai_clients generate --model gpt --dry-run --save-requests data/requests` (ou `--model gemini`, `--model slm`) | `app` | além do dry-run, grava o corpo de cada pedido pendente (com o prompt dentro) em `data/requests/<modelo>/<id>.<cenário>.request.json` e um `summary.json`, conferindo que o enunciado, o código e o exemplo de cada prompt são idênticos ao dataset (`1` se algum não for) e avisando os enunciados com expoente perdido; nada é chamado; `--force` substitui a pasta do modelo |
+| `docker compose run --rm app python -m ai_clients show-request --model gemini --problem ID --scenario S --output ARQUIVO` | `app` | grava no arquivo o corpo do pedido de uma tentativa (a última; `--attempt N`, ou `--barred N` nos comerciais), conferido contra o hash gravado e o dataset, sem chamar nada e sem mostrar o pedido no terminal; sem tentativa, a prévia do próximo; `--suites-dir` lê uma execução guardada; texto-base mudado: busca a versão antiga no histórico do Git |
 | `unzip data/slm_suites.zip -d data/` | (host) | descompacta as suítes em `data/suites/slm/` (`gpt_suites.zip` e `gemini_suites.zip` da mesma forma, quando existirem) |
 
 ### Módulo `cli` ([README](src/cli/README.md))

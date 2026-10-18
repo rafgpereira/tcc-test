@@ -316,6 +316,23 @@ testes, como nos testes das features 003 e 004:
   `json.dumps(body).encode()`).
 - **Códigos 0, 1 e 2** conforme R7.
 
+## R11 — Medido no dado real **[MEDIDO, 2026-10-16]**
+
+Revisão `d005d57` mais as alterações não commitadas da implementação: dry-run com gravação do GPT sobre os 200 problemas reais, antes da execução dele: 600 de 600 prompts fiéis ao dataset (enunciado, código e exemplo idênticos aos arquivos, sem código na caixa-preta nem enunciado na caixa-branca), 600 arquivos `.request.json` (4,8 MB) e aviso de expoente em 71 problemas (142 combinações), **exatamente** os 71 da contagem de 2026-10-16; dry-run do SLM: 0 combinações pendentes (execução terminada); `show-request` nas 15 combinações do piloto 1 do Gemini (`--suites-dir data/suites/gemini-piloto1`): 15 de 15 com o hash do prompt conferido e fiéis ao dataset; no SLM, as tentativas 1 e 12 de `1000_B` caixa-preta (seed 42 e temperatura 0,7; seed 48 e 0,2) e a tentativa 13 de `237_A` caixa-branca (texto-base de predição) conferidas; os pilotos 1 a 5 do SLM, de uma versão anterior do formato, são recusados (código 1); a busca no Git, no contêiner `app` com o `.git` somente leitura, achou pelo hash a versão mais antiga das 4 do `slm_prompt.txt`; prévia do GPT (`1_B` híbrido) e recusa de tentativa inexistente conferidas. O dry-run do Gemini fica com os autores. Testes: 1.868 passando (1.777 antes, 91 novos).
+
+Achados da implementação:
+- **Ordem das chaves**: o `request_parameters` gravado na tentativa tem as chaves em ordem
+  alfabética (o JSON do projeto ordena as chaves), então o arquivo do `show-request` de uma
+  tentativa feita é o mesmo JSON enviado com as chaves em outra ordem; o do dry-run (e o da
+  prévia) sai na ordem do envio. Os testes comparam o JSON, não o texto.
+- **Expressões do expoente**: um número seguido de `.` ou `,` não é marcado (para não pegar
+  decimais); é a regra da contagem, mantida, e por isso `a_i < 109.` no fim de uma frase não
+  é avisado. Nos 200 enunciados reais, o resultado é exatamente o da contagem.
+- **Commit da versão achada no Git**: o commit mostrado é o que escreveu aquela versão, não o
+  que a substituiu (o primeiro desenho pegava o segundo; achado por teste e corrigido).
+- **Pilotos antigos do SLM**: os pilotos 1 a 5 são do formato anterior (schema 1) e não podem
+  ser lidos; o `show-request` recusa com código 1.
+
 ## R10 — Documentação a propagar
 
 **Decision**: neste ciclo (plano):

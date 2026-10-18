@@ -13,11 +13,13 @@ Gera, para cada problema do dataset e cada um dos três cenários de contexto, u
 e tenha o dataset descompactado em `data/dataset/`
 ([README do módulo `dataset`](../dataset/README.md), Cenário B).
 
-**Estado (2026-10-15)**: o modelo local terminou a execução completa em 2026-10-09, com suíte em
+**Estado (2026-10-16)**: o modelo local terminou a execução completa em 2026-10-09, com suíte em
 600 de 600 combinações de problema e cenário (números em (f)), e o pacote `data/slm_suites.zip` está
 no repositório: para usar essas suítes, siga o Cenário B. Os dois modelos comerciais (opção
-`--model gpt` ou `--model gemini`) têm o código e os testes prontos e ainda não fizeram nenhuma
-chamada paga: o próximo passo é o piloto (Cenário A, parte 2).
+`--model gpt` ou `--model gemini`) têm o código e os testes prontos; o Gemini fez o piloto de 5
+problemas (15 de 15 suítes) e o GPT ainda não fez nenhuma chamada paga (Cenário A, parte 2). O
+`show-request` e o `generate --dry-run --save-requests` mostram, sem chamar nada, o que é enviado a
+cada modelo (Cenário B).
 
 Os comandos são os mesmos para os três modelos. Sem a opção `--model`, tudo vale para o modelo
 local (`slm`), descrito logo abaixo; com `--model gpt` ou `--model gemini`, para os comerciais,
@@ -265,6 +267,21 @@ O `unzip` recria `data/suites/slm/` exatamente como ficou na máquina que gerou.
 `verify` (senão, uma linha `changed:`/`missing:`/`extra:` por arquivo e `FAIL`) e `Resultado: OK` no
 `check`.
 
+**Ver o que foi (ou será) enviado a um modelo**, sem chamar nada: o `show-request` grava num arquivo
+o corpo de uma tentativa já feita, conferido contra o hash gravado e contra o dataset, e o
+`generate --dry-run --save-requests` grava o de todos os pedidos que ainda vão ser feitos (tabela
+abaixo). Os dois rodam no `app`, que vê o histórico do Git, só para leitura; os arquivos ficam em
+`data/requests/`, fora do Git.
+
+```bash
+docker compose run --rm app python -m ai_clients show-request --model gemini --problem 1_B --scenario black_box --suites-dir data/suites/gemini-piloto1 --output data/requests/1_B.black_box.json
+docker compose run --rm app python -m ai_clients generate --model gpt --dry-run --save-requests data/requests
+```
+
+Esperado: `written: ... prompt sha256 matches; dataset: faithful` no primeiro; `requests: 600 saved
+in data/requests/gpt; faithful 600/600; exponent warnings 71 problems (142 combinations)` no segundo,
+antes de a execução do modelo começar.
+
 ### Comandos
 
 | Comando | Serviço | O que faz / variações |
@@ -283,6 +300,8 @@ O `unzip` recria `data/suites/slm/` exatamente como ficou na máquina que gerou.
 | `python -m ai_clients package --model gpt` | `app` | gera `data/gpt_suites.zip` (ou `gemini_...`), o manifesto e refaz o relatório; recusa (`1`) se alguma combinação **desse** modelo não tem `suite.json` (as do outro modelo não contam) ou se há dano |
 | `python -m ai_clients verify --model gpt` | `app` | confere o pacote do modelo contra o manifesto dele; `--extracted data/suites/gpt` confere também a pasta |
 | `python -m ai_clients execute --model gpt` | — | recusado (`2`): os modelos comerciais não executam nada |
+| `python -m ai_clients generate --model gpt --dry-run --save-requests data/requests` (ou `--model gemini`, `--model slm`) | `app` | o dry-run de sempre e, além dele, grava o corpo de cada pedido **pendente** (o que a próxima geração enviaria, com o prompt inteiro dentro) em `data/requests/<modelo>/<id>.<cenário>.request.json`, uma pasta só por modelo, sem subpastas, mais um `summary.json`. Cada prompt é conferido contra os arquivos do problema: o enunciado (`enunciado.md`), o código (`AC_ref.cpp`) e o exemplo (primeiro teste público) têm de aparecer idênticos, conforme o cenário, e a caixa-preta não pode ter código nem a caixa-branca enunciado. Linha `requests: N saved ...; faithful K/N; exponent warnings ...` no fim; uma linha `unfaithful: ...` por divergência (saída `1`, a gravação vai até o fim); `exponent: <id>: "..."` para cada enunciado com potência de 10 sem o expoente (`1 ≤ n ≤ 105` no lugar de `10^5`), só aviso, porque vem do próprio dataset. O arquivo é JSON indentado com `≤` legível; é o mesmo JSON enviado, que na rede leva `≤` como `≤`. Sem chamar nenhuma API, sem chave e sem Ollama. A pasta do modelo com arquivos é recusada (`2`), a menos que se use `--force`, que apaga só ela antes de gravar. Recusa (`2`) gravar dentro de `data/suites/`, `data/dataset/` ou `manifests/`. `--save-requests` sem `--dry-run`, ou `--force` sem `--save-requests`: `2`. `--problem`, `--scenario` e `--limit` valem também aqui |
+| `python -m ai_clients show-request --model gemini --problem 1_B --scenario black_box --output data/requests/1_B.json` | `app` | grava no arquivo o corpo do pedido enviado em uma tentativa (a última, por padrão; `--attempt N` escolhe), com o prompt inteiro dentro, no mesmo formato do dry-run; nada é chamado e o pedido **não** aparece no terminal, só uma linha `written: ... attempt N (of M); prompt sha256 matches; dataset: faithful` e os avisos (`warning: lost exponent ...`, `warning: OLD TEMPLATE VERSION ...`, `warning: parameters changed ...`). O prompt é remontado do texto-base e dos arquivos do problema e conferido contra o hash gravado na tentativa; se o texto-base mudou depois, a versão antiga é procurada no histórico do Git (por isso roda no `app`, que lê o `.git` só para leitura) e, sem ela, nada é gravado (`1`, com os dois hashes). Sem tentativa ainda: a prévia do próximo pedido (`preview, not sent`). `--model slm`, `gpt` ou `gemini`. `--barred N` (só `gpt`/`gemini`) grava uma resposta barrada. `--suites-dir data/suites/gemini-piloto1` lê uma execução guardada do mesmo modelo (os pilotos 1 a 5 do modelo local são de uma versão anterior e não podem ser lidos: `1`). `--output` é obrigatório; arquivo existente → `2`, a menos que se use `--force`; nunca dentro de `data/suites/`, `data/dataset/` ou `manifests/`. Prompt diferente do dataset: gravado (foi o enviado), `dataset: UNFAITHFUL` e `1`. Tentativa inexistente → `2`; combinação danificada → `1` |
 | `unzip data/slm_suites.zip -d data/` | (máquina) | descompacta as suítes do modelo local em `data/suites/slm/` (`gpt_suites.zip` e `gemini_suites.zip` da mesma forma) |
 | `pytest tests/ai_clients` | `sandbox` | testes do módulo (com modelos simulados; nenhum teste chama uma API paga) |
 
@@ -321,6 +340,10 @@ ou de configuração (Ollama ou API), `4` terminou, mas alguma combinação agua
 | `configuration error: gpt: the API key in OPENAI_API_KEY was refused ...` ou `... quota or credit ...` (`3`) | corrija a chave ou o crédito da conta e rode `generate --model <modelo> --resume` |
 | `configuration error: gemini: the request was refused as malformed ...` (`3`) | a API recusou o formato do pedido (nada foi cobrado); avise os autores |
 | `configuration error: gemini: the daily request quota of the API is exhausted ...` (`3`) | a cota de pedidos do dia acabou (na camada gratuita, 20 por dia); nada foi gravado: rode `generate --model gemini --resume` depois que ela renovar |
+| `error: the template of this attempt (sha256 ...) is not the current one (...) and was not found in the Git history` (`1`, no `show-request`) | o texto-base daquela tentativa foi editado e nunca commitado; não há como mostrar o pedido com certeza |
+| `error: ... the Git history is not available here (run it in the app service)` (`1`) | rode o `show-request` com `docker compose run --rm app ...` |
+| `error: <arquivo> already exists; use --force to overwrite it` ou `... already has files; use --force to replace them` (`2`) | escolha outro destino ou acrescente `--force` |
+| `unfaithful: <id> <cenário>: statement (enunciado.md) matched X of Y chars` ou `dataset: UNFAITHFUL` (`1`) | o prompt não traz aquele trecho do dataset idêntico; avise os autores antes de qualquer execução paga |
 | `gemini unavailable (HTTP 429: ... quota ...)` ou `(HTTP 503: ... high demand ...)`, repetido | limite de pedidos por minuto ou modelo sobrecarregado; o comando espera e repete sozinho. Para não estourar o limite, defina `GEMINI_MAX_REQUESTS_PER_MINUTE` (e `GEMINI_MAX_CONCURRENCY=1` na camada gratuita) |
 
 ## (c) Entradas esperadas
@@ -344,14 +367,16 @@ ou de configuração (Ollama ou API), `4` terminou, mas alguma combinação agua
 | Pacote da execução final e manifesto | zip e JSON | `data/slm_suites.zip` e `manifests/slm_suites.manifest.json` (versionados) |
 | Respostas, suíte final e respostas barradas de cada modelo comercial | JSON | `data/suites/gpt/` e `data/suites/gemini/` (não versionados); o `suite.json` tem as mesmas chaves do modelo local, e a avaliação lê os três modelos do mesmo jeito |
 | Relatório, pacote e manifesto de cada modelo comercial | JSON e zip | `manifests/<modelo>_generation_report.json`, `data/<modelo>_suites.zip`, `manifests/<modelo>_suites.manifest.json` (versionados depois da execução final) |
+| Corpo dos pedidos (`show-request`, `generate --dry-run --save-requests`) e o resumo das conferências | JSON | onde os autores pedirem, sugerido `data/requests/` (não versionado; só consulta, nunca lido por outro comando) |
 
 ## (e) Dependências e pré-requisitos
 
 - Python 3.11 da imagem (`docker compose build`); nenhuma dependência além das fixadas no `uv.lock`.
 - Um ou mais servidores Ollama acessíveis com `qwen2.5-coder:14b` baixado (a execução final usou
   Ollama 0.35.0, quantização Q4_K_M, `num_ctx` 8192 e `num_predict` 5120), e o `.env` preenchido.
-- Serviço `app` para geração, `close`, `change-template`, `report`, `package` e `verify`; `sandbox`
-  para `execute` (motor do módulo [`sandbox`](../sandbox/README.md), sem alteração).
+- Serviço `app` para geração, `close`, `change-template`, `report`, `package`, `verify` e
+  `show-request` (o `app` lê o histórico do Git, só para leitura, para achar um texto-base antigo);
+  `sandbox` para `execute` (motor do módulo [`sandbox`](../sandbox/README.md), sem alteração).
 - Dataset descompactado em `data/dataset/` e íntegro.
 - Modelos comerciais: contas com faturamento ativo na OpenAI e no Google, chaves no `.env`, e a
   internet do serviço `app` (Responses API da OpenAI e `generateContent` da Gemini API). Nenhuma
@@ -412,3 +437,5 @@ ou de configuração (Ollama ou API), `4` terminou, mas alguma combinação agua
 | `report --model gpt` | pendente | — |
 | `package --model ...` | pendente | — |
 | `verify --model ...` | pendente | — |
+| `generate --model gpt --dry-run --save-requests` e `--model slm` (200 problemas) | 2026-10-16 | d005d57+dirty |
+| `show-request` (`--model gemini` com `--suites-dir`, `--model slm`, prévia do `--model gpt`) | 2026-10-16 | d005d57+dirty |

@@ -22,13 +22,16 @@ from ai_clients import (
     errors,
     execution,
     generation,
+    ollama,
     oracle,
     packaging,
     problem,
     prompt,
     report,
+    requests_view,
     store,
     template_change,
+    template_history,
 )
 from ai_clients.errors import ConfigurationError, InfrastructureError
 from ai_clients.llm import cli as llm_cli
@@ -301,13 +304,68 @@ def _configure_generate(parser: argparse.ArgumentParser) -> None:
         "new ones once this many US$ were spent (required to call gpt or gemini; the cap is per "
         "process, so two generate --resume of the same model may spend the sum of their caps)",
     )
+    parser.add_argument(
+        "--save-requests",
+        type=Path,
+        metavar="DIR",
+        help="with --dry-run: write the request body of every pending combination to "
+        "DIR/<model>/<id>.<scenario>.request.json (the prompt is inside it) and a summary.json "
+        "that checks each prompt against the dataset; never inside data/suites, data/dataset or "
+        "manifests",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="with --save-requests: replace DIR/<model>/ if it already has files",
+    )
 
 
-def _dry_run_generate(root: Path, combinations, templates: dict, limit: int | None) -> int:
+def _slm_request(run, attempt: int, text: str) -> dict:
+    """The body the next generate would send for ``attempt`` (no call: the digest is not in it)."""
+    if run is not None:
+        return ollama.request_body(run.model, text, generation.generation_options(run, attempt))
+    spec = config.attempt_spec(attempt)
+    options = ollama.GenerationOptions(
+        **generation.sampling_options().model_dump(), temperature=spec.temperature, seed=spec.seed
+    )
+    return ollama.request_body(model_name(), text, options)
+
+
+def _save_slm_requests(root: Path, run, pending, templates: dict, damaged, args) -> int:
+    """``--save-requests`` of the SLM dry-run; 1 if a prompt is not faithful to the dataset."""
+    from mutation import dataset_gate as manifest_gate
+
+    options = (run.options if run is not None else generation.sampling_options()).model_dump()
+    summary, lines = requests_view.save_requests(
+        root,
+        "slm",
+        pending,
+        args.save_requests,
+        force=args.force,
+        templates={kind: template.sha256 for kind, template in templates.items()},
+        request_parameters={
+            "model": run.model if run is not None else model_name(),
+            "options": options,
+            "stream": True,
+        },
+        dataset_manifest_sha256=manifest_gate.dataset_manifest_sha256(root),
+        damaged=[str(exc) for exc in damaged],
+        now=generation.utc_now(),
+    )
+    for line in lines:
+        print(line, file=sys.stderr if line.startswith("unfaithful:") else sys.stdout)
+    return EXIT_OK if summary.faithful == summary.combinations else EXIT_DATA_FAILURE
+
+
+def _dry_run_generate(
+    root: Path, combinations, templates: dict, limit: int | None, args=None
+) -> int:
     planned = 0
     largest: dict[str, tuple[int, str]] = {}
     problems: dict[str, problem.ProblemInput] = {}
     run, damaged = read_run_if_any(root), []
+    save = getattr(args, "save_requests", None)
+    pending: list[requests_view.PendingRequest] = []
     for problem_id, scenario in combinations:
         try:
             state = store.combination_state(root, problem_id, scenario, run)
@@ -322,7 +380,21 @@ def _dry_run_generate(root: Path, combinations, templates: dict, limit: int | No
             problems[problem_id] = problem.load_problem(root, problem_id)
         spec = config.attempt_spec(state.attempt) if run is None else run.spec(state.attempt)
         template = templates[getattr(spec.template, "value", spec.template)]
-        size = len(prompt.build_prompt(template, problems[problem_id], scenario))
+        text = prompt.build_prompt(template, problems[problem_id], scenario)
+        size = len(text)
+        if save is not None:
+            pending.append(
+                requests_view.PendingRequest(
+                    problem_id=problem_id,
+                    scenario=scenario,
+                    attempt=state.attempt,
+                    prompt=text,
+                    body=_slm_request(run, state.attempt, text),
+                    template_sha256=template.sha256,
+                    seed=spec.seed,
+                    temperature=spec.temperature,
+                )
+            )
         print(
             f"{problem_id} {scenario} attempt {state.attempt} seed "
             f"{spec.seed} temperature {spec.temperature}: prompt {size} chars"
@@ -335,10 +407,17 @@ def _dry_run_generate(root: Path, combinations, templates: dict, limit: int | No
         if scenario in largest:
             size, problem_id = largest[scenario]
             print(f"largest prompt: {scenario} {size} chars ({problem_id})")
-    return report_damage(damaged)
+    code = report_damage(damaged)
+    if save is None:
+        return code
+    return combine_codes([code, _save_slm_requests(root, run, pending, templates, damaged, args)])
 
 
 def _run_generate(args: argparse.Namespace) -> int:
+    if args.save_requests is not None and not args.dry_run:
+        raise UsageError("--save-requests only works with --dry-run")
+    if args.force and args.save_requests is None:
+        raise UsageError("--force only works with --save-requests")
     if commercial(args):
         return llm_cli.run_generate(args)
     if args.confirm_spend is not None:
@@ -352,7 +431,9 @@ def _run_generate(args: argparse.Namespace) -> int:
     predict_template = prompt.load_template(config.PREDICT_TEMPLATE_PATH)
     if args.dry_run:
         templates = {"solution": template, "prediction": predict_template}
-        return _dry_run_generate(root, combinations, templates, args.limit)
+        if args.save_requests is not None:
+            requests_view.check_save_destination(root, args.save_requests, "slm", force=args.force)
+        return _dry_run_generate(root, combinations, templates, args.limit, args)
     base_url = _required_env(config.ENV_BASE_URL)
     _required_env(config.ENV_HARDWARE_LABEL)
     timeout_s, retries = http_timeout_s(), max_infra_retries()
@@ -814,6 +895,99 @@ register(
     "run the Python solution of every attempt pending execution (run it in the sandbox service)",
     _configure_execute,
     _run_execute,
+)
+
+
+# ------------------------------------------------------------------------------- show-request
+
+
+def _configure_show_request(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--model", choices=MODELS, required=True, help="slm, gpt or gemini")
+    parser.add_argument("--problem", required=True, metavar="ID", help="one problem")
+    parser.add_argument("--scenario", required=True, choices=config.SCENARIOS, help="one scenario")
+    parser.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+        metavar="FILE",
+        help="where to write the request body (the prompt is inside it); the request is never "
+        "printed, only the result of the checks",
+    )
+    parser.add_argument("--force", action="store_true", help="overwrite FILE if it exists")
+    parser.add_argument(
+        "--attempt",
+        type=_positive_int,
+        metavar="N",
+        help="attempt N (default: the last one; with no attempt yet, a preview of the next)",
+    )
+    parser.add_argument(
+        "--barred",
+        type=_positive_int,
+        metavar="N",
+        help="gpt and gemini only: barred response N (an answer without reasoning)",
+    )
+    parser.add_argument(
+        "--suites-dir",
+        type=Path,
+        metavar="DIR",
+        help="read an archived run of the model (e.g. data/suites/gemini-piloto1) instead of "
+        "data/suites/<model>",
+    )
+
+
+def _run_show_request(args: argparse.Namespace) -> int:
+    root = Path(".")
+    requests_view.check_output(root, args.output, force=args.force)
+    if args.attempt is not None and args.barred is not None:
+        raise UsageError("--attempt and --barred cannot be used together")
+    if args.barred is not None and not commercial(args):
+        raise UsageError("--barred is only for --model gpt or --model gemini")
+    failed = dataset_gate(root)
+    if failed is not None:
+        return failed
+    if args.problem not in problem.list_problem_ids(root):
+        raise UsageError(f"not in data/dataset: {args.problem}")
+    try:
+        view = requests_view.build_view(
+            root,
+            args.model,
+            args.problem,
+            args.scenario,
+            attempt=args.attempt,
+            barred=args.barred,
+            tree=args.suites_dir,
+        )
+    except (template_history.TemplateNotFound, requests_view.ViewRefused) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_DATA_FAILURE
+    except store.DamagedCombination as exc:
+        print(f"damaged: {exc}", file=sys.stderr)
+        print(
+            "error: the files of this combination are inconsistent; nothing was written",
+            file=sys.stderr,
+        )
+        return EXIT_DATA_FAILURE
+    except store.IncompatibleRunError:
+        tree = args.suites_dir or Path("data/suites") / args.model
+        print(
+            f"error: {tree.as_posix()} holds a run of another version of python -m ai_clients; "
+            "it cannot be read",
+            file=sys.stderr,
+        )
+        return EXIT_DATA_FAILURE
+    requests_view.write_output(root, args.output, view, force=args.force)
+    for line in requests_view.status_lines(view, args.output):
+        print(line)
+    return EXIT_OK if view.fidelity.faithful else EXIT_DATA_FAILURE
+
+
+register(
+    "show-request",
+    "write the request body sent (or to be sent) for one model, problem and scenario, checked "
+    "against the recorded hash and the dataset; calls nothing (run it in the app service, which "
+    "reads the Git history)",
+    _configure_show_request,
+    _run_show_request,
 )
 
 
