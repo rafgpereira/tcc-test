@@ -24,9 +24,22 @@ O clarify fechou E1 a E4. Esta pesquisa resolve como fazer cada parte, a partir 
   - o manifesto `manifests/statement_originals.manifest.json` guarda, por problema, a URL, a data,
     o status HTTP, o tamanho e o SHA-256 da página e do bloco extraído;
   - o pacote `data/statement_originals.zip` guarda só os 200 blocos (S1).
-- **Execuções seguintes**: sem `--refetch`, nenhuma rede. O comando lê as cópias (ou o pacote, se
-  as cópias não existirem) e recusa com código 1 se algum hash divergir do manifesto.
-  `--refetch [--problem ID]` baixa de novo, explicitamente.
+- **Execuções seguintes**: sem `--refetch`, nenhuma rede, exceto para o que falta (abaixo).
+  - O comando lê as cópias, ou o pacote se as cópias não existirem, e recusa com código 1 se algum
+    hash divergir do manifesto.
+  - Com as páginas inteiras, confere `page_sha256` e `statement_sha256`; com só o pacote, confere
+    o `statement_sha256`, e o `page_sha256` fica como registro.
+  - `--refetch [--problem ID]` baixa de novo, explicitamente.
+- **O que falta**: problemas sem entrada no manifesto, ou com erro temporário (429 ou 5xx). Um erro
+  definitivo (`http_404`, `no_statement_block`) só é tentado de novo com `--refetch`, para não
+  repetir pedidos inúteis (analyze de 2026-10-18).
+- **Pacote determinístico**: o `data/statement_originals.zip` tem as entradas em ordem alfabética e
+  data fixa (1980-01-01), sem informação da máquina, então os mesmos blocos dão os mesmos bytes e o
+  Git não registra mudança onde não há (analyze de 2026-10-18; mesmo cuidado do `dataset.zip`).
+- **`--problem`**: o resultado é só impresso; o relatório versionado vem só da execução sem
+  `--problem`, que cobre os 200 (analyze de 2026-10-18).
+- **Enunciado traduzido**: nenhum dos 200 tem `is_description_translated` (2026-10-18). Um problema
+  assim fica `unchecked` com o motivo `translated`, sem comparação.
 
 **Rationale**: E2. O piloto mostrou HTTP 200 nas 5 páginas, com o HTML do servidor já trazendo
 `<sup>`/`<sub>` (formato antigo) ou `$$$…$$$` (novo), sem depender de JavaScript.
@@ -174,7 +187,8 @@ conferência que não fechou.
   - tabela vira tabela Markdown;
   - o dataset fica igual (retrato dos arquivos antes e depois).
 - **Download**, com um servidor HTTP local no próprio teste (sem internet; o `sandbox` não tem
-  rede, então o servidor fica no `localhost` do contêiner):
+  rede, então o servidor fica no `localhost` do contêiner, o que é conferido no primeiro teste da
+  T011, porque um contêiner sem rede ainda tem a interface local):
   - um pedido por vez;
   - o intervalo é pedido ao relógio (relógio falso);
   - o `User-Agent` vai no pedido;
@@ -183,6 +197,17 @@ conferência que não fechou.
   - `--refetch`;
   - cópia com hash divergente → código 1;
   - a segunda execução não faz nenhum pedido (SC-003).
+
+## R9 — Medido **[MEDIDO, 2026-10-18]**
+
+- `check-statements --problem` com os 5 do piloto (2026-10-18, revisão `9df4f0e` mais a implementação não commitada): as 5 páginas baixadas de novo pelo comando (HTTP 200, cerca de 31 s com a subida do contêiner); `161_A` 4 `lost_exponent` e 21 `lost_index`, `1_B` 2 `lost_exponent`, `15_A` 6 `lost_index`, `102_B` 1 `lost_exponent` (`10^{100000}`), `1000_B` `faithful` (formato LaTeX); nenhuma diferença `other`, `formula`, `image` ou `table` — exatamente a contagem feita à mão no piloto (SC-001).
+- O schema do `metadata.json` só aceita `is_description_translated: false`, então um enunciado traduzido não chega ao dataset e esse caso não tem tratamento no código (o que o analyze acrescentou em R1 vale só como registro).
+
+## R10 — Os 200 problemas **[MEDIDO, 2026-10-18]**
+
+`check-statements` nos 200 problemas (2026-10-18): download dos 195 restantes em 13 min 12 s (rodado por Milena; nenhum `unchecked`); segunda execução sem nenhum acesso ao site e relatório byte a byte igual (SHA-256 `22d234e7…`, SC-003). O primeiro relatório tinha 188 diferenças `formula` e 274 `other` que, examinadas, eram conversões feitas pelo dataset (comandos LaTeX trocados por um símbolo) e listas que o dataset escreveu em Markdown (`* `, `1. `); a tabela de equivalências passou a ter as 16 trocas de um comando por um símbolo vistas nos pares do próprio relatório (`\leq`→`≤`, `\ldots`→`…`, `\cdot`→`⋅`, `ightarrow`→`→`, `
+e`/`
+eq`→`≠`, `\ge`→`≥`, `\gt`→`>`, `	imes`→`×`, `\lfloor`/`floor`/`\lceil`/`ceil`, `\sum`→`∑`, `\,`→espaço, `mod`→`mod`, além das 3 do piloto) e os itens de lista passaram a ser lidos como o dataset os escreveu; as perdas de expoente e índice não mudaram com isso. Relatório final: **83 fiéis, 117 com diferença; 152 expoentes perdidos em 79 problemas; 701 índices perdidos em 74 problemas**; 23 diferenças de fórmula em 12 problemas (mudanças de forma, como `rac{a}{b}` escrito `(a)/(b)`, `\limits`, `\max`); 36 `other` em 4 problemas (`670_D2`: a página atual tem outro texto; `1162_B` e `981_B`: barras invertidas a mais no nosso texto, em matrizes e conjuntos LaTeX; `190_A`). Contra a contagem antiga por padrão: 70 dos 71 confirmados pelo original (o 71º, `670_D2`, não pôde ser comparado porque o texto da página difere), e 9 problemas com expoente perdido que ela não via (`102_B`, `155_C`, `203_B`, `252_A`, `271_B`, `289_C`, `362_B`, `538_A`, `765_C`). `correct-statements`: 102 enunciados corrigidos (151 expoentes e 701 índices marcados), 83 sem mudança, 15 para revisão (12 por fórmula, 3 por `other`), nenhuma conferência falhou; o dataset continua igual ao manifesto (`verify --extracted`: OK). O pacote `data/statement_originals.zip` (só os 200 blocos do enunciado) tem 243.507 bytes (medido em 2026-10-18); o `.gitignore` ganhou a exceção dele.
 
 ## R8 — Documentação a propagar
 

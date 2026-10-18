@@ -38,6 +38,10 @@ TCC de dupla — Milena e Rafael, UnB.
   relatório final da extração
 - `data/mutants.zip` + `manifests/mutants.manifest.json` — mutantes da execução final e seus
   hashes
+- `data/statement_originals.zip` + `manifests/statement_originals.manifest.json` +
+  `manifests/statement_fidelity_report.json` — os enunciados originais do Codeforces (só o bloco do
+  enunciado, com hash) e a conferência deles contra os `enunciado.md` do dataset (2026-10-18: 152
+  expoentes perdidos em 79 problemas, 701 índices em 74); o dataset não foi alterado
 - `data/slm_suites.zip` + `manifests/slm_suites.manifest.json` +
   `manifests/slm_generation_report.json` — pacote da execução final do SLM, seu manifesto e o
   relatório (gerados em 2026-10-11)
@@ -100,6 +104,10 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
   (um `<id>.<cenário>.request.json` por combinação e um `summary.json` com a fidelidade ao dataset e
   os expoentes perdidos; `1` se algum prompt não for fiel); o pedido da tentativa que gerou cada
   suíte, de uma vez: `... show-request --model slm --suite-attempts --output-dir data/requests/suites`
+- Conferir os enunciados contra o original do Codeforces (`app`; baixa cada página uma vez, a cada
+  3 s ou mais, e depois não acessa mais o site): `docker compose run --rm app python -m dataset
+  check-statements [--problem ID] [--refetch]`; os corrigidos para revisão (nunca altera o dataset):
+  `... python -m dataset correct-statements --output-dir data/statements/corrected [--force]`
 - Conferir a consistência entre artefatos (dataset descompactado × mutantes × suítes dos 3
   modelos, 1:1, com contagens; só lê): `docker compose run --rm app python -m cli check [--deep]`. Todo módulo que
   passa a produzir uma pasta por problema MUST entrar nele (`docs/verificacao-consistencia.md`)

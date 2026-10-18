@@ -23,7 +23,10 @@ teste unitários em C++.
 > Gemini 3.8 Flash) têm código e testes prontos; o Gemini fez o piloto de 5 problemas e o GPT ainda
 > não fez nenhuma chamada paga. O `show-request` e o `generate --dry-run --save-requests` gravam, sem
 > chamar nada, o pedido enviado (ou a enviar) a cada modelo, conferido contra o dataset; o
-> `show-request --suite-attempts` grava de uma vez o da tentativa que gerou cada suíte. Os demais
+> `show-request --suite-attempts` grava de uma vez o da tentativa que gerou cada suíte. O
+> `python -m dataset check-statements` comparou os 200 enunciados com o original do Codeforces:
+> 152 expoentes perdidos (`10^5` escrito `105`) em 79 problemas e 701 índices (`a_i` escrito `ai`)
+> em 74; o dataset não foi alterado, e os enunciados corrigidos estão prontos para revisão. Os demais
 > módulos (avaliação, métricas, orquestrador) ainda não têm especificação nem código; a tabela
 > "Módulos e estado" marca isso.
 
@@ -224,6 +227,8 @@ compila e executa C++, o que só é permitido dentro dele.
 | `data/dataset.zip` | o dataset validado, compactado | **sim** |
 | `data/mutants/` | os mutantes já descompactados (ou gerados) e prontos para uso (ver README do módulo `mutation`) | não (é gerado a partir do zip) |
 | `data/mutants.zip` | os mutantes da execução final, compactados | **sim** |
+| `data/statement_originals.zip` | o bloco do enunciado original de cada problema, baixado do Codeforces uma vez (ver README do módulo `dataset`) | **sim** |
+| `data/statements/` | as páginas originais inteiras e os enunciados corrigidos para revisão | não |
 | `manifests/` | manifestos de hashes e relatórios, para conferir a integridade dos artefatos | sim |
 
 ### Problemas comuns
@@ -311,6 +316,8 @@ está no README dele; `--help` de qualquer comando lista as opções de fato dis
 | `docker compose run --rm sandbox python -m dataset audit` | `sandbox` | reexecuta a amostra e repara o que divergir; `--problem ID` (repetível), `--workers N` |
 | `docker compose run --rm app python -m dataset package` | `app` | gera `data/dataset.zip` e o manifesto; `--target N`, `--allow-partial` (só para teste) |
 | `docker compose run --rm app python -m dataset verify` | `app` | confere o zip contra o manifesto; `--extracted data/dataset` confere também a pasta descompactada |
+| `docker compose run --rm app python -m dataset check-statements` | `app` | compara cada `enunciado.md` com o enunciado original no Codeforces (baixa cada página uma vez, a cada 3 s ou mais; depois não acessa mais o site) e grava `manifests/statement_fidelity_report.json`, com cada diferença e o tipo dela (expoente ou índice perdido, fórmula, imagem, tabela, outra); `--problem ID` só imprime; `--refetch` baixa de novo |
+| `docker compose run --rm app python -m dataset correct-statements --output-dir data/statements/corrected` | `app` | grava, para revisão, os enunciados com os expoentes e índices do original (`^{...}`, `_{...}`), cada um conferido três vezes; nunca altera o dataset; `--force` substitui a pasta |
 | `unzip data/dataset.zip -d data/` | (host) | descompacta o dataset em `data/dataset/` (nenhum comando o faz) |
 
 ### Módulo `mutation` ([README](src/mutation/README.md))

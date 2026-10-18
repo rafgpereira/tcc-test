@@ -1,13 +1,15 @@
 # Experiment data is never versioned as loose files (Constitution, Principle II).
 # The only exceptions are the packaged dataset, and the packaged mutants and test suites (SLM, GPT,
-# Gemini) of the final run (amendment 1.6.0); what day-to-day development generates stays under
-# data/mutants/ and data/suites/, ignored.
+# Gemini) of the final run (amendment 1.6.0), and the statement blocks of the original Codeforces
+# pages (check-statements); what day-to-day development generates stays under data/mutants/,
+# data/suites/ and data/statements/, ignored.
 data/*
 !data/dataset.zip
 !data/mutants.zip
 !data/slm_suites.zip
 !data/gpt_suites.zip
 !data/gemini_suites.zip
+!data/statement_originals.zip
 
 # Secrets: only .env.example is versioned.
 .env

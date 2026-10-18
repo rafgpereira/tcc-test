@@ -341,6 +341,199 @@ def _run_verify(args: argparse.Namespace) -> int:
     return EXIT_OK if result.ok else EXIT_DATA_FAILURE
 
 
+# ------------------------------------------------------------ check-statements, correct-statements
+
+# Replaced by the tests (a clock that does not wait).
+make_statements_clock = None  # None: the real clock (dataset.statements.fetch.SystemClock)
+
+
+def _dataset_problems(root: Path) -> list[str]:
+    folder = root / config.EXTRACTED_PROBLEMS_DIR
+    return sorted(p.name for p in folder.iterdir() if p.is_dir()) if folder.is_dir() else []
+
+
+def _dataset_gate(root: Path) -> int | None:
+    manifest = root / config.MANIFEST_PATH
+    if not manifest.is_file():
+        print(f"error: manifest not found: {manifest}", file=sys.stderr)
+        return EXIT_DATA_FAILURE
+    result = verify_module.verify(
+        root / config.DATASET_ZIP, manifest, extracted_dir=root / config.DATA_DIR / "dataset"
+    )
+    if not result.ok:
+        print(
+            "error: data/dataset does not match manifests/dataset.manifest.json; restore it with: "
+            "unzip data/dataset.zip -d data/",
+            file=sys.stderr,
+        )
+        return EXIT_DATA_FAILURE
+    return None
+
+
+def _configure_check_statements(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--refetch",
+        action="store_true",
+        help="get the original pages again (those of --problem, or all), even if kept",
+    )
+    parser.add_argument(
+        "--problem",
+        action="append",
+        default=[],
+        metavar="ID",
+        help="only this problem (repeatable): the result is printed, the report is not written",
+    )
+
+
+def _summary_lines(problems) -> list[str]:
+    from dataset.schemas.statements import KINDS
+    from dataset.statements.compare import totals
+
+    t = totals(problems)
+    first = (
+        f"statements: {t.problems} checked; faithful {t.faithful}, with losses {t.with_losses}, "
+        f"unchecked {t.unchecked}"
+    )
+    lines = [first]
+    parts = []
+    for kind in KINDS:
+        n, p = t.by_kind[kind], t.problems_by_kind[kind]
+        parts.append(f"{kind}: {n} in {p} problems" if n else f"{kind}: 0")
+    lines.append("; ".join(parts))
+    return lines
+
+
+def _run_check_statements(args: argparse.Namespace) -> int:
+    from dataset.statements import compare as comparing
+    from dataset.statements import fetch
+
+    root = Path(".")
+    failed = _dataset_gate(root)
+    if failed is not None:
+        return failed
+    available = _dataset_problems(root)
+    unknown = [p for p in args.problem if p not in available]
+    if unknown:
+        print(f"error: not in data/dataset: {', '.join(unknown)}", file=sys.stderr)
+        return EXIT_USAGE
+    targets = sorted(set(args.problem)) if args.problem else available
+    current = fetch.read_manifest(root)
+    if current is not None:
+        try:
+            fetch.verify_originals(root, current)
+        except fetch.OriginalMismatch as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return EXIT_DATA_FAILURE
+    clock = make_statements_clock() if make_statements_clock is not None else None
+    try:
+        manifest = fetch.ensure_originals(root, targets, refetch=args.refetch, clock=clock)
+    except fetch.FetchStopped as exc:
+        print(f"infrastructure failure: {exc}; run the command again later", file=sys.stderr)
+        return EXIT_INFRA
+    blocks = fetch.read_statement_blocks(root, manifest)
+    report = comparing.build_report(
+        root,
+        targets,
+        blocks,
+        manifest,
+        dataset_manifest_sha256=fetch.dataset_manifest_sha256(root),
+        originals_manifest_sha256=fetch.sha256(fetch.manifest_path(root).read_bytes()),
+    )
+    if args.problem:
+        for p in report.problems:
+            kinds: dict[str, int] = {}
+            for d in p.differences:
+                kinds[d.kind] = kinds.get(d.kind, 0) + 1
+            detail = (
+                f" ({p.unchecked_reason})"
+                if p.status == "unchecked"
+                else "".join(f" {k} {n}" for k, n in kinds.items())
+            )
+            print(f"{p.problem_id}: {p.status}{detail}")
+    for line in _summary_lines(report.problems):
+        print(line)
+    if not args.problem:
+        store.atomic_write_json(root / config.STATEMENT_FIDELITY_REPORT, report)
+        fetch.package_originals(root, blocks)
+        print(f"report: {config.STATEMENT_FIDELITY_REPORT.as_posix()}")
+    return EXIT_OK
+
+
+def _configure_correct_statements(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--output-dir",
+        required=True,
+        type=Path,
+        metavar="DIR",
+        help="where to write <id>.md (the accepted corrections) and summary.json; never inside "
+        "data/dataset, data/suites or manifests",
+    )
+    parser.add_argument("--force", action="store_true", help="replace DIR if it has files")
+
+
+def _run_correct_statements(args: argparse.Namespace) -> int:
+    from dataset.schemas.statements import FidelityReport
+    from dataset.statements import UsageError as StatementsUsage
+    from dataset.statements import correct as correcting
+    from dataset.statements import fetch
+
+    root = Path(".")
+    try:
+        correcting.check_destination(root, args.output_dir, force=args.force)
+    except StatementsUsage as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    report_path = root / config.STATEMENT_FIDELITY_REPORT
+    manifest = fetch.read_manifest(root)
+    if not report_path.is_file() or manifest is None:
+        print(
+            f"error: {config.STATEMENT_FIDELITY_REPORT.as_posix()} not found; run "
+            "python -m dataset check-statements first",
+            file=sys.stderr,
+        )
+        return EXIT_DATA_FAILURE
+    raw = report_path.read_bytes()
+    report = FidelityReport.model_validate_json(raw)
+    if report.dataset_manifest_sha256 != fetch.dataset_manifest_sha256(root):
+        print(
+            "error: the report was made from another dataset; run check-statements again",
+            file=sys.stderr,
+        )
+        return EXIT_DATA_FAILURE
+    blocks = fetch.read_statement_blocks(root, manifest)
+    summary = correcting.correct_all(
+        root, report, fetch.sha256(raw), blocks, args.output_dir, force=args.force
+    )
+    kinds: dict[str, int] = {}
+    for c in summary.corrected:
+        for k, n in c.markups_inserted.items():
+            kinds[k] = kinds.get(k, 0) + n
+    detail = ", ".join(f"{k} {n}" for k, n in sorted(kinds.items()))
+    print(
+        f"corrected: {len(summary.corrected)} ({detail}); unchanged: {len(summary.unchanged)}; "
+        f"review: {len(summary.review)}"
+    )
+    for entry in summary.review:
+        print(f"review: {entry.problem_id}: {', '.join(entry.reasons)}")
+    print(f"written: {args.output_dir.as_posix()} ({len(summary.corrected)} files + summary.json)")
+    failed = any(r.startswith("check failed") for e in summary.review for r in e.reasons)
+    return EXIT_DATA_FAILURE if failed else EXIT_OK
+
+
+register(
+    "check-statements",
+    "compare every enunciado.md with the original statement on Codeforces (gets each page once, "
+    "3 s apart; run it in the app service) and write manifests/statement_fidelity_report.json",
+    _configure_check_statements,
+    _run_check_statements,
+)
+register(
+    "correct-statements",
+    "write, for review, the statements with the exponents and indices the original has "
+    "(^{...}, _{...}), each checked three times; never changes the dataset",
+    _configure_correct_statements,
+    _run_correct_statements,
+)
 register(
     "extract",
     "read the dataset in streaming mode and write the pool of eligible problems",

@@ -77,6 +77,20 @@ WORK_SUBDIRS = ("staging", "staging/raw", "staging/shards", "building", "problem
 
 DATASET_ZIP = DATA_DIR / "dataset.zip"
 MANIFEST_PATH = Path("manifests") / "dataset.manifest.json"
+EXTRACTED_PROBLEMS_DIR = DATA_DIR / "dataset" / "problems"  # what `unzip data/dataset.zip` gives
+
+# The original statements on Codeforces (check-statements / correct-statements). Flat folders:
+# one file per problem, never a folder per problem.
+STATEMENTS_DIR = DATA_DIR / "statements"
+STATEMENT_ORIGINALS_DIR = STATEMENTS_DIR / "originals"  # whole pages, never versioned
+STATEMENT_ORIGINALS_ZIP = DATA_DIR / "statement_originals.zip"  # only the statement blocks
+STATEMENT_ORIGINALS_MANIFEST = Path("manifests") / "statement_originals.manifest.json"
+STATEMENT_FIDELITY_REPORT = Path("manifests") / "statement_fidelity_report.json"
+CODEFORCES_PROBLEM_URL = "https://codeforces.com/problemset/problem/{contest}/{index}?locale=en"
+CODEFORCES_MIN_INTERVAL_S = 3.0  # one request at a time, at least this far apart
+CODEFORCES_USER_AGENT = "tcc-unb-statement-check/1.0"
+CODEFORCES_TIMEOUT_S = 30
+CODEFORCES_RETRY_WAITS_S = (30, 60, 120, 240, 300)  # after HTTP 429/5xx or a network error
 
 
 def seeded_random(context: str, seed: int = SEED) -> random.Random:

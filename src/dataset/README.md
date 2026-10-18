@@ -107,6 +107,16 @@ uma pasta por problema com `enunciado.md`, `AC_ref.cpp` (a solução correta), `
 `validacao.json`. Sem `unzip`: `docker compose run --rm app python -m zipfile -e data/dataset.zip
 data/`.
 
+**Conferir os enunciados contra o original do Codeforces**, sem acessar o site, quando o pacote
+`data/statement_originals.zip` e o manifesto dele já estão no repositório:
+
+```bash
+docker compose run --rm app python -m dataset check-statements
+```
+
+Esperado: as linhas `statements: 200 checked; ...` e a contagem por tipo de diferença, iguais às do
+relatório versionado, e nenhuma linha `fetch:` (nenhum acesso ao site).
+
 ### Comandos
 
 | Comando | Serviço | O que faz / variações |
@@ -118,6 +128,8 @@ data/`.
 | `python -m dataset audit` | `sandbox` | reexecuta e repara. `--problem ID` (repetível), `--workers N` |
 | `python -m dataset package` | `app` | gera o zip e o manifesto. `--target N` (padrão 200), `--allow-partial` (só para teste) |
 | `python -m dataset verify` | `app` | confere o zip contra o manifesto; `--extracted DIR` confere também a pasta descompactada (`DIR` é `data/dataset`); `--zip PATH`, `--manifest PATH` |
+| `python -m dataset check-statements` | `app` | compara cada `enunciado.md` com o enunciado original no Codeforces. Na primeira vez, baixa a página de cada problema, **uma por vez, a cada 3 s ou mais** (pelo menos 10 minutos para os 200), e guarda a cópia em `data/statements/originals/`, com o hash em `manifests/statement_originals.manifest.json`; depois disso não acessa mais o site. Lista cada diferença com o trecho e o tipo, dado pelo que estava no original naquele ponto: `lost_exponent` (`10^5` virou `105`), `lost_index` (`a_i` virou `ai`), `formula`, `image`, `table` ou `other`. Grava `manifests/statement_fidelity_report.json` e o pacote `data/statement_originals.zip` (só os blocos do enunciado, sempre com os mesmos bytes para os mesmos blocos). Perdas não são falha: saída `0`. `--problem ID` (repetível) só imprime o resultado daqueles problemas e não grava o relatório. `--refetch` baixa de novo, mesmo com cópia; página inexistente (404) ou sem o enunciado só é tentada de novo com ele. Site recusando pedidos ou fora do ar: espera 30 s a 5 min e repete; esgotadas as esperas, sai com `3` e guarda o que já baixou (rodar de novo continua). Cópia alterada ou dataset diferente do manifesto: `1` |
+| `python -m dataset correct-statements --output-dir data/statements/corrected` | `app` | grava, **para revisão**, os enunciados com os expoentes e índices que o original tem: o texto atual com `^{...}` e `_{...}` inseridos nos lugares que o `check-statements` encontrou, e as tabelas em Markdown. Só aceita um enunciado se ele passar em três conferências: (1) tirando as marcas, o texto é o original; (2) não sobra expoente ou índice perdido; (3) só as marcas mudaram. Grava `<id>.md` e `summary.json` numa pasta só; os que têm imagem, fórmula diferente ou outra diferença vão para a lista `review`, com o motivo. **Nunca altera o dataset.** Pasta com arquivos: `2`, a menos que se use `--force`; nunca dentro de `data/dataset/`, `data/suites/` ou `manifests/`. Sem o relatório do `check-statements`: `1` |
 | `pytest tests/dataset` | `sandbox` | testes do módulo |
 
 Códigos de saída: `0` sucesso, `1` falha de dados (déficit, integridade), `2` uso incorreto, `3`
@@ -134,6 +146,9 @@ infraestrutura (rede, disco: repita o comando), `130` interrompido (também segu
 | `error: only N of 200 complete problems` (`1`, no `package`) | rode `validate` até `deficit 0` |
 | `changed:` / `missing:` / `extra:` e `FAIL` (`1`) | não use esse dataset; refaça o `unzip` (apague `data/dataset` antes) ou gere o zip de novo |
 | `error: manifest not found` (`2`) | falta `data/dataset.zip` ou o manifesto: rode `package` (quem gera) ou confira o `git pull` |
+| `fetch: ... HTTP 429 ...; waiting N s` | o Codeforces pediu para esperar; o comando espera e repete sozinho |
+| `infrastructure failure: ...; stopped asking the site` (`3`, no `check-statements`) | o site continuou recusando; rode de novo mais tarde, e só o que falta é baixado |
+| `error: <id>: the page differs from page_sha256` (`1`) | uma cópia guardada mudou; apague-a e rode com `--refetch --problem <id>`, ou descompacte de novo |
 | `PermissionError` em `data/` | `data/` pertence a `root`: `sudo chown -R "$(id -u):$(id -g)" data` |
 
 ## (c) Entradas esperadas
@@ -164,6 +179,9 @@ Duas pastas parecidas, com finalidades diferentes:
 | `data/work/reports/extraction_report.{md,json}` | funil de elegibilidade, distribuição por macrocategoria e por split, descartes, triagens | primeira leitura do resultado |
 | `data/work/reports/validation_log.jsonl`, `selfcheck.json` | uma linha por problema processado; resultado da auto-checagem do motor | diagnóstico de uma execução |
 | `data/work/problems/<id>/validacao.json` | veredito de cada código, padrão de C++ usado, tempo e memória máximos | comprova que cada código passou pelo motor |
+| `manifests/statement_originals.manifest.json`, `data/statement_originals.zip` | URL, data e SHA-256 de cada página original do Codeforces e do bloco do enunciado; o pacote só com os blocos | **versionados**; o `check-statements` roda a partir deles sem acessar o site |
+| `manifests/statement_fidelity_report.json` | por problema, as diferenças entre o original e o `enunciado.md`, com tipo e trecho; os totais por tipo | **versionado** |
+| `data/statements/originals/`, `data/statements/corrected/` | as páginas inteiras; os enunciados corrigidos para revisão | não versionados |
 
 ## (e) Dependências e pré-requisitos
 
@@ -204,3 +222,6 @@ Duas pastas parecidas, com finalidades diferentes:
 | `audit` | 2026-09-22 | 9b87d7e |
 | `package` | 2026-09-22 | 9b87d7e |
 | `verify` (inclusive pós-clonagem e `--extracted`) | 2026-09-22 | 9b87d7e |
+| `check-statements --problem` (5 problemas) | 2026-10-18 | 9df4f0e+dirty |
+| `check-statements` (200 problemas; inclusive a segunda execução sem acesso ao site) | 2026-10-18 | 9df4f0e+dirty |
+| `correct-statements` | 2026-10-18 | 9df4f0e+dirty |

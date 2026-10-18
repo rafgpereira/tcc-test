@@ -135,7 +135,9 @@ dá o mesmo relatório; alterar um byte de uma cópia guardada faz a conferênci
    dizendo qual cópia diverge do manifesto.
 4. **Given** uma página que não pôde ser obtida (fora do ar, recusada), **When** a conferência
    roda, **Then** o problema é marcado como não conferido, os demais seguem, e rodar de novo tenta
-   só os que faltam.
+   só os que faltam: os que nunca foram obtidos e os que falharam por um erro temporário (site
+   sobrecarregado). Um erro definitivo (página inexistente, página sem o enunciado) só é tentado de
+   novo quando os autores pedem explicitamente.
 
 ---
 
@@ -219,7 +221,7 @@ modelos), com os enunciados aceitos que esta feature deixa prontos para revisão
 - **FR-007**: O sistema MUST poder gerar, numa pasta separada, os enunciados refeitos a partir do
   original em Markdown, com expoente marcado como `^{...}` e índice como `_{...}`, sempre com
   chaves (E4, decidida em 2026-10-18); um enunciado sem perda é mantido igual ao atual.
-  **Planejamento (2026-10-18, `plan.md` S2, a confirmar pelos autores)**: o corrigido é o
+  **Decidido no planejamento (2026-10-18, Milena; `plan.md` S2)**: o corrigido é o
   `enunciado.md` atual com as marcações que o **original** tem inseridas nos lugares que a
   comparação indica (e as tabelas convertidas), em vez de um texto refeito do zero a partir do
   HTML; assim os exemplos, os espaços e as quebras do dataset ficam iguais, e a conferência (c)
@@ -252,8 +254,10 @@ modelos), com os enunciados aceitos que esta feature deixa prontos para revisão
 - **SC-001**: Nos 5 problemas do piloto, o relatório reproduz as perdas medidas à mão em 2026-10-18
   (`161_A`: 4 expoentes e 21 índices; `1_B`: 2 expoentes; `15_A`: 6 índices; `102_B`: 1 expoente;
   `1000_B`: nenhuma).
+  **Medido em 2026-10-18 (`research.md` R9)**: `check-statements --problem` com os 5 do piloto (2026-10-18, revisão `9df4f0e` mais a implementação não commitada): as 5 páginas baixadas de novo pelo comando (HTTP 200, cerca de 31 s com a subida do contêiner); `161_A` 4 `lost_exponent` e 21 `lost_index`, `1_B` 2 `lost_exponent`, `15_A` 6 `lost_index`, `102_B` 1 `lost_exponent` (`10^{100000}`), `1000_B` `faithful` (formato LaTeX); nenhuma diferença `other`, `formula`, `image` ou `table` — exatamente a contagem feita à mão no piloto (SC-001).
 - **SC-002**: Os 200 problemas terminam conferidos ou com o motivo de não terem sido conferidos;
   nenhum fica sem estado.
+  **Os 200 (2026-10-18, `research.md` R10)**: 200 de 200 com estado (SC-002); segunda execução sem acesso ao site e com o mesmo relatório (SC-003); 70 dos 71 da contagem antiga confirmados e 9 novos (SC-005); 102 corrigidos com as três conferências (SC-004).
 - **SC-003**: Uma segunda execução, com as cópias guardadas, não acessa a internet e dá exatamente o
   mesmo relatório.
 - **SC-004**: Nenhum enunciado corrigido aceito difere do original em outra coisa que não as

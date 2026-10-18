@@ -27,8 +27,9 @@ Esperado no relatório (medido à mão em 2026-10-18):
 | `102_B` | 1 `lost_exponent` (`10^{100000}`) |
 | `1000_B` | `faithful` |
 
-As cópias do piloto em `data/cf_pilot/` podem ser copiadas para `data/statements/originals/`, para
-não baixar de novo.
+O comando baixa as 5 páginas de novo (5 pedidos, a cada 3 s ou mais), em vez de reaproveitar as
+do piloto em `data/cf_pilot/`, que não têm entrada no manifesto. Isso também exercita o download de
+verdade. Com `--problem`, o resultado é só impresso; o relatório versionado vem do nível 3.
 
 ## Nível 3 — os 200 (SC-002, SC-003, SC-005)
 

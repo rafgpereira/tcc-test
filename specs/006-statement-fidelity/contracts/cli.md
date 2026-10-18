@@ -12,15 +12,22 @@ docker compose run --rm app python -m dataset check-statements [--refetch] [--pr
 |---|---|
 | (nenhuma) | Baixa só as páginas que ainda não têm cópia, uma por vez, a cada 3 s ou mais (E2). Depois compara os 200 e grava o relatório. Sem página faltando, não acessa a rede. |
 | `--refetch` | Baixa de novo as páginas pedidas (com `--problem`) ou todas, mesmo com cópia. |
-| `--problem ID` | Restringe o download e o relatório parcial impresso. O relatório gravado continua cobrindo os 200, com o que houver. |
+| `--problem ID` | Restringe o download e a comparação a esses problemas; o resultado é **só impresso**, e o relatório versionado **não** é gravado (ele vem só da execução sem `--problem`, que cobre os 200). |
 
 **Ordem**:
 1. Uso.
 2. Dataset contra o manifesto.
-3. Hash das cópias contra `statement_originals.manifest.json` (recusa com `1` se divergir).
-4. Download do que falta.
-5. Extração, comparação e relatório.
-6. Pacote `data/statement_originals.zip` refeito, se alguma cópia mudou.
+3. Hash das cópias contra `statement_originals.manifest.json` (recusa com `1` se divergir). Com as
+   páginas inteiras em `data/statements/originals/`, confere o `page_sha256` e o
+   `statement_sha256`. Com só o pacote (quem clonou), confere o `statement_sha256` de cada bloco,
+   e o `page_sha256` fica só como registro.
+4. Download do que falta: problemas sem entrada no manifesto, ou com erro temporário (HTTP 429 ou
+   5xx). Um erro definitivo (`http_404`, `no_statement_block`) só é tentado de novo com
+   `--refetch`.
+5. Extração, comparação e relatório (gravado só sem `--problem`).
+6. Pacote `data/statement_originals.zip` refeito se alguma cópia mudou. O pacote é
+   **determinístico**: arquivos em ordem alfabética e data fixa em cada entrada, então os mesmos
+   blocos dão os mesmos bytes.
 
 **Saída**:
 
