@@ -333,6 +333,28 @@ Achados da implementação:
 - **Pilotos antigos do SLM**: os pilotos 1 a 5 são do formato anterior (schema 1) e não podem
   ser lidos; o `show-request` recusa com código 1.
 
+## R12 — A tentativa que gerou cada suíte, de uma vez (FR-014) **[DECIDIDO E MEDIDO, 2026-10-18]**
+
+**Decision**: `show-request --suite-attempts --output-dir DIR` (com `--problem`/`--scenario`
+opcionais como filtro, `--suites-dir` e `--force`). Para cada combinação, lê o `suite.json`
+e monta a visualização da tentativa `accepted_attempt` com o mesmo `build_view` do
+`show-request` (hash, texto-base pelo Git, fidelidade, expoente). Grava com o mesmo
+`save_requests` do dry-run, em `DIR/<modelo>/<id>.<cenário>.request.json`, e o
+`summary.json` ganha `source` (`pending` ou `suite_attempt`) e `skipped`. Sem `suite.json`
+ou fechada à mão (`accepted_attempt` nulo): pulada. Hash que não confere, texto-base não
+achado ou dano: recusada (linha `refused:` e entrada em `damaged`), nada gravado para ela;
+código 1. Sem `run.json` na árvore: uso incorreto (2).
+
+**Rationale**: no SLM a última tentativa não é a da suíte quando ela veio da reserva
+(`accepted_fallback`), por isso o campo do `suite.json` é a fonte. Reaproveitar `build_view`
+e `save_requests` mantém um só jeito de montar, conferir e gravar.
+
+**Alternatives considered**: gravar todas as tentativas (até 15 por combinação no SLM,
+milhares de arquivos), rejeitado pelos autores; uma opção só por combinação, rejeitada a
+favor do lote.
+
+**Medido**: `show-request --model slm --suite-attempts` sobre a execução completa do SLM: 600 de 600 pedidos gravados, todos com o hash do prompt conferido e fiéis ao dataset, nenhum pulado nem recusado, aviso de expoente nos mesmos 71 problemas (142 combinações), cerca de 23 s; a tentativa que gerou a suíte foi a 1 em 355 combinações, a 2 em 84, a 3 em 32, de 4 a 12 em 127 e a 14 e a 15 (predição) em 1 cada; em `1000_B` caixa-preta (`accepted_fallback`) a suíte veio da tentativa 1, embora a última feita tenha sido a 12.
+
 ## R10 — Documentação a propagar
 
 **Decision**: neste ciclo (plano):

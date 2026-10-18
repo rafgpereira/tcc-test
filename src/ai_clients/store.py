@@ -633,8 +633,10 @@ def combination_state(
     return State("terminal", 0)
 
 
-def read_suite(root: Path, problem_id: str, scenario: str) -> SlmSuite | None:
-    path = combination_dir(root, problem_id, scenario) / config.SUITE_FILE
+def read_suite(
+    root: Path, problem_id: str, scenario: str, tree: Path | None = None
+) -> SlmSuite | None:
+    path = combination_dir(root, problem_id, scenario, tree) / config.SUITE_FILE
     if not path.is_file():
         return None
     return SlmSuite.model_validate_json(path.read_text(encoding="utf-8"))

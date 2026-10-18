@@ -83,6 +83,15 @@ Nenhuma dessas chamadas imprime o prompt no terminal.
 **Não sobrescrever** (US3): repetir um `show-request` com o mesmo `--output` → código 2; com
 `--force` → sobrescreve.
 
+**Tentativas que geraram as suítes** (FR-014):
+
+```text
+docker compose run --rm app python -m ai_clients show-request --model slm --suite-attempts --output-dir data/requests/suites
+```
+
+Esperado: `suite attempts: 600 saved in data/requests/suites/slm; prompt sha256 matches in all;
+faithful 600/600; 0 skipped; ...`, código 0.
+
 ## Nível 4 — prévia (US2)
 
 Antes de a execução completa do GPT começar:

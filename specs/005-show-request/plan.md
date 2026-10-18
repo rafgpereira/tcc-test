@@ -23,6 +23,12 @@ Duas entradas, a mesma montagem, nenhuma chamada a uma API:
   aparecer idênticos aos arquivos do dataset (FR-012). Enunciados com expoente perdido recebem um
   aviso (FR-013).
 
+- **`show-request --model M --suite-attempts --output-dir DIR`** (acrescentado em 2026-10-18,
+  FR-014) grava, para cada combinação com `suite.json`, o corpo do pedido da tentativa que
+  gerou a suíte (`accepted_attempt`), com as mesmas conferências, no mesmo formato e com o
+  mesmo `summary.json` do dry-run (`source: suite_attempt`). Serve, por exemplo, ao SLM, que
+  já terminou e não tem pedido pendente (R12).
+
 Nada do que a geração grava muda (decisão A dos autores). O corpo de uma tentativa feita vem dos
 `request_parameters` gravados nela, não do código atual (R1). O contêiner `app` passa a ver o
 `.git` em modo somente leitura (S1).

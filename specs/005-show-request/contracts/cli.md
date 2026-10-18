@@ -82,6 +82,28 @@ error: data/requests/1_B.txt already exists; use --force to overwrite it
 | 1 | dataset diverge; combinação ou `run.json` danificado; texto-base não achado; hash diferente (nada gravado); prompt infiel ao dataset (gravado, porque foi o enviado, com a linha `UNFAITHFUL`) |
 | 2 | uso incorreto (R7) |
 
+## 1b. `show-request --suite-attempts --output-dir DIR` (acrescentado em 2026-10-18)
+
+```text
+docker compose run --rm app python -m ai_clients show-request --model {slm,gpt,gemini} \
+    --suite-attempts --output-dir data/requests/suites [--force] [--problem ID] [--scenario S] \
+    [--suites-dir DIR]
+```
+
+Para cada combinação com `suite.json`, grava o corpo do pedido da tentativa que gerou a suíte
+(`accepted_attempt`) em `DIR/<modelo>/<id>.<cenário>.request.json` (formato §0, pasta plana) e
+um `summary.json` (data-model §5, `source: suite_attempt`). Saída:
+
+```text
+suite attempts: 600 saved in data/requests/suites/slm; prompt sha256 matches in all; faithful 600/600; 0 skipped; exponent warnings 71 problems (142 combinations)
+exponent: 134_A: "1 ≤ n ≤ 105"
+```
+
+Uma linha `refused: <id> <cenário>: <motivo>; not written` (stderr) por pedido que não pôde
+ser conferido. Códigos: 0 tudo gravado e fiel; 1 algum recusado ou infiel; 2 uso (falta
+`--output-dir`; `--output`, `--attempt` ou `--barred` junto; pasta com arquivos sem `--force`;
+pasta proibida; árvore sem `run.json`).
+
 ## 2. `generate --dry-run --save-requests DIR [--force]`
 
 ```text

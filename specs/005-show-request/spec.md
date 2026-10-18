@@ -46,6 +46,11 @@ texto-base mudou."
   autores rodam um dry-run separado para o Gemini; o critério vale para as combinações gravadas
   (SC-005).
 - Q (analyze): É preciso medir o tempo de cada visualização? → A: Não (SC-003).
+- Q (2026-10-18, depois da implementação): No SLM, que já terminou e não tem pedido pendente,
+  como ver o que foi enviado sem passar tentativa por tentativa? → A: Gravar de uma vez, para
+  cada combinação com suíte, só o pedido da tentativa que gerou a suíte (`accepted_attempt`
+  do `suite.json`), conferido como o `show-request` confere; vale também para os comerciais
+  (FR-014, SC-006).
 
 ## Decisões do clarify (B1 a B4)
 
@@ -251,6 +256,12 @@ pelos autores.
   potência de 10 escrita sem o expoente, como `105` ou `109` depois de `≤`, `<`, `·`), com o
   trecho encontrado; o aviso não impede nada, porque a perda vem do próprio dataset, que não é
   corrigido (metodologia, seção 3).
+- **FR-014**: O sistema MUST poder gravar de uma vez, numa pasta indicada pelos autores, o
+  corpo do pedido da tentativa que gerou a suíte de cada combinação (a tentativa indicada no
+  `suite.json`, que não é necessariamente a última), com as mesmas conferências de FR-003 e
+  FR-012 e um resumo; combinações sem suíte ou fechadas à mão (sem tentativa) MUST ser
+  listadas como puladas, e um pedido cujo hash não confere MUST NOT ser gravado (decidido
+  pelos autores em 2026-10-18).
 - **FR-010**: A documentação de uso do módulo (o README do módulo e a referência de comandos do
   README da raiz) MUST passar a descrever o comando.
 
@@ -282,6 +293,9 @@ pelos autores.
   conferido num dry-run separado pelos autores. **Medido em 2026-10-16 (`research.md` R11)**: GPT
   com 600 de 600 fiéis e exatamente os 71 problemas avisados; SC-001 conferido nas 15 tentativas
   do piloto do Gemini e em tentativas de solução e de predição do SLM.
+- **SC-006**: Na execução completa do SLM, o pedido da tentativa que gerou a suíte é gravado
+  nas 600 combinações, com o hash conferido em todas. **Medido em 2026-10-18 (`research.md`
+  R12)**: 600 de 600, todas fiéis ao dataset.
 
 ## Assumptions
 

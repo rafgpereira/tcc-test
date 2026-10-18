@@ -280,6 +280,15 @@ comandos e propagar os números.
 
 ---
 
+## Phase 8: A tentativa que gerou cada suíte, de uma vez (FR-014; pedido dos autores em 2026-10-18)
+
+- [X] T036 [P] Testes em `tests/ai_clients/llm/test_suite_attempts.py` (comerciais: a tentativa do `suite.json`, não a última; combinação sem suíte pulada; hash que não confere recusado e não gravado; filtros e destino; erros de uso; árvore sem `run.json`) e em `tests/ai_clients/test_requests_view.py` (SLM: `accepted_fallback` da tentativa 3 com 12 feitas; `discarded_manual` pulada)
+- [X] T037 `suite_attempt_requests` em `src/ai_clients/requests_view.py`, `source` e `skipped` no `RequestsSummary`, `read_suite` com a pasta da árvore em `src/ai_clients/store.py` e `src/ai_clients/llm/store.py`, e `--suite-attempts`/`--output-dir` no `show-request` em `src/ai_clients/__main__.py` (research R12)
+- [X] T038 📌 PROPAGAR — Rodar no SLM real e registrar em `research.md` R12, SC-006 e metodologia (seção 3 + seção 8): `show-request --model slm --suite-attempts` sobre a execução completa do SLM: 600 de 600 pedidos gravados, todos com o hash do prompt conferido e fiéis ao dataset, nenhum pulado nem recusado, aviso de expoente nos mesmos 71 problemas (142 combinações), cerca de 23 s; a tentativa que gerou a suíte foi a 1 em 355 combinações, a 2 em 84, a 3 em 32, de 4 a 12 em 127 e a 14 e a 15 (predição) em 1 cada; em `1000_B` caixa-preta (`accepted_fallback`) a suíte veio da tentativa 1, embora a última feita tenha sido a 12
+- [X] T039 Documentação de uso: a variação na tabela única de `src/ai_clients/README.md`, a "Referência de comandos" do `README.md` da raiz e o `CLAUDE.md`; `check_docs_sync.py` em 0
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

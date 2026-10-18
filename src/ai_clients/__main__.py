@@ -903,17 +903,40 @@ register(
 
 def _configure_show_request(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--model", choices=MODELS, required=True, help="slm, gpt or gemini")
-    parser.add_argument("--problem", required=True, metavar="ID", help="one problem")
-    parser.add_argument("--scenario", required=True, choices=config.SCENARIOS, help="one scenario")
+    parser.add_argument(
+        "--problem", metavar="ID", help="one problem (with --suite-attempts: only this one)"
+    )
+    parser.add_argument(
+        "--scenario",
+        choices=config.SCENARIOS,
+        help="one scenario (with --suite-attempts: only this one)",
+    )
     parser.add_argument(
         "--output",
-        required=True,
         type=Path,
         metavar="FILE",
-        help="where to write the request body (the prompt is inside it); the request is never "
-        "printed, only the result of the checks",
+        help="where to write the request body of one combination (the prompt is inside it); the "
+        "request is never printed, only the result of the checks",
     )
-    parser.add_argument("--force", action="store_true", help="overwrite FILE if it exists")
+    parser.add_argument(
+        "--suite-attempts",
+        action="store_true",
+        help="instead of one combination: for every combination with a suite.json, write the "
+        "request of the attempt the suite came from to DIR/<model>/<id>.<scenario>.request.json, "
+        "with a summary.json (needs --output-dir)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        metavar="DIR",
+        help="with --suite-attempts: the folder to write into (never inside data/suites, "
+        "data/dataset or manifests)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="overwrite FILE (or replace DIR/<model>/ with --suite-attempts) if it exists",
+    )
     parser.add_argument(
         "--attempt",
         type=_positive_int,
@@ -935,7 +958,91 @@ def _configure_show_request(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _unreadable_tree(args: argparse.Namespace) -> int:
+    tree = args.suites_dir or Path("data/suites") / args.model
+    print(
+        f"error: {tree.as_posix()} holds a run of another version of python -m ai_clients; "
+        "it cannot be read",
+        file=sys.stderr,
+    )
+    return EXIT_DATA_FAILURE
+
+
+def _run_suite_attempts(args: argparse.Namespace) -> int:
+    """``show-request --suite-attempts``: the request of the attempt every suite came from."""
+    from mutation import dataset_gate as manifest_gate
+
+    root, model, tree = Path("."), args.model, args.suites_dir
+    if args.output is not None or args.attempt is not None or args.barred is not None:
+        raise UsageError("--suite-attempts takes --output-dir, not --output, --attempt or --barred")
+    if args.output_dir is None:
+        raise UsageError("--suite-attempts needs --output-dir DIR")
+    requests_view.check_save_destination(root, args.output_dir, model, force=args.force)
+    failed = dataset_gate(root)
+    if failed is not None:
+        return failed
+    available = problem.list_problem_ids(root)
+    if args.problem is not None and args.problem not in available:
+        raise UsageError(f"not in data/dataset: {args.problem}")
+    combinations = [
+        (pid, scenario)
+        for pid in ([args.problem] if args.problem else available)
+        for scenario in config.SCENARIOS
+        if args.scenario in (None, scenario)
+    ]
+    try:
+        if model == "slm":
+            if not store.run_exists(root, tree):
+                raise UsageError(f"no run in {store.suites_tree(tree).as_posix()} (no run.json)")
+            run = store.read_run(root, tree)
+            templates = {
+                "solution": run.prompt_template_sha256,
+                "prediction": run.predict_template_sha256,
+            }
+            parameters = {"model": run.model, "options": run.options.model_dump(), "stream": True}
+        else:
+            if not llm_store.run_exists(root, model, tree):
+                where = llm_store.base_dir(Path(), model, tree).as_posix()
+                raise UsageError(f"no run in {where} (no run.json)")
+            run = llm_store.read_run(root, model, tree)
+            templates, parameters = {"llm": run.template_sha256}, run.request_parameters
+        pending, skipped, refused = requests_view.suite_attempt_requests(
+            root, model, combinations, tree=tree
+        )
+    except store.IncompatibleRunError:
+        return _unreadable_tree(args)
+    summary, lines = requests_view.save_requests(
+        root,
+        model,
+        pending,
+        args.output_dir,
+        force=args.force,
+        templates=templates,
+        request_parameters=parameters,
+        dataset_manifest_sha256=manifest_gate.dataset_manifest_sha256(root),
+        damaged=refused,
+        now=generation.utc_now(),
+        source="suite_attempt",
+        skipped=skipped,
+    )
+    for line in refused:
+        print(f"refused: {line}; not written", file=sys.stderr)
+    for line in lines:
+        print(line, file=sys.stderr if line.startswith("unfaithful:") else sys.stdout)
+    clean = not refused and summary.faithful == summary.combinations
+    return EXIT_OK if clean else EXIT_DATA_FAILURE
+
+
 def _run_show_request(args: argparse.Namespace) -> int:
+    if args.suite_attempts:
+        return _run_suite_attempts(args)
+    if args.output_dir is not None:
+        raise UsageError("--output-dir only works with --suite-attempts")
+    if args.problem is None or args.scenario is None or args.output is None:
+        raise UsageError(
+            "show-request needs --problem, --scenario and --output (or --suite-attempts with "
+            "--output-dir)"
+        )
     root = Path(".")
     requests_view.check_output(root, args.output, force=args.force)
     if args.attempt is not None and args.barred is not None:
@@ -968,13 +1075,7 @@ def _run_show_request(args: argparse.Namespace) -> int:
         )
         return EXIT_DATA_FAILURE
     except store.IncompatibleRunError:
-        tree = args.suites_dir or Path("data/suites") / args.model
-        print(
-            f"error: {tree.as_posix()} holds a run of another version of python -m ai_clients; "
-            "it cannot be read",
-            file=sys.stderr,
-        )
-        return EXIT_DATA_FAILURE
+        return _unreadable_tree(args)
     requests_view.write_output(root, args.output, view, force=args.force)
     for line in requests_view.status_lines(view, args.output):
         print(line)

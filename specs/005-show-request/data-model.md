@@ -105,7 +105,9 @@ porque o nome começa pelo id (decidido no analyze, 2026-10-16, achado C1).
 | `requests` | lista de `SavedRequest` | uma por combinação, em ordem de problema e cenário |
 | `unfaithful` | lista de `UnfaithfulEntry` | `len == combinations - faithful` |
 | `exponent_warnings` | lista de `ExponentWarning` | ordenada por `problem_id` |
-| `damaged` | lista de str | combinações que não puderam ser lidas (`<id> <cenário>: <motivo>`) |
+| `damaged` | lista de str | combinações que não puderam ser lidas (`<id> <cenário>: <motivo>`); com `suite_attempt`, também as recusadas (hash, texto-base, dano), sem arquivo |
+| `source` | `"pending"` \| `"suite_attempt"` | `pending`: o dry-run (o próximo pedido de cada combinação pendente); `suite_attempt`: o `show-request --suite-attempts` (o pedido da tentativa que gerou cada suíte, com hash conferido) |
+| `skipped` | lista de str | só com `suite_attempt`: combinações sem `suite.json` ou fechadas à mão (`<id> <cenário>: <motivo>`) |
 
 `SavedRequest`:
 - `problem_id`, `scenario`, `attempt` (a próxima tentativa);

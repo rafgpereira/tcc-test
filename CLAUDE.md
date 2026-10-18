@@ -98,7 +98,8 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
   busca a versão no Git, por isso só no `app`, que monta o `.git` somente leitura); todos os pedidos
   pendentes de um modelo: `... generate --model gpt --dry-run --save-requests data/requests [--force]`
   (um `<id>.<cenário>.request.json` por combinação e um `summary.json` com a fidelidade ao dataset e
-  os expoentes perdidos; `1` se algum prompt não for fiel)
+  os expoentes perdidos; `1` se algum prompt não for fiel); o pedido da tentativa que gerou cada
+  suíte, de uma vez: `... show-request --model slm --suite-attempts --output-dir data/requests/suites`
 - Conferir a consistência entre artefatos (dataset descompactado × mutantes × suítes dos 3
   modelos, 1:1, com contagens; só lê): `docker compose run --rm app python -m cli check [--deep]`. Todo módulo que
   passa a produzir uma pasta por problema MUST entrar nele (`docs/verificacao-consistencia.md`)

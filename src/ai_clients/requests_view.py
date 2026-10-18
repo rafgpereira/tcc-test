@@ -519,6 +519,9 @@ class RequestsSummary(Schema):
 
     schema_version: Literal[1] = 1
     model: Literal["slm", "gpt", "gemini"]
+    # "pending": the next request of each pending combination (generate --dry-run);
+    # "suite_attempt": the attempt each suite came from, its prompt hash checked (show-request).
+    source: Literal["pending", "suite_attempt"] = "pending"
     created_at: str
     dataset_manifest_sha256: Sha256Hex
     templates: dict[str, Sha256Hex]
@@ -528,7 +531,8 @@ class RequestsSummary(Schema):
     requests: list[SavedRequest]
     unfaithful: list[UnfaithfulEntry]
     exponent_warnings: list[ExponentWarning]
-    damaged: list[str]
+    damaged: list[str]  # also the combinations whose request could not be checked (nothing written)
+    skipped: list[str] = Field(default_factory=list)  # "<id> <scenario>: <why>", nothing to write
 
     @model_validator(mode="after")
     def _counts(self) -> "RequestsSummary":
@@ -572,6 +576,8 @@ def save_requests(
     dataset_manifest_sha256: str,
     damaged: list[str],
     now: str,
+    source: Literal["pending", "suite_attempt"] = "pending",
+    skipped: list[str] | None = None,
 ) -> tuple[RequestsSummary, list[str]]:
     """Write one ``<id>.<scenario>.request.json`` per request and ``summary.json``, flat in
     ``dest/<model>/``; the summary and the lines for the terminal."""
@@ -633,13 +639,78 @@ def save_requests(
         unfaithful=unfaithful,
         exponent_warnings=[warnings[pid][0] for pid in sorted(warnings)],
         damaged=damaged,
+        source=source,
+        skipped=skipped or [],
     )
     files.atomic_write_json(target / "summary.json", summary)
     combos = sum(count for _, count in warnings.values())
+    what = "requests" if source == "pending" else "suite attempts"
+    checked = "" if source == "pending" else "; prompt sha256 matches in all"
+    extra = "" if source == "pending" else f"; {len(summary.skipped)} skipped"
     lines.append(
-        f"requests: {summary.combinations} saved in {(Path(dest) / model).as_posix()}; faithful "
-        f"{summary.faithful}/{summary.combinations}; exponent warnings {len(warnings)} problems "
-        f"({combos} combinations)"
+        f"{what}: {summary.combinations} saved in {(Path(dest) / model).as_posix()}{checked}; "
+        f"faithful {summary.faithful}/{summary.combinations}{extra}; exponent warnings "
+        f"{len(warnings)} problems ({combos} combinations)"
     )
     lines += [f'exponent: {w.problem_id}: "{w.matches[0]}"' for w in summary.exponent_warnings]
     return summary, lines
+
+
+def suite_attempt_requests(
+    root: Path,
+    model: str,
+    combinations: list[tuple[str, str]],
+    *,
+    tree: Path | None = None,
+    repo: Path | None = None,
+) -> tuple[list[PendingRequest], list[str], list[str]]:
+    """The request of the attempt each suite came from (``accepted_attempt`` of ``suite.json``).
+
+    ``(requests, skipped, refused)``: a combination without ``suite.json`` yet, or closed by hand
+    (a suite with no attempt), is skipped; one whose request cannot be checked against its
+    recorded hash (template not found, another hash, damage) is refused and never written.
+    """
+    requests, skipped, refused = [], [], []
+    for problem_id, scenario in combinations:
+        try:
+            suite = (
+                store.read_suite(root, problem_id, scenario, tree)
+                if model == "slm"
+                else llm_store.read_suite(root, model, problem_id, scenario, tree)
+            )
+        except ValueError as exc:  # a suite.json that does not validate
+            refused.append(f"{problem_id} {scenario}: suite.json: {exc}")
+            continue
+        if suite is None:
+            skipped.append(f"{problem_id} {scenario}: no suite.json yet")
+            continue
+        if suite.accepted_attempt is None:
+            skipped.append(f"{problem_id} {scenario}: {suite.status.value} (no attempt)")
+            continue
+        try:
+            view = build_view(
+                root,
+                model,
+                problem_id,
+                scenario,
+                attempt=suite.accepted_attempt,
+                tree=tree,
+                repo=repo,
+            )
+        except (template_history.TemplateNotFound, ViewRefused, store.DamagedCombination) as exc:
+            refused.append(f"{problem_id} {scenario}: {exc}")
+            continue
+        options = view.body.get("options", {}) if model == "slm" else {}
+        requests.append(
+            PendingRequest(
+                problem_id=problem_id,
+                scenario=scenario,
+                attempt=view.number,
+                prompt=view.prompt,
+                body=view.body,
+                template_sha256=view.template.expected_sha256,
+                seed=options.get("seed"),
+                temperature=options.get("temperature"),
+            )
+        )
+    return requests, skipped, refused

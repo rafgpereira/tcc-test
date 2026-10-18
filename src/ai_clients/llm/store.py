@@ -451,8 +451,8 @@ def finalize(root: Path, model: str, problem_id: str, scenario, run: LlmRunConfi
     return suite
 
 
-def read_suite(root: Path, model: str, problem_id: str, scenario) -> LlmSuite | None:
-    path = combination_dir(root, model, problem_id, scenario) / config.SUITE_FILE
+def read_suite(root: Path, model: str, problem_id: str, scenario, tree=None) -> LlmSuite | None:
+    path = combination_dir(root, model, problem_id, scenario, tree) / config.SUITE_FILE
     if not path.is_file():
         return None
     return LlmSuite.model_validate_json(path.read_bytes())

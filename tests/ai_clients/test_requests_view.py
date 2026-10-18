@@ -112,3 +112,35 @@ def test_an_attempt_without_template_hash_uses_the_one_of_run_json(repo, records
     view = requests_view.build_view(repo, "slm", "1_A", "black_box")
     assert view.template.expected_sha256 == run.prompt_template_sha256
     assert view.template.origin == "current"
+
+
+def test_the_suite_attempt_is_the_one_in_suite_json_not_the_last(repo, records, monkeypatch):
+    # accepted_fallback: the suite comes from attempt 3 although 12 attempts were made.
+    from types import SimpleNamespace
+
+    from ai_clients.schemas.common import SuiteStatus
+
+    _, made = records(12)
+    suites = {
+        ("1_A", "black_box"): SimpleNamespace(
+            accepted_attempt=3, status=SuiteStatus.ACCEPTED_FALLBACK
+        ),
+        ("1_A", "white_box"): SimpleNamespace(
+            accepted_attempt=None, status=SuiteStatus.DISCARDED_MANUAL
+        ),
+    }
+    monkeypatch.setattr(
+        requests_view.store,
+        "read_suite",
+        lambda root, problem_id, scenario, tree=None: suites.get((problem_id, scenario)),
+    )
+    combinations = [("1_A", "black_box"), ("1_A", "white_box"), ("1_A", "hybrid")]
+    requests, skipped, refused = requests_view.suite_attempt_requests(repo, "slm", combinations)
+    assert refused == []
+    (request,) = requests
+    assert (request.attempt, request.seed) == (3, 44)
+    assert prompt_sha256(request.prompt) == made[2].prompt_sha256
+    assert skipped == [
+        "1_A white_box: discarded_manual (no attempt)",
+        "1_A hybrid: no suite.json yet",
+    ]
