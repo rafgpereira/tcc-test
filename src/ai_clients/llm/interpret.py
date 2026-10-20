@@ -32,6 +32,11 @@ GEMINI_SAFETY = frozenset(
 )
 
 
+# The stop reasons of the Messages API that cut the answer short (the refusal comes in the
+# ``refusal`` field, read before these).
+ANTHROPIC_TRUNCATED = frozenset({"max_tokens", "model_context_window_exceeded"})
+
+
 def needs_barrier(answer: ProviderAnswer) -> bool:
     """Whether the answer reports no reasoning: 0 tokens or no count at all (FR-018a)."""
     return not answer.usage.reasoning_tokens
@@ -55,6 +60,8 @@ def _finish_failure(answer: ProviderAnswer) -> LlmFormatFailure | None:
         return _failure(FormatFailure.SAFETY_BLOCK, f"prompt blocked: {finish.reason}")
     if finish.status == "MAX_TOKENS":
         return _failure(FormatFailure.TRUNCATED, "finishReason MAX_TOKENS")
+    if finish.status in ANTHROPIC_TRUNCATED:  # Claude (specs/008, research R3)
+        return _failure(FormatFailure.TRUNCATED, f"stop_reason {finish.status}")
     if finish.status in GEMINI_SAFETY:
         categories = ", ".join(finish.safety_categories) or "no category reported"
         return _failure(FormatFailure.SAFETY_BLOCK, f"finishReason {finish.status}: {categories}")

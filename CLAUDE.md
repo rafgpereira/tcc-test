@@ -18,20 +18,24 @@ TCC de dupla — Milena e Rafael, UnB.
   histórico de atualizações datado; `docs/template-modulo.md` — formato do
   README de cada módulo; `docs/verificacao-consistencia.md` — o que
   `python -m cli check` confere entre os artefatos (dataset, mutantes e as
-  suítes dos 3 modelos) e como um módulo novo o estende
+  suítes dos 4 modelos) e como um módulo novo o estende
 - `src/dataset/` — extração e validação do dataset (code_contests)
 - `src/mutation/` — geração de mutantes
 - `src/ai_clients/` — suítes de teste do modelo local (SLM, Qwen2.5-Coder-14B via Ollama) e, em
-  `src/ai_clients/llm/`, dos 2 modelos comerciais (GPT-5.4-mini e Gemini 3.8 Flash, `--model gpt|gemini`;
-  `specs/004-llm-test-generation/`: código e testes prontos, piloto pago pendente)
-- `src/prompt_templates/` — texto-base dos pedidos ao SLM (solução e predição) e aos 2 modelos
+  `src/ai_clients/llm/`, dos 3 modelos comerciais (GPT-5.4-mini, Gemini 3.8 Flash e Claude Haiku 5.5,
+  `--model gpt|gemini|claude`; `specs/004-llm-test-generation/` e, para o Claude,
+  `specs/008-claude-test-generation/`)
+- `src/prompt_templates/` — texto-base dos pedidos ao SLM (solução e predição) e aos 3 modelos
   comerciais (`llm_prompt.txt`)
 - `src/sandbox/` — compilação e execução isolada em C++
 - `src/metrics/` — TDF, MS, TFP, IIC
 - `src/cli/` — comandos que cruzam módulos (hoje `check`) e, no futuro, o orquestrador que amarra tudo
   (cada `src/<modulo>/` tem `README.md` no formato de `docs/template-modulo.md`)
-- `data/dataset.zip` — dataset validado, compactado, commitado uma única vez
-  (Constitution, Princípio II)
+- `data/dataset.zip` — dataset validado, compactado e versionado; hoje a **revisão 2** (2026-10-18: 104
+  enunciados corrigidos, nenhum outro arquivo mudou; o que mudou em `manifests/dataset_revision.json`,
+  as decisões dos 15 revisados em `manifests/statement_decisions/`). A revisão 1 fica em
+  `data/dataset.rev1.zip` + `manifests/dataset.rev1.manifest.json`, só para auditoria; nenhum comando a
+  usa (Constitution, Princípio II, 1.8.0)
 - `manifests/dataset.manifest.json` — hashes SHA-256 para verificação de
   integridade do dataset. Fica **fora de `data/`** (que é ignorado pelo Git,
   exceto o zip) e é versionado; `manifests/extraction_report.json` traz o
@@ -41,13 +45,14 @@ TCC de dupla — Milena e Rafael, UnB.
 - `data/statement_originals.zip` + `manifests/statement_originals.manifest.json` +
   `manifests/statement_fidelity_report.json` — os enunciados originais do Codeforces (só o bloco do
   enunciado, com hash) e a conferência deles contra os `enunciado.md` do dataset (2026-10-18: 152
-  expoentes perdidos em 79 problemas, 701 índices em 74); o dataset não foi alterado
+  expoentes perdidos em 79 problemas, 701 índices em 74), base da revisão 2 do dataset
 - `data/slm_suites.zip` + `manifests/slm_suites.manifest.json` +
   `manifests/slm_generation_report.json` — pacote da execução final do SLM, seu manifesto e o
   relatório (gerados em 2026-10-11)
-- `data/gpt_suites.zip`, `data/gemini_suites.zip` + `manifests/<modelo>_suites.manifest.json` +
+- `data/gpt_suites.zip`, `data/gemini_suites.zip`, `data/claude_suites.zip` + `manifests/<modelo>_suites.manifest.json` +
   `manifests/<modelo>_generation_report.json` — pacotes da execução final de cada modelo
-  comercial (ainda não gerados)
+  comercial; o do Gemini gerado em 2026-10-20 (600 combinações sobre a revisão 2 do dataset, 599
+  `accepted_predicted` e 1 `accepted_barred`, US$ 4,90), os do GPT e do Claude ainda não
 - `specs/NNN-nome/` — specs do spec-kit, uma por módulo
 - `Dockerfile` / `docker-compose.yml` — ambiente de execução reprodutível
   (Constitution, Princípio II)
@@ -57,7 +62,7 @@ Por exigência da constitution, compilação/execução C++ (sandbox) e as
 dependências do pipeline rodam containerizadas, garantindo GCC/flags/libs
 idênticos em qualquer máquina. Docker NÃO é o mecanismo de distribuição do
 dataset — isso é resolvido pelo `data/dataset.zip` commitado no repositório
-(gerado uma única vez, após extração e validação). Nunca rodar compilação ou
+(gerado uma vez, após extração e validação, e alterado só por revisões numeradas, como a revisão 2). Nunca rodar compilação ou
 execução de código C++ de terceiros fora do container.
 
 ## Comandos do dia a dia
@@ -87,13 +92,13 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
   módulo). Trocar um texto-base no meio da execução só com `docker compose run --rm app python -m
   ai_clients change-template --template prediction --reason "..."` (move os pedidos da versão
   antiga para `superseded/` e eles são refeitos; nunca editar o template e seguir)
-- Suítes dos modelos comerciais (precisa de `OPENAI_API_KEY`/`GEMINI_API_KEY` no `.env`; **cada
+- Suítes dos modelos comerciais (precisa de `OPENAI_API_KEY`/`GEMINI_API_KEY`/`ANTHROPIC_API_KEY` no `.env`; **cada
   chamada custa**): estimar com `docker compose run --rm app python -m ai_clients generate --model
   gpt --dry-run` (não chama nada), gerar com `... generate --model gpt --confirm-spend <US$>` (a
   confirmação é o teto de gasto da invocação; sem ela, nenhuma chamada sai; código `5` = teto
-  atingido, `6` = resposta sem raciocínio, investigar) e continuar com `--resume`; os mesmos
-  `close`, `change-template --template llm`, `report`, `package` e `verify` com `--model gpt` ou
-  `--model gemini`. Os dois modelos podem rodar juntos, um por terminal. O agente nunca roda uma
+  atingido; resposta sem raciocínio fica em `barred/` e é pedida de novo; na terceira, a suíte é `accepted_barred`, sem parar o comando) e continuar com `--resume`; os mesmos
+  `close`, `change-template --template llm`, `report`, `package` e `verify` com `--model gpt`,
+  `--model gemini` ou `--model claude`. Os três modelos podem rodar juntos, um por terminal. O agente nunca roda uma
   geração paga sem pedido explícito dos autores
 - Ver o pedido enviado a um modelo (só lê, não chama nada, nunca imprime o pedido): `docker compose
   run --rm app python -m ai_clients show-request --model gemini --problem ID --scenario S --output
@@ -108,7 +113,7 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
   3 s ou mais, e depois não acessa mais o site): `docker compose run --rm app python -m dataset
   check-statements [--problem ID] [--refetch]`; os corrigidos para revisão (nunca altera o dataset):
   `... python -m dataset correct-statements --output-dir data/statements/corrected [--force]`
-- Conferir a consistência entre artefatos (dataset descompactado × mutantes × suítes dos 3
+- Conferir a consistência entre artefatos (dataset descompactado × mutantes × suítes dos 4
   modelos, 1:1, com contagens; só lê): `docker compose run --rm app python -m cli check [--deep]`. Todo módulo que
   passa a produzir uma pasta por problema MUST entrar nele (`docs/verificacao-consistencia.md`)
 - Lint/formatação: `docker compose run --rm app ruff check .` /

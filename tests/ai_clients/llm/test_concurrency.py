@@ -98,64 +98,43 @@ def test_exclusive_commands_refuse_while_a_generate_runs(providers, repo, capsys
     assert "already running over data/suites/gpt/" in capsys.readouterr().err
 
 
-def test_the_two_models_run_together(repo):
-    gpt, gem = FakeProvider("gpt", default=answer("gpt")), FakeProvider(
-        "gemini", default=answer("gemini")
-    )
-    gpt.on_call = gem.on_call = slow()
-    with store.exclusive_run(repo, "gpt"), store.exclusive_run(repo, "gemini"):
-        pass
+def test_the_three_models_run_together(repo):
+    providers = {m: FakeProvider(m, default=answer(m)) for m in config.MODELS}
+    for provider in providers.values():
+        provider.on_call = slow()
     threads = [
-        threading.Thread(target=run_with, args=(repo, gpt, 2, "gpt")),
-        threading.Thread(target=run_with, args=(repo, gem, 2, "gemini")),
+        threading.Thread(target=run_with, args=(repo, provider, 2, model))
+        for model, provider in providers.items()
     ]
     for t in threads:
         t.start()
     for t in threads:
         t.join()
-    assert len(gpt.requests) == len(gem.requests) == 6
+    assert all(len(p.requests) == 6 for p in providers.values())
     assert LlmRunConfig  # both trees are complete and independent
     for model in config.MODELS:
         assert all(store.combination_state(repo, model, p, s).kind == "terminal" for p, s in COMBOS)
 
 
-def test_a_barred_answer_with_calls_in_flight(providers, repo, monkeypatch):
-    """FR-018a with N = 4: the barred answer stops the dispatch; the 3 in flight end, pass the
-    same check and are recorded; with the cap also reached, the exit code is 6."""
+def test_barred_answers_with_calls_in_flight(providers, repo, monkeypatch):
+    """FR-018a with N = 4: each barred combination is asked again up to 3 times and then takes
+    the last readable answer (accepted_barred); every other combination goes on to its suite."""
     monkeypatch.setenv(config.ENV_MAX_CONCURRENCY["gpt"], "4")
     provider = providers["gpt"]
-    started, release = threading.Barrier(4), threading.Event()
-    provider.table[("1_A", "black_box", 1)] = answer("gpt", reasoning=0)
-    provider.table[("1_A", "white_box", 1)] = answer("gpt", reasoning=0)
-
-    def on_call(problem, scenario, n):
-        if len(provider.requests) <= 4:
-            started.wait(timeout=5)
-            if (problem, scenario) != ("1_A", "black_box"):
-                release.wait(timeout=5)
-
-    original = provider.call
-
-    def call(prompt):
-        try:
-            return original(prompt)
-        finally:
-            release.set()
-
-    provider.on_call = on_call
-    provider.call = call
-    code = cli.main(["generate", "--model", "gpt", "--confirm-spend", "0.0001"])
-    assert code == cli.EXIT_NO_REASONING
-    assert len(provider.requests) == 4  # nothing new after the first barred answer
+    for n in range(1, config.MAX_BARRED + 1):  # the same attempt, asked again
+        provider.table[("1_A", "black_box", n)] = answer("gpt", reasoning=0)
+        provider.table[("1_A", "white_box", n)] = answer("gpt", reasoning=0)
+    code = cli.main(["generate", "--model", "gpt", "--confirm-spend", "10"])
+    assert code == cli.EXIT_OK
+    assert len(provider.requests) == 4 + 2 * config.MAX_BARRED
     barred = store.read_barred(repo, "gpt")
-    assert sorted((b.problem_id, b.scenario.value) for b in barred) == [
+    assert sorted({(b.problem_id, b.scenario.value) for b in barred}) == [
         ("1_A", "black_box"),
         ("1_A", "white_box"),
     ]
-    recorded = [
-        (p, s)
-        for p in ("1_A", "2_B")
-        for s in config.SCENARIOS
-        if store.read_attempt(repo, "gpt", p, s, 1) is not None
+    statuses = {(p, s): store.read_suite(repo, "gpt", p, s).status.value for p, s in COMBOS}
+    assert sorted(k for k, v in statuses.items() if v == "accepted_barred") == [
+        ("1_A", "black_box"),
+        ("1_A", "white_box"),
     ]
-    assert recorded == [("1_A", "hybrid"), ("2_B", "black_box")]
+    assert sum(v == "accepted_predicted" for v in statuses.values()) == 4

@@ -1,0 +1,25 @@
+{
+  "decision": "keep",
+  "differences": [
+    {
+      "context": "irst type: if v>c the guest se",
+      "kind": "formula",
+      "original": "v > c",
+      "ours": ">"
+    },
+    {
+      "context": "cond type: if v>c the guest se",
+      "kind": "formula",
+      "original": "v > c",
+      "ours": ">"
+    }
+  ],
+  "enunciado": null,
+  "problem_id": "1371_C",
+  "reason": "v > c escrito como v>c (duas vezes): só os espaços em volta do sinal mudam.",
+  "reviewed_at": "2026-10-18",
+  "reviewed_by": "Claude, conferido contra o original a pedido de Milena Fernandes Rocha",
+  "schema_version": 1,
+  "sha256_before": "27e9b5eb6674c445fe63e46e4b1898d262afd91c33af892e41fa2f27560f3c1f",
+  "suggested_enunciado": null
+}

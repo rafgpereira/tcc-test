@@ -11,12 +11,14 @@ before its next call) as soon as one of these happens (research R8):
 
 * the spend cap of the invocation is reached (sum of the cost of every answered call, barred ones
   included; FR-022a): exit code 5;
-* an answer reports no reasoning (FR-018a): it is recorded in ``barred/``, never as an attempt:
-  exit code 6;
 * the API stays unavailable after the retry ceiling (FR-018): exit code 3, nothing recorded for
   that call;
 * an error that does not go away (key, quota, model, malformed request): exit code 3;
 * an interruption (Ctrl+C, ``docker stop``): exit code 130.
+
+An answer that reports no reasoning (FR-018a) is recorded in ``barred/`` (read, but never as an
+attempt) and the same attempt is asked again; after ``MAX_BARRED`` such answers the combination
+takes the last one that can be read (``accepted_barred``). The others go on meanwhile.
 
 Calls already sent always finish and are recorded (atomic writes), so stopping never leaves a
 partial file. An infrastructure failure never consumes an attempt: the same call is made again
@@ -83,7 +85,7 @@ def current_run_config(root: Path, model: str, template: PromptTemplate, now: st
     )
 
 
-STOP_CODES = {"interrupted": 130, "infra": 3, "fatal": 3, "barred": 6, "spend_cap": 5}
+STOP_CODES = {"interrupted": 130, "infra": 3, "fatal": 3, "spend_cap": 5}
 
 
 @dataclass
@@ -215,9 +217,20 @@ def _call_with_retries(ctx: _Context, prompt: str, what: str) -> ProviderAnswer 
             return None
 
 
-def _attempt(ctx: _Context, problem, scenario: str, n: int) -> LlmAttempt | None:
-    """Make attempt ``n``: one call, the answer recorded; ``None`` if nothing was recorded."""
+def _attempt(ctx: _Context, problem, scenario: str, n: int) -> LlmAttempt | str | None:
+    """Make attempt ``n``: one call, the answer recorded; ``"barred"`` if it reported no
+    reasoning; ``None`` if nothing was recorded."""
     prompt = build_prompt(ctx.template, problem, scenario)
+    if ctx.model == "claude":
+        tokens = cost.estimated_input_tokens(ctx.model, len(prompt))
+        if tokens > config.CLAUDE_PROMPT_TOKEN_LIMIT:
+            ctx.coordinator.stop(
+                "fatal",
+                f"claude: a prompt over {config.CLAUDE_PROMPT_TOKEN_LIMIT:,} tokens has another "
+                f"price ({problem.problem_id} {scenario}: about {tokens:,} tokens); nothing was "
+                "sent",
+            )
+            return None
     requested_at = ctx.clock.utc_now()
     answer = _call_with_retries(ctx, prompt, f"{problem.problem_id} {scenario} attempt {n}")
     if answer is None:
@@ -241,21 +254,21 @@ def _attempt(ctx: _Context, problem, scenario: str, n: int) -> LlmAttempt | None
         "cost_usd": amount,
         "price_row": row,
     }
+    parse = interpret(answer, problem.testes.public_tests[0])
     if needs_barrier(answer):
-        barred = BarredResponse(**common, barred_at=ctx.clock.utc_now())
+        barred = BarredResponse(**common, barred_at=ctx.clock.utc_now(), parse=parse)
         path = store.write_barred(ctx.root, ctx.model, barred)
         with ctx.coordinator.lock:
             ctx.coordinator.result.barred.append((problem.problem_id, scenario, path))
-        ctx.coordinator.stop("barred")
         ctx.coordinator.spend(amount)
         count = answer.usage.reasoning_tokens
         reported = "no reasoning token count" if count is None else f"{count} reasoning tokens"
         ctx.echo(
             f"barred: {problem.problem_id} {scenario}: the answer reports {reported} (reasoning effort "
-            f'"{config.REASONING_LEVEL}" was sent); saved in {path.relative_to(ctx.root).as_posix()}'
+            f'"{config.REASONING_LEVEL}" was sent); saved in {path.relative_to(ctx.root).as_posix()} '
+            f"(at {config.MAX_BARRED}, the suite is accepted_barred)"
         )
-        return None
-    parse = interpret(answer, problem.testes.public_tests[0])
+        return "barred"
     record = LlmAttempt(**common, attempt=n, parse=parse)
     store.write_attempt(ctx.root, ctx.model, record)
     with ctx.coordinator.lock:

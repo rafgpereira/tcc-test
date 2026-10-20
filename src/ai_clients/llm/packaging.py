@@ -95,6 +95,7 @@ def check_finished(root: Path, model: str) -> dict[str, int]:
             )
     return {
         "accepted_predicted": statuses["accepted_predicted"],
+        "accepted_barred": statuses["accepted_barred"],
         "discarded_manual": statuses["discarded_manual"],
     }
 

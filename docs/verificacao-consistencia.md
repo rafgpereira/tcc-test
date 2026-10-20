@@ -100,6 +100,32 @@ JSON.
 - **Mesma regra de andamento do modelo local**: o que falta é aviso até o `package` (o piloto e a
   execução completa começam por `cli check --deep` com saída `0`).
 
+## Decisões (2026-10-18): revisão 2 do dataset
+
+- **Camada `dataset` com manifesto de revisão**: o manifesto da revisão 2 (`schema_version` 2, com
+  `revision` e `revision_of`) é conferido como o da revisão 1; a revisão guardada
+  (`data/dataset.rev1.zip`) não entra no `check`, só no `dataset verify` de auditoria.
+- **Camada `slm_suites` com junção de execuções**: quando existe `data/suites/slm/provenance.json`
+  (gravado pelo `package --merge-from`), a camada lê dele, para cada problema × cenário, a pasta que
+  tem a suíte vigente (`data/suites/slm/` ou `data/suites/slm-rev1/`). Confere que cada combinação
+  vigente aparece uma vez e tem `suite.json` na pasta indicada, que toda combinação de cada pasta
+  está registrada no arquivo de origem, cada pasta com as mesmas regras de uma execução única e
+  contra a parte do manifesto sob ela, e os três cenários vigentes por problema. A relação 1:1 com
+  o dataset usa as combinações vigentes.
+
+## Decisões (2026-10-20): `accepted_barred` dos modelos comerciais
+
+- **Sem regra nova de estrutura**: depois de 3 respostas sem raciocínio, a combinação ganha um
+  `suite.json` (`accepted_barred`) como qualquer outra, então o `check` continua exigindo um
+  `suite.json` por cenário. As respostas de `barred/` são contadas à parte, e uma de problema que
+  não está no dataset continua sendo falha.
+
+## Decisões (2026-10-20): camada `claude_suites`
+
+- **Terceiro modelo comercial**: o Claude Haiku 5.5 ganha a camada `claude_suites`, idêntica às
+  camadas `gpt_suites` e `gemini_suites` (mesmas conferências, aviso enquanto a execução não
+  foi empacotada, relação 1:1 com o dataset); `--only claude_suites` confere só ela.
+
 ## Como um módulo novo o estende
 
 Acrescente uma `Layer` em `LAYERS` (`src/cli/consistency.py`), com a pasta onde ficam as

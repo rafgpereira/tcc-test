@@ -76,7 +76,7 @@ def test_barred_answers_are_numbered_and_kept_apart(repo, run):
     assert (first.name, second.name) == ("1.json", "2.json")
     assert first.parent == repo / "data/suites/gpt/barred/1_A/black_box"
     assert len(store.read_barred(repo, "gpt")) == 2
-    assert state(repo, run) == store.State("pending", 1)
+    assert state(repo, run) == store.State("pending", 1)  # they never consume an attempt
 
 
 def test_read_run_refuses_another_version_or_model(repo):
@@ -205,3 +205,37 @@ def test_a_suite_json_while_pending(repo, run):
     folder = store.combination_dir(repo, "gpt", PID, SC)
     (folder / config.SUITE_FILE).write_text("{}")
     assert "the attempts are not finished" in damaged(repo, run)
+
+
+def _barred(parse=None):
+    data = b.call_record(usage={**b.call_record()["usage"], "reasoning_tokens": 0})
+    return BarredResponse.model_validate({**data, "barred_at": "t", "parse": parse})
+
+
+def test_three_barred_answers_give_an_accepted_barred_suite(repo, run):
+    readable = b.attempt()["parse"]
+    for parse in (readable, b.failed(), b.failed()):
+        assert state(repo, run).kind == "pending"
+        store.write_barred(repo, "gpt", _barred(parse))
+    assert state(repo, run).kind == "finalizable"
+    suite = store.finalize(repo, "gpt", "1_A", "black_box", run)
+    assert suite.status.value == "accepted_barred"
+    assert (suite.barred_close.responses, suite.barred_close.accepted) == (3, 1)
+    assert state(repo, run) == store.State("terminal", 0)
+
+
+def test_barred_answers_never_read_ask_again(repo, run):
+    for _ in range(4):  # recorded before 2026-10-20: no parse
+        store.write_barred(repo, "gpt", _barred())
+    assert state(repo, run) == store.State("pending", 1)
+
+
+def test_three_unreadable_barred_answers_await_the_authors(repo, run):
+    from ai_clients.llm import closing
+
+    for _ in range(3):
+        store.write_barred(repo, "gpt", _barred(b.failed()))
+    assert state(repo, run).kind == "awaiting_manual"
+    suite = closing.close(repo, "gpt", "1_A", "black_box", "no reasoning", run=run, now=lambda: "t")
+    assert suite.status.value == "discarded_manual" and suite.tests == []
+    assert (suite.barred_close.responses, suite.barred_close.accepted) == (3, None)

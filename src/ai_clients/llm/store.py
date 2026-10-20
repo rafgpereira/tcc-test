@@ -6,7 +6,9 @@ anything else is damage, listed and never repaired. The locks are the SLM ones, 
 own folder, so the two models (and the SLM) never block each other.
 
 The answers barred for reporting no reasoning (FR-018a) live in ``barred/``, out of the attempts:
-they never change the state of a combination.
+they never consume an attempt. After ``MAX_BARRED`` of them, the combination is closed with the
+last one that can be read (``accepted_barred``) instead of being asked again (amended on
+2026-10-20, after ``1201_B`` black_box was barred six times in a row).
 """
 
 import fcntl
@@ -14,13 +16,14 @@ import re
 import threading
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal
 
 from ai_clients import store as slm_store
 from ai_clients.llm import config
 from ai_clients.llm.schemas import (
+    BarredClose,
     BarredResponse,
     LlmAttempt,
     LlmAttemptSummary,
@@ -256,6 +259,7 @@ class AttemptFiles:
     attempts: list[LlmAttempt]  # 1, 2, ... without a gap
     suite: Path | None
     manual_close: ManualClose | None = None
+    barred: tuple[BarredResponse, ...] = ()  # barred/1.json, 2.json, ... of the combination
 
 
 _ATTEMPT_FILE = re.compile(r"^attempt_(\d+)\.json$")
@@ -326,27 +330,48 @@ def _load(root: Path, model: str, problem_id: str, scenario, run: LlmRunConfig |
             problems.append(
                 f"inconsistent: {config.attempt_file_name(n + 1)}: attempt {n} was accepted"
             )
-    if not problems and manual_close is not None:
-        final = found.get(config.MAX_ATTEMPTS)
-        if final is None or final.parse.ok:
-            problems.append(
-                f"inconsistent: {config.MANUAL_CLOSE_FILE}: the combination does not await "
-                "manual handling"
-            )
+    barred = []
+    for path in barred_files(root, model, problem_id, scenario, tree):
+        record = _read_named(path, BarredResponse, (problem_id, scenario), problems)
+        if record is not None:
+            barred.append(record)
+    attempts = [found[n] for n in range(1, last + 1) if n in found]  # a gap is listed above
+    files = AttemptFiles(attempts, suite, manual_close, tuple(barred))
+    unclosed = replace(files, manual_close=None)
+    if (
+        not problems
+        and manual_close is not None
+        and _state_of_attempts(unclosed).kind != "awaiting_manual"
+    ):
+        problems.append(
+            f"inconsistent: {config.MANUAL_CLOSE_FILE}: the combination does not await "
+            "manual handling"
+        )
     if problems:
         raise DamagedCombination(problem_id, scenario, problems)
-    return AttemptFiles([found[n] for n in range(1, last + 1)], suite, manual_close)
+    return files
+
+
+def _accepted_barred(files: AttemptFiles) -> int | None:
+    """The number (1-based) of the last barred answer that can be read, if any."""
+    readable = [n for n, b in enumerate(files.barred, 1) if b.parse is not None and b.parse.ok]
+    return readable[-1] if readable else None
 
 
 def _state_of_attempts(files: AttemptFiles) -> State:
-    if not files.attempts:
-        return State("pending", 1)
-    last = files.attempts[-1]
-    if last.parse.ok:
+    last = files.attempts[-1] if files.attempts else None
+    if last is not None and last.parse.ok:
         return State("finalizable", last.attempt)  # accepted_predicted
-    if last.attempt < config.MAX_ATTEMPTS:
-        return State("pending", last.attempt + 1)
-    return State("finalizable" if files.manual_close else "awaiting_manual", last.attempt)
+    if last is not None and last.attempt >= config.MAX_ATTEMPTS:
+        return State("finalizable" if files.manual_close else "awaiting_manual", last.attempt)
+    following = last.attempt + 1 if last is not None else 1
+    if len(files.barred) >= config.MAX_BARRED:
+        if _accepted_barred(files) is not None:
+            return State("finalizable", following)  # accepted_barred
+        if all(b.parse is None for b in files.barred):
+            return State("pending", following)  # barred before 2026-10-20, never read: ask again
+        return State("finalizable" if files.manual_close else "awaiting_manual", following)
+    return State("pending", following)
 
 
 def _detail(record: LlmAttempt) -> str:
@@ -355,6 +380,14 @@ def _detail(record: LlmAttempt) -> str:
         return parse.detail
     dropped = parse.empty_tests + parse.abbreviated_tests + parse.duplicate_inputs
     return f"{len(parse.tests)} kept, {dropped} dropped"
+
+
+def _barred_close(files: AttemptFiles) -> BarredClose | None:
+    if len(files.barred) < config.MAX_BARRED or (files.attempts and files.attempts[-1].parse.ok):
+        return None
+    if files.attempts and files.attempts[-1].attempt >= config.MAX_ATTEMPTS:
+        return None  # closed by the format failures, not by the barred answers
+    return BarredClose(responses=len(files.barred), accepted=_accepted_barred(files))
 
 
 def _build_suite(files: AttemptFiles, problem_id: str, scenario: str, run: LlmRunConfig):
@@ -368,7 +401,7 @@ def _build_suite(files: AttemptFiles, problem_id: str, scenario: str, run: LlmRu
         )
         for a in files.attempts
     ]
-    last = files.attempts[-1]
+    last = files.attempts[-1] if files.attempts else None
     common = {
         "problem_id": problem_id,
         "scenario": scenario,
@@ -377,7 +410,20 @@ def _build_suite(files: AttemptFiles, problem_id: str, scenario: str, run: LlmRu
         "accepted_phase": None,
         "discarded_inputs": [],
     }
-    if last.parse.ok:
+    barred_close = _barred_close(files)
+    if barred_close is not None and barred_close.accepted is not None:
+        answer = files.barred[barred_close.accepted - 1]
+        return LlmSuite(
+            **common,
+            model_digest=answer.model_returned,
+            status=SuiteStatus.ACCEPTED_BARRED,
+            accepted_attempt=None,
+            tests=answer.parse.tests,
+            suite_size=len(answer.parse.tests),
+            duplicate_inputs=answer.parse.duplicate_inputs,
+            barred_close=barred_close,
+        )
+    if last is not None and last.parse.ok:
         return LlmSuite(
             **common,
             model_digest=last.model_returned,
@@ -397,6 +443,7 @@ def _build_suite(files: AttemptFiles, problem_id: str, scenario: str, run: LlmRu
         suite_size=0,
         duplicate_inputs=0,
         manual_close=ManualCloseInfo(reason=close.reason, closed_at=close.closed_at),
+        barred_close=barred_close,
     )
 
 
@@ -446,7 +493,7 @@ def finalize(root: Path, model: str, problem_id: str, scenario, run: LlmRunConfi
     if files.suite is not None or _state_of_attempts(files).kind != "finalizable":
         return None
     suite = _build_suite(files, problem_id, _scenario(scenario), run)
-    folder = combination_dir(root, model, problem_id, scenario)
+    folder = _ensure_combination_dir(root, model, problem_id, scenario)  # none without attempts
     slm_store.write_once(folder / config.SUITE_FILE, suite)
     return suite
 

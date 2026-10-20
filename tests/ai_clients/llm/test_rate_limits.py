@@ -13,7 +13,7 @@ from tests.ai_clients.llm.fakes import FakeClock, FakeProvider, answer, unavaila
 from tests.ai_clients.llm.test_concurrency import COMBOS, run_with
 
 
-def run_paced(repo, provider, per_minute, concurrency=1, clock=None):
+def run_paced(repo, provider, per_minute, concurrency=1, clock=None, spend_cap=None):
     from ai_clients.llm import store
     from ai_clients.prompt import load_template
 
@@ -34,6 +34,7 @@ def run_paced(repo, provider, per_minute, concurrency=1, clock=None):
         max_infra_retries=3,
         concurrency=concurrency,
         requests_per_minute=per_minute,
+        spend_cap=spend_cap,
     )
 
 
@@ -147,10 +148,11 @@ class BlockingClock(FakeClock):
 
 
 def test_stopping_wakes_every_waiting_thread(repo):
-    """A stop (spend cap, barred answer, interruption) ends the waits of the other threads."""
-    provider = FakeProvider("gemini", default=answer("gemini", reasoning=0))
-    clock, result = run_paced(repo, provider, 1, 2, clock=BlockingClock())  # 60 s apart
-    assert result.stop == "barred" and len(provider.requests) == 1
+    """A stop (spend cap, interruption) ends the waits of the other threads."""
+    provider = FakeProvider("gemini", default=answer("gemini"))
+    provider.on_call = lambda *_: time.sleep(0.5)  # the other thread is waiting by then
+    clock, result = run_paced(repo, provider, 1, 2, clock=BlockingClock(), spend_cap=1e-9)
+    assert result.stop == "spend_cap" and len(provider.requests) == 1
     assert clock.sleeps and all(s < 5 for s in clock.sleeps)  # woken by the stop, not timed out
 
 

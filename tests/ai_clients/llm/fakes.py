@@ -104,13 +104,58 @@ def gemini_body(
     return json.dumps(body)
 
 
-BODY = {"gpt": openai_body, "gemini": gemini_body}
+def anthropic_body(
+    text: str | None = None,
+    *,
+    stop_reason: str = "end_turn",
+    category: str | None = None,
+    thinking: int | None = 1200,
+    input_tokens: int = 2000,
+    cached: int = 0,
+    cache_creation: int = 0,
+    output: int = 1500,
+    model: str = "claude-haiku-5-5",
+    response_id: str = "msg_1",
+    thinking_block: bool = True,
+) -> str:
+    """A Messages API body: a thinking block (empty text, as displayed by default), then the
+    answer in a text block (specs/008, research R3 and R4)."""
+    text = answer_json() if text is None else text
+    content = []
+    if thinking_block and thinking:
+        content.append({"type": "thinking", "thinking": "", "signature": "sig"})
+    if text != "":
+        content.append({"type": "text", "text": text})
+    usage = {
+        "input_tokens": input_tokens,
+        "cache_read_input_tokens": cached,
+        "cache_creation_input_tokens": cache_creation,
+        "output_tokens": output,
+    }
+    if thinking is not None:
+        usage["output_tokens_details"] = {"thinking_tokens": thinking}
+    data = {
+        "id": response_id,
+        "type": "message",
+        "role": "assistant",
+        "model": model,
+        "content": content,
+        "stop_reason": stop_reason,
+        "stop_details": None if category is None else {"type": "refusal", "category": category},
+        "usage": usage,
+    }
+    return json.dumps(data)
+
+
+BODY = {"gpt": openai_body, "gemini": gemini_body, "claude": anthropic_body}
 
 
 def body(model: str, *args, reasoning: int | None = 1200, **kwargs) -> str:
     """A well-formed body of ``model`` (reasoning tokens under the right name)."""
     if model == "gpt":
         return openai_body(*args, reasoning=reasoning, **kwargs)
+    if model == "claude":
+        return anthropic_body(*args, thinking=reasoning, **kwargs)
     return gemini_body(*args, thoughts=reasoning, **kwargs)
 
 

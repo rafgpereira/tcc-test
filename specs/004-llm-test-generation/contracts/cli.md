@@ -19,7 +19,7 @@ no execute step`).
 | `3` | erro de infraestrutura não recuperável (teto de repetições) ou erro que não passa sozinho (chave, cota, modelo, pedido malformado) |
 | `4` | o comando terminou, mas há combinação aguardando os autores |
 | `5` **(novo)** | teto de gasto atingido (FR-022a) |
-| `6` **(novo)** | resposta sem raciocínio barrada (FR-018a) |
+| `6` **(novo)** | resposta sem raciocínio barrada (FR-018a); **sem uso desde 2026-10-20**: a combinação é pedida de novo, até 3 barradas, e fica `accepted_barred`; o comando segue |
 | `130` | interrompido |
 
 Precedência: `130` > `3` > `6` > `1` > `5` > `4` > `0`. As linhas `manual:`, `damaged:` e o gasto

@@ -212,8 +212,13 @@ A combinação é **danificada** em qualquer um destes casos:
 
 Os temporários de escrita atômica (`.<nome>.<sufixo>.tmp`) são ignorados.
 
-As respostas em `barred/` não mudam o estado da combinação: na retomada, ela continua
-`pending(n)`, e a chamada é refeita (FR-018a).
+Desde 2026-10-20 (emenda de FR-018a), cada resposta em `barred/` guarda também a interpretação
+(`parse`, ausente nas gravadas antes). A combinação continua `pending(n)` até 3 respostas
+barradas; com 3 ou mais, fica `finalizable` se alguma for legível (a suíte é `accepted_barred`,
+com os testes da última legível e `barred_close: {responses, accepted}`), `awaiting_manual` se
+nenhuma for (o `close` dá `discarded_manual` com `barred_close.accepted = null`), e `pending(n)`
+se todas forem anteriores à emenda (sem interpretação). Uma tentativa aceita ou 3 tentativas com
+falha de formato decidem antes. O campo `barred_close` só aparece nessas suítes.
 
 ## 5. Travas e concorrência (R8)
 

@@ -1,0 +1,31 @@
+{
+  "decision": "keep",
+  "differences": [
+    {
+      "context": "every a writes ([a, b])/(a) on",
+      "kind": "formula",
+      "original": "\\frac{[a, b]}{a}",
+      "ours": "([a, b])/(a)"
+    },
+    {
+      "context": "= a, therefore ([a, b])/(a) is",
+      "kind": "formula",
+      "original": "\\frac{[a, b]}{a}",
+      "ours": "([a, b])/(a)"
+    },
+    {
+      "context": "n parity of a. ([a, b])/(a) ca",
+      "kind": "formula",
+      "original": "\\frac{[a, b]}{a}",
+      "ours": "([a, b])/(a)"
+    }
+  ],
+  "enunciado": null,
+  "problem_id": "1068_B",
+  "reason": "Fração \frac{[a, b]}{a} escrita como ([a, b])/(a): mesma expressão, só outra notação.",
+  "reviewed_at": "2026-10-18",
+  "reviewed_by": "Claude, conferido contra o original a pedido de Milena Fernandes Rocha",
+  "schema_version": 1,
+  "sha256_before": "7782570ac347628743ce9157faec87918649683e1b8f4b2069bbc15682cac424",
+  "suggested_enunciado": null
+}

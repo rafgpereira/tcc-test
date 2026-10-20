@@ -520,6 +520,81 @@ def _run_correct_statements(args: argparse.Namespace) -> int:
     return EXIT_DATA_FAILURE if failed else EXIT_OK
 
 
+# --------------------------------------------------------------------------------------- revise
+
+
+def _configure_revise(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--draft-decisions",
+        action="store_true",
+        help="write a draft decision (manifests/statement_decisions/<id>.json) for each statement "
+        "under review that has none; the authors fill them in; no revision is made",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="run every check and say what would change; write nothing",
+    )
+
+
+def _run_revise(args: argparse.Namespace) -> int:
+    from dataset import revision
+
+    root = Path(".")
+    try:
+        if args.draft_decisions:
+            inputs = revision.load_inputs(root)
+            written = revision.draft_decisions(root, inputs.report)
+            for path in written:
+                print(f"draft: {path.relative_to(root).as_posix()}")
+            pending = len(revision.review_problems(inputs.report))
+            print(f"drafts: {len(written)} written; {pending} statement(s) under review in all")
+            return EXIT_OK
+        result = revision.build_revision(root, dry_run=args.dry_run)
+    except revision.RevisionRefused as exc:
+        print(f"error: {exc}; nothing was written", file=sys.stderr)
+        return EXIT_DATA_FAILURE
+    record = result.record
+    automatic = sum(c.origin == "automatic" for c in record.changed)
+    manual = len(record.changed) - automatic
+    unchanged = result.manifest.problem_count - len(record.changed)
+    verb = "would change" if not result.written else "changed"
+    print(
+        f"revision 2: {len(record.changed)} statements {verb} ({automatic} automatic, {manual} "
+        f"manual), {len(record.kept)} kept, {unchanged} unchanged; every other file identical"
+    )
+    if not result.written:
+        print("dry run: nothing was written")
+        return EXIT_OK
+    print(
+        "archived: data/dataset.zip -> data/dataset.rev1.zip; manifests/dataset.manifest.json -> "
+        "manifests/dataset.rev1.manifest.json"
+    )
+    print(
+        "written: data/dataset.zip, manifests/dataset.manifest.json (revision 2), "
+        "manifests/dataset_revision.json"
+    )
+    print("next: rm -rf data/dataset && unzip data/dataset.zip -d data/")
+    ids = result.changed_ids
+    problems = " ".join(f"--problem {pid}" for pid in ids)
+    print(
+        f"slm affected: {2 * len(ids)} combinations (black_box, hybrid of {len(ids)} problems); "
+        "first move the run of revision 1 aside: mv data/suites/slm data/suites/slm-rev1; then "
+        "alternate until done:"
+    )
+    selection = f"{problems} --scenario black_box --scenario hybrid"
+    print(f"  docker compose run --rm app python -m ai_clients generate {selection}")
+    print(f"  docker compose run --rm sandbox python -m ai_clients execute {selection}")
+    return EXIT_OK
+
+
+register(
+    "revise",
+    "make revision 2 of the dataset with the corrected statements (keeps revision 1 for audit); "
+    "--draft-decisions writes the drafts of the statements the authors decide by hand",
+    _configure_revise,
+    _run_revise,
+)
 register(
     "check-statements",
     "compare every enunciado.md with the original statement on Codeforces (gets each page once, "

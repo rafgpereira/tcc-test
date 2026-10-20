@@ -35,6 +35,7 @@ def test_the_report_counts_every_combination(finished, repo, capsys):
         "total": 6,
         "accepted_predicted": 5,
         "discarded_manual": 0,
+        "accepted_barred": 0,
         "awaiting_manual": 1,
         "pending": 0,
     }
@@ -53,8 +54,9 @@ def test_the_report_counts_every_combination(finished, repo, capsys):
     assert data["suite_size"]["total"]["count"] == 5
     assert data["models_returned"] == {"gpt-5.4-mini-2026-03-17": 9}
     assert data["safety_blocks_by_category"] is None
-    assert "6 combinations: 5 accepted_predicted, 0 discarded_manual, 1 awaiting_manual" in (
-        capsys.readouterr().out
+    assert (
+        "6 combinations: 5 accepted_predicted, 0 accepted_barred, 0 discarded_manual, 1 awaiting_manual"
+        in (capsys.readouterr().out)
     )
 
 
@@ -74,10 +76,13 @@ def test_the_total_cost_is_the_sum_of_every_call(finished, repo):
 
 def test_barred_answers_are_counted_apart(providers, repo, monkeypatch):
     monkeypatch.setenv(config.ENV_MAX_CONCURRENCY["gemini"], "1")
-    providers["gemini"].table[("1_A", "black_box", 1)] = answer("gemini", reasoning=0)
+    for n in range(1, config.MAX_BARRED + 1):  # the same attempt, asked again
+        providers["gemini"].table[("1_A", "black_box", n)] = answer("gemini", reasoning=0)
     cli.main(["generate", "--model", "gemini", "--confirm-spend", "5"])
     data = report(repo, "gemini")
-    assert data["barred"] == {"count": 1, "combinations": ["1_A black_box"]}
+    assert data["barred"] == {"count": 3, "combinations": ["1_A black_box"] * 3}
+    assert data["combinations"]["total"]["accepted_barred"] == 1
+    assert data["combinations"]["black_box"]["accepted_barred"] == 1
     assert data["cost_usd"]["barred_cost_usd"] > 0
     assert data["cost_usd"]["total"] == pytest.approx(
         data["cost_usd"]["by_group"]["total"] + data["cost_usd"]["barred_cost_usd"]

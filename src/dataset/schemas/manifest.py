@@ -1,9 +1,19 @@
-"""Schema of the integrity manifest (spec FR-027; data-model.md §1.5)."""
+"""Schema of the integrity manifest (spec FR-027; data-model.md §1.5).
 
-from pydantic import model_validator
+``schema_version`` 1 is the dataset as first extracted and validated (revision 1). ``schema_version``
+2 is a numbered revision (constitution 1.8.0, specs/007): the same fields plus ``revision`` and
+``revision_of``, its provenance, which never enters a hash. ``parse_manifest`` reads either.
+"""
+
+import json
+from typing import Literal
+
+from pydantic import Field, model_validator
 
 from dataset.schemas.common import Schema, SchemaVersion
 from dataset.schemas.report import Provenance
+
+_SHA = r"^[0-9a-f]{64}$"
 
 
 class FileHash(Schema):
@@ -46,3 +56,29 @@ class Manifest(Schema):
                 f"folders found in files ({len(ids)})"
             )
         return self
+
+
+class RevisionOf(Schema):
+    """Where a revision came from (traceability only; never enters a hash)."""
+
+    previous_manifest_sha256: str = Field(pattern=_SHA)
+    fidelity_report_sha256: str = Field(pattern=_SHA)
+    originals_manifest_sha256: str = Field(pattern=_SHA)
+    revision_record_sha256: str = Field(pattern=_SHA)
+    created_at: str
+
+
+class RevisedManifest(Manifest):
+    """The manifest of a numbered revision of the dataset (``schema_version`` 2)."""
+
+    schema_version: Literal[2] = 2
+    revision: int = Field(ge=2)
+    revision_of: RevisionOf
+
+
+def parse_manifest(raw: str | bytes | dict) -> Manifest:
+    """The manifest of either version: a revision (2) or the first one (1)."""
+    data = json.loads(raw) if isinstance(raw, (str, bytes)) else raw
+    if data.get("schema_version") == 2:
+        return RevisedManifest.model_validate(data)
+    return Manifest.model_validate(data)

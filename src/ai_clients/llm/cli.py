@@ -317,11 +317,10 @@ def run_generate(args) -> int:
         codes.add(EXIT_INFRA)
     if result.barred:
         print(
-            "barred: nothing new was sent; investigate before resuming (the answer is in "
-            f"{_tree(model)}/{config.BARRED_DIR}/)",
-            file=sys.stderr,
+            f"barred: {len(result.barred)} answer(s) without reasoning in {_tree(model)}/"
+            f"{config.BARRED_DIR}/; a combination with {config.MAX_BARRED} of them takes the "
+            "last readable one (accepted_barred)"
         )
-        codes.add(EXIT_NO_REASONING)
     if result.stop == "spend_cap" or (
         result.spent >= args.confirm_spend and result.stop is not None
     ):
@@ -478,7 +477,7 @@ def run_report(args) -> int:
     print(f"report: {config.report_path(model).as_posix()}")
     print(
         f"{total.total} combinations: {total.accepted_predicted} accepted_predicted, "
-        f"{total.discarded_manual} discarded_manual, {total.awaiting_manual} awaiting_manual, "
+        f"{total.accepted_barred} accepted_barred, {total.discarded_manual} discarded_manual, {total.awaiting_manual} awaiting_manual, "
         f"{total.pending} pending; US$ {built.cost_usd.total:.4f} spent"
     )
     return EXIT_OK

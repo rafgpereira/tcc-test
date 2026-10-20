@@ -126,3 +126,16 @@ def test_the_zip_is_written_atomically(root, monkeypatch):
     with pytest.raises(RuntimeError):
         packaging.build_dataset_zip(root, target)
     assert not target.exists()  # a failed write never leaves a partial zip at the final path
+
+
+def test_a_problems_folder_of_choice_gives_the_same_zip(root):
+    # revise packages a revision from a copy of the extracted dataset (specs/007, research R5)
+    import shutil
+
+    make_problem(root, "1_A")
+    make_problem(root, "2_B")
+    default = packaging.build_dataset_zip(root, root / "default.zip")
+    shutil.copytree(root / "data/work/problems", root / "elsewhere")
+    chosen = packaging.build_dataset_zip(root, root / "chosen.zip", problems_dir=root / "elsewhere")
+    assert (root / "default.zip").read_bytes() == (root / "chosen.zip").read_bytes()
+    assert chosen.problem_count == default.problem_count == 2

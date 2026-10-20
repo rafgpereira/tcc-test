@@ -1,0 +1,29 @@
+{
+ "rows": [
+  {
+   "id": "D1",
+   "methodology_section": "1",
+   "needles": [
+    "só os `enunciado.md` mudam"
+   ],
+   "source": "spec.md#D1"
+  },
+  {
+   "id": "D2",
+   "methodology_section": "1",
+   "needles": [
+    "refaz só as combinações afetadas"
+   ],
+   "source": "spec.md#D2"
+  },
+  {
+   "id": "D3",
+   "methodology_section": "1",
+   "needles": [
+    "usam a revisão 2"
+   ],
+   "source": "spec.md#D3"
+  }
+ ],
+ "schema_version": 1
+}

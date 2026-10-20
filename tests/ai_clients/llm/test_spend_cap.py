@@ -74,14 +74,22 @@ def test_resume_continues_with_a_new_cap(providers, repo, monkeypatch, capsys):
 def test_a_barred_answer_counts_in_the_spending(providers, repo, monkeypatch, capsys):
     monkeypatch.setenv(config.ENV_MAX_CONCURRENCY["gpt"], "1")
     providers["gpt"].table[("1_A", "black_box", 1)] = answer("gpt", reasoning=0)
-    assert generate("--confirm-spend", "1") == cli.EXIT_NO_REASONING
-    assert f"spent US$ {CALL:.4f}" in capsys.readouterr().out
+    assert generate("--confirm-spend", "1") == cli.EXIT_OK
+    barred = sum(b.cost_usd for b in store.read_barred(repo, "gpt"))
+    attempts = sum(
+        a.cost_usd
+        for p in ("1_A", "2_B")
+        for s in config.SCENARIOS
+        for a in store.attempt_files(repo, "gpt", p, s).attempts
+    )
+    assert f"spent US$ {barred + attempts:.4f}" in capsys.readouterr().out
 
 
-def test_barred_wins_over_the_spend_cap(providers, repo, monkeypatch):
+def test_a_barred_answer_can_reach_the_spend_cap(providers, repo, monkeypatch):
     monkeypatch.setenv(config.ENV_MAX_CONCURRENCY["gpt"], "1")
     providers["gpt"].table[("1_A", "black_box", 1)] = answer("gpt", reasoning=0)
-    assert generate("--confirm-spend", str(CALL / 2)) == cli.EXIT_NO_REASONING
+    assert generate("--confirm-spend", str(CALL / 2)) == cli.EXIT_SPEND_CAP
+    assert len(providers["gpt"].requests) == 1
 
 
 @pytest.mark.parametrize("model", config.MODELS)

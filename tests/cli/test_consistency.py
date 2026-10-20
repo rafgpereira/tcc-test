@@ -177,7 +177,7 @@ def build(root, *, mutants=True, package=True, slm=True, llm=True):
     if slm:
         write_slm(root, package=package)
     if llm:
-        for model in ("gpt", "gemini"):
+        for model in ("gpt", "gemini", "claude"):
             write_llm(root, model, package=package)
     return root
 
@@ -594,7 +594,7 @@ def llm_folder(root, model, pid="1000_B", scenario=None):
     return base / scenario if scenario else base
 
 
-@pytest.mark.parametrize("model", ["gpt", "gemini"])
+@pytest.mark.parametrize("model", ["gpt", "gemini", "claude"])
 def test_a_finished_llm_run_passes_with_its_counts(check, repo, capsys, model):
     code, out = run(check, repo, "--deep", "--only", f"{model}_suites", capsys=capsys)
     assert code == 0
@@ -612,6 +612,7 @@ def test_no_llm_run_yet_is_only_a_warning(check, tmp_path, capsys):
     assert code == 0
     assert "[AVISO] a pasta data/suites/gpt/problems ainda não existe" in out
     assert "[AVISO] a pasta data/suites/gemini/problems ainda não existe" in out
+    assert "[AVISO] a pasta data/suites/claude/problems ainda não existe" in out
 
 
 def test_an_llm_run_in_progress_is_a_warning(check, repo, capsys):
@@ -662,3 +663,9 @@ def test_barred_answers_are_checked_apart(check, repo, capsys):
 def test_the_old_layers_keep_their_output(check, repo, capsys):
     code, out = run(check, repo, "--only", "slm_suites", capsys=capsys)
     assert code == 0 and "gpt" not in out and "gemini" not in out
+
+
+def test_the_claude_layer_has_its_title_and_its_own_only(check, repo, capsys):
+    code, out = run(check, repo, "--only", "claude_suites", capsys=capsys)
+    assert code == 0 and "Suítes do Claude Haiku 5.5 (data/suites/claude/problems)" in out
+    assert "Suítes do GPT" not in out and "Suítes do Gemini" not in out

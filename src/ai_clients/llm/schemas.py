@@ -11,7 +11,7 @@ from datetime import date
 from enum import Enum
 from typing import Annotated, Any, Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, field_validator, model_serializer, model_validator
 
 from ai_clients.llm import config
 from ai_clients.schemas.common import NonNegative, Scenario, Sha256Hex, SuiteStatus
@@ -21,7 +21,7 @@ from dataset.schemas.common import PROBLEM_ID_PATTERN, Schema
 from dataset.schemas.manifest import FileHash
 from dataset.schemas.testes import TestCase
 
-LlmModel = Literal["gpt", "gemini"]
+LlmModel = Literal["gpt", "gemini", "claude"]
 LlmAttemptNumber = Annotated[int, Field(ge=1, le=config.MAX_ATTEMPTS)]
 LlmTemplateKind = Literal["llm"]
 
@@ -276,6 +276,9 @@ class BarredResponse(_CallRecord):
 
     reason: Literal["no_reasoning_tokens"] = "no_reasoning_tokens"
     barred_at: str
+    # The interpretation of the answer, as for an attempt; None in the answers barred before
+    # 2026-10-20, when a barred answer was never read.
+    parse: LlmParsed | LlmFormatFailure | None = None
 
     @model_validator(mode="after")
     def _not_reasoned(self) -> "BarredResponse":
@@ -295,6 +298,13 @@ class LlmAttemptSummary(Schema):
     cost_usd: float = Field(ge=0)
 
 
+class BarredClose(Schema):
+    """How a combination was closed after ``MAX_BARRED`` answers without reasoning."""
+
+    responses: int = Field(ge=config.MAX_BARRED)  # answers in barred/ for the combination
+    accepted: int | None = Field(ge=1)  # the barred/<n>.json the tests come from; None if none
+
+
 class LlmSuite(Schema):
     """``suite.json`` of a commercial model: the top-level keys of ``SlmSuite``, LLM values."""
 
@@ -305,13 +315,23 @@ class LlmSuite(Schema):
     model_digest: str | None  # the model returned for the accepted attempt
     status: SuiteStatus
     accepted_phase: None = None  # always null: the commercial models have no phases
-    attempts: list[LlmAttemptSummary] = Field(min_length=1, max_length=config.MAX_ATTEMPTS)
+    attempts: list[LlmAttemptSummary] = Field(max_length=config.MAX_ATTEMPTS)
     accepted_attempt: LlmAttemptNumber | None
     tests: list[TestCase]
     suite_size: NonNegative
     discarded_inputs: list[Any] = Field(max_length=0)  # always []: nothing is run
     duplicate_inputs: NonNegative
     manual_close: ManualCloseInfo | None = None
+    # Only in a suite closed after MAX_BARRED answers without reasoning (absent otherwise, so the
+    # suite.json written before 2026-10-20 keep their bytes).
+    barred_close: BarredClose | None = None
+
+    @model_serializer(mode="wrap")
+    def _omit_barred_close(self, handler):
+        data = handler(self)
+        if data.get("barred_close") is None:
+            data.pop("barred_close", None)
+        return data
 
     @model_validator(mode="after")
     def _terminal_state(self) -> "LlmSuite":
@@ -320,6 +340,14 @@ class LlmSuite(Schema):
             raise ValueError("attempts are numbered from 1 without gaps")
         if self.suite_size != len(self.tests):
             raise ValueError("suite_size is the number of tests")
+        if self.status is SuiteStatus.ACCEPTED_BARRED or (
+            self.status is SuiteStatus.DISCARDED_MANUAL and self.barred_close is not None
+        ):
+            return self._closed_by_barred()
+        if self.barred_close is not None:
+            raise ValueError("only a suite closed after answers without reasoning has barred_close")
+        if not self.attempts:
+            raise ValueError("this suite comes from at least one attempt")
         *earlier, last = self.attempts
         if any(a.failure is None for a in earlier):
             raise ValueError("only the last attempt can have succeeded")
@@ -335,7 +363,8 @@ class LlmSuite(Schema):
             return self
         if self.status is not SuiteStatus.ACCEPTED_PREDICTED:
             raise ValueError(
-                "a suite of a commercial model is accepted_predicted or discarded_manual"
+                "a suite of a commercial model is accepted_predicted, accepted_barred or "
+                "discarded_manual"
             )
         if self.manual_close is not None:
             raise ValueError("only a suite closed by the authors has manual_close")
@@ -343,6 +372,32 @@ class LlmSuite(Schema):
             raise ValueError("an accepted_predicted suite comes from its last attempt, with tests")
         if self.accepted_attempt != last.attempt or self.model_digest is None:
             raise ValueError("an accepted_predicted suite names its attempt and the model returned")
+        return self
+
+    def _closed_by_barred(self) -> "LlmSuite":
+        close = self.barred_close
+        if close is None:
+            raise ValueError("an accepted_barred suite says how it was closed (barred_close)")
+        if any(a.failure is None for a in self.attempts):
+            raise ValueError(
+                "a suite closed after answers without reasoning has no accepted attempt"
+            )
+        if self.accepted_attempt is not None:
+            raise ValueError(
+                "a suite closed after answers without reasoning has no accepted attempt"
+            )
+        if self.status is SuiteStatus.DISCARDED_MANUAL:
+            if self.tests or self.manual_close is None or close.accepted is not None:
+                raise ValueError("a suite closed by the authors has no tests and a manual_close")
+            if self.model_digest is not None:
+                raise ValueError("a suite closed by the authors has no model_digest")
+            return self
+        if self.manual_close is not None:
+            raise ValueError("only a suite closed by the authors has manual_close")
+        if not self.tests or close.accepted is None or close.accepted > close.responses:
+            raise ValueError("an accepted_barred suite has the tests of one of its barred answers")
+        if self.model_digest is None:
+            raise ValueError("an accepted_barred suite names the model returned")
         return self
 
 

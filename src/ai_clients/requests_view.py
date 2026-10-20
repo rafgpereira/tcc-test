@@ -518,7 +518,7 @@ class RequestsSummary(Schema):
     """``DIR/<model>/summary.json`` (data-model.md, section 5)."""
 
     schema_version: Literal[1] = 1
-    model: Literal["slm", "gpt", "gemini"]
+    model: Literal["slm", "gpt", "gemini", "claude"]
     # "pending": the next request of each pending combination (generate --dry-run);
     # "suite_attempt": the attempt each suite came from, its prompt hash checked (show-request).
     source: Literal["pending", "suite_attempt"] = "pending"

@@ -15,7 +15,7 @@ from ai_clients.llm.providers import (
     request_body,
 )
 from ai_clients.llm.schemas import FORBIDDEN_PARAMETERS, forbidden_keys, response_schema
-from tests.ai_clients.llm.fakes import gemini_body, openai_body
+from tests.ai_clients.llm.fakes import anthropic_body, gemini_body, openai_body
 
 PROMPT = "<system_rules>…</system_rules>\n<context_data>x</context_data>"
 
@@ -65,6 +65,9 @@ def test_the_whole_prompt_is_one_user_message(model):
     body = request_body(model, PROMPT)
     if model == "gpt":
         assert body["input"] == PROMPT  # a string input is one user message
+    elif model == "claude":
+        assert body["messages"] == [{"content": PROMPT, "role": "user"}]
+        assert "system" not in body
     else:
         assert body["contents"] == [{"parts": [{"text": PROMPT}], "role": "user"}]
 
@@ -226,6 +229,10 @@ def test_a_real_client_sends_the_body_and_reads_the_answer(monkeypatch, model):
     assert seen["body"] == request_body(model, PROMPT)
     if model == "gpt":
         assert seen["headers"]["authorization"] == "Bearer k"
+    elif model == "claude":
+        assert seen["headers"]["x-api-key"] == "k"
+        assert seen["headers"]["anthropic-version"] == "2023-06-01"
+        assert seen["headers"]["content-type"] == "application/json"
     else:
         assert seen["headers"]["x-goog-api-key"] == "k" and "key=" not in seen["url"]
     assert answer.raw_body == raw
@@ -264,3 +271,72 @@ def test_a_real_gemini_answer_of_2026_10_16_is_read():
     assert [(t.input, t.output) for t in result.tests] == [
         ("unexpected input text\n", "Hello, World!\n")
     ]
+
+
+# ----------------------------------------------------------------------- Claude (specs/008)
+
+
+def test_the_claude_body_is_exactly_the_contract():
+    assert request_body("claude", PROMPT) == {
+        "max_tokens": 32768,
+        "messages": [{"content": PROMPT, "role": "user"}],
+        "model": "claude-haiku-5-5",
+        "output_config": {
+            "effort": "medium",
+            "format": {"schema": response_schema(), "type": "json_schema"},
+        },
+        "thinking": {"type": "adaptive"},
+    }
+
+
+def test_a_claude_answer_is_read_from_its_text_blocks_and_usage():
+    raw = anthropic_body(input_tokens=1000, cached=50, cache_creation=0, output=900, thinking=700)
+    answer = answer_from_body("claude", raw, 1.5)
+    assert json.loads(answer.text)["tests"]  # the thinking block is not part of the text
+    assert answer.usage.input_tokens == 1050 and answer.usage.cached_input_tokens == 50
+    assert answer.usage.output_tokens == 900 and answer.usage.reasoning_tokens == 700
+    assert (answer.model_returned, answer.response_id) == ("claude-haiku-5-5", "msg_1")
+    assert answer.finish.status == "end_turn" and answer.refusal is None
+
+
+def test_a_claude_answer_without_the_reasoning_count_has_none():
+    answer = answer_from_body("claude", anthropic_body(thinking=None), 1.0)
+    assert answer.usage.reasoning_tokens is None
+    skipped = answer_from_body("claude", anthropic_body(thinking=0), 1.0)
+    assert skipped.usage.reasoning_tokens == 0
+
+
+def test_a_claude_refusal_and_a_cut_answer():
+    refused = answer_from_body(
+        "claude", anthropic_body("I can't help.", stop_reason="refusal", category="cyber"), 1.0
+    )
+    assert refused.refusal == "I can't help." and refused.finish.reason == "cyber"
+    cut = answer_from_body("claude", anthropic_body('{"edge', stop_reason="max_tokens"), 1.0)
+    assert cut.finish.status == "max_tokens"
+
+
+def test_a_claude_body_that_is_not_an_object_is_an_outage():
+    with pytest.raises(ProviderUnavailable):
+        answer_from_body("claude", "[1, 2]", 1.0)
+
+
+@pytest.mark.parametrize("code", [429, 500, 529])
+def test_claude_overload_and_rate_limit_are_outages(code):
+    body = json.dumps({"type": "error", "error": {"type": "overloaded_error", "message": "busy"}})
+    error = classify_http_error("claude", code, body, {"Retry-After": "7"})
+    assert isinstance(error, ProviderUnavailable) and error.retry_after_s == 7.0
+
+
+@pytest.mark.parametrize(
+    "code, message, expected",
+    [
+        (401, "invalid x-api-key", "ANTHROPIC_API_KEY was refused"),
+        (404, "model not found", "claude-haiku-5-5 not found"),
+        (400, "Your credit balance is too low", "credit of the account is exhausted"),
+        (400, "max_tokens: too large", "refused as malformed"),
+    ],
+)
+def test_claude_errors_that_do_not_go_away(code, message, expected):
+    body = json.dumps({"type": "error", "error": {"type": "x", "message": message}})
+    error = classify_http_error("claude", code, body)
+    assert isinstance(error, ProviderFatal) and expected in str(error)

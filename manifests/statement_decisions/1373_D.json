@@ -1,0 +1,19 @@
+{
+  "decision": "keep",
+  "differences": [
+    {
+      "context": "r integer k = ⌊(n-1)/(2)⌋ shou",
+      "kind": "formula",
+      "original": "k = ⌊\\frac{n-1}{2}⌋",
+      "ours": "(n-1)/(2)"
+    }
+  ],
+  "enunciado": null,
+  "problem_id": "1373_D",
+  "reason": "⌊\frac{n-1}{2}⌋ escrito como ⌊(n-1)/(2)⌋: mesma expressão, só outra notação.",
+  "reviewed_at": "2026-10-18",
+  "reviewed_by": "Claude, conferido contra o original a pedido de Milena Fernandes Rocha",
+  "schema_version": 1,
+  "sha256_before": "198f1392d7f24243a845e3007f81db4fe3b70254fd2c38e4066d9274ab382b40",
+  "suggested_enunciado": null
+}

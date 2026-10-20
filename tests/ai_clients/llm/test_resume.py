@@ -133,3 +133,33 @@ def test_resume_refuses_a_text_base_changed_without_change_template(
     err = capsys.readouterr().err
     assert "template_sha256: recorded" in err
     assert "change-template --model gpt --template llm" in err
+
+
+# ----------------------------------------------------------------------- Claude (specs/008)
+
+
+def claude(*extra):
+    return cli.main(["generate", "--model", "claude", "--confirm-spend", "5", *extra])
+
+
+def test_claude_resume_never_asks_a_recorded_attempt_again(providers, repo, monkeypatch):
+    monkeypatch.setenv(config.ENV_MAX_CONCURRENCY["claude"], "1")
+    providers["claude"].default = answer("claude", text="bad")
+    assert claude("--problem", "1_A", "--scenario", "hybrid") == cli.EXIT_MANUAL
+    assert claude("--resume", "--problem", "1_A", "--scenario", "hybrid") == cli.EXIT_MANUAL
+    assert providers["claude"].calls_of("1_A", "hybrid") == 3
+
+
+def test_claude_resume_refuses_another_effort(providers, repo, capsys):
+    assert claude("--problem", "1_A", "--scenario", "hybrid") == cli.EXIT_OK
+    path = store.run_path(repo, "claude")
+    data = json.loads(path.read_text())
+    params = data["request_parameters"]
+    data["request_parameters"] = {
+        **params,
+        "output_config": {**params["output_config"], "effort": "high"},
+    }
+    path.write_text(json.dumps(data))
+    capsys.readouterr()
+    assert claude("--resume") == cli.EXIT_USAGE
+    assert "the configuration differs from data/suites/claude/run.json" in capsys.readouterr().err

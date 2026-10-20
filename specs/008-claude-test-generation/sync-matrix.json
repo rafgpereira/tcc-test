@@ -1,0 +1,29 @@
+{
+ "rows": [
+  {
+   "id": "D1",
+   "methodology_section": "3",
+   "needles": [
+    "Claude Haiku 5.5"
+   ],
+   "source": "spec.md#D1"
+  },
+  {
+   "id": "D2",
+   "methodology_section": "3",
+   "needles": [
+    "mesmas condições da feature 004"
+   ],
+   "source": "spec.md#D2"
+  },
+  {
+   "id": "D3",
+   "methodology_section": "3",
+   "needles": [
+    "direto sobre a revisão 2 do dataset"
+   ],
+   "source": "spec.md#D3"
+  }
+ ],
+ "schema_version": 1
+}

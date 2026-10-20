@@ -1,0 +1,25 @@
+{
+  "decision": "keep",
+  "differences": [
+    {
+      "context": "elements from \\\\{a_1, a_2, …, ",
+      "kind": "other",
+      "original": "",
+      "ours": "\\"
+    },
+    {
+      "context": " elements from \\\\{b_1, b_2, …,",
+      "kind": "other",
+      "original": "",
+      "ours": "\\"
+    }
+  ],
+  "enunciado": null,
+  "problem_id": "981_B",
+  "reason": "Conjunto \\{a_1, ..., a_n\\} escrito com uma barra invertida a mais (\\{): diferença de escape do LaTeX, os elementos do conjunto são os mesmos.",
+  "reviewed_at": "2026-10-18",
+  "reviewed_by": "Claude, conferido contra o original a pedido de Milena Fernandes Rocha",
+  "schema_version": 1,
+  "sha256_before": "e72d20b102ca48ae4ea5cc8b87fe238309a804182121178514696781e34ad5a3",
+  "suggested_enunciado": null
+}

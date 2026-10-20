@@ -49,6 +49,9 @@ class SuiteStatus(str, Enum):
     ACCEPTED_FALLBACK = "accepted_fallback"  # its solution failed a public test by WA
     ACCEPTED_PREDICTED = "accepted_predicted"  # outputs written by the model, nothing run
     DISCARDED_MANUAL = "discarded_manual"  # closed by the authors, with a reason (no suite)
+    # Commercial models only: outputs written by the model in an answer that reported no
+    # reasoning, taken after 3 such answers (FR-018a, amended on 2026-10-20).
+    ACCEPTED_BARRED = "accepted_barred"
 
 
 class AttemptKind(str, Enum):

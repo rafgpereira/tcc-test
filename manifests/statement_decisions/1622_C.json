@@ -1,0 +1,25 @@
+{
+  "decision": "keep",
+  "differences": [
+    {
+      "context": " sum of array ∑_{i=1}^{n}{a_i}",
+      "kind": "formula",
+      "original": "∑\\limits_{i=1}^{n}{a_i} ≤ k",
+      "ours": ""
+    },
+    {
+      "context": "steps to make ∑_{i=1}^{n}{a_i}",
+      "kind": "formula",
+      "original": "∑\\limits_{i=1}^{n}{a_i} ≤ k",
+      "ours": ""
+    }
+  ],
+  "enunciado": null,
+  "problem_id": "1622_C",
+  "reason": "\\sum\\limits_{i=1}^{n}{a_i} escrito como ∑_{i=1}^{n}{a_i} (duas vezes): \\limits só muda a posição dos limites na tela, não o sentido.",
+  "reviewed_at": "2026-10-18",
+  "reviewed_by": "Claude, conferido contra o original a pedido de Milena Fernandes Rocha",
+  "schema_version": 1,
+  "sha256_before": "de5fe56fdb82b6123a7a1141ff46f11a13e45a5f2a2ea88d23880a62f6c6432c",
+  "suggested_enunciado": null
+}

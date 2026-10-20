@@ -101,6 +101,17 @@ def request_body(model: str, prompt: str) -> dict[str, Any]:
                 "thinkingConfig": {"thinkingLevel": config.REASONING_LEVEL},
             },
         }
+    if model == "claude":  # specs/008, research R1
+        return {
+            "max_tokens": config.MAX_OUTPUT_TOKENS,
+            "messages": [{"content": prompt, "role": "user"}],
+            "model": config.MODEL_ID["claude"],
+            "output_config": {
+                "effort": config.REASONING_LEVEL,
+                "format": {"schema": schema, "type": "json_schema"},
+            },
+            "thinking": {"type": "adaptive"},
+        }
     raise ValueError(f"unknown model {model!r}")
 
 
@@ -186,6 +197,41 @@ def _gemini_answer(data: dict, raw: str, latency_s: float) -> ProviderAnswer:
     return ProviderAnswer(finish=finish, text="".join(texts) if texts else None, **meta)
 
 
+def _claude_answer(data: dict, raw: str, latency_s: float) -> ProviderAnswer:
+    """A Messages API body (specs/008, research R3 and R4): the text blocks are the answer; the
+    thinking blocks are kept in the raw body only; the reasoning count is ``thinking_tokens``."""
+    usage = data.get("usage") or {}
+    thinking = (usage.get("output_tokens_details") or {}).get("thinking_tokens")
+    texts = [
+        block["text"]
+        for block in data.get("content") or []
+        if isinstance(block, dict)
+        and block.get("type") == "text"
+        and isinstance(block.get("text"), str)
+    ]
+    stop = str(data.get("stop_reason", ""))
+    category = (data.get("stop_details") or {}).get("category")
+    cached = _int(usage.get("cache_read_input_tokens"))
+    return ProviderAnswer(
+        http_status=200,
+        raw_body=raw,
+        latency_s=latency_s,
+        model_returned=str(data.get("model", "")),
+        response_id=str(data.get("id", "")),
+        finish=Finish(status=stop, reason=None if category is None else str(category)),
+        usage=Usage(
+            input_tokens=_int(usage.get("input_tokens"))
+            + cached
+            + _int(usage.get("cache_creation_input_tokens")),
+            cached_input_tokens=cached,
+            output_tokens=_int(usage.get("output_tokens")),
+            reasoning_tokens=None if thinking is None else _int(thinking),
+        ),
+        text="".join(texts) if texts else None,
+        refusal="".join(texts) if stop == "refusal" else None,
+    )
+
+
 def answer_from_body(model: str, raw: str, latency_s: float) -> ProviderAnswer:
     """Read an HTTP 200 body; a body that is not a JSON object is an outage (cut transfer)."""
     try:
@@ -196,6 +242,8 @@ def answer_from_body(model: str, raw: str, latency_s: float) -> ProviderAnswer:
         raise ProviderUnavailable("the body of an HTTP 200 answer is not a JSON object")
     if model == "gpt":
         return _openai_answer(data, raw, latency_s)
+    if model == "claude":
+        return _claude_answer(data, raw, latency_s)
     return _gemini_answer(data, raw, latency_s)
 
 
@@ -254,6 +302,8 @@ def classify_http_error(model: str, code: int, text: str, headers=None) -> Excep
     key_name = config.ENV_API_KEY[model]
     if model == "gpt" and code == 429 and error.get("code") == "insufficient_quota":
         return ProviderFatal(f"{model}: the quota or credit of the account is exhausted ({detail})")
+    if model == "claude" and code == 400 and "credit balance" in message.lower():
+        return ProviderFatal(f"{model}: the credit of the account is exhausted ({detail})")
     daily = _daily_quota(body) if code == 429 else None
     if daily:
         return ProviderFatal(
@@ -327,7 +377,18 @@ class GeminiClient(_Client):
         return {"x-goog-api-key": self._api_key, "Content-Type": "application/json"}
 
 
-CLIENTS = {"gpt": OpenAIClient, "gemini": GeminiClient}
+class ClaudeClient(_Client):
+    key = "claude"
+
+    def _headers(self) -> dict[str, str]:
+        return {
+            "anthropic-version": config.ANTHROPIC_VERSION,
+            "content-type": "application/json",
+            "x-api-key": self._api_key,
+        }
+
+
+CLIENTS = {"gpt": OpenAIClient, "gemini": GeminiClient, "claude": ClaudeClient}
 
 
 def make_provider(model: str, api_key: str, *, timeout_s: float) -> LLMProvider:

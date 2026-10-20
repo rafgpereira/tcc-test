@@ -143,7 +143,9 @@ def test_an_unknown_failure_is_refused():
 def test_a_suite_has_the_top_level_keys_of_the_slm_suite():
     from ai_clients.schemas.suite import SlmSuite
 
-    assert set(LlmSuite.model_fields) == set(SlmSuite.model_fields)
+    # barred_close only appears in a suite closed after answers without reasoning (omitted
+    # otherwise); the common reader ignores it.
+    assert set(LlmSuite.model_fields) - {"barred_close"} == set(SlmSuite.model_fields)
 
 
 def test_accepted_phase_is_always_null_and_discarded_inputs_always_empty():
@@ -221,6 +223,7 @@ def test_price_rows():
         ("gpt", "2026-10-15"),
         ("gemini", "2026-10-15"),
         ("gemini", "2027-01-01"),
+        ("claude", "2026-10-20"),
     ]
     with pytest.raises(ValidationError):
         PriceRow.model_validate({**rows[0].model_dump(), "output_per_mtok": -1})

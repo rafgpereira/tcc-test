@@ -1,0 +1,19 @@
+{
+  "decision": "keep",
+  "differences": [
+    {
+      "context": "llowing: a_i = (a_i)/(x), a_j ",
+      "kind": "formula",
+      "original": "a_i = \\frac{a_i}{x}",
+      "ours": "(a_i)/(x)"
+    }
+  ],
+  "enunciado": null,
+  "problem_id": "1113_B",
+  "reason": "Fração \frac{a_i}{x} escrita como (a_i)/(x): mesma expressão, só outra notação.",
+  "reviewed_at": "2026-10-18",
+  "reviewed_by": "Claude, conferido contra o original a pedido de Milena Fernandes Rocha",
+  "schema_version": 1,
+  "sha256_before": "c28d53dfd6036b7c9713b1066b478996a2d958a7f8b8a7264a5f9e9bad014639",
+  "suggested_enunciado": null
+}

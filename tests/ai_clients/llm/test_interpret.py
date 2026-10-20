@@ -6,8 +6,9 @@ import pytest
 
 from ai_clients.llm.interpret import interpret, needs_barrier
 from ai_clients.llm.providers import answer_from_body
+from ai_clients.llm.schemas import FormatFailure
 from dataset.schemas.testes import TestCase
-from tests.ai_clients.llm.fakes import answer_json, gemini_body, openai_body
+from tests.ai_clients.llm.fakes import answer, answer_json, gemini_body, openai_body
 
 EXAMPLE = TestCase(input="1\n", output="1\n")
 
@@ -149,3 +150,21 @@ def test_a_text_that_is_not_utf8_is_a_schema_violation_that_can_be_recorded():
 def test_the_interpretation_is_deterministic():
     raw = with_tests(("2\n", "2\n"), ("2\n", "3\n"))
     assert interpret(raw, EXAMPLE) == interpret(raw, EXAMPLE)
+
+
+# ----------------------------------------------------------------------- Claude (specs/008)
+
+
+@pytest.mark.parametrize("stop", ["max_tokens", "model_context_window_exceeded"])
+def test_a_claude_answer_cut_short_is_truncated(stop):
+    parse = interpret(answer("claude", '{"edge', stop_reason=stop), EXAMPLE)
+    assert parse.failure is FormatFailure.TRUNCATED and stop in parse.detail
+
+
+def test_a_claude_refusal_is_a_refusal():
+    parse = interpret(answer("claude", "No.", stop_reason="refusal", category="bio"), EXAMPLE)
+    assert parse.failure is FormatFailure.REFUSAL
+
+
+def test_a_normal_claude_answer_is_parsed():
+    assert interpret(answer("claude"), EXAMPLE).ok

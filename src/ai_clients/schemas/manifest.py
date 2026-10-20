@@ -19,9 +19,11 @@ _COMBINATION_FILE = (
     rf"attempt_({_ATTEMPT_NUMBERS})\.(generation|execution)\.json)"
 )
 # The files of each combination, run.json and, since research R27, the template changes and the
-# files they moved aside (superseded/<NNN>/ holds combination files, with the same names).
+# files they moved aside (superseded/<NNN>/ holds combination files, with the same names). After a
+# dataset revision (specs/007), the package also holds the previous run (suites/slm-rev<N>/) and
+# provenance.json, the origin of each combination.
 SUITE_PATH = re.compile(
-    rf"^{config.ZIP_ROOT}/(run\.json|problems/{_COMBINATION_FILE}|"
+    rf"^{config.ZIP_ROOT}(-rev\d+)?/(run\.json|provenance\.json|problems/{_COMBINATION_FILE}|"
     rf"{config.TEMPLATE_CHANGES_DIR}/\d{{3}}\.json|"
     rf"{config.SUPERSEDED_DIR}/\d{{3}}/{_COMBINATION_FILE})$"
 )

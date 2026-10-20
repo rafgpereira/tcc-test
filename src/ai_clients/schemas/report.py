@@ -27,7 +27,8 @@ from dataset.schemas.common import Schema
 
 TOTAL = "total"
 GROUPS = (TOTAL, *config.SCENARIOS)  # every per-scenario table also has the total
-STATUSES = tuple(status.value for status in SuiteStatus)
+# The SLM never has accepted_barred (an answer without reasoning of a commercial model).
+STATUSES = tuple(s.value for s in SuiteStatus if s is not SuiteStatus.ACCEPTED_BARRED)
 WITH_TESTS = tuple(s for s in STATUSES if s != SuiteStatus.DISCARDED_MANUAL.value)
 STATES = (*STATUSES, "awaiting_manual", "pending_generation", "pending_execution")
 SUITE_PHASES = ("1", "2", "3", "4")  # 3: the fallback, chosen without a call

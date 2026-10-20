@@ -40,8 +40,8 @@ def test_package_ignores_the_other_model(finished_gpt, repo, capsys):
     assert cli.main(["package", "--model", "gpt"]) == cli.EXIT_OK
     out = capsys.readouterr().out
     assert (
-        "packaged 6 combinations (6 accepted_predicted, 0 discarded_manual): data/gpt_suites.zip"
-        in out
+        "packaged 6 combinations (6 accepted_predicted, 0 accepted_barred, 0 discarded_manual): "
+        "data/gpt_suites.zip" in out
     )
     with zipfile.ZipFile(repo / config.zip_path("gpt")) as archive:
         names = archive.namelist()

@@ -1,0 +1,19 @@
+{
+  "decision": "keep",
+  "differences": [
+    {
+      "context": "n is equal to ∑_{i=1}^{k} (max",
+      "kind": "formula",
+      "original": "∑\\limits_{i=1}^{k} (max(i) - min(i))",
+      "ours": ""
+    }
+  ],
+  "enunciado": null,
+  "problem_id": "1197_C",
+  "reason": "Somatório \\sum\\limits_{i=1}^{k} escrito como ∑_{i=1}^{k}: \\limits só muda a posição dos limites na tela, não o sentido.",
+  "reviewed_at": "2026-10-18",
+  "reviewed_by": "Claude, conferido contra o original a pedido de Milena Fernandes Rocha",
+  "schema_version": 1,
+  "sha256_before": "8ba55cf525c17ae56fd7ff6fa8f3aa8c052995c4f36372d989029fc559bd487b",
+  "suggested_enunciado": null
+}

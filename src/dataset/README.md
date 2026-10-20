@@ -107,6 +107,12 @@ uma pasta por problema com `enunciado.md`, `AC_ref.cpp` (a solução correta), `
 `validacao.json`. Sem `unzip`: `docker compose run --rm app python -m zipfile -e data/dataset.zip
 data/`.
 
+**Revisão do dataset.** O `data/dataset.zip` versionado é a revisão indicada no manifesto (campo `revision`; sem ele, a revisão 1). A revisão 2 só corrige enunciados (expoentes e índices perdidos na extração); o que mudou está em `manifests/dataset_revision.json`. A revisão anterior fica guardada só para auditoria, e nenhum comando a usa; para conferir a integridade dela:
+
+```bash
+docker compose run --rm app python -m dataset verify --zip data/dataset.rev1.zip --manifest manifests/dataset.rev1.manifest.json
+```
+
 **Conferir os enunciados contra o original do Codeforces**, sem acessar o site, quando o pacote
 `data/statement_originals.zip` e o manifesto dele já estão no repositório:
 
@@ -130,6 +136,7 @@ relatório versionado, e nenhuma linha `fetch:` (nenhum acesso ao site).
 | `python -m dataset verify` | `app` | confere o zip contra o manifesto; `--extracted DIR` confere também a pasta descompactada (`DIR` é `data/dataset`); `--zip PATH`, `--manifest PATH` |
 | `python -m dataset check-statements` | `app` | compara cada `enunciado.md` com o enunciado original no Codeforces. Na primeira vez, baixa a página de cada problema, **uma por vez, a cada 3 s ou mais** (pelo menos 10 minutos para os 200), e guarda a cópia em `data/statements/originals/`, com o hash em `manifests/statement_originals.manifest.json`; depois disso não acessa mais o site. Lista cada diferença com o trecho e o tipo, dado pelo que estava no original naquele ponto: `lost_exponent` (`10^5` virou `105`), `lost_index` (`a_i` virou `ai`), `formula`, `image`, `table` ou `other`. Grava `manifests/statement_fidelity_report.json` e o pacote `data/statement_originals.zip` (só os blocos do enunciado, sempre com os mesmos bytes para os mesmos blocos). Perdas não são falha: saída `0`. `--problem ID` (repetível) só imprime o resultado daqueles problemas e não grava o relatório. `--refetch` baixa de novo, mesmo com cópia; página inexistente (404) ou sem o enunciado só é tentada de novo com ele. Site recusando pedidos ou fora do ar: espera 30 s a 5 min e repete; esgotadas as esperas, sai com `3` e guarda o que já baixou (rodar de novo continua). Cópia alterada ou dataset diferente do manifesto: `1` |
 | `python -m dataset correct-statements --output-dir data/statements/corrected` | `app` | grava, **para revisão**, os enunciados com os expoentes e índices que o original tem: o texto atual com `^{...}` e `_{...}` inseridos nos lugares que o `check-statements` encontrou, e as tabelas em Markdown. Só aceita um enunciado se ele passar em três conferências: (1) tirando as marcas, o texto é o original; (2) não sobra expoente ou índice perdido; (3) só as marcas mudaram. Grava `<id>.md` e `summary.json` numa pasta só; os que têm imagem, fórmula diferente ou outra diferença vão para a lista `review`, com o motivo. **Nunca altera o dataset.** Pasta com arquivos: `2`, a menos que se use `--force`; nunca dentro de `data/dataset/`, `data/suites/` ou `manifests/`. Sem o relatório do `check-statements`: `1` |
+| `python -m dataset revise` | `app` | gera a **revisão 2** do dataset: só os `enunciado.md` mudam, todos os outros arquivos ficam com os mesmos bytes. Os enunciados que o `correct-statements` corrige sozinho (aprovados nas três conferências) são refeitos a partir do relatório do `check-statements`; os da lista de revisão usam a decisão dos autores em `manifests/statement_decisions/<id>.json` (`correct`, com o texto corrigido, ou `keep`, com o motivo, nome e data). Recusa (`1`, nada gravado) se faltar decisão, se uma decisão mudar texto que o relatório não apontou como diferente, se o relatório for de outro dataset ou se o dataset descompactado não bater com o manifesto. Guarda a revisão 1 em `data/dataset.rev1.zip` e `manifests/dataset.rev1.manifest.json` e grava o zip novo, o manifesto (com a revisão e de onde ela veio) e `manifests/dataset_revision.json` (o que mudou, com o hash antes e depois). Imprime o `unzip` a rodar e os `generate`/`execute` das combinações do modelo local afetadas (caixa-preta e híbrido dos enunciados alterados). `--draft-decisions` grava um rascunho de decisão para cada problema em revisão que ainda não tem (o texto atual, as diferenças com o trecho do original e a sugestão de marcação; nunca sobrescreve). `--dry-run` faz todas as conferências sem gravar. Revisão 2 já existente: `1` |
 | `pytest tests/dataset` | `sandbox` | testes do módulo |
 
 Códigos de saída: `0` sucesso, `1` falha de dados (déficit, integridade), `2` uso incorreto, `3`
@@ -181,6 +188,8 @@ Duas pastas parecidas, com finalidades diferentes:
 | `data/work/problems/<id>/validacao.json` | veredito de cada código, padrão de C++ usado, tempo e memória máximos | comprova que cada código passou pelo motor |
 | `manifests/statement_originals.manifest.json`, `data/statement_originals.zip` | URL, data e SHA-256 de cada página original do Codeforces e do bloco do enunciado; o pacote só com os blocos | **versionados**; o `check-statements` roda a partir deles sem acessar o site |
 | `manifests/statement_fidelity_report.json` | por problema, as diferenças entre o original e o `enunciado.md`, com tipo e trecho; os totais por tipo | **versionado** |
+| `data/dataset.rev1.zip`, `manifests/dataset.rev1.manifest.json` | a revisão 1, guardada pelo `revise` | **versionados**; só para auditoria |
+| `manifests/dataset_revision.json`, `manifests/statement_decisions/<id>.json` | o que a revisão 2 mudou (origem automática ou manual, hash antes e depois) e cada decisão dos autores | **versionados** |
 | `data/statements/originals/`, `data/statements/corrected/` | as páginas inteiras; os enunciados corrigidos para revisão | não versionados |
 
 ## (e) Dependências e pré-requisitos
@@ -225,3 +234,4 @@ Duas pastas parecidas, com finalidades diferentes:
 | `check-statements --problem` (5 problemas) | 2026-10-18 | 9df4f0e+dirty |
 | `check-statements` (200 problemas; inclusive a segunda execução sem acesso ao site) | 2026-10-18 | 9df4f0e+dirty |
 | `correct-statements` | 2026-10-18 | 9df4f0e+dirty |
+| `revise` (inclusive `--draft-decisions` e `--dry-run`) | 2026-10-18 | 29d9245+dirty |

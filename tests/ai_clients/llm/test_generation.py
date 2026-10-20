@@ -131,23 +131,62 @@ def test_an_error_that_does_not_go_away_stops_at_once(providers, repo, capsys):
 @pytest.mark.parametrize("reasoning", [0, None])
 def test_an_answer_without_reasoning_is_barred(providers, repo, capsys, model, reasoning):
     providers[model].default = answer(model, reasoning=reasoning)
-    assert run(model=model) == cli.EXIT_NO_REASONING
+    assert run(model=model) == cli.EXIT_OK  # a barred answer does not stop the command
     captured = capsys.readouterr()
     assert "barred: 1_A black_box" in captured.out
+    assert "1_A black_box: suite recorded (accepted_barred)" in captured.out
+    assert "barred: 3 answer(s) without reasoning" in captured.out
     barred = store.read_barred(repo, model)
-    assert len(barred) == 1 and barred[0].cost_usd > 0
-    assert store.combination_state(repo, model, "1_A", "black_box").kind == "pending"
-    assert providers[model].calls_of("1_A", "black_box") == 1  # nothing new was sent
-    assert "spent US$" in captured.out and barred[0].cost_usd > 0
+    assert len(barred) == config.MAX_BARRED and all(b.cost_usd > 0 for b in barred)
+    assert all(b.parse is not None and b.parse.ok for b in barred)
+    assert store.read_attempt(repo, model, "1_A", "black_box", 1) is None  # never an attempt
+    suite = store.read_suite(repo, model, "1_A", "black_box")
+    assert suite.status.value == "accepted_barred" and suite.tests == barred[2].parse.tests
+    assert suite.attempts == [] and suite.accepted_attempt is None
+    assert (suite.barred_close.responses, suite.barred_close.accepted) == (3, 3)
+    assert store.combination_state(repo, model, "1_A", "black_box").kind == "terminal"
+    assert run("--resume", model=model) == cli.EXIT_OK
+    assert providers[model].calls_of("1_A", "black_box") == config.MAX_BARRED
 
 
-def test_nothing_new_is_sent_after_a_barred_answer(providers, repo, monkeypatch):
-    # One call at a time: with more, the calls already in flight finish (test_concurrency.py).
+def test_a_barred_answer_is_asked_again_and_reasoning_wins(providers, repo, monkeypatch):
     monkeypatch.setenv(config.ENV_MAX_CONCURRENCY["gpt"], "1")
-    providers["gpt"].table[("1_A", "black_box", 1)] = answer("gpt", reasoning=0)
+    provider = providers["gpt"]
+    calls = []
+    original = provider.call
+
+    def call(prompt):
+        reply = original(prompt)
+        calls.append(1)
+        return answer("gpt", reasoning=0) if len(calls) == 1 else reply
+
+    provider.call = call
     code = cli.main(["generate", "--model", "gpt", "--problem", "1_A", "--confirm-spend", "10"])
-    assert code == cli.EXIT_NO_REASONING
-    assert [(p, s) for p, s, _ in providers["gpt"].requests] == [("1_A", "black_box")]
+    assert code == cli.EXIT_OK
+    assert len(store.read_barred(repo, "gpt")) == 1
+    suite = store.read_suite(repo, "gpt", "1_A", "black_box")
+    assert suite.status.value == "accepted_predicted" and suite.accepted_attempt == 1
+    assert (
+        "barred_close"
+        not in (store.combination_dir(repo, "gpt", "1_A", "black_box") / "suite.json").read_text()
+    )
+
+
+def test_a_barred_combination_does_not_stop_the_others(providers, repo, monkeypatch):
+    monkeypatch.setenv(config.ENV_MAX_CONCURRENCY["gpt"], "1")
+    for n in range(1, config.MAX_BARRED + 1):  # the same attempt, asked again
+        providers["gpt"].table[("1_A", "black_box", n)] = answer("gpt", reasoning=0)
+    code = cli.main(["generate", "--model", "gpt", "--problem", "1_A", "--confirm-spend", "10"])
+    assert code == cli.EXIT_OK
+    assert [(p, s) for p, s, _ in providers["gpt"].requests] == [
+        ("1_A", "black_box"),
+        ("1_A", "black_box"),
+        ("1_A", "black_box"),
+        ("1_A", "white_box"),
+        ("1_A", "hybrid"),
+    ]
+    statuses = [store.read_suite(repo, "gpt", "1_A", s).status.value for s in config.SCENARIOS]
+    assert statuses == ["accepted_barred", "accepted_predicted", "accepted_predicted"]
 
 
 # -------------------------------------------------------------------------------- the command
@@ -192,3 +231,35 @@ def test_the_suite_json_is_what_the_attempts_give(providers, repo):
     )
     assert suite["accepted_attempt"] == 2 and suite["suite_size"] == 2
     assert [a["failure"] for a in suite["attempts"]] == ["not_json", None]
+
+
+def test_a_claude_prompt_over_the_price_limit_is_refused_before_the_call(
+    providers, repo, monkeypatch, capsys
+):
+    monkeypatch.setattr(config, "CLAUDE_PROMPT_TOKEN_LIMIT", 10)
+    assert run(model="claude") == cli.EXIT_INFRA
+    assert "a prompt over 10 tokens has another price" in capsys.readouterr().err
+    assert providers["claude"].requests == []
+
+
+def test_claude_records_its_parameters_and_the_same_template_as_gemini(providers, repo):
+    assert run(model="claude") == cli.EXIT_OK and run(model="gemini") == cli.EXIT_OK
+    claude, gemini = store.read_run(repo, "claude"), store.read_run(repo, "gemini")
+    assert claude.template_sha256 == gemini.template_sha256
+    assert claude.dataset_manifest_sha256 == gemini.dataset_manifest_sha256
+    params = claude.request_parameters
+    assert params["model"] == "claude-haiku-5-5" and params["max_tokens"] == 32768
+    assert params["thinking"] == {"type": "adaptive"}
+    assert params["output_config"]["effort"] == "medium"
+    assert params["messages"] == [{"content": "<prompt>", "role": "user"}]
+
+
+def test_the_common_reader_reads_a_claude_suite_even_accepted_barred(providers, repo):
+    from ai_clients.schemas.suite_view import read_suite_view
+
+    providers["claude"].default = answer("claude", reasoning=0)
+    assert run(model="claude") == cli.EXIT_OK
+    path = store.combination_dir(repo, "claude", "1_A", "black_box") / config.SUITE_FILE
+    view = read_suite_view(path)
+    assert view.model == "claude-haiku-5-5" and view.status.value == "accepted_barred"
+    assert view.suite_size == len(view.tests) > 0

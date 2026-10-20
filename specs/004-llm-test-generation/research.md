@@ -427,7 +427,7 @@ cada tentativa (FR-009).
 
 Uma resposta HTTP 200 passa por quatro conferências, nesta ordem. A primeira que falhar decide o
 resultado.
-1. **Raciocínio (A12, FR-018a).** Se os *tokens* de raciocínio forem 0 ou não vierem, a resposta
+1. **Raciocínio (A12, FR-018a; emenda de 2026-10-20: a resposta é interpretada e guardada, a tentativa é pedida de novo até 3 barradas, e então a suíte é `accepted_barred`; sem código 6).** Se os *tokens* de raciocínio forem 0 ou não vierem, a resposta
    é barrada: fica gravada em `barred/`, o envio de chamadas novas para, e o código de saída é 6.
 2. **Término.** Uma resposta cortada pelo teto de saída é a falha `truncated` (OpenAI
    `incomplete`/`max_output_tokens`; Gemini `MAX_TOKENS`). Uma recusa ou um bloqueio é a falha

@@ -58,16 +58,19 @@ def _file_info(path: str) -> zipfile.ZipInfo:
     return info
 
 
-def _planned_entries(root: Path, problem_ids: list[str]) -> list[tuple[str, Path | None]]:
+def _planned_entries(
+    root: Path, problem_ids: list[str], problems_dir: Path | None = None
+) -> list[tuple[str, Path | None]]:
     """`(zip_path, source_file_or_None)`, `None` for directories; sorted by `zip_path`."""
     entries: list[tuple[str, Path | None]] = [
         (f"{ZIP_ROOT}/", None),
         (f"{ZIP_ROOT}/problems/", None),
     ]
+    base = Path(root) / (config.PROBLEMS_DIR if problems_dir is None else problems_dir)
     for pid in problem_ids:
         prefix = f"{ZIP_ROOT}/problems/{pid}"
         entries.append((f"{prefix}/", None))
-        folder = Path(root) / config.PROBLEMS_DIR / pid
+        folder = base / pid
         for file_path in sorted(folder.iterdir()):
             if file_path.is_file():
                 entries.append((f"{prefix}/{file_path.name}", file_path))
@@ -75,14 +78,23 @@ def _planned_entries(root: Path, problem_ids: list[str]) -> list[tuple[str, Path
     return entries
 
 
-def build_dataset_zip(root: Path, zip_path: Path) -> PackageResult:
-    """Build the zip atomically (temp file + `os.replace`) from every `complete` problem."""
+def build_dataset_zip(
+    root: Path, zip_path: Path, problems_dir: Path | None = None
+) -> PackageResult:
+    """Build the zip atomically (temp file + `os.replace`) from every `complete` problem.
+
+    With ``problems_dir`` (relative to ``root``), every problem folder there is packaged instead:
+    how ``revise`` packages a revision from a copy of the extracted dataset.
+    """
     root, zip_path = Path(root), Path(zip_path)
-    problem_ids = list_complete_problems(root)
+    if problems_dir is None:
+        problem_ids = list_complete_problems(root)
+    else:
+        problem_ids = sorted(p.name for p in (root / problems_dir).iterdir() if p.is_dir())
     tmp_path = zip_path.with_name(f".{zip_path.name}.tmp")
     try:
         with zipfile.ZipFile(tmp_path, "w") as zf:
-            for entry_path, source in _planned_entries(root, problem_ids):
+            for entry_path, source in _planned_entries(root, problem_ids, problems_dir):
                 if source is None:
                     zf.writestr(_dir_info(entry_path), b"")
                 else:

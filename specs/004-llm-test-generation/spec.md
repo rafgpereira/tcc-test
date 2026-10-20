@@ -79,7 +79,7 @@ escopo: o SLM, a execução das suítes contra AC/WA/mutantes e o cálculo das m
 - Q: Uma resposta com zero tokens de raciocínio deve só ser conferida no piloto ou barrar
   automaticamente toda a execução? → A: Barreira automática em toda execução, nos dois modelos: a
   resposta é gravada, o comando para na hora com código próprio, sem gastar tentativa, e os
-  autores investigam antes de retomar (A12; FR-018a).
+  autores investigam antes de retomar (A12; FR-018a). **Emenda de 2026-10-20 (decisão de Milena, na execução completa do Gemini)**: a resposta sem raciocínio continua gravada em `barred/`, fora das tentativas (não gasta tentativa), agora também interpretada; o comando **não para mais** (o código 6 deixa de ser usado): a mesma tentativa é pedida de novo, até 3 respostas sem raciocínio por combinação (contadas à parte das 3 tentativas com falha de formato). Na terceira, a suíte é `accepted_barred`, com os testes da última resposta barrada legível (`barred_close`: quantas e qual); se nenhuma for legível, a combinação aguarda os autores (`close`, `discarded_manual`). Respostas barradas antes da emenda (sem interpretação) não decidem: a combinação recebe mais um pedido. Motivo medido: a `1201_B` caixa-preta foi barrada 6 vezes seguidas (o modelo não raciocina nela), e cada parada exigia um `--resume` à mão.
 - Q: As chamadas ao Gemini enviam configurações de filtro de segurança explícitas ou usam o padrão
   da API? → A: Não enviam `safetySettings` (vale o padrão da API); cada bloqueio é gravado com a
   categoria informada e contado à parte no relatório, e os autores revisitam a decisão se o piloto
@@ -320,7 +320,7 @@ faltando ou sobrando é apontada pelo `check`.
   sai com código próprio e a retomada continua com um teto novo (FR-022a).
 - **Resposta sem raciocínio** (zero tokens de raciocínio, ou a contagem não vem): a resposta é
   gravada fora das tentativas, nenhuma chamada nova sai e o comando para com código próprio, sem
-  gastar tentativa; os autores investigam antes de retomar (FR-018a).
+  gastar tentativa; os autores investigam antes de retomar (FR-018a). Desde 2026-10-20: o comando não para; a combinação é pedida de novo até 3 respostas sem raciocínio e, então, fica `accepted_barred` com a última legível.
 - **Dataset local ausente ou diferente do manifesto**: a geração recusa antes de qualquer chamada,
   como no SLM.
 - **Chave de API presente só para um dos modelos**: o modelo sem chave não roda; o outro roda
@@ -464,7 +464,7 @@ faltando ou sobrando é apontada pelo `check`.
   andamento terminam e passam pela mesma conferência); e o comando MUST sair com um código de saída
   próprio, diferente dos de FR-016, FR-018 e FR-022a, dizendo o modelo, a combinação e a contagem
   recebida. Os autores investigam antes de retomar; na retomada, a chamada da combinação afetada é
-  refeita (o custo da resposta barrada é pago e registrado no relatório à parte). O custo dessas
+  refeita (o custo da resposta barrada é pago e registrado no relatório à parte). **Emenda de 2026-10-20 (decisão de Milena, na execução completa do Gemini)**: a resposta sem raciocínio continua gravada em `barred/`, fora das tentativas (não gasta tentativa), agora também interpretada; o comando **não para mais** (o código 6 deixa de ser usado): a mesma tentativa é pedida de novo, até 3 respostas sem raciocínio por combinação (contadas à parte das 3 tentativas com falha de formato). Na terceira, a suíte é `accepted_barred`, com os testes da última resposta barrada legível (`barred_close`: quantas e qual); se nenhuma for legível, a combinação aguarda os autores (`close`, `discarded_manual`). Respostas barradas antes da emenda (sem interpretação) não decidem: a combinação recebe mais um pedido. Motivo medido: a `1201_B` caixa-preta foi barrada 6 vezes seguidas (o modelo não raciocina nela), e cada parada exigia um `--resume` à mão. O custo dessas
   respostas MUST contar no gasto da invocação (FR-022a).
 
 ### Reprodutibilidade e custo

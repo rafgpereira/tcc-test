@@ -79,6 +79,13 @@ DATASET_ZIP = DATA_DIR / "dataset.zip"
 MANIFEST_PATH = Path("manifests") / "dataset.manifest.json"
 EXTRACTED_PROBLEMS_DIR = DATA_DIR / "dataset" / "problems"  # what `unzip data/dataset.zip` gives
 
+# Numbered revisions of the dataset (constitution 1.8.0; python -m dataset revise).
+REVISION1_ZIP = DATA_DIR / "dataset.rev1.zip"  # revision 1, kept for audit
+REVISION1_MANIFEST = Path("manifests") / "dataset.rev1.manifest.json"
+REVISION_RECORD = Path("manifests") / "dataset_revision.json"
+STATEMENT_DECISIONS_DIR = Path("manifests") / "statement_decisions"  # one <id>.json per problem
+REVISION_WORK_DIR = WORK_DIR / "revision2"
+
 # The original statements on Codeforces (check-statements / correct-statements). Flat folders:
 # one file per problem, never a folder per problem.
 STATEMENTS_DIR = DATA_DIR / "statements"

@@ -31,7 +31,11 @@ def show(model, output="out/request.json", *extra):
 
 
 def prompt_in(model, body):
-    return body["input"] if model == "gpt" else body["contents"][0]["parts"][0]["text"]
+    if model == "gpt":
+        return body["input"]
+    if model == "claude":
+        return body["messages"][0]["content"]
+    return body["contents"][0]["parts"][0]["text"]
 
 
 @pytest.mark.parametrize("model", config.MODELS)
@@ -97,15 +101,15 @@ def test_the_recorded_parameters_are_used_even_if_the_code_changed(providers, re
 @pytest.mark.parametrize("model", config.MODELS)
 def test_a_barred_response_can_be_written(providers, repo, capsys, model):
     providers[model].default = answer(model, reasoning=0)
-    assert generate(model) == cli.EXIT_NO_REASONING
+    assert generate(model) == cli.EXIT_OK  # 3 barred answers, then accepted_barred
     capsys.readouterr()
     assert show(model, "out/b.json", "--barred", "1") == cli.EXIT_OK
     assert "barred response 1 (no reasoning tokens); prompt sha256 matches" in (
         capsys.readouterr().out
     )
     assert json.loads((repo / "out/b.json").read_text()) == providers[model].requests[0][2]
-    assert show(model, "out/c.json", "--barred", "2") == cli.EXIT_USAGE
-    assert "has no barred response 2 (barred responses: 1)" in capsys.readouterr().err
+    assert show(model, "out/c.json", "--barred", "4") == cli.EXIT_USAGE
+    assert "has no barred response 4 (barred responses: 1–3)" in capsys.readouterr().err
     assert show(model, "out/d.json", "--barred", "1", "--attempt", "1") == cli.EXIT_USAGE
 
 

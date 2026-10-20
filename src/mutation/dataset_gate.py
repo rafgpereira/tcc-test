@@ -10,7 +10,7 @@ from pathlib import Path
 
 from dataset.integrity import manifest as dataset_manifest
 from dataset.integrity import verify as dataset_verify
-from dataset.schemas.manifest import Manifest
+from dataset.schemas.manifest import parse_manifest
 from mutation import config
 
 
@@ -35,7 +35,7 @@ def verify_dataset(root: Path) -> None:
     """
     root = Path(root)
     manifest_path = root / config.DATASET_MANIFEST_PATH
-    manifest = Manifest.model_validate_json(manifest_path.read_text(encoding="utf-8"))
+    manifest = parse_manifest(manifest_path.read_text(encoding="utf-8"))
     zip_entry = manifest.dataset_zip.path
     # ``verify`` also reports the zip; the extracted tree is all this gate is about.
     zip_path = root / zip_entry

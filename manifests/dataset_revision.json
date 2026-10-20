@@ -1,0 +1,1147 @@
+{
+  "changed": [
+    {
+      "markups": {
+        "lost_exponent": 1
+      },
+      "origin": "automatic",
+      "problem_id": "102_B",
+      "reason": null,
+      "sha256_after": "b8e26141f1bb47f572fed7a7c3e40179854f24e1f1b0341675c0ed7a84edd7d5",
+      "sha256_before": "d9c399b6fb8d3555b5906a1a187aa0ce7c85fa99ada3aa32682b107eb0b75e9f"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1,
+        "lost_index": 7
+      },
+      "origin": "automatic",
+      "problem_id": "134_A",
+      "reason": null,
+      "sha256_after": "2608506db1e487eb20dcca9221b8abfbd2344a222c7e991d99c59b231e8a0a93",
+      "sha256_before": "904db4e4e118cd4ef258b728462d4b882bad9a4a8d528705c97d41b985f42aa8"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1
+      },
+      "origin": "automatic",
+      "problem_id": "143_C",
+      "reason": null,
+      "sha256_after": "42f2969432d75ce10f05b16c1c34c5f2d86f641d009c138a374f1e1456309e70",
+      "sha256_before": "7063c12419fb13268b2f10297f2cde90724fbdf86d35a1fc90650c920d08894a"
+    },
+    {
+      "markups": {
+        "lost_index": 6
+      },
+      "origin": "automatic",
+      "problem_id": "148_B",
+      "reason": null,
+      "sha256_after": "d16748f24c03133e294afec489d33510a2fbeea202c97f84fefa0f3021b98b36",
+      "sha256_before": "79472794e2de0e6d5fee1f15f10816d813452a049d2e829ba7d80754fd18f2a4"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2
+      },
+      "origin": "automatic",
+      "problem_id": "151_D",
+      "reason": null,
+      "sha256_after": "5041a73bed1c510295853d079f1706055f0e444eb724efafab109ce5cf486ca3",
+      "sha256_before": "169a591ac4995a8eb8b45b729959640ab077eb6b95a705eb95200e07462e4e70"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1
+      },
+      "origin": "automatic",
+      "problem_id": "155_C",
+      "reason": null,
+      "sha256_after": "bc6a379190b0576263c049dbf6f621bda9218dc4dc94d68b72f4955b6673a2a3",
+      "sha256_before": "0e516e0d8c5ee870afb0ea3f1154300c8c343d47734f4865a5a81662cf4584e7"
+    },
+    {
+      "markups": {
+        "lost_index": 6
+      },
+      "origin": "automatic",
+      "problem_id": "15_A",
+      "reason": null,
+      "sha256_after": "4bfe82073954ab0a214539c2f4b4094f49232e0b78b6c1dd86843ca49b1aa949",
+      "sha256_before": "924406886f090ae4f52c657cfed7df46d9e1b05221943e1834fbb8214d848f8e"
+    },
+    {
+      "markups": {
+        "lost_exponent": 4,
+        "lost_index": 21
+      },
+      "origin": "automatic",
+      "problem_id": "161_A",
+      "reason": null,
+      "sha256_after": "a25b3c7075948a9d1046167f97d2231af53754e2ed2a5b3f6e0f4dd41ed2ff69",
+      "sha256_before": "a7d8bc5ab9a896c9a87767d195aa2104615c4a50a8be9591e0f0ea1a67e2c9f3"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2
+      },
+      "origin": "automatic",
+      "problem_id": "165_C",
+      "reason": null,
+      "sha256_after": "5c2a124733c36a629952316838b424eca85a0c1913f7264035604a35788f4580",
+      "sha256_before": "771178cd2a6c7f50e4119a11127bbeb60a295c67f3af48d54c2c5855f8e00a66"
+    },
+    {
+      "markups": {
+        "lost_exponent": 3,
+        "lost_index": 11
+      },
+      "origin": "automatic",
+      "problem_id": "178_A1",
+      "reason": null,
+      "sha256_after": "880290c27b1cbb32e74fe54e16cce86ae9d66307c39e5022e693c338f78d64e8",
+      "sha256_before": "7c03ecf3c541ced3726981fe0af09c96c92d7eaf51e7954aefe3a4b666168e0b"
+    },
+    {
+      "markups": {
+        "lost_index": 10
+      },
+      "origin": "automatic",
+      "problem_id": "181_C",
+      "reason": null,
+      "sha256_after": "2029cc0029b219b8247f492a585f6c5e48725704b77537d171baf85c5ee3d381",
+      "sha256_before": "597ba62359214adf58834ac00eef570d336801c7803515b69f550140a3974b76"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1,
+        "lost_index": 4
+      },
+      "origin": "automatic",
+      "problem_id": "182_B",
+      "reason": null,
+      "sha256_after": "4bfd0ef6d23f2cbfcad02a3224d84af55a2e490baaba05df3942ae2db1d58b9b",
+      "sha256_before": "a83149a6caf3ece9a389e812d4f296b2d8c7e4188b146ce5a4e7518bf418f23d"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1
+      },
+      "origin": "automatic",
+      "problem_id": "189_C",
+      "reason": null,
+      "sha256_after": "02a760531285b34bb58eb1c67ced6f3070a4513906a3ed10d0be63afb55cb5a9",
+      "sha256_before": "8d9d16ba9b4225d46988dc8f6207eefd19076bcbe1859dea1930637152bb9188"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1
+      },
+      "origin": "automatic",
+      "problem_id": "18_C",
+      "reason": null,
+      "sha256_after": "9ed4aaaa6bb1b2f58c38b24e10333c34bd2492f9bdabae47f134fc80943935ac",
+      "sha256_before": "b053fc00f09557b9800fe2d3ef6872b161d42711e8152bff69798bdf383e59bf"
+    },
+    {
+      "markups": {},
+      "origin": "manual",
+      "problem_id": "190_A",
+      "reason": "Expoente perdido na extração: o original diz 0 ≤ n, m ≤ 10^5, o dataset dizia 105. A outra diferença (\"In the third sample there are two cases:\") é só o marcador da lista da nota, o texto é o mesmo.",
+      "sha256_after": "245366f0fe33970ffa211448a9ae62c42845766bcc3cd8b95c87a1efceeb63f9",
+      "sha256_before": "123c44ad1c24cbca762e04770d2f433ce91f08f39c7c2a9006bb96f06e4eb48d"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 5
+      },
+      "origin": "automatic",
+      "problem_id": "192_B",
+      "reason": null,
+      "sha256_after": "7f52470ce500618485b4c06e517b734d8d57bc7988010cf0a9b122f5c7004f55",
+      "sha256_before": "14b55416b48f14cedb7e299377225ec3b48cd47ed1408eb01ef9a52af09dc28d"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2
+      },
+      "origin": "automatic",
+      "problem_id": "1_B",
+      "reason": null,
+      "sha256_after": "0128d118fbcd427e78061305086c0b15f2a00a7b567ab38c7ffca647f1826f48",
+      "sha256_before": "c7ed2d03612407a1d87c741af4690939779415be716fc487b4629720380d2a7f"
+    },
+    {
+      "markups": {
+        "lost_index": 10
+      },
+      "origin": "automatic",
+      "problem_id": "203_A",
+      "reason": null,
+      "sha256_after": "ea89798cf8a86f2ad444a4e6ae7025f9ae0530fd08506cb931c761a35f0c5f02",
+      "sha256_before": "fce5940ca2d0566f0e8a4ec3f4de135503f8bdc5ab15eb1ac9680c688c092863"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1,
+        "lost_index": 4
+      },
+      "origin": "automatic",
+      "problem_id": "203_B",
+      "reason": null,
+      "sha256_after": "91b9286976cf37a6c58cb04e7f655fc7c665cc42e58dd4bbc75f7a5b17646519",
+      "sha256_before": "4d0d9862597f70874be8a8f6ae58e87bc2d7f8d9cbdd334ee223ed2970dcc100"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2
+      },
+      "origin": "automatic",
+      "problem_id": "204_B",
+      "reason": null,
+      "sha256_after": "b7abea222bc67696650a3a1246f0a682a1fae904cc92958198175197b886b815",
+      "sha256_before": "bdf63f747a01939b0cc384d37909ae67b298f0348bfa50ac895ab7ffc71b8543"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 5
+      },
+      "origin": "automatic",
+      "problem_id": "205_B",
+      "reason": null,
+      "sha256_after": "03b4881510a4a3a9033054b622d3fa289f244eb602198d8eb3c7db26a6fc1504",
+      "sha256_before": "cb6217b17b62f02c78c1f4e7cd7d5ce93872305bfe2389bea7847d550f6d1948"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2
+      },
+      "origin": "automatic",
+      "problem_id": "220_A",
+      "reason": null,
+      "sha256_after": "af14dce2b6aea17a1d66fba0714f1f0d6e1618134d9f07965b302954adf5a71d",
+      "sha256_before": "b4b0a715b4f934b9d7292b0a59678c83ecb95f3a7507e9186718fe9cfdb2224f"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 12
+      },
+      "origin": "automatic",
+      "problem_id": "224_B",
+      "reason": null,
+      "sha256_after": "9961e03f6d100019ebdab500bcec9a5029057fddbc7eaed5700accb16b9ac793",
+      "sha256_before": "339c18d08277dfe577480e30f82cf23430e0fb4397e078061820607f805a4fe2"
+    },
+    {
+      "markups": {
+        "lost_exponent": 3,
+        "lost_index": 7
+      },
+      "origin": "automatic",
+      "problem_id": "231_C",
+      "reason": null,
+      "sha256_after": "f239e9d7e2065902856b0e928593a28335b81d3304abdc7c1e5751ae75262f68",
+      "sha256_before": "c999b330a00b7cd2881e67c5014f651a3d09e1ce8482a176417df960d60f584a"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1,
+        "lost_index": 6
+      },
+      "origin": "automatic",
+      "problem_id": "237_A",
+      "reason": null,
+      "sha256_after": "808cbdeca88a8414b7cac38f9b616eced30a06412b41770447820652c2985fc3",
+      "sha256_before": "bcbf9ea01ed8de89442b8186d7042da071e83090b5d2ddf5a8a1db5465012122"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1
+      },
+      "origin": "automatic",
+      "problem_id": "252_A",
+      "reason": null,
+      "sha256_after": "8089da7e4b87548e2e36d7f8aeb13252ee356150ac1251446518306b27346b5b",
+      "sha256_before": "720a404e1d564c1e6bce7c0d0b538e6ec9b11346413e0076b27a97c59fcfcddd"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 21
+      },
+      "origin": "automatic",
+      "problem_id": "256_A",
+      "reason": null,
+      "sha256_after": "58b58d18e78d8c83744078662808606af5848ee2af935ee99a9d1dbaee6658c8",
+      "sha256_before": "f67f5d72358a44a4b24d8e490521db97dec7dc815530a5c2b39919d7647278d8"
+    },
+    {
+      "markups": {
+        "lost_index": 6
+      },
+      "origin": "automatic",
+      "problem_id": "257_A",
+      "reason": null,
+      "sha256_after": "6be922185213f55bf95c6e14ab6fbaebf55111b21318dadbc997783e265137ae",
+      "sha256_before": "c1d4eb5216f743c6df22ae1501f666c7c36dfa0f6e9c81f08f56375feb985803"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 16
+      },
+      "origin": "automatic",
+      "problem_id": "265_D",
+      "reason": null,
+      "sha256_after": "35de5c8be94f6c8f00433351bbf4e6f4511d9ff5a389026f34886f02c663241b",
+      "sha256_before": "c9017440220c78425639a1ea64d45f5866527dc6a5334f6bdeddf0a2005cf53b"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1,
+        "lost_index": 10
+      },
+      "origin": "automatic",
+      "problem_id": "270_B",
+      "reason": null,
+      "sha256_after": "317a2c3c9b0481e52d4a3057c8d22fbbef08d9dedc08dc65ea94693b25370c58",
+      "sha256_before": "cf6e7836da08ac34e1ad493982270b00c20b4a3f088ebfffcf982527a3f1a792"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1
+      },
+      "origin": "automatic",
+      "problem_id": "271_B",
+      "reason": null,
+      "sha256_after": "d81a388af761609847ff4645bdd059c8aeaf64aca7dd0b3218f8a92bba8f1445",
+      "sha256_before": "c11861c3a7a159a592b748784cc8674fbaf269bbbcb61d0df57f4eb9fe035d8f"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1
+      },
+      "origin": "automatic",
+      "problem_id": "284_B",
+      "reason": null,
+      "sha256_after": "db6d7a21fc26deba3a21af516d3aece9b8c649741cb5c212af8c6081c6c4d3a5",
+      "sha256_before": "9961d9f6c8d5bfd160998435c72d4fb15bed87faef5f924788e2a44e93334e08"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1,
+        "lost_index": 8
+      },
+      "origin": "automatic",
+      "problem_id": "285_B",
+      "reason": null,
+      "sha256_after": "53c0bf298a2b6d0deffa7fb11a7cee70519dc03305c0e101cc518e2e6acdaa21",
+      "sha256_before": "6ead489ae97bac7614fae69ec5fc8c415d83adeadb167e5adbb49728e9fb0afd"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1,
+        "lost_index": 25
+      },
+      "origin": "automatic",
+      "problem_id": "289_C",
+      "reason": null,
+      "sha256_after": "a533545d0e6a899cc6ba84e2c8916ec951a1f479059cc5f6b90ec1329c32eb45",
+      "sha256_before": "aa94b7be649abcb2b56cc67d7d9bf4ba640c97af5354b331feb47e92cef69d1e"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1
+      },
+      "origin": "automatic",
+      "problem_id": "291_C",
+      "reason": null,
+      "sha256_after": "87a799ba44f0330b9233359fed7b2c0add1a7bfb28e2440cf9e18c1beada083d",
+      "sha256_before": "f57a3dd81d3e2de095d4dc4a370a1429e72fd2abf69451140ea6580c716f53c2"
+    },
+    {
+      "markups": {
+        "lost_index": 5
+      },
+      "origin": "automatic",
+      "problem_id": "332_A",
+      "reason": null,
+      "sha256_after": "6019696ad6a2d4630eb55fb4e5221c762256617499899e3c3b097f2b2b4b165e",
+      "sha256_before": "2a9dff9920bcda54edc9a4058fa8e5f93c4977682c1ce41adf1bf84c329fbbad"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1,
+        "lost_index": 20
+      },
+      "origin": "automatic",
+      "problem_id": "334_B",
+      "reason": null,
+      "sha256_after": "57e73992f53958f96913f508f5dce5074390378c39f74dcd5d3eaa748d0c4f35",
+      "sha256_before": "0158c2bd36149d1124a40f20d30fd881a0baf98cf467d87e6832c9c3e226b463"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1
+      },
+      "origin": "automatic",
+      "problem_id": "349_A",
+      "reason": null,
+      "sha256_after": "df6c5032102b623d51a80f222084bc95ce7a70dfd8ee054df846a206799bdcf6",
+      "sha256_before": "f90a5e09a28a55f7ca73990e07fb59eb119ecbc9580cef72db5917e9110072bd"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1,
+        "lost_index": 6
+      },
+      "origin": "automatic",
+      "problem_id": "352_A",
+      "reason": null,
+      "sha256_after": "4380c2c0ad3c71fb53bb95e17f23b63c0589a7f7035045d106047a93a5bd9d97",
+      "sha256_before": "845c81a26344975c56398487d21da6628646ba53bd61d524af71450a71b3cea6"
+    },
+    {
+      "markups": {
+        "lost_index": 16
+      },
+      "origin": "automatic",
+      "problem_id": "355_B",
+      "reason": null,
+      "sha256_after": "2590a2f22e69bf46b2f360d25a38f830a12ead8d872eec18af281f2a08abc829",
+      "sha256_before": "c391601a74d512e6b27a5d336d1fe906abd45db710014346fa43c10a11f39b55"
+    },
+    {
+      "markups": {
+        "lost_index": 8
+      },
+      "origin": "automatic",
+      "problem_id": "357_A",
+      "reason": null,
+      "sha256_after": "041064f39c1e78936b3e93a7f0b4e19dc4e316407ce96d159b1a7331e6c87640",
+      "sha256_before": "669e837c8e1e9f072ac5cea5323443d9973a594eca40958d1c93ec5c98ff881e"
+    },
+    {
+      "markups": {
+        "lost_exponent": 3,
+        "lost_index": 3
+      },
+      "origin": "automatic",
+      "problem_id": "358_B",
+      "reason": null,
+      "sha256_after": "b9028e5eae03ddeb04a76c13c5fe0779b52bad96c6d840ccec2c282c25a19f37",
+      "sha256_before": "a2df8e2b32c79e8eea171bd4b8ea163af3f49f4406820844497390b6b8aac3e5"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1,
+        "lost_index": 4
+      },
+      "origin": "automatic",
+      "problem_id": "362_B",
+      "reason": null,
+      "sha256_after": "fff0d59fb91a7cceefe356517979c04c510d95c5fd76e005838cc7c1b5e20573",
+      "sha256_before": "9c1348d962aa37d92dcc6c8f143de74b40f402f57bd5eaee07596042875358c3"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1,
+        "lost_index": 2
+      },
+      "origin": "automatic",
+      "problem_id": "365_A",
+      "reason": null,
+      "sha256_after": "825f0c58d77f3a53f45ea22fe4b972c13f1335fe5d416ef1f6822b1c95f5157e",
+      "sha256_before": "ca900a14c63b476ce1097a99f7d5e388836de8114d6c932273125b4e9f797a5b"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 17
+      },
+      "origin": "automatic",
+      "problem_id": "368_C",
+      "reason": null,
+      "sha256_after": "4391ab9a20ca39dda76a56ed1a6efe58eba36386ea1c945ca3955bc48f47f25a",
+      "sha256_before": "123aee9e7848d77661be797063e48e90c19b675f754781d9a4667b7959094289"
+    },
+    {
+      "markups": {
+        "lost_index": 7
+      },
+      "origin": "automatic",
+      "problem_id": "370_B",
+      "reason": null,
+      "sha256_after": "8c4cb79ba557ee11fb2527ff7f6d4c145ea1341b1afc4272b9015e28e33f32e6",
+      "sha256_before": "55f97602f855b15c444eedc94a3c69b7ccab625e809ab7c75c07476a13f25ac0"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 2
+      },
+      "origin": "automatic",
+      "problem_id": "372_A",
+      "reason": null,
+      "sha256_after": "516eb0324323f58e24538d675b8f4c4ac9a691558030694e7e73725b17aa3467",
+      "sha256_before": "259e4a7159dae6ff0ea4743b8752fba4a08facfd2dd95e94fa78cd05f5369cb7"
+    },
+    {
+      "markups": {
+        "lost_exponent": 5,
+        "lost_index": 20
+      },
+      "origin": "automatic",
+      "problem_id": "380_A",
+      "reason": null,
+      "sha256_after": "3f46424703243671a372d3e0ae1ffda7ba62ef04e959dab60029de5f2bec88e7",
+      "sha256_before": "e90b2b2dc0750278523009f1183ce92992049424b61ffc2285144cb78b4dc1f0"
+    },
+    {
+      "markups": {
+        "lost_index": 10
+      },
+      "origin": "automatic",
+      "problem_id": "385_B",
+      "reason": null,
+      "sha256_after": "99694cdb2646b389950b118d193c776f59be27d9ec81901c1fb0bbb599a5bf69",
+      "sha256_before": "9b6c087458133c4ea73bb57e22eafb869d05d176c1d4e6e188c64f1617f9ca0f"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 9
+      },
+      "origin": "automatic",
+      "problem_id": "413_B",
+      "reason": null,
+      "sha256_after": "46942970c6d32515e06a5bcfd1c70697a550bfebbdd207628429aa0477b08bef",
+      "sha256_before": "70bb04b1a94af96bca5bd4ee9243fc77b34b4c3f2eadd15b4d2dc6adadf130cb"
+    },
+    {
+      "markups": {
+        "lost_exponent": 3
+      },
+      "origin": "automatic",
+      "problem_id": "417_B",
+      "reason": null,
+      "sha256_after": "2d2691385a9fea8ff65df887bfceeae50a6c896c8e737fce2e0c251360a23665",
+      "sha256_before": "481e838ee4dd1264b58b0c015049b5f1301d641ebe70e06bc6bcd12450ecb2af"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 13
+      },
+      "origin": "automatic",
+      "problem_id": "446_A",
+      "reason": null,
+      "sha256_after": "143b42b03e5488d0c8b9ce93a251667e817cde41450f07ee9d314fd127ea5f94",
+      "sha256_before": "b243f4385c06a30d367d7827379340fbc902a389ad52965e55fd0e342dc07134"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 13
+      },
+      "origin": "automatic",
+      "problem_id": "447_C",
+      "reason": null,
+      "sha256_after": "143b42b03e5488d0c8b9ce93a251667e817cde41450f07ee9d314fd127ea5f94",
+      "sha256_before": "b243f4385c06a30d367d7827379340fbc902a389ad52965e55fd0e342dc07134"
+    },
+    {
+      "markups": {
+        "lost_index": 5
+      },
+      "origin": "automatic",
+      "problem_id": "450_A",
+      "reason": null,
+      "sha256_after": "99417a5fe3783e716502514575db176ee6906dedbfd2ada961b15b746d25f837",
+      "sha256_before": "2f5f92eddb6e7be9372bb11a78f820d6b5869e2e52b71ec2eae9a7c61e1b6415"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 8
+      },
+      "origin": "automatic",
+      "problem_id": "455_A",
+      "reason": null,
+      "sha256_after": "e19bd4e8e1a90e81db213587a8e4537c5336d1cf15495eac57380cca1a1dc106",
+      "sha256_before": "eb03e747b1387cce41c35b46904110bd64ff2605baddc290500d78a5429c3405"
+    },
+    {
+      "markups": {
+        "lost_index": 24
+      },
+      "origin": "automatic",
+      "problem_id": "459_A",
+      "reason": null,
+      "sha256_after": "fc0160dc0e63a15adebaf75922f4808b30c06e2d4001385d8d8f28234eb94229",
+      "sha256_before": "a2bc17906552d368c3d712ceb06eede993b2c11a8a7af24566e547945f362966"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 5
+      },
+      "origin": "automatic",
+      "problem_id": "459_B",
+      "reason": null,
+      "sha256_after": "26db083a94ed0c7f485c4cc9f72eae470f67a4cd77c41df58446b2762d816eee",
+      "sha256_before": "aa5a8ff6e90c6a0f730cf7115084106984c4d616899d587fcc08684de5679c52"
+    },
+    {
+      "markups": {
+        "lost_index": 10
+      },
+      "origin": "automatic",
+      "problem_id": "478_A",
+      "reason": null,
+      "sha256_after": "69d4ed7a1503bd225494a45a61833e006cc9cb1ee4f7dd4311a000da0af45c31",
+      "sha256_before": "81cea344b43be7e9659ad382c8fd6f879ff10bc6705ababa38b967a6bc7b5d69"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 27
+      },
+      "origin": "automatic",
+      "problem_id": "493_B",
+      "reason": null,
+      "sha256_after": "c7ae8e9eb41938089b26d90375ae70696c5d5753e55b61bfe5b549810967c1a0",
+      "sha256_before": "cf66d310eb0bb111e7b3781224769f14e87bb4b1449dbad80a378f4551924141"
+    },
+    {
+      "markups": {
+        "lost_exponent": 4,
+        "lost_index": 4
+      },
+      "origin": "automatic",
+      "problem_id": "493_C",
+      "reason": null,
+      "sha256_after": "a884b2be08e9c1ec5a6a3b9e12acd81ac7be6a88320898e718d9c46595c29a95",
+      "sha256_before": "ec007e355fb1a975066b83d31a19823706732b05ec027da671b5d494208b3d80"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2
+      },
+      "origin": "automatic",
+      "problem_id": "518_B",
+      "reason": null,
+      "sha256_after": "061017519c5cfcd07d3c7ec669c28e6420466648e1641d6524e1c8d66800c828",
+      "sha256_before": "b66e01b6d52f2966ac898e42f43151866ee595a842e089b7ed20f9de64be9d90"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1
+      },
+      "origin": "automatic",
+      "problem_id": "523_C",
+      "reason": null,
+      "sha256_after": "b3c46f6e4016914478b88f3b62e6a7239d4a786323b8485fc3f30502b350fb26",
+      "sha256_before": "969e97774ddfd2b6d452fc8f6dc6c958527a3c42c266bfcca41d330631cd12c8"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 19
+      },
+      "origin": "automatic",
+      "problem_id": "534_C",
+      "reason": null,
+      "sha256_after": "28485ba9c00edfabf36764d7cef2986ca2c307e6bd56ee5efe38d89633b7d303",
+      "sha256_before": "8ab508a387cd1c915a72ede93fa5617737b01050af572e4236177fca031a0f0b"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1
+      },
+      "origin": "automatic",
+      "problem_id": "538_A",
+      "reason": null,
+      "sha256_after": "bf2d7ec9a5d1f0a1d54b16e3965435d3ee1e3ad79bde49ee015f8af0becdc52e",
+      "sha256_before": "960a5a7658089318cf54eba3d0bdcc3cd9a72541413fc853931d547cf42e322b"
+    },
+    {
+      "markups": {
+        "lost_index": 9
+      },
+      "origin": "automatic",
+      "problem_id": "544_A",
+      "reason": null,
+      "sha256_after": "fa5821e3135230cca560c36cfc503366b24d61113876245fbb9d574e88ef151b",
+      "sha256_before": "8be232c2ab450c131a476b09fdb2d2e1d1c384bba9d45eb8ce4dad964e76708b"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2
+      },
+      "origin": "automatic",
+      "problem_id": "569_A",
+      "reason": null,
+      "sha256_after": "729f1fea647dcbfc1bbf8d8c8dcaca21b3f1eafa879a641e44346e4234364540",
+      "sha256_before": "ba1cf778c36288ee30f226a082b30066bb125d45e0d4a63a103c11021194133c"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 2
+      },
+      "origin": "automatic",
+      "problem_id": "570_A",
+      "reason": null,
+      "sha256_after": "3af40940a455c66cb9dd74c1fd982f5760fe8fdf83995eed7027404ef6c45f30",
+      "sha256_before": "86c42d5dbb86adf9a49926c7c4dd68a51c5ac5971e211ff708b74bf8e605ad0c"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 11
+      },
+      "origin": "automatic",
+      "problem_id": "572_B",
+      "reason": null,
+      "sha256_after": "f7b3231673a988429a3e70fbbd7536a05f30aa95ec8d2e4e56d186b42887a2b9",
+      "sha256_before": "e481ee9e7c9471051d62e707e1a956d1df019295fa5a58e8d116b5d10910852b"
+    },
+    {
+      "markups": {
+        "lost_index": 5
+      },
+      "origin": "automatic",
+      "problem_id": "574_A",
+      "reason": null,
+      "sha256_after": "b5893ffd1f344e24a046e2f7a050a291eae66fc04df7a763ccdb7d2e90169d14",
+      "sha256_before": "855d3793ed1f98dcc44edcc4fbde5a9292f4adb6762fae962b8f5de55b537f18"
+    },
+    {
+      "markups": {
+        "lost_index": 4
+      },
+      "origin": "automatic",
+      "problem_id": "608_A",
+      "reason": null,
+      "sha256_after": "41f83c00b9feb6e9160f62a416ffa2827632284f15d7e5efac4ddb5e2fce238b",
+      "sha256_before": "dacf2359795c1d88586f5e9cc91c566a9fc589e51a1ae57ea8119e9e57e9b1b9"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1
+      },
+      "origin": "automatic",
+      "problem_id": "630_J",
+      "reason": null,
+      "sha256_after": "4a7b2473dcfcf07b4c9b9c873b89755767e0b8ebc35d90a31adb2f45cc1a68bb",
+      "sha256_before": "09ac428c88b773dfa97134571e15d11f64d4ad701b4d6f87b5aea036efde5e9e"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 8
+      },
+      "origin": "automatic",
+      "problem_id": "652_A",
+      "reason": null,
+      "sha256_after": "2640900a10dbe1724777dd60857dab82b627578769172ad9261c66d40d0389dd",
+      "sha256_before": "41c7b058c6545b2e2f9f9de44e62b8f8c250c51ff4463629959f6086a30322c1"
+    },
+    {
+      "markups": {
+        "lost_index": 10
+      },
+      "origin": "automatic",
+      "problem_id": "670_D1",
+      "reason": null,
+      "sha256_after": "e542e9df05d9ef2c6ef3f587ad835a23946ecec2588440c90993cf4e9191ffec",
+      "sha256_before": "439029a925a81cdc9847ca49afee9593fde3110ed26b283f03f762fd74a90e32"
+    },
+    {
+      "markups": {},
+      "origin": "manual",
+      "problem_id": "670_D2",
+      "reason": "A legenda do dataset dizia só \"The term of this problem is the same as the previous one, the only exception — increased restrictions.\", remetendo à versão D1, que não está no dataset: sem ela o problema não é descrito. Recolocada a legenda do original e os expoentes e índices perdidos (10^9, a_i, b_i), na notação do próprio original, sem chaves.",
+      "sha256_after": "5f973288e27dc2fa842755a21a4d4254a6f45ca43106c8c5116f810b9b6775a7",
+      "sha256_before": "f761d149effe8b3f5aeb8f8c88374dd74b219b812a026cb060af57604cb3d28f"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 4
+      },
+      "origin": "automatic",
+      "problem_id": "675_A",
+      "reason": null,
+      "sha256_after": "d53fa347c82fea417a70f35a9f60dab610883176ee5bedd6ea24df5a8ee227df",
+      "sha256_before": "969a47718998bb921f59d3458ddd6fc069349ac74c0556c094269164d161b19f"
+    },
+    {
+      "markups": {
+        "lost_exponent": 5,
+        "lost_index": 10
+      },
+      "origin": "automatic",
+      "problem_id": "702_C",
+      "reason": null,
+      "sha256_after": "c64ccba30e42871508358fa42ab38c29d1cca4d63164d95129bc7135372847a0",
+      "sha256_before": "c3e7e8a710e77c7f1b507fa255cb9383c9690cb1edca97bb140231c09d96a912"
+    },
+    {
+      "markups": {
+        "lost_index": 7
+      },
+      "origin": "automatic",
+      "problem_id": "709_B",
+      "reason": null,
+      "sha256_after": "6a40ee61d4b9d218d1e7272766e122d8b79b68d3272951d26718c2aedd2c1c74",
+      "sha256_before": "21233db97fdde5bf39212376efd56d3b3dc2bfb59c58163a71da4a226db0e7ee"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1
+      },
+      "origin": "automatic",
+      "problem_id": "70_B",
+      "reason": null,
+      "sha256_after": "f6fd846ffe4369164a20425b6498fd77efe9799346f2a84f43c9772d5dbf084c",
+      "sha256_before": "fe535d62c026f4aa3123ff54e1746e03ed04d165259800005d6a120313ba33e9"
+    },
+    {
+      "markups": {
+        "lost_exponent": 3,
+        "lost_index": 3
+      },
+      "origin": "automatic",
+      "problem_id": "710_B",
+      "reason": null,
+      "sha256_after": "f427f5b3ad05bfc8bc88b8587ef604d38e85d7504dfd67c20a8c555f7fb33710",
+      "sha256_before": "843dd85189646a2c1cbfe18e7d057135fbda456120c131717ffc59f8ae251e62"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1,
+        "lost_index": 10
+      },
+      "origin": "automatic",
+      "problem_id": "713_A",
+      "reason": null,
+      "sha256_after": "c41d7add65668e471eda988bef45db23aaab7a404f3cef3e6c87458b67c2c032",
+      "sha256_before": "469a51b5ae509a73d3d19aeb68a99ac4fdfd61b740ca15a3abc407005e00d61c"
+    },
+    {
+      "markups": {
+        "lost_index": 2
+      },
+      "origin": "automatic",
+      "problem_id": "719_A",
+      "reason": null,
+      "sha256_after": "e04f55543b0dea9bc31333767e229c65e1650f6436f733b86214d1fad23c32bf",
+      "sha256_before": "92e6a2087401319383e4fb02d7936a29b7f05c160d466d9fe65ea5e4a9e38c2c"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1,
+        "lost_index": 8
+      },
+      "origin": "automatic",
+      "problem_id": "733_B",
+      "reason": null,
+      "sha256_after": "6cdac0b1b611639e7c940b16b2e2e576f25dd37334031d888c0162bf3148fd1d",
+      "sha256_before": "00e646a3e3a9f5cf033b4fabc8f8e258e06785aceb7a5ab05cc33f5e996b6773"
+    },
+    {
+      "markups": {
+        "lost_exponent": 6,
+        "lost_index": 18
+      },
+      "origin": "automatic",
+      "problem_id": "734_C",
+      "reason": null,
+      "sha256_after": "40722779af0a51f41f24389ff27d7a0a1366bbaa1eb192e2403000d54cabe8ab",
+      "sha256_before": "da88efa2e4cf5e1c4aabd08dd60cf0b9cf29598c645d7db4c92dda34cf27a4bb"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2
+      },
+      "origin": "automatic",
+      "problem_id": "73_A",
+      "reason": null,
+      "sha256_after": "3eaf80456847d4b02dd7b9a0998476dba326f994a2ba668548aac96326520fd4",
+      "sha256_before": "e162e3c608bd68a1b47f970f25fe3a04a4ee9cc2b5f7c126f75f01add3c0a85a"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 19
+      },
+      "origin": "automatic",
+      "problem_id": "747_C",
+      "reason": null,
+      "sha256_after": "74cdbc49ffb9a33e9726462c470b9c922e5734bc8e2906705068dd0435f63338",
+      "sha256_before": "239a3783c0f5203c9d6ddae335cf2f84fcf1a633fee537a810c262230f602c3c"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1
+      },
+      "origin": "automatic",
+      "problem_id": "75_A",
+      "reason": null,
+      "sha256_after": "25bd46ac58f5a9d549a3bb4d46a63e423a17d73f02e0a52151b37c242af0d815",
+      "sha256_before": "38ff53167e9adff9321478ab3acf5dc497edd4873503b7bb48b53d808649b6a9"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2
+      },
+      "origin": "automatic",
+      "problem_id": "765_C",
+      "reason": null,
+      "sha256_after": "39c745477a9717b6d2410e146ab1d2ca937ff0099028abdf40352dc2286b9f7c",
+      "sha256_before": "dbe956e3b77ab0fbbac5b9f2e9a0208bb0a25422a35089c831e23dd49c1619b8"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 4
+      },
+      "origin": "automatic",
+      "problem_id": "770_C",
+      "reason": null,
+      "sha256_after": "046c04e07b586c85dee20ebf9889e8deab29d9571c53bdc60e4e69cafd4c8662",
+      "sha256_before": "a521221d6c92c068efbcf9b6b26f79bd56515608642cecde04642ed056ad7e68"
+    },
+    {
+      "markups": {
+        "lost_exponent": 3,
+        "lost_index": 5
+      },
+      "origin": "automatic",
+      "problem_id": "789_A",
+      "reason": null,
+      "sha256_after": "6106bcbef776961c8df6fbcce62f65ac9d148e2bc619415075b9c883a3de71bb",
+      "sha256_before": "516f6bb2dfeeafb9658897a34a03b1d146655b35139eb954a433816a1939e7b8"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2
+      },
+      "origin": "automatic",
+      "problem_id": "79_A",
+      "reason": null,
+      "sha256_after": "f46b1689db12d34c0a9848c83ddc5e8a74739ff3a0c5025f02d0d2e8c4824a17",
+      "sha256_before": "853fdfaef4ca722f72ba6a91fc6f8487542fee5b278bf94b8c421e4588cefc44"
+    },
+    {
+      "markups": {
+        "lost_exponent": 3
+      },
+      "origin": "automatic",
+      "problem_id": "832_B",
+      "reason": null,
+      "sha256_after": "ec41ac19f37f6ae71f59d2e2f9c7c8a5b69786a31ba8029b84fd9fc325f7bece",
+      "sha256_before": "ca3ecc88ae41d78eace8bdd445c5ff0f430a9f9104dc1ac4a66bd89a0f8823a3"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1,
+        "lost_index": 6
+      },
+      "origin": "automatic",
+      "problem_id": "847_H",
+      "reason": null,
+      "sha256_after": "9e0ad488db759948ba301094f8c2991c41c7de87adff908cc3c4cf30b36252c3",
+      "sha256_before": "31352b2eab3c6cc7dbe41d1119926b355ecc0ffc73f24bdc4944518af136ff97"
+    },
+    {
+      "markups": {
+        "lost_index": 4
+      },
+      "origin": "automatic",
+      "problem_id": "864_B",
+      "reason": null,
+      "sha256_after": "91913c2175fc5c7709d321e899f6d44d672ff5f6daf05544ba339617f73c35d3",
+      "sha256_before": "389e33cfdce420778e70fd887d16c2921f28849309a412ad726648c31dd783ce"
+    },
+    {
+      "markups": {
+        "lost_exponent": 3,
+        "lost_index": 24
+      },
+      "origin": "automatic",
+      "problem_id": "870_B",
+      "reason": null,
+      "sha256_after": "c4e5269f613e90fa6b8059977f9d0e909368a1c09c90f1a0bd0a872260914e12",
+      "sha256_before": "bbbe11a08febc40154a915f48d40cc899f9bd43f08f4b60c2f5622d5bd9b2f47"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1,
+        "lost_index": 7
+      },
+      "origin": "automatic",
+      "problem_id": "876_B",
+      "reason": null,
+      "sha256_after": "839d1981748f96a246b91e3476325eaea1a146bcab73d77e0ce76c5f27770483",
+      "sha256_before": "a592a52e002e2ca01e48a4022c491b80c4d9abaca5569541d6dcdb9f4dc72115"
+    },
+    {
+      "markups": {
+        "lost_index": 4
+      },
+      "origin": "automatic",
+      "problem_id": "887_B",
+      "reason": null,
+      "sha256_after": "2b64c9c6d2d9f60e6885fce1a36547b9a9529cbc8228709294db6596bbf8f6c5",
+      "sha256_before": "114d2f79b028491430d5374eb1e12eaa66716c4eeb3532598f9ae91a79d1b4c4"
+    },
+    {
+      "markups": {
+        "lost_index": 1
+      },
+      "origin": "automatic",
+      "problem_id": "888_D",
+      "reason": null,
+      "sha256_after": "f665af04d554a269ac71191e97cc0a421e7ed0fc1b401607719692eb19f9b9fa",
+      "sha256_before": "397b92b3af22609d89c722d9b60679ae4b99d8c650fed189ff21ec93aa453472"
+    },
+    {
+      "markups": {
+        "lost_exponent": 1
+      },
+      "origin": "automatic",
+      "problem_id": "88_C",
+      "reason": null,
+      "sha256_after": "89e8d58f7096de45ac16920b819205336a407ba8461546d020165d85740729f9",
+      "sha256_before": "2d45ccdf312a82cfb3c37a17552838f98dd058ce9b6a0e8fdf37ada8036ce560"
+    },
+    {
+      "markups": {
+        "lost_exponent": 3,
+        "lost_index": 11
+      },
+      "origin": "automatic",
+      "problem_id": "893_C",
+      "reason": null,
+      "sha256_after": "fc19c1ee301631c9981a120ad11f1f073f94911d32a56282240fd676e0f5678c",
+      "sha256_before": "cbd53ce0fe453c22a276c208f036ad3c78b519158df8fce8285b10ca6ce34e68"
+    },
+    {
+      "markups": {
+        "lost_exponent": 3,
+        "lost_index": 5
+      },
+      "origin": "automatic",
+      "problem_id": "913_C",
+      "reason": null,
+      "sha256_after": "06888ac8ea3d9c6e277639ed0b9fd2086b4061986ed46acbae69c4004ea03521",
+      "sha256_before": "15560cdb4d99cb7bc4ff134b923fbc27b504db72ed46af36f8abad80dc2c7531"
+    },
+    {
+      "markups": {
+        "lost_exponent": 2,
+        "lost_index": 5
+      },
+      "origin": "automatic",
+      "problem_id": "91_B",
+      "reason": null,
+      "sha256_after": "a6d06a3cb0434db64bf7df68443c058bbfd9f99cd22583f85cf856ac0f554763",
+      "sha256_before": "bd6eb3a0a151850083dc2a77b35dd8613fd21ebeb1c4de7da63d2d73e3db3e77"
+    },
+    {
+      "markups": {
+        "lost_index": 8
+      },
+      "origin": "automatic",
+      "problem_id": "920_C",
+      "reason": null,
+      "sha256_after": "febc3dc68eb8bfbe3756cada1eb4be0e5c565de7e44288b388751ffb5b8cf7b8",
+      "sha256_before": "60cb2e63db334f13a35a7cce15e3aba3abd8ca692689512d360e874631196726"
+    },
+    {
+      "markups": {
+        "lost_index": 6
+      },
+      "origin": "automatic",
+      "problem_id": "939_C",
+      "reason": null,
+      "sha256_after": "03ed546d54527201156cd8b921196b462e96e5448517a8707cd50596bc9bb35d",
+      "sha256_before": "3decb4870b119637e8542e4c055849f013681e1fd79524a8a948be5ffe2172c2"
+    },
+    {
+      "markups": {
+        "lost_exponent": 4,
+        "lost_index": 24
+      },
+      "origin": "automatic",
+      "problem_id": "950_B",
+      "reason": null,
+      "sha256_after": "0f920e6d750586b6fe9e78074292a3cd8de515386c421145a9eb0346ee4da608",
+      "sha256_before": "a85ed63369b70be68da95257068684f93ec4012adc0dca64e579e305bc0231c4"
+    }
+  ],
+  "kept": [
+    {
+      "problem_id": "1068_B",
+      "reason": "Fração \frac{[a, b]}{a} escrita como ([a, b])/(a): mesma expressão, só outra notação."
+    },
+    {
+      "problem_id": "1113_B",
+      "reason": "Fração \frac{a_i}{x} escrita como (a_i)/(x): mesma expressão, só outra notação."
+    },
+    {
+      "problem_id": "1162_B",
+      "reason": "As matrizes de exemplo (\begin{bmatrix}) têm uma barra invertida a mais no fim de cada linha (\\\\ em vez de \\): diferença de escape do LaTeX, os números e a estrutura das matrizes são os mesmos."
+    },
+    {
+      "problem_id": "1197_C",
+      "reason": "Somatório \\sum\\limits_{i=1}^{k} escrito como ∑_{i=1}^{k}: \\limits só muda a posição dos limites na tela, não o sentido."
+    },
+    {
+      "problem_id": "1198_A",
+      "reason": "\\log_{2} escrito como log_{2}: mesma fórmula, só sem o comando de formatação."
+    },
+    {
+      "problem_id": "1261_B1",
+      "reason": "b_t < c_t escrito como b_t<c_t: só os espaços em volta do sinal mudam."
+    },
+    {
+      "problem_id": "1359_A",
+      "reason": "Fração \frac{n}{k} escrita como n/k: mesma expressão, só outra notação."
+    },
+    {
+      "problem_id": "1371_C",
+      "reason": "v > c escrito como v>c (duas vezes): só os espaços em volta do sinal mudam."
+    },
+    {
+      "problem_id": "1373_D",
+      "reason": "⌊\frac{n-1}{2}⌋ escrito como ⌊(n-1)/(2)⌋: mesma expressão, só outra notação."
+    },
+    {
+      "problem_id": "1409_C",
+      "reason": "\\max(a_1, ..., a_n) escrito como max(a_1, ..., a_n): mesma fórmula, só sem o comando de formatação."
+    },
+    {
+      "problem_id": "1622_C",
+      "reason": "\\sum\\limits_{i=1}^{n}{a_i} escrito como ∑_{i=1}^{n}{a_i} (duas vezes): \\limits só muda a posição dos limites na tela, não o sentido."
+    },
+    {
+      "problem_id": "978_F",
+      "reason": "\\min(2 ⋅ 10^5, \frac{n ⋅ (n - 1)}{2}) escrito como min(2 ⋅ 10^5, (n ⋅ (n - 1))/(2)): mesma expressão, só outra notação (o parêntese a mais está no próprio original)."
+    },
+    {
+      "problem_id": "981_B",
+      "reason": "Conjunto \\{a_1, ..., a_n\\} escrito com uma barra invertida a mais (\\{): diferença de escape do LaTeX, os elementos do conjunto são os mesmos."
+    }
+  ],
+  "previous_manifest_sha256": "a092d987bffc42c9fa5b0c54196ff6060ffc74187503521048aaaf199e47c02c",
+  "revision": 2,
+  "schema_version": 1
+}

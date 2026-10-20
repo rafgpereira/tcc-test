@@ -1,0 +1,19 @@
+{
+  "decision": "keep",
+  "differences": [
+    {
+      "context": " we need k = ⌈ log_{2} K ⌉ bit",
+      "kind": "formula",
+      "original": "k = ⌈ \\log_{2} K ⌉",
+      "ours": ""
+    }
+  ],
+  "enunciado": null,
+  "problem_id": "1198_A",
+  "reason": "\\log_{2} escrito como log_{2}: mesma fórmula, só sem o comando de formatação.",
+  "reviewed_at": "2026-10-18",
+  "reviewed_by": "Claude, conferido contra o original a pedido de Milena Fernandes Rocha",
+  "schema_version": 1,
+  "sha256_before": "cb4df2e8c26dcb4d13bd3e52b023952565a59c085b7636e554b12f1d45e4415f",
+  "suggested_enunciado": null
+}

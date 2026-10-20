@@ -24,8 +24,7 @@ def test_without_attempts_the_next_request_is_a_preview(providers, repo, capsys,
     out = capsys.readouterr().out
     assert f"{model} 1_A hybrid preview, not sent (next: attempt 1); dataset: faithful" in out
     body = json.loads((repo / "out/request.json").read_text())
-    text = body["input"] if model == "gpt" else body["contents"][0]["parts"][0]["text"]
-    assert body == llm_providers.request_body(model, text)
+    assert body == llm_providers.request_body(model, prompt_in(model, body))
 
 
 def test_the_slm_preview_needs_no_run_and_no_ollama(repo, monkeypatch, capsys):
@@ -106,3 +105,11 @@ def test_a_refusal_does_not_touch_an_existing_file_even_with_force(providers, re
     monkeypatch.setattr(requests_view, "build_view", refuse)
     assert show("gpt", "--force") == cli.EXIT_DATA_FAILURE
     assert target.read_text() == "keep me"
+
+
+def prompt_in(model, body):
+    if model == "gpt":
+        return body["input"]
+    if model == "claude":
+        return body["messages"][0]["content"]
+    return body["contents"][0]["parts"][0]["text"]

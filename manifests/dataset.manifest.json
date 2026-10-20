@@ -1,8 +1,8 @@
 {
   "dataset_zip": {
     "path": "data/dataset.zip",
-    "sha256": "bd5398a85800a3c772d8c8c89904562a1db5fca6d4a556d440e78b3bc2af0c32",
-    "size": 12891474
+    "sha256": "5a9b66b8bb2523fe6a0bd94054070fddc0333788a58b0b6ab14ac483d6869c30",
+    "size": 12892995
   },
   "files": [
     {
@@ -4712,8 +4712,8 @@
     },
     {
       "path": "dataset/problems/102_B/enunciado.md",
-      "sha256": "d9c399b6fb8d3555b5906a1a187aa0ce7c85fa99ada3aa32682b107eb0b75e9f",
-      "size": 1090
+      "sha256": "b8e26141f1bb47f572fed7a7c3e40179854f24e1f1b0341675c0ed7a84edd7d5",
+      "size": 1093
     },
     {
       "path": "dataset/problems/102_B/metadata.json",
@@ -24662,8 +24662,8 @@
     },
     {
       "path": "dataset/problems/134_A/enunciado.md",
-      "sha256": "904db4e4e118cd4ef258b728462d4b882bad9a4a8d528705c97d41b985f42aa8",
-      "size": 827
+      "sha256": "2608506db1e487eb20dcca9221b8abfbd2344a222c7e991d99c59b231e8a0a93",
+      "size": 851
     },
     {
       "path": "dataset/problems/134_A/metadata.json",
@@ -30962,8 +30962,8 @@
     },
     {
       "path": "dataset/problems/143_C/enunciado.md",
-      "sha256": "7063c12419fb13268b2f10297f2cde90724fbdf86d35a1fc90650c920d08894a",
-      "size": 2760
+      "sha256": "42f2969432d75ce10f05b16c1c34c5f2d86f641d009c138a374f1e1456309e70",
+      "size": 2763
     },
     {
       "path": "dataset/problems/143_C/metadata.json",
@@ -32012,8 +32012,8 @@
     },
     {
       "path": "dataset/problems/148_B/enunciado.md",
-      "sha256": "79472794e2de0e6d5fee1f15f10816d813452a049d2e829ba7d80754fd18f2a4",
-      "size": 2200
+      "sha256": "d16748f24c03133e294afec489d33510a2fbeea202c97f84fefa0f3021b98b36",
+      "size": 2218
     },
     {
       "path": "dataset/problems/148_B/metadata.json",
@@ -32537,8 +32537,8 @@
     },
     {
       "path": "dataset/problems/151_D/enunciado.md",
-      "sha256": "169a591ac4995a8eb8b45b729959640ab077eb6b95a705eb95200e07462e4e70",
-      "size": 1076
+      "sha256": "5041a73bed1c510295853d079f1706055f0e444eb724efafab109ce5cf486ca3",
+      "size": 1082
     },
     {
       "path": "dataset/problems/151_D/metadata.json",
@@ -33062,8 +33062,8 @@
     },
     {
       "path": "dataset/problems/155_C/enunciado.md",
-      "sha256": "0e516e0d8c5ee870afb0ea3f1154300c8c343d47734f4865a5a81662cf4584e7",
-      "size": 2536
+      "sha256": "bc6a379190b0576263c049dbf6f621bda9218dc4dc94d68b72f4955b6673a2a3",
+      "size": 2539
     },
     {
       "path": "dataset/problems/155_C/metadata.json",
@@ -34112,8 +34112,8 @@
     },
     {
       "path": "dataset/problems/15_A/enunciado.md",
-      "sha256": "924406886f090ae4f52c657cfed7df46d9e1b05221943e1834fbb8214d848f8e",
-      "size": 1412
+      "sha256": "4bfe82073954ab0a214539c2f4b4094f49232e0b78b6c1dd86843ca49b1aa949",
+      "size": 1430
     },
     {
       "path": "dataset/problems/15_A/metadata.json",
@@ -35687,8 +35687,8 @@
     },
     {
       "path": "dataset/problems/161_A/enunciado.md",
-      "sha256": "a7d8bc5ab9a896c9a87767d195aa2104615c4a50a8be9591e0f0ea1a67e2c9f3",
-      "size": 2612
+      "sha256": "a25b3c7075948a9d1046167f97d2231af53754e2ed2a5b3f6e0f4dd41ed2ff69",
+      "size": 2687
     },
     {
       "path": "dataset/problems/161_A/metadata.json",
@@ -36737,8 +36737,8 @@
     },
     {
       "path": "dataset/problems/165_C/enunciado.md",
-      "sha256": "771178cd2a6c7f50e4119a11127bbeb60a295c67f3af48d54c2c5855f8e00a66",
-      "size": 1283
+      "sha256": "5c2a124733c36a629952316838b424eca85a0c1913f7264035604a35788f4580",
+      "size": 1289
     },
     {
       "path": "dataset/problems/165_C/metadata.json",
@@ -38312,8 +38312,8 @@
     },
     {
       "path": "dataset/problems/178_A1/enunciado.md",
-      "sha256": "7c03ecf3c541ced3726981fe0af09c96c92d7eaf51e7954aefe3a4b666168e0b",
-      "size": 1894
+      "sha256": "880290c27b1cbb32e74fe54e16cce86ae9d66307c39e5022e693c338f78d64e8",
+      "size": 1936
     },
     {
       "path": "dataset/problems/178_A1/metadata.json",
@@ -38837,8 +38837,8 @@
     },
     {
       "path": "dataset/problems/181_C/enunciado.md",
-      "sha256": "597ba62359214adf58834ac00eef570d336801c7803515b69f550140a3974b76",
-      "size": 2619
+      "sha256": "2029cc0029b219b8247f492a585f6c5e48725704b77537d171baf85c5ee3d381",
+      "size": 2649
     },
     {
       "path": "dataset/problems/181_C/metadata.json",
@@ -39362,8 +39362,8 @@
     },
     {
       "path": "dataset/problems/182_B/enunciado.md",
-      "sha256": "a83149a6caf3ece9a389e812d4f296b2d8c7e4188b146ce5a4e7518bf418f23d",
-      "size": 2460
+      "sha256": "4bfd0ef6d23f2cbfcad02a3224d84af55a2e490baaba05df3942ae2db1d58b9b",
+      "size": 2475
     },
     {
       "path": "dataset/problems/182_B/metadata.json",
@@ -39887,8 +39887,8 @@
     },
     {
       "path": "dataset/problems/189_C/enunciado.md",
-      "sha256": "8d9d16ba9b4225d46988dc8f6207eefd19076bcbe1859dea1930637152bb9188",
-      "size": 1664
+      "sha256": "02a760531285b34bb58eb1c67ced6f3070a4513906a3ed10d0be63afb55cb5a9",
+      "size": 1667
     },
     {
       "path": "dataset/problems/189_C/metadata.json",
@@ -40412,8 +40412,8 @@
     },
     {
       "path": "dataset/problems/18_C/enunciado.md",
-      "sha256": "b053fc00f09557b9800fe2d3ef6872b161d42711e8152bff69798bdf383e59bf",
-      "size": 1068
+      "sha256": "9ed4aaaa6bb1b2f58c38b24e10333c34bd2492f9bdabae47f134fc80943935ac",
+      "size": 1071
     },
     {
       "path": "dataset/problems/18_C/metadata.json",
@@ -40937,8 +40937,8 @@
     },
     {
       "path": "dataset/problems/190_A/enunciado.md",
-      "sha256": "123c44ad1c24cbca762e04770d2f433ce91f08f39c7c2a9006bb96f06e4eb48d",
-      "size": 2049
+      "sha256": "245366f0fe33970ffa211448a9ae62c42845766bcc3cd8b95c87a1efceeb63f9",
+      "size": 2052
     },
     {
       "path": "dataset/problems/190_A/metadata.json",
@@ -41462,8 +41462,8 @@
     },
     {
       "path": "dataset/problems/192_B/enunciado.md",
-      "sha256": "14b55416b48f14cedb7e299377225ec3b48cd47ed1408eb01ef9a52af09dc28d",
-      "size": 2308
+      "sha256": "7f52470ce500618485b4c06e517b734d8d57bc7988010cf0a9b122f5c7004f55",
+      "size": 2329
     },
     {
       "path": "dataset/problems/192_B/metadata.json",
@@ -41987,8 +41987,8 @@
     },
     {
       "path": "dataset/problems/1_B/enunciado.md",
-      "sha256": "c7ed2d03612407a1d87c741af4690939779415be716fc487b4629720380d2a7f",
-      "size": 1360
+      "sha256": "0128d118fbcd427e78061305086c0b15f2a00a7b567ab38c7ffca647f1826f48",
+      "size": 1366
     },
     {
       "path": "dataset/problems/1_B/metadata.json",
@@ -42512,8 +42512,8 @@
     },
     {
       "path": "dataset/problems/203_A/enunciado.md",
-      "sha256": "fce5940ca2d0566f0e8a4ec3f4de135503f8bdc5ab15eb1ac9680c688c092863",
-      "size": 2417
+      "sha256": "ea89798cf8a86f2ad444a4e6ae7025f9ae0530fd08506cb931c761a35f0c5f02",
+      "size": 2447
     },
     {
       "path": "dataset/problems/203_A/metadata.json",
@@ -43037,8 +43037,8 @@
     },
     {
       "path": "dataset/problems/203_B/enunciado.md",
-      "sha256": "4d0d9862597f70874be8a8f6ae58e87bc2d7f8d9cbdd334ee223ed2970dcc100",
-      "size": 1914
+      "sha256": "91b9286976cf37a6c58cb04e7f655fc7c665cc42e58dd4bbc75f7a5b17646519",
+      "size": 1929
     },
     {
       "path": "dataset/problems/203_B/metadata.json",
@@ -43562,8 +43562,8 @@
     },
     {
       "path": "dataset/problems/204_B/enunciado.md",
-      "sha256": "bdf63f747a01939b0cc384d37909ae67b298f0348bfa50ac895ab7ffc71b8543",
-      "size": 1643
+      "sha256": "b7abea222bc67696650a3a1246f0a682a1fae904cc92958198175197b886b815",
+      "size": 1649
     },
     {
       "path": "dataset/problems/204_B/metadata.json",
@@ -44087,8 +44087,8 @@
     },
     {
       "path": "dataset/problems/205_B/enunciado.md",
-      "sha256": "cb6217b17b62f02c78c1f4e7cd7d5ce93872305bfe2389bea7847d550f6d1948",
-      "size": 1719
+      "sha256": "03b4881510a4a3a9033054b622d3fa289f244eb602198d8eb3c7db26a6fc1504",
+      "size": 1740
     },
     {
       "path": "dataset/problems/205_B/metadata.json",
@@ -45137,8 +45137,8 @@
     },
     {
       "path": "dataset/problems/220_A/enunciado.md",
-      "sha256": "b4b0a715b4f934b9d7292b0a59678c83ecb95f3a7507e9186718fe9cfdb2224f",
-      "size": 1623
+      "sha256": "af14dce2b6aea17a1d66fba0714f1f0d6e1618134d9f07965b302954adf5a71d",
+      "size": 1629
     },
     {
       "path": "dataset/problems/220_A/metadata.json",
@@ -45662,8 +45662,8 @@
     },
     {
       "path": "dataset/problems/224_B/enunciado.md",
-      "sha256": "339c18d08277dfe577480e30f82cf23430e0fb4397e078061820607f805a4fe2",
-      "size": 1536
+      "sha256": "9961e03f6d100019ebdab500bcec9a5029057fddbc7eaed5700accb16b9ac793",
+      "size": 1578
     },
     {
       "path": "dataset/problems/224_B/metadata.json",
@@ -46187,8 +46187,8 @@
     },
     {
       "path": "dataset/problems/231_C/enunciado.md",
-      "sha256": "c999b330a00b7cd2881e67c5014f651a3d09e1ce8482a176417df960d60f584a",
-      "size": 2109
+      "sha256": "f239e9d7e2065902856b0e928593a28335b81d3304abdc7c1e5751ae75262f68",
+      "size": 2139
     },
     {
       "path": "dataset/problems/231_C/metadata.json",
@@ -46712,8 +46712,8 @@
     },
     {
       "path": "dataset/problems/237_A/enunciado.md",
-      "sha256": "bcbf9ea01ed8de89442b8186d7042da071e83090b5d2ddf5a8a1db5465012122",
-      "size": 1665
+      "sha256": "808cbdeca88a8414b7cac38f9b616eced30a06412b41770447820652c2985fc3",
+      "size": 1686
     },
     {
       "path": "dataset/problems/237_A/metadata.json",
@@ -47237,8 +47237,8 @@
     },
     {
       "path": "dataset/problems/252_A/enunciado.md",
-      "sha256": "720a404e1d564c1e6bce7c0d0b538e6ec9b11346413e0076b27a97c59fcfcddd",
-      "size": 1169
+      "sha256": "8089da7e4b87548e2e36d7f8aeb13252ee356150ac1251446518306b27346b5b",
+      "size": 1172
     },
     {
       "path": "dataset/problems/252_A/metadata.json",
@@ -47762,8 +47762,8 @@
     },
     {
       "path": "dataset/problems/256_A/enunciado.md",
-      "sha256": "f67f5d72358a44a4b24d8e490521db97dec7dc815530a5c2b39919d7647278d8",
-      "size": 1210
+      "sha256": "58b58d18e78d8c83744078662808606af5848ee2af935ee99a9d1dbaee6658c8",
+      "size": 1279
     },
     {
       "path": "dataset/problems/256_A/metadata.json",
@@ -48287,8 +48287,8 @@
     },
     {
       "path": "dataset/problems/257_A/enunciado.md",
-      "sha256": "c1d4eb5216f743c6df22ae1501f666c7c36dfa0f6e9c81f08f56375feb985803",
-      "size": 2280
+      "sha256": "6be922185213f55bf95c6e14ab6fbaebf55111b21318dadbc997783e265137ae",
+      "size": 2298
     },
     {
       "path": "dataset/problems/257_A/metadata.json",
@@ -49337,8 +49337,8 @@
     },
     {
       "path": "dataset/problems/265_D/enunciado.md",
-      "sha256": "c9017440220c78425639a1ea64d45f5866527dc6a5334f6bdeddf0a2005cf53b",
-      "size": 1246
+      "sha256": "35de5c8be94f6c8f00433351bbf4e6f4511d9ff5a389026f34886f02c663241b",
+      "size": 1300
     },
     {
       "path": "dataset/problems/265_D/metadata.json",
@@ -49862,8 +49862,8 @@
     },
     {
       "path": "dataset/problems/270_B/enunciado.md",
-      "sha256": "cf6e7836da08ac34e1ad493982270b00c20b4a3f088ebfffcf982527a3f1a792",
-      "size": 2081
+      "sha256": "317a2c3c9b0481e52d4a3057c8d22fbbef08d9dedc08dc65ea94693b25370c58",
+      "size": 2114
     },
     {
       "path": "dataset/problems/270_B/metadata.json",
@@ -50387,8 +50387,8 @@
     },
     {
       "path": "dataset/problems/271_B/enunciado.md",
-      "sha256": "c11861c3a7a159a592b748784cc8674fbaf269bbbcb61d0df57f4eb9fe035d8f",
-      "size": 1830
+      "sha256": "d81a388af761609847ff4645bdd059c8aeaf64aca7dd0b3218f8a92bba8f1445",
+      "size": 1833
     },
     {
       "path": "dataset/problems/271_B/metadata.json",
@@ -50912,8 +50912,8 @@
     },
     {
       "path": "dataset/problems/284_B/enunciado.md",
-      "sha256": "9961d9f6c8d5bfd160998435c72d4fb15bed87faef5f924788e2a44e93334e08",
-      "size": 1189
+      "sha256": "db6d7a21fc26deba3a21af516d3aece9b8c649741cb5c212af8c6081c6c4d3a5",
+      "size": 1192
     },
     {
       "path": "dataset/problems/284_B/metadata.json",
@@ -51437,8 +51437,8 @@
     },
     {
       "path": "dataset/problems/285_B/enunciado.md",
-      "sha256": "6ead489ae97bac7614fae69ec5fc8c415d83adeadb167e5adbb49728e9fb0afd",
-      "size": 1809
+      "sha256": "53c0bf298a2b6d0deffa7fb11a7cee70519dc03305c0e101cc518e2e6acdaa21",
+      "size": 1836
     },
     {
       "path": "dataset/problems/285_B/metadata.json",
@@ -51962,8 +51962,8 @@
     },
     {
       "path": "dataset/problems/289_C/enunciado.md",
-      "sha256": "aa94b7be649abcb2b56cc67d7d9bf4ba640c97af5354b331feb47e92cef69d1e",
-      "size": 1270
+      "sha256": "a533545d0e6a899cc6ba84e2c8916ec951a1f479059cc5f6b90ec1329c32eb45",
+      "size": 1348
     },
     {
       "path": "dataset/problems/289_C/metadata.json",
@@ -52487,8 +52487,8 @@
     },
     {
       "path": "dataset/problems/291_C/enunciado.md",
-      "sha256": "f57a3dd81d3e2de095d4dc4a370a1429e72fd2abf69451140ea6580c716f53c2",
-      "size": 2588
+      "sha256": "87a799ba44f0330b9233359fed7b2c0add1a7bfb28e2440cf9e18c1beada083d",
+      "size": 2591
     },
     {
       "path": "dataset/problems/291_C/metadata.json",
@@ -54062,8 +54062,8 @@
     },
     {
       "path": "dataset/problems/332_A/enunciado.md",
-      "sha256": "2a9dff9920bcda54edc9a4058fa8e5f93c4977682c1ce41adf1bf84c329fbbad",
-      "size": 2490
+      "sha256": "6019696ad6a2d4630eb55fb4e5221c762256617499899e3c3b097f2b2b4b165e",
+      "size": 2505
     },
     {
       "path": "dataset/problems/332_A/metadata.json",
@@ -54587,8 +54587,8 @@
     },
     {
       "path": "dataset/problems/334_B/enunciado.md",
-      "sha256": "0158c2bd36149d1124a40f20d30fd881a0baf98cf467d87e6832c9c3e226b463",
-      "size": 1090
+      "sha256": "57e73992f53958f96913f508f5dce5074390378c39f74dcd5d3eaa748d0c4f35",
+      "size": 1153
     },
     {
       "path": "dataset/problems/334_B/metadata.json",
@@ -55112,8 +55112,8 @@
     },
     {
       "path": "dataset/problems/349_A/enunciado.md",
-      "sha256": "f90a5e09a28a55f7ca73990e07fb59eb119ecbc9580cef72db5917e9110072bd",
-      "size": 951
+      "sha256": "df6c5032102b623d51a80f222084bc95ce7a70dfd8ee054df846a206799bdcf6",
+      "size": 954
     },
     {
       "path": "dataset/problems/349_A/metadata.json",
@@ -55637,8 +55637,8 @@
     },
     {
       "path": "dataset/problems/352_A/enunciado.md",
-      "sha256": "845c81a26344975c56398487d21da6628646ba53bd61d524af71450a71b3cea6",
-      "size": 1020
+      "sha256": "4380c2c0ad3c71fb53bb95e17f23b63c0589a7f7035045d106047a93a5bd9d97",
+      "size": 1041
     },
     {
       "path": "dataset/problems/352_A/metadata.json",
@@ -56162,8 +56162,8 @@
     },
     {
       "path": "dataset/problems/355_B/enunciado.md",
-      "sha256": "c391601a74d512e6b27a5d336d1fe906abd45db710014346fa43c10a11f39b55",
-      "size": 2087
+      "sha256": "2590a2f22e69bf46b2f360d25a38f830a12ead8d872eec18af281f2a08abc829",
+      "size": 2135
     },
     {
       "path": "dataset/problems/355_B/metadata.json",
@@ -56687,8 +56687,8 @@
     },
     {
       "path": "dataset/problems/357_A/enunciado.md",
-      "sha256": "669e837c8e1e9f072ac5cea5323443d9973a594eca40958d1c93ec5c98ff881e",
-      "size": 1854
+      "sha256": "041064f39c1e78936b3e93a7f0b4e19dc4e316407ce96d159b1a7331e6c87640",
+      "size": 1878
     },
     {
       "path": "dataset/problems/357_A/metadata.json",
@@ -57212,8 +57212,8 @@
     },
     {
       "path": "dataset/problems/358_B/enunciado.md",
-      "sha256": "a2df8e2b32c79e8eea171bd4b8ea163af3f49f4406820844497390b6b8aac3e5",
-      "size": 2022
+      "sha256": "b9028e5eae03ddeb04a76c13c5fe0779b52bad96c6d840ccec2c282c25a19f37",
+      "size": 2040
     },
     {
       "path": "dataset/problems/358_B/metadata.json",
@@ -57737,8 +57737,8 @@
     },
     {
       "path": "dataset/problems/362_B/enunciado.md",
-      "sha256": "9c1348d962aa37d92dcc6c8f143de74b40f402f57bd5eaee07596042875358c3",
-      "size": 1301
+      "sha256": "fff0d59fb91a7cceefe356517979c04c510d95c5fd76e005838cc7c1b5e20573",
+      "size": 1316
     },
     {
       "path": "dataset/problems/362_B/metadata.json",
@@ -58262,8 +58262,8 @@
     },
     {
       "path": "dataset/problems/365_A/enunciado.md",
-      "sha256": "ca900a14c63b476ce1097a99f7d5e388836de8114d6c932273125b4e9f797a5b",
-      "size": 632
+      "sha256": "825f0c58d77f3a53f45ea22fe4b972c13f1335fe5d416ef1f6822b1c95f5157e",
+      "size": 641
     },
     {
       "path": "dataset/problems/365_A/metadata.json",
@@ -58787,8 +58787,8 @@
     },
     {
       "path": "dataset/problems/368_C/enunciado.md",
-      "sha256": "123aee9e7848d77661be797063e48e90c19b675f754781d9a4667b7959094289",
-      "size": 2071
+      "sha256": "4391ab9a20ca39dda76a56ed1a6efe58eba36386ea1c945ca3955bc48f47f25a",
+      "size": 2128
     },
     {
       "path": "dataset/problems/368_C/metadata.json",
@@ -59312,8 +59312,8 @@
     },
     {
       "path": "dataset/problems/370_B/enunciado.md",
-      "sha256": "55f97602f855b15c444eedc94a3c69b7ccab625e809ab7c75c07476a13f25ac0",
-      "size": 1742
+      "sha256": "8c4cb79ba557ee11fb2527ff7f6d4c145ea1341b1afc4272b9015e28e33f32e6",
+      "size": 1763
     },
     {
       "path": "dataset/problems/370_B/metadata.json",
@@ -59837,8 +59837,8 @@
     },
     {
       "path": "dataset/problems/372_A/enunciado.md",
-      "sha256": "259e4a7159dae6ff0ea4743b8752fba4a08facfd2dd95e94fa78cd05f5369cb7",
-      "size": 887
+      "sha256": "516eb0324323f58e24538d675b8f4c4ac9a691558030694e7e73725b17aa3467",
+      "size": 899
     },
     {
       "path": "dataset/problems/372_A/metadata.json",
@@ -60362,8 +60362,8 @@
     },
     {
       "path": "dataset/problems/380_A/enunciado.md",
-      "sha256": "e90b2b2dc0750278523009f1183ce92992049424b61ffc2285144cb78b4dc1f0",
-      "size": 2327
+      "sha256": "3f46424703243671a372d3e0ae1ffda7ba62ef04e959dab60029de5f2bec88e7",
+      "size": 2402
     },
     {
       "path": "dataset/problems/380_A/metadata.json",
@@ -60887,8 +60887,8 @@
     },
     {
       "path": "dataset/problems/385_B/enunciado.md",
-      "sha256": "9b6c087458133c4ea73bb57e22eafb869d05d176c1d4e6e188c64f1617f9ca0f",
-      "size": 1103
+      "sha256": "99694cdb2646b389950b118d193c776f59be27d9ec81901c1fb0bbb599a5bf69",
+      "size": 1133
     },
     {
       "path": "dataset/problems/385_B/metadata.json",
@@ -61412,8 +61412,8 @@
     },
     {
       "path": "dataset/problems/413_B/enunciado.md",
-      "sha256": "70bb04b1a94af96bca5bd4ee9243fc77b34b4c3f2eadd15b4d2dc6adadf130cb",
-      "size": 2283
+      "sha256": "46942970c6d32515e06a5bcfd1c70697a550bfebbdd207628429aa0477b08bef",
+      "size": 2316
     },
     {
       "path": "dataset/problems/413_B/metadata.json",
@@ -62462,8 +62462,8 @@
     },
     {
       "path": "dataset/problems/417_B/enunciado.md",
-      "sha256": "481e838ee4dd1264b58b0c015049b5f1301d641ebe70e06bc6bcd12450ecb2af",
-      "size": 1690
+      "sha256": "2d2691385a9fea8ff65df887bfceeae50a6c896c8e737fce2e0c251360a23665",
+      "size": 1699
     },
     {
       "path": "dataset/problems/417_B/metadata.json",
@@ -63512,8 +63512,8 @@
     },
     {
       "path": "dataset/problems/446_A/enunciado.md",
-      "sha256": "b243f4385c06a30d367d7827379340fbc902a389ad52965e55fd0e342dc07134",
-      "size": 863
+      "sha256": "143b42b03e5488d0c8b9ce93a251667e817cde41450f07ee9d314fd127ea5f94",
+      "size": 908
     },
     {
       "path": "dataset/problems/446_A/metadata.json",
@@ -64037,8 +64037,8 @@
     },
     {
       "path": "dataset/problems/447_C/enunciado.md",
-      "sha256": "b243f4385c06a30d367d7827379340fbc902a389ad52965e55fd0e342dc07134",
-      "size": 863
+      "sha256": "143b42b03e5488d0c8b9ce93a251667e817cde41450f07ee9d314fd127ea5f94",
+      "size": 908
     },
     {
       "path": "dataset/problems/447_C/metadata.json",
@@ -65087,8 +65087,8 @@
     },
     {
       "path": "dataset/problems/450_A/enunciado.md",
-      "sha256": "2f5f92eddb6e7be9372bb11a78f820d6b5869e2e52b71ec2eae9a7c61e1b6415",
-      "size": 1581
+      "sha256": "99417a5fe3783e716502514575db176ee6906dedbfd2ada961b15b746d25f837",
+      "size": 1596
     },
     {
       "path": "dataset/problems/450_A/metadata.json",
@@ -66137,8 +66137,8 @@
     },
     {
       "path": "dataset/problems/455_A/enunciado.md",
-      "sha256": "eb03e747b1387cce41c35b46904110bd64ff2605baddc290500d78a5429c3405",
-      "size": 1176
+      "sha256": "e19bd4e8e1a90e81db213587a8e4537c5336d1cf15495eac57380cca1a1dc106",
+      "size": 1206
     },
     {
       "path": "dataset/problems/455_A/metadata.json",
@@ -66662,8 +66662,8 @@
     },
     {
       "path": "dataset/problems/459_A/enunciado.md",
-      "sha256": "a2bc17906552d368c3d712ceb06eede993b2c11a8a7af24566e547945f362966",
-      "size": 1204
+      "sha256": "fc0160dc0e63a15adebaf75922f4808b30c06e2d4001385d8d8f28234eb94229",
+      "size": 1276
     },
     {
       "path": "dataset/problems/459_A/metadata.json",
@@ -67187,8 +67187,8 @@
     },
     {
       "path": "dataset/problems/459_B/enunciado.md",
-      "sha256": "aa5a8ff6e90c6a0f730cf7115084106984c4d616899d587fcc08684de5679c52",
-      "size": 1386
+      "sha256": "26db083a94ed0c7f485c4cc9f72eae470f67a4cd77c41df58446b2762d816eee",
+      "size": 1407
     },
     {
       "path": "dataset/problems/459_B/metadata.json",
@@ -68237,8 +68237,8 @@
     },
     {
       "path": "dataset/problems/478_A/enunciado.md",
-      "sha256": "81cea344b43be7e9659ad382c8fd6f879ff10bc6705ababa38b967a6bc7b5d69",
-      "size": 1434
+      "sha256": "69d4ed7a1503bd225494a45a61833e006cc9cb1ee4f7dd4311a000da0af45c31",
+      "size": 1464
     },
     {
       "path": "dataset/problems/478_A/metadata.json",
@@ -68762,8 +68762,8 @@
     },
     {
       "path": "dataset/problems/493_B/enunciado.md",
-      "sha256": "cf66d310eb0bb111e7b3781224769f14e87bb4b1449dbad80a378f4551924141",
-      "size": 1439
+      "sha256": "c7ae8e9eb41938089b26d90375ae70696c5d5753e55b61bfe5b549810967c1a0",
+      "size": 1526
     },
     {
       "path": "dataset/problems/493_B/metadata.json",
@@ -69287,8 +69287,8 @@
     },
     {
       "path": "dataset/problems/493_C/enunciado.md",
-      "sha256": "ec007e355fb1a975066b83d31a19823706732b05ec027da671b5d494208b3d80",
-      "size": 1297
+      "sha256": "a884b2be08e9c1ec5a6a3b9e12acd81ac7be6a88320898e718d9c46595c29a95",
+      "size": 1321
     },
     {
       "path": "dataset/problems/493_C/metadata.json",
@@ -69812,8 +69812,8 @@
     },
     {
       "path": "dataset/problems/518_B/enunciado.md",
-      "sha256": "b66e01b6d52f2966ac898e42f43151866ee595a842e089b7ed20f9de64be9d90",
-      "size": 1984
+      "sha256": "061017519c5cfcd07d3c7ec669c28e6420466648e1641d6524e1c8d66800c828",
+      "size": 1990
     },
     {
       "path": "dataset/problems/518_B/metadata.json",
@@ -70337,8 +70337,8 @@
     },
     {
       "path": "dataset/problems/523_C/enunciado.md",
-      "sha256": "969e97774ddfd2b6d452fc8f6dc6c958527a3c42c266bfcca41d330631cd12c8",
-      "size": 1297
+      "sha256": "b3c46f6e4016914478b88f3b62e6a7239d4a786323b8485fc3f30502b350fb26",
+      "size": 1300
     },
     {
       "path": "dataset/problems/523_C/metadata.json",
@@ -70862,8 +70862,8 @@
     },
     {
       "path": "dataset/problems/534_C/enunciado.md",
-      "sha256": "8ab508a387cd1c915a72ede93fa5617737b01050af572e4236177fca031a0f0b",
-      "size": 1892
+      "sha256": "28485ba9c00edfabf36764d7cef2986ca2c307e6bd56ee5efe38d89633b7d303",
+      "size": 1955
     },
     {
       "path": "dataset/problems/534_C/metadata.json",
@@ -71387,8 +71387,8 @@
     },
     {
       "path": "dataset/problems/538_A/enunciado.md",
-      "sha256": "960a5a7658089318cf54eba3d0bdcc3cd9a72541413fc853931d547cf42e322b",
-      "size": 1779
+      "sha256": "bf2d7ec9a5d1f0a1d54b16e3965435d3ee1e3ad79bde49ee015f8af0becdc52e",
+      "size": 1782
     },
     {
       "path": "dataset/problems/538_A/metadata.json",
@@ -72437,8 +72437,8 @@
     },
     {
       "path": "dataset/problems/544_A/enunciado.md",
-      "sha256": "8be232c2ab450c131a476b09fdb2d2e1d1c384bba9d45eb8ce4dad964e76708b",
-      "size": 1108
+      "sha256": "fa5821e3135230cca560c36cfc503366b24d61113876245fbb9d574e88ef151b",
+      "size": 1135
     },
     {
       "path": "dataset/problems/544_A/metadata.json",
@@ -72962,8 +72962,8 @@
     },
     {
       "path": "dataset/problems/569_A/enunciado.md",
-      "sha256": "ba1cf778c36288ee30f226a082b30066bb125d45e0d4a63a103c11021194133c",
-      "size": 1721
+      "sha256": "729f1fea647dcbfc1bbf8d8c8dcaca21b3f1eafa879a641e44346e4234364540",
+      "size": 1727
     },
     {
       "path": "dataset/problems/569_A/metadata.json",
@@ -74012,8 +74012,8 @@
     },
     {
       "path": "dataset/problems/570_A/enunciado.md",
-      "sha256": "86c42d5dbb86adf9a49926c7c4dd68a51c5ac5971e211ff708b74bf8e605ad0c",
-      "size": 2164
+      "sha256": "3af40940a455c66cb9dd74c1fd982f5760fe8fdf83995eed7027404ef6c45f30",
+      "size": 2176
     },
     {
       "path": "dataset/problems/570_A/metadata.json",
@@ -74537,8 +74537,8 @@
     },
     {
       "path": "dataset/problems/572_B/enunciado.md",
-      "sha256": "e481ee9e7c9471051d62e707e1a956d1df019295fa5a58e8d116b5d10910852b",
-      "size": 2178
+      "sha256": "f7b3231673a988429a3e70fbbd7536a05f30aa95ec8d2e4e56d186b42887a2b9",
+      "size": 2217
     },
     {
       "path": "dataset/problems/572_B/metadata.json",
@@ -75062,8 +75062,8 @@
     },
     {
       "path": "dataset/problems/574_A/enunciado.md",
-      "sha256": "855d3793ed1f98dcc44edcc4fbde5a9292f4adb6762fae962b8f5de55b537f18",
-      "size": 1799
+      "sha256": "b5893ffd1f344e24a046e2f7a050a291eae66fc04df7a763ccdb7d2e90169d14",
+      "size": 1814
     },
     {
       "path": "dataset/problems/574_A/metadata.json",
@@ -75587,8 +75587,8 @@
     },
     {
       "path": "dataset/problems/608_A/enunciado.md",
-      "sha256": "dacf2359795c1d88586f5e9cc91c566a9fc589e51a1ae57ea8119e9e57e9b1b9",
-      "size": 1641
+      "sha256": "41f83c00b9feb6e9160f62a416ffa2827632284f15d7e5efac4ddb5e2fce238b",
+      "size": 1653
     },
     {
       "path": "dataset/problems/608_A/metadata.json",
@@ -77687,8 +77687,8 @@
     },
     {
       "path": "dataset/problems/630_J/enunciado.md",
-      "sha256": "09ac428c88b773dfa97134571e15d11f64d4ad701b4d6f87b5aea036efde5e9e",
-      "size": 941
+      "sha256": "4a7b2473dcfcf07b4c9b9c873b89755767e0b8ebc35d90a31adb2f45cc1a68bb",
+      "size": 944
     },
     {
       "path": "dataset/problems/630_J/metadata.json",
@@ -78737,8 +78737,8 @@
     },
     {
       "path": "dataset/problems/652_A/enunciado.md",
-      "sha256": "41c7b058c6545b2e2f9f9de44e62b8f8c250c51ff4463629959f6086a30322c1",
-      "size": 1834
+      "sha256": "2640900a10dbe1724777dd60857dab82b627578769172ad9261c66d40d0389dd",
+      "size": 1864
     },
     {
       "path": "dataset/problems/652_A/metadata.json",
@@ -79262,8 +79262,8 @@
     },
     {
       "path": "dataset/problems/670_D1/enunciado.md",
-      "sha256": "439029a925a81cdc9847ca49afee9593fde3110ed26b283f03f762fd74a90e32",
-      "size": 2213
+      "sha256": "e542e9df05d9ef2c6ef3f587ad835a23946ecec2588440c90993cf4e9191ffec",
+      "size": 2243
     },
     {
       "path": "dataset/problems/670_D1/metadata.json",
@@ -79787,8 +79787,8 @@
     },
     {
       "path": "dataset/problems/670_D2/enunciado.md",
-      "sha256": "f761d149effe8b3f5aeb8f8c88374dd74b219b812a026cb060af57604cb3d28f",
-      "size": 1082
+      "sha256": "5f973288e27dc2fa842755a21a4d4254a6f45ca43106c8c5116f810b9b6775a7",
+      "size": 1940
     },
     {
       "path": "dataset/problems/670_D2/metadata.json",
@@ -80312,8 +80312,8 @@
     },
     {
       "path": "dataset/problems/675_A/enunciado.md",
-      "sha256": "969a47718998bb921f59d3458ddd6fc069349ac74c0556c094269164d161b19f",
-      "size": 1325
+      "sha256": "d53fa347c82fea417a70f35a9f60dab610883176ee5bedd6ea24df5a8ee227df",
+      "size": 1343
     },
     {
       "path": "dataset/problems/675_A/metadata.json",
@@ -80837,8 +80837,8 @@
     },
     {
       "path": "dataset/problems/702_C/enunciado.md",
-      "sha256": "c3e7e8a710e77c7f1b507fa255cb9383c9690cb1edca97bb140231c09d96a912",
-      "size": 1572
+      "sha256": "c64ccba30e42871508358fa42ab38c29d1cca4d63164d95129bc7135372847a0",
+      "size": 1617
     },
     {
       "path": "dataset/problems/702_C/metadata.json",
@@ -81362,8 +81362,8 @@
     },
     {
       "path": "dataset/problems/709_B/enunciado.md",
-      "sha256": "21233db97fdde5bf39212376efd56d3b3dc2bfb59c58163a71da4a226db0e7ee",
-      "size": 1422
+      "sha256": "6a40ee61d4b9d218d1e7272766e122d8b79b68d3272951d26718c2aedd2c1c74",
+      "size": 1443
     },
     {
       "path": "dataset/problems/709_B/metadata.json",
@@ -81887,8 +81887,8 @@
     },
     {
       "path": "dataset/problems/70_B/enunciado.md",
-      "sha256": "fe535d62c026f4aa3123ff54e1746e03ed04d165259800005d6a120313ba33e9",
-      "size": 1791
+      "sha256": "f6fd846ffe4369164a20425b6498fd77efe9799346f2a84f43c9772d5dbf084c",
+      "size": 1794
     },
     {
       "path": "dataset/problems/70_B/metadata.json",
@@ -82412,8 +82412,8 @@
     },
     {
       "path": "dataset/problems/710_B/enunciado.md",
-      "sha256": "843dd85189646a2c1cbfe18e7d057135fbda456120c131717ffc59f8ae251e62",
-      "size": 596
+      "sha256": "f427f5b3ad05bfc8bc88b8587ef604d38e85d7504dfd67c20a8c555f7fb33710",
+      "size": 614
     },
     {
       "path": "dataset/problems/710_B/metadata.json",
@@ -83462,8 +83462,8 @@
     },
     {
       "path": "dataset/problems/713_A/enunciado.md",
-      "sha256": "469a51b5ae509a73d3d19aeb68a99ac4fdfd61b740ca15a3abc407005e00d61c",
-      "size": 2550
+      "sha256": "c41d7add65668e471eda988bef45db23aaab7a404f3cef3e6c87458b67c2c032",
+      "size": 2583
     },
     {
       "path": "dataset/problems/713_A/metadata.json",
@@ -83987,8 +83987,8 @@
     },
     {
       "path": "dataset/problems/719_A/enunciado.md",
-      "sha256": "92e6a2087401319383e4fb02d7936a29b7f05c160d466d9fe65ea5e4a9e38c2c",
-      "size": 1926
+      "sha256": "e04f55543b0dea9bc31333767e229c65e1650f6436f733b86214d1fad23c32bf",
+      "size": 1932
     },
     {
       "path": "dataset/problems/719_A/metadata.json",
@@ -85037,8 +85037,8 @@
     },
     {
       "path": "dataset/problems/733_B/enunciado.md",
-      "sha256": "00e646a3e3a9f5cf033b4fabc8f8e258e06785aceb7a5ab05cc33f5e996b6773",
-      "size": 2731
+      "sha256": "6cdac0b1b611639e7c940b16b2e2e576f25dd37334031d888c0162bf3148fd1d",
+      "size": 2758
     },
     {
       "path": "dataset/problems/733_B/metadata.json",
@@ -85562,8 +85562,8 @@
     },
     {
       "path": "dataset/problems/734_C/enunciado.md",
-      "sha256": "da88efa2e4cf5e1c4aabd08dd60cf0b9cf29598c645d7db4c92dda34cf27a4bb",
-      "size": 3166
+      "sha256": "40722779af0a51f41f24389ff27d7a0a1366bbaa1eb192e2403000d54cabe8ab",
+      "size": 3238
     },
     {
       "path": "dataset/problems/734_C/metadata.json",
@@ -86087,8 +86087,8 @@
     },
     {
       "path": "dataset/problems/73_A/enunciado.md",
-      "sha256": "e162e3c608bd68a1b47f970f25fe3a04a4ee9cc2b5f7c126f75f01add3c0a85a",
-      "size": 1908
+      "sha256": "3eaf80456847d4b02dd7b9a0998476dba326f994a2ba668548aac96326520fd4",
+      "size": 1914
     },
     {
       "path": "dataset/problems/73_A/metadata.json",
@@ -86612,8 +86612,8 @@
     },
     {
       "path": "dataset/problems/747_C/enunciado.md",
-      "sha256": "239a3783c0f5203c9d6ddae335cf2f84fcf1a633fee537a810c262230f602c3c",
-      "size": 2674
+      "sha256": "74cdbc49ffb9a33e9726462c470b9c922e5734bc8e2906705068dd0435f63338",
+      "size": 2737
     },
     {
       "path": "dataset/problems/747_C/metadata.json",
@@ -87662,8 +87662,8 @@
     },
     {
       "path": "dataset/problems/75_A/enunciado.md",
-      "sha256": "38ff53167e9adff9321478ab3acf5dc497edd4873503b7bb48b53d808649b6a9",
-      "size": 1206
+      "sha256": "25bd46ac58f5a9d549a3bb4d46a63e423a17d73f02e0a52151b37c242af0d815",
+      "size": 1209
     },
     {
       "path": "dataset/problems/75_A/metadata.json",
@@ -88187,8 +88187,8 @@
     },
     {
       "path": "dataset/problems/765_C/enunciado.md",
-      "sha256": "dbe956e3b77ab0fbbac5b9f2e9a0208bb0a25422a35089c831e23dd49c1619b8",
-      "size": 1087
+      "sha256": "39c745477a9717b6d2410e146ab1d2ca937ff0099028abdf40352dc2286b9f7c",
+      "size": 1093
     },
     {
       "path": "dataset/problems/765_C/metadata.json",
@@ -88712,8 +88712,8 @@
     },
     {
       "path": "dataset/problems/770_C/enunciado.md",
-      "sha256": "a521221d6c92c068efbcf9b6b26f79bd56515608642cecde04642ed056ad7e68",
-      "size": 2374
+      "sha256": "046c04e07b586c85dee20ebf9889e8deab29d9571c53bdc60e4e69cafd4c8662",
+      "size": 2392
     },
     {
       "path": "dataset/problems/770_C/metadata.json",
@@ -89237,8 +89237,8 @@
     },
     {
       "path": "dataset/problems/789_A/enunciado.md",
-      "sha256": "516f6bb2dfeeafb9658897a34a03b1d146655b35139eb954a433816a1939e7b8",
-      "size": 2016
+      "sha256": "6106bcbef776961c8df6fbcce62f65ac9d148e2bc619415075b9c883a3de71bb",
+      "size": 2040
     },
     {
       "path": "dataset/problems/789_A/metadata.json",
@@ -90287,8 +90287,8 @@
     },
     {
       "path": "dataset/problems/79_A/enunciado.md",
-      "sha256": "853fdfaef4ca722f72ba6a91fc6f8487542fee5b278bf94b8c421e4588cefc44",
-      "size": 1350
+      "sha256": "f46b1689db12d34c0a9848c83ddc5e8a74739ff3a0c5025f02d0d2e8c4824a17",
+      "size": 1356
     },
     {
       "path": "dataset/problems/79_A/metadata.json",
@@ -90812,8 +90812,8 @@
     },
     {
       "path": "dataset/problems/832_B/enunciado.md",
-      "sha256": "ca3ecc88ae41d78eace8bdd445c5ff0f430a9f9104dc1ac4a66bd89a0f8823a3",
-      "size": 2856
+      "sha256": "ec41ac19f37f6ae71f59d2e2f9c7c8a5b69786a31ba8029b84fd9fc325f7bece",
+      "size": 2865
     },
     {
       "path": "dataset/problems/832_B/metadata.json",
@@ -91337,8 +91337,8 @@
     },
     {
       "path": "dataset/problems/847_H/enunciado.md",
-      "sha256": "31352b2eab3c6cc7dbe41d1119926b355ecc0ffc73f24bdc4944518af136ff97",
-      "size": 2505
+      "sha256": "9e0ad488db759948ba301094f8c2991c41c7de87adff908cc3c4cf30b36252c3",
+      "size": 2526
     },
     {
       "path": "dataset/problems/847_H/metadata.json",
@@ -93437,8 +93437,8 @@
     },
     {
       "path": "dataset/problems/864_B/enunciado.md",
-      "sha256": "389e33cfdce420778e70fd887d16c2921f28849309a412ad726648c31dd783ce",
-      "size": 1487
+      "sha256": "91913c2175fc5c7709d321e899f6d44d672ff5f6daf05544ba339617f73c35d3",
+      "size": 1499
     },
     {
       "path": "dataset/problems/864_B/metadata.json",
@@ -93962,8 +93962,8 @@
     },
     {
       "path": "dataset/problems/870_B/enunciado.md",
-      "sha256": "bbbe11a08febc40154a915f48d40cc899f9bd43f08f4b60c2f5622d5bd9b2f47",
-      "size": 1685
+      "sha256": "c4e5269f613e90fa6b8059977f9d0e909368a1c09c90f1a0bd0a872260914e12",
+      "size": 1766
     },
     {
       "path": "dataset/problems/870_B/metadata.json",
@@ -94487,8 +94487,8 @@
     },
     {
       "path": "dataset/problems/876_B/enunciado.md",
-      "sha256": "a592a52e002e2ca01e48a4022c491b80c4d9abaca5569541d6dcdb9f4dc72115",
-      "size": 1209
+      "sha256": "839d1981748f96a246b91e3476325eaea1a146bcab73d77e0ce76c5f27770483",
+      "size": 1233
     },
     {
       "path": "dataset/problems/876_B/metadata.json",
@@ -95537,8 +95537,8 @@
     },
     {
       "path": "dataset/problems/887_B/enunciado.md",
-      "sha256": "114d2f79b028491430d5374eb1e12eaa66716c4eeb3532598f9ae91a79d1b4c4",
-      "size": 1214
+      "sha256": "2b64c9c6d2d9f60e6885fce1a36547b9a9529cbc8228709294db6596bbf8f6c5",
+      "size": 1226
     },
     {
       "path": "dataset/problems/887_B/metadata.json",
@@ -96062,8 +96062,8 @@
     },
     {
       "path": "dataset/problems/888_D/enunciado.md",
-      "sha256": "397b92b3af22609d89c722d9b60679ae4b99d8c650fed189ff21ec93aa453472",
-      "size": 609
+      "sha256": "f665af04d554a269ac71191e97cc0a421e7ed0fc1b401607719692eb19f9b9fa",
+      "size": 612
     },
     {
       "path": "dataset/problems/888_D/metadata.json",
@@ -96587,8 +96587,8 @@
     },
     {
       "path": "dataset/problems/88_C/enunciado.md",
-      "sha256": "2d45ccdf312a82cfb3c37a17552838f98dd058ce9b6a0e8fdf37ada8036ce560",
-      "size": 2454
+      "sha256": "89e8d58f7096de45ac16920b819205336a407ba8461546d020165d85740729f9",
+      "size": 2457
     },
     {
       "path": "dataset/problems/88_C/metadata.json",
@@ -97112,8 +97112,8 @@
     },
     {
       "path": "dataset/problems/893_C/enunciado.md",
-      "sha256": "cbd53ce0fe453c22a276c208f036ad3c78b519158df8fce8285b10ca6ce34e68",
-      "size": 2242
+      "sha256": "fc19c1ee301631c9981a120ad11f1f073f94911d32a56282240fd676e0f5678c",
+      "size": 2284
     },
     {
       "path": "dataset/problems/893_C/metadata.json",
@@ -97637,8 +97637,8 @@
     },
     {
       "path": "dataset/problems/913_C/enunciado.md",
-      "sha256": "15560cdb4d99cb7bc4ff134b923fbc27b504db72ed46af36f8abad80dc2c7531",
-      "size": 1595
+      "sha256": "06888ac8ea3d9c6e277639ed0b9fd2086b4061986ed46acbae69c4004ea03521",
+      "size": 1619
     },
     {
       "path": "dataset/problems/913_C/metadata.json",
@@ -98162,8 +98162,8 @@
     },
     {
       "path": "dataset/problems/91_B/enunciado.md",
-      "sha256": "bd6eb3a0a151850083dc2a77b35dd8613fd21ebeb1c4de7da63d2d73e3db3e77",
-      "size": 1479
+      "sha256": "a6d06a3cb0434db64bf7df68443c058bbfd9f99cd22583f85cf856ac0f554763",
+      "size": 1500
     },
     {
       "path": "dataset/problems/91_B/metadata.json",
@@ -98687,8 +98687,8 @@
     },
     {
       "path": "dataset/problems/920_C/enunciado.md",
-      "sha256": "60cb2e63db334f13a35a7cce15e3aba3abd8ca692689512d360e874631196726",
-      "size": 1338
+      "sha256": "febc3dc68eb8bfbe3756cada1eb4be0e5c565de7e44288b388751ffb5b8cf7b8",
+      "size": 1362
     },
     {
       "path": "dataset/problems/920_C/metadata.json",
@@ -99737,8 +99737,8 @@
     },
     {
       "path": "dataset/problems/939_C/enunciado.md",
-      "sha256": "3decb4870b119637e8542e4c055849f013681e1fd79524a8a948be5ffe2172c2",
-      "size": 2084
+      "sha256": "03ed546d54527201156cd8b921196b462e96e5448517a8707cd50596bc9bb35d",
+      "size": 2102
     },
     {
       "path": "dataset/problems/939_C/metadata.json",
@@ -100262,8 +100262,8 @@
     },
     {
       "path": "dataset/problems/950_B/enunciado.md",
-      "sha256": "a85ed63369b70be68da95257068684f93ec4012adc0dca64e579e305bc0231c4",
-      "size": 2371
+      "sha256": "0f920e6d750586b6fe9e78074292a3cd8de515386c421145a9eb0346ee4da608",
+      "size": 2455
     },
     {
       "path": "dataset/problems/950_B/metadata.json",
@@ -105013,5 +105013,13 @@
     "hf_revision": "802411c3010cb00d1b05bad57ca77365a3c699d6",
     "seed": 42
   },
-  "schema_version": 1
+  "revision": 2,
+  "revision_of": {
+    "created_at": "2026-10-19T01:47:26Z",
+    "fidelity_report_sha256": "763771a684977518d3a59961a0385da81a277391a88c138d2e5d568c8dbf011c",
+    "originals_manifest_sha256": "be20abfe762558ca046f49eafed676416324bf58b3a3a25df12fb3a6e276f22d",
+    "previous_manifest_sha256": "a092d987bffc42c9fa5b0c54196ff6060ffc74187503521048aaaf199e47c02c",
+    "revision_record_sha256": "cdcf5426f934a5956d4ea02757a9dd4df6207d9ea940fa850dfee4b08d1bffa3"
+  },
+  "schema_version": 2
 }

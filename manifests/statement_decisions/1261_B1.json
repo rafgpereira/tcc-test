@@ -1,0 +1,19 @@
+{
+  "decision": "keep",
+  "differences": [
+    {
+      "context": "e same time b_t<c_t. For examp",
+      "kind": "formula",
+      "original": "b_t < c_t",
+      "ours": "<"
+    }
+  ],
+  "enunciado": null,
+  "problem_id": "1261_B1",
+  "reason": "b_t < c_t escrito como b_t<c_t: só os espaços em volta do sinal mudam.",
+  "reviewed_at": "2026-10-18",
+  "reviewed_by": "Claude, conferido contra o original a pedido de Milena Fernandes Rocha",
+  "schema_version": 1,
+  "sha256_before": "081636d414c1dbc28bab89af44f0250ed1c41be688f4c32986a924de25a0cbd5",
+  "suggested_enunciado": null
+}

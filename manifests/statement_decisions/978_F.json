@@ -1,0 +1,19 @@
+{
+  "decision": "keep",
+  "differences": [
+    {
+      "context": " 10^5, 0 ≤ k ≤ min(2 ⋅ 10^5, (",
+      "kind": "formula",
+      "original": "0 ≤ k ≤ \\min(2 ⋅ 10^5, \\frac{n ⋅ (n - 1)}{2}))",
+      "ours": "min(2 ⋅ 10^5, (n ⋅ (n - 1))/(2)"
+    }
+  ],
+  "enunciado": null,
+  "problem_id": "978_F",
+  "reason": "\\min(2 ⋅ 10^5, \frac{n ⋅ (n - 1)}{2}) escrito como min(2 ⋅ 10^5, (n ⋅ (n - 1))/(2)): mesma expressão, só outra notação (o parêntese a mais está no próprio original).",
+  "reviewed_at": "2026-10-18",
+  "reviewed_by": "Claude, conferido contra o original a pedido de Milena Fernandes Rocha",
+  "schema_version": 1,
+  "sha256_before": "e3fd103c17cc58ef5620a6c71a44dac447fa8f5782677b75e981e533032824d3",
+  "suggested_enunciado": null
+}

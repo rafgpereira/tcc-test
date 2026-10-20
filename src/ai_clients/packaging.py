@@ -24,6 +24,7 @@ from ai_clients.problem import list_problem_ids
 from ai_clients.report import DamagedTreeError
 from ai_clients.schemas.common import SuiteStatus
 from ai_clients.schemas.manifest import FileHash, SlmSuitesManifest
+from ai_clients.schemas.provenance import CombinationOrigin, SlmProvenance
 from dataset.integrity.packaging import (
     COMPRESS_LEVEL,
     DIR_MODE,
@@ -34,6 +35,9 @@ from dataset.integrity.packaging import (
 from dataset.persistence import store as files
 from mutation.integrity import VerifyResult
 from mutation.manifest import sha256_of_bytes, sha256_of_file
+
+# The statuses of the SLM: accepted_barred belongs to the commercial models only.
+SLM_STATUSES = tuple(s for s in SuiteStatus if s is not SuiteStatus.ACCEPTED_BARRED)
 
 
 class UnfinishedRunError(Exception):
@@ -110,7 +114,7 @@ def check_finished(root: Path) -> dict[str, int]:
             f"the template changes and data/suites/slm/{config.SUPERSEDED_DIR} disagree: "
             + "; ".join(superseded[:5])
         )
-    return {status.value: statuses[status.value] for status in SuiteStatus}
+    return {status.value: statuses[status.value] for status in SLM_STATUSES}
 
 
 def _dir_info(path: str) -> zipfile.ZipInfo:
@@ -270,3 +274,161 @@ def verify(zip_path: Path, manifest_path: Path, extracted: Path | None = None) -
     if extracted is not None:
         _check_extracted(Path(extracted), manifest, result)
     return result
+
+
+# ------------------------------------------------- merged package (revision 2 of the dataset)
+
+PROVENANCE_FILE = "provenance.json"
+REVISED_SCENARIOS = ("black_box", "hybrid")  # the scenarios that show the statement
+
+
+def _dataset_revision_of(root: Path, manifest_sha256: str) -> int:
+    """1 or 2: the revision whose manifest has this hash (the current one or the kept one)."""
+    from dataset import config as dataset_config
+    from dataset.schemas.manifest import RevisedManifest, parse_manifest
+
+    current = Path(root) / dataset_config.MANIFEST_PATH
+    kept = Path(root) / dataset_config.REVISION1_MANIFEST
+    for path in (current, kept):
+        if path.is_file() and sha256_of_file(path) == manifest_sha256:
+            manifest = parse_manifest(path.read_bytes())
+            return manifest.revision if isinstance(manifest, RevisedManifest) else 1
+    raise UnfinishedRunError(
+        f"the run was made with a dataset manifest ({manifest_sha256[:12]}…) that is neither the "
+        "current one nor the kept revision 1"
+    )
+
+
+def affected_combinations(root: Path) -> set[tuple[str, str]]:
+    """The black_box and hybrid of every problem whose statement revision 2 changed."""
+    from dataset import config as dataset_config
+    from dataset.schemas.revision import DatasetRevision
+
+    path = Path(root) / dataset_config.REVISION_RECORD
+    if not path.is_file():
+        raise UnfinishedRunError(
+            f"{dataset_config.REVISION_RECORD.as_posix()} does not exist: there is no dataset "
+            "revision to merge for (run python -m dataset revise first)"
+        )
+    record = DatasetRevision.model_validate_json(path.read_bytes())
+    return {(c.problem_id, s) for c in record.changed for s in REVISED_SCENARIOS}
+
+
+def check_merge(root: Path, previous: Path) -> tuple[SlmProvenance, dict[str, int]]:
+    """The provenance of the merged package; refuses a missing, extra or damaged combination.
+
+    The new run (data/suites/slm, the current revision) must have a suite for every affected
+    combination and nothing else; the previous run (``previous``, checked with the same rules of
+    the store, without asking its run.json to be of the current dataset) must have a suite for
+    every combination.
+    """
+    root, previous = Path(root), Path(previous)
+    affected = affected_combinations(root)
+    problems = list_problem_ids(root)
+    run, old_run = store.read_run(root), store.read_run(root, previous)
+    new_revision = _dataset_revision_of(root, run.dataset_manifest_sha256)
+    old_revision = _dataset_revision_of(root, old_run.dataset_manifest_sha256)
+    damaged, missing, extra = [], [], []
+    statuses: Counter = Counter()
+    combinations = []
+    new_tree, old_tree = config.ZIP_ROOT, f"suites/{previous.name}"
+    for problem_id in problems:
+        for scenario in config.SCENARIOS:
+            redone = (problem_id, scenario) in affected
+            try:
+                old_state = store.combination_state(
+                    root, problem_id, scenario, old_run, tree=previous
+                )
+                new_dir = store.combination_dir(root, problem_id, scenario)
+                new_state = (
+                    store.combination_state(root, problem_id, scenario, run)
+                    if new_dir.is_dir()
+                    else None
+                )
+            except store.DamagedCombination as exc:
+                damaged.append(exc)
+                continue
+            if old_state.kind != "terminal":
+                missing.append(f"{previous.as_posix()} {problem_id} {scenario}")
+            if redone and (new_state is None or new_state.kind != "terminal"):
+                missing.append(f"data/suites/slm {problem_id} {scenario}")
+            if not redone and new_state is not None:
+                extra.append(f"{problem_id} {scenario}")
+            tree = new_tree if redone else old_tree
+            in_force_root = None if redone else previous
+            suite = store.read_suite(root, problem_id, scenario, in_force_root)
+            if suite is not None:
+                statuses[suite.status.value] += 1
+            combinations.append(
+                CombinationOrigin(
+                    problem_id=problem_id,
+                    scenario=scenario,
+                    tree=tree,
+                    dataset_manifest_sha256=(run if redone else old_run).dataset_manifest_sha256,
+                    dataset_revision=new_revision if redone else old_revision,
+                )
+            )
+            if redone:
+                combinations.append(
+                    CombinationOrigin(
+                        problem_id=problem_id,
+                        scenario=scenario,
+                        tree=old_tree,
+                        dataset_manifest_sha256=old_run.dataset_manifest_sha256,
+                        dataset_revision=old_revision,
+                        superseded_in=new_tree,
+                    )
+                )
+    if damaged:
+        raise DamagedTreeError(damaged)
+    if missing or extra:
+        parts = []
+        if missing:
+            parts.append(f"{len(missing)} without suite.json ({', '.join(missing[:5])})")
+        if extra:
+            parts.append(
+                f"{len(extra)} in the new run that revision 2 did not affect ({', '.join(extra[:5])})"
+            )
+        raise UnfinishedRunError("cannot merge: " + "; ".join(parts))
+    provenance = SlmProvenance(combinations=combinations)
+    return provenance, {status.value: statuses[status.value] for status in SLM_STATUSES}
+
+
+def zip_trees(trees: list[tuple[Path, str]], zip_path: Path) -> int:
+    """``zip_tree`` over several trees, each under its own root inside one zip."""
+    zip_path = Path(zip_path)
+    entries: list[tuple[str, Path | None]] = []
+    for base, zip_root in trees:
+        entries.append((f"{zip_root}/", None))
+        for path in _tree(Path(base)):
+            name = f"{zip_root}/{path.relative_to(base).as_posix()}"
+            entries.append((f"{name}/", None) if path.is_dir() else (name, path))
+    entries.sort(key=lambda entry: entry[0])
+    tmp_path = zip_path.with_name(f".{zip_path.name}.tmp")
+    try:
+        with zipfile.ZipFile(tmp_path, "w") as archive:
+            for entry_path, source in entries:
+                if source is None:
+                    archive.writestr(_dir_info(entry_path), b"")
+                else:
+                    archive.writestr(
+                        _file_info(entry_path), source.read_bytes(), compresslevel=COMPRESS_LEVEL
+                    )
+        os.replace(tmp_path, zip_path)
+    except BaseException:
+        tmp_path.unlink(missing_ok=True)
+        raise
+    return zip_path.stat().st_size
+
+
+def build_merged_zip(root: Path, previous: Path, zip_path: Path) -> PackageResult:
+    """The package of revision 2: the new run, the previous run and ``provenance.json``."""
+    root, previous = Path(root), Path(previous)
+    provenance, statuses = check_merge(root, previous)
+    files.atomic_write_json(root / config.SUITES_DIR / PROVENANCE_FILE, provenance)
+    size = zip_trees(
+        [(root / config.SUITES_DIR, config.ZIP_ROOT), (root / previous, f"suites/{previous.name}")],
+        zip_path,
+    )
+    in_force = len(provenance.in_force())
+    return PackageResult(zip_path, size, in_force, statuses, size > SIZE_WARNING_BYTES)

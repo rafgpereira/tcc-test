@@ -1,0 +1,19 @@
+{
+  "decision": "keep",
+  "differences": [
+    {
+      "context": "h player takes n/k cards from ",
+      "kind": "formula",
+      "original": "\\frac{n}{k}",
+      "ours": "n/k"
+    }
+  ],
+  "enunciado": null,
+  "problem_id": "1359_A",
+  "reason": "Fração \frac{n}{k} escrita como n/k: mesma expressão, só outra notação.",
+  "reviewed_at": "2026-10-18",
+  "reviewed_by": "Claude, conferido contra o original a pedido de Milena Fernandes Rocha",
+  "schema_version": 1,
+  "sha256_before": "e246877406e8be165fb708450a8eae546d8349151b99611d21ef744c2e8e783f",
+  "suggested_enunciado": null
+}

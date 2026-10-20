@@ -39,3 +39,16 @@ def test_the_estimate_uses_the_declared_ratio_and_the_ceiling():
     low, high = cost.cost_range("gpt", estimate, date(2026, 10, 20))
     one = (3000 * 0.75 + 2 * config.MAX_OUTPUT_TOKENS * 4.50) / 1e6
     assert low == pytest.approx(one) and high == pytest.approx(3 * one)
+
+
+def test_the_claude_price_row():
+    row = cost.price_row_for("claude", date(2026, 10, 20))
+    assert (row.input_per_mtok, row.cached_input_per_mtok, row.output_per_mtok) == (
+        0.10,
+        0.01,
+        0.50,
+    )
+    expected = ((2000 - 500) * 0.10 + 500 * 0.01 + 1500 * 0.50) / 1e6
+    assert cost.call_cost(usage(2000, 500, 1500), row) == pytest.approx(expected)
+    with pytest.raises(ValueError):
+        cost.price_row_for("claude", date(2026, 10, 19))  # no price before it was checked

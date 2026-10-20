@@ -4,7 +4,7 @@
 
 Este projeto é o software experimental de um Trabalho de Conclusão de Curso
 (Engenharia de Software, UnB) que avalia a eficácia de modelos de linguagem
-(dois LLMs comerciais e um SLM local) na geração automática de casos de
+(três LLMs comerciais e um SLM local) na geração automática de casos de
 teste unitários em C++, sob três cenários de contexto: apenas requisitos
 (caixa-preta), apenas código-fonte (caixa-branca) e híbrido. O pipeline
 extrai um dataset de problemas algorítmicos, gera falhas artificiais
@@ -67,6 +67,16 @@ Essa exceção vale só para o resultado da execução final que sustenta o
 trabalho publicado — as iterações de desenvolvimento de um módulo continuam
 nunca sendo versionadas, mesmo depois desta emenda.
 
+O dataset MAY ter **revisões numeradas** depois da primeira, somente quando
+uma conferência automática contra a fonte original demonstrar perda de
+conteúdo no dataset. Cada revisão MUST: (a) alterar apenas o que a
+conferência justifica, com cada alteração listada e a decisão humana
+registrada quando não for automática; (b) guardar a revisão anterior, pacote
+e manifesto, para auditoria, sem que nenhum comando a use; (c) registrar no
+manifesto a revisão e a sua proveniência; (d) fazer cada artefato derivado
+(suítes, relatórios) dizer de qual revisão veio. Uma revisão nunca é feita
+para melhorar resultados do experimento (emenda 1.8.0).
+
 Todo dado persistido pelo experimento MUST ser coberto por um manifesto de
 integridade commitado, contendo o hash (SHA-256) de cada arquivo persistido
 (incluindo `data/dataset.zip`, quando versionado). A integridade e a
@@ -85,7 +95,8 @@ comando no mesmo ciclo de trabalho em que é implementado.
 
 ### III. Isolamento Sem Estado nas Chamadas de IA
 
-Nenhuma chamada aos modelos (GPT-5.4-mini, Gemini 3.8 Flash, Qwen2.5-Coder)
+Nenhuma chamada aos modelos (GPT-5.4-mini, Gemini 3.8 Flash, Claude Haiku 5.5,
+Qwen2.5-Coder)
 pode reter histórico de chamadas anteriores. Cada requisição MUST ser
 autocontida, conforme exigido pela metodologia — isso é regra de arquitetura
 do código, não só de configuração de prompt.
@@ -93,7 +104,7 @@ do código, não só de configuração de prompt.
 ### IV. Contratos de Dados Explícitos e Versionados
 
 Toda estrutura de dados trocada entre módulos (`testes.json`, saída JSON dos
-três modelos, CSV de resultados) MUST ter um schema formal (Pydantic ou JSON
+quatro modelos, CSV de resultados) MUST ter um schema formal (Pydantic ou JSON
 Schema) versionado no código. Mudar um schema é uma decisão deliberada e
 documentada, nunca um efeito colateral de outra alteração.
 
@@ -128,7 +139,7 @@ pagas sem confirmação explícita de quem está executando.
 
 ### IX. Simplicidade sobre Generalidade Prematura
 
-Constrói-se apenas o que o experimento (200 problemas × 3 modelos × 3
+Constrói-se apenas o que o experimento (200 problemas × 4 modelos × 3
 cenários) exige agora. Abstrações para casos hipotéticos futuros (outros
 datasets, outras linguagens além de C++) NÃO são antecipadas.
 
@@ -302,6 +313,20 @@ Este documento tem precedência sobre decisões pontuais de implementação.
   (Princípio XI). Qualquer violação intencional MUST ser justificada por
   escrito na feature correspondente.
 - **Histórico de emendas**:
+  - 1.9.0 (2026-10-20) — Contexto do Projeto e Princípios III, IV e IX, só de
+    escopo e nomes: o experimento passa a três LLMs comerciais (acrescenta o
+    Claude Haiku 5.5) e quatro modelos ao todo. Nenhuma regra muda.
+    Justificativa: decisão dos autores de incluir um terceiro modelo comercial
+    nas mesmas condições dos outros dois (`specs/008-claude-test-generation`).
+    Aprovada por Milena em 2026-10-20.
+  - 1.8.0 (2026-10-18) — Princípio II: o dataset MAY ter revisões numeradas,
+    somente quando uma conferência automática contra a fonte original demonstrar
+    perda de conteúdo, com quatro obrigações (alterar só o justificado, guardar a
+    revisão anterior, registrar a proveniência no manifesto, artefatos derivados
+    dizerem a revisão). Justificativa: a conferência contra o original do
+    Codeforces (`specs/006-statement-fidelity`, 2026-10-18) mediu 152 expoentes
+    perdidos em 79 enunciados e 701 índices em 74; os autores decidiram a revisão
+    2 (`specs/007-dataset-revision`). Aprovada por Milena em 2026-10-18.
   - 1.7.1 (2026-10-15) — Princípio III, só de nome: "Gemini 3.5 Flash" passa a
     "Gemini 3.8 Flash". Nenhuma regra muda. Justificativa: o Google descontinuou o
     `gemini-3.5-flash` em 2026-10-08, e os autores escolheram o Flash GA mais
@@ -423,4 +448,4 @@ Este documento tem precedência sobre decisões pontuais de implementação.
     ajustada para admitir essa exceção.
   - 1.0.0 (2026-09-18) — Ratificação inicial.
 
-**Version**: 1.7.1 | **Ratified**: 2026-09-18 | **Last Amended**: 2026-10-15
+**Version**: 1.9.0 | **Ratified**: 2026-09-18 | **Last Amended**: 2026-10-20

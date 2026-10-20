@@ -49,7 +49,7 @@ EXIT_USAGE = 2
 EXIT_INFRA = 3
 EXIT_MANUAL = 4  # the command finished, but some combination awaits manual handling
 EXIT_SPEND_CAP = 5  # a commercial model reached the spend cap of the invocation
-EXIT_NO_REASONING = 6  # an answer of a commercial model reported no reasoning (barred)
+EXIT_NO_REASONING = 6  # not returned since 2026-10-20: a barred answer no longer stops generate
 EXIT_INTERRUPTED = 130
 MODELS = ("slm", *llm_config.MODELS)
 
@@ -796,8 +796,22 @@ def _run_report(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _configure_package(parser: argparse.ArgumentParser) -> None:
+    add_model_option(parser)
+    parser.add_argument(
+        "--merge-from",
+        type=Path,
+        metavar="DIR",
+        help="slm only, after a dataset revision: package the new run (only the combinations the "
+        "revision affected) together with the previous run DIR (e.g. data/suites/slm-rev1), with "
+        "data/suites/slm/provenance.json saying where each combination comes from",
+    )
+
+
 def _run_package(args: argparse.Namespace) -> int:
     if commercial(args):
+        if args.merge_from is not None:
+            raise UsageError("--merge-from is only for the local model (--model slm)")
         return llm_cli.run_package(args)
     root = Path(".")
     failed = dataset_gate(root)
@@ -805,9 +819,15 @@ def _run_package(args: argparse.Namespace) -> int:
         return failed
     if not store.run_exists(root):
         raise UsageError("data/suites/slm/run.json does not exist; run generate first")
+    merge = args.merge_from
+    if merge is not None and not store.run_exists(root, merge):
+        raise UsageError(f"{merge.as_posix()}/run.json does not exist: not a run to merge from")
     with store.exclusive_run(root):
         try:
-            result = packaging.build_zip(root, root / config.ZIP_PATH)
+            if merge is not None:
+                result = packaging.build_merged_zip(root, merge, root / config.ZIP_PATH)
+            else:
+                result = packaging.build_zip(root, root / config.ZIP_PATH)
         except report.DamagedTreeError as exc:
             return report_damage(exc.damaged)
         except packaging.UnfinishedRunError as exc:
@@ -827,8 +847,16 @@ def _run_package(args: argparse.Namespace) -> int:
             "warning threshold (GitHub refuses pushes above 100 MB)",
             file=sys.stderr,
         )
+    if merge is not None:
+        affected = len(packaging.affected_combinations(root))
+        print(
+            f"merged: {affected} combinations from suites/slm (the current dataset revision), "
+            f"{result.combinations - affected} from suites/{merge.name} (the previous one); "
+            f"{config.SUITES_DIR.as_posix()}/{packaging.PROVENANCE_FILE} written"
+        )
     print(f"manifest: {config.MANIFEST_PATH.as_posix()}")
-    print(f"report: {config.REPORT_PATH.as_posix()}")
+    note = " (the new run)" if merge is not None else ""
+    print(f"report: {config.REPORT_PATH.as_posix()}{note}")
     return EXIT_OK
 
 
@@ -865,7 +893,7 @@ def _run_verify(args: argparse.Namespace) -> int:
 register(
     "package",
     "zip a finished run into data/<model>_suites.zip with its manifest and report (app service)",
-    add_model_option,
+    _configure_package,
     _run_package,
 )
 

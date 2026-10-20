@@ -1,0 +1,19 @@
+{
+  "decision": "keep",
+  "differences": [
+    {
+      "context": "ve to minimize max(a_1, a_2, .",
+      "kind": "formula",
+      "original": "\\max(a_1, a_2, ..., a_n)",
+      "ours": ""
+    }
+  ],
+  "enunciado": null,
+  "problem_id": "1409_C",
+  "reason": "\\max(a_1, ..., a_n) escrito como max(a_1, ..., a_n): mesma fórmula, só sem o comando de formatação.",
+  "reviewed_at": "2026-10-18",
+  "reviewed_by": "Claude, conferido contra o original a pedido de Milena Fernandes Rocha",
+  "schema_version": 1,
+  "sha256_before": "5486da30546850f21fe801a1f808548c310eb5653a154b9f64805a911f14c2cb",
+  "suggested_enunciado": null
+}

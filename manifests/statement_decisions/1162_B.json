@@ -1,0 +1,61 @@
+{
+  "decision": "keep",
+  "differences": [
+    {
+      "context": "trix} 9&10&11\\\\\\ 11&12&14\\\\\\ \\",
+      "kind": "other",
+      "original": "",
+      "ours": "\\"
+    },
+    {
+      "context": "&11\\\\\\ 11&12&14\\\\\\ \\end{bmatri",
+      "kind": "other",
+      "original": "",
+      "ours": "\\"
+    },
+    {
+      "context": "{bmatrix} 1&1\\\\\\ 2&3\\\\\\ \\end{b",
+      "kind": "other",
+      "original": "",
+      "ours": "\\"
+    },
+    {
+      "context": "rix} 1&1\\\\\\ 2&3\\\\\\ \\end{bmatri",
+      "kind": "other",
+      "original": "",
+      "ours": "\\"
+    },
+    {
+      "context": "bmatrix} 9&10\\\\\\ 11&12\\\\\\ \\end",
+      "kind": "other",
+      "original": "",
+      "ours": "\\"
+    },
+    {
+      "context": "} 9&10\\\\\\ 11&12\\\\\\ \\end{bmatri",
+      "kind": "other",
+      "original": "",
+      "ours": "\\"
+    },
+    {
+      "context": "{bmatrix} 2&4\\\\\\ 3&5\\\\\\ \\end{b",
+      "kind": "other",
+      "original": "",
+      "ours": "\\"
+    },
+    {
+      "context": "rix} 2&4\\\\\\ 3&5\\\\\\ \\end{bmatri",
+      "kind": "other",
+      "original": "",
+      "ours": "\\"
+    }
+  ],
+  "enunciado": null,
+  "problem_id": "1162_B",
+  "reason": "As matrizes de exemplo (\begin{bmatrix}) têm uma barra invertida a mais no fim de cada linha (\\\\ em vez de \\): diferença de escape do LaTeX, os números e a estrutura das matrizes são os mesmos.",
+  "reviewed_at": "2026-10-18",
+  "reviewed_by": "Claude, conferido contra o original a pedido de Milena Fernandes Rocha",
+  "schema_version": 1,
+  "sha256_before": "9acc2801a78e2b1a63177b865cab109cd4302e1f541ad9f1000753dd27109814",
+  "suggested_enunciado": null
+}

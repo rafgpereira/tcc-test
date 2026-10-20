@@ -36,6 +36,7 @@ class CombinationCounts(Schema):
     total: NonNegative = 0
     accepted_predicted: NonNegative = 0
     discarded_manual: NonNegative = 0
+    accepted_barred: NonNegative = 0  # tests of an answer without reasoning, after 3 of them
     awaiting_manual: NonNegative = 0
     pending: NonNegative = 0
 

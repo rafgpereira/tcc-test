@@ -5,12 +5,11 @@ extraction needed): it hashes the zip file itself and every file inside it. With
 it additionally checks the extracted tree, file by file, against the same manifest.
 """
 
-import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from dataset.integrity.manifest import sha256_of_file
-from dataset.schemas.manifest import Manifest
+from dataset.schemas.manifest import Manifest, parse_manifest
 
 ZIP_ROOT_PREFIX = "dataset/"
 
@@ -62,7 +61,7 @@ def _check_extracted(extracted_dir: Path, manifest: Manifest, result: VerifyResu
 
 
 def verify(zip_path: Path, manifest_path: Path, extracted_dir: Path | None = None) -> VerifyResult:
-    manifest = Manifest.model_validate(json.loads(Path(manifest_path).read_text(encoding="utf-8")))
+    manifest = parse_manifest(Path(manifest_path).read_text(encoding="utf-8"))
     result = VerifyResult()
     _check_zip(Path(zip_path), manifest, result)
     if extracted_dir is not None:
