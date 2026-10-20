@@ -21,8 +21,9 @@ teste unitários em C++.
 > conferir, não precisa gerar nada. Um comando na raiz, `python -m cli check`, confere se dataset,
 > mutantes e suítes estão completos e 1:1. Os três modelos comerciais (GPT-5.4-mini, Gemini 3.8 Flash
 > e Claude Haiku 5.5) têm código e testes prontos. O Gemini terminou a execução completa sobre a
-> revisão 2 do dataset (600 combinações, 599 `accepted_predicted` e 1 `accepted_barred`, 613 chamadas, US$ 4,90, pacote `data/gemini_suites.zip`, no repositório); o GPT e o Claude ainda não fizeram
-> nenhuma chamada paga. O `show-request` e o `generate --dry-run --save-requests` gravam, sem
+> revisão 2 do dataset (600 combinações, 599 `accepted_predicted` e 1 `accepted_barred`, 613 chamadas, US$ 4,90, pacote `data/gemini_suites.zip`, no repositório), assim como o GPT
+> (600 combinações, 600 `accepted_predicted`, 601 chamadas, US$ 13,47, pacote `data/gpt_suites.zip`, no repositório), e o Claude
+> (600 combinações, 589 `accepted_predicted`, 8 `accepted_barred` e 3 `discarded_manual`, 632 chamadas, US$ 0,98, pacote `data/claude_suites.zip`, no repositório). O `show-request` e o `generate --dry-run --save-requests` gravam, sem
 > chamar nada, o pedido enviado (ou a enviar) a cada modelo, conferido contra o dataset; o
 > `show-request --suite-attempts` grava de uma vez o da tentativa que gerou cada suíte. O
 > `python -m dataset check-statements` comparou os 200 enunciados com o original do Codeforces:
@@ -362,7 +363,7 @@ no `.env` e nunca fazem uma chamada paga sem `--confirm-spend <US$>`, que també
 | `docker compose run --rm app python -m ai_clients generate --model gpt --dry-run --save-requests data/requests` (ou `--model gemini`, `--model slm`) | `app` | além do dry-run, grava o corpo de cada pedido pendente (com o prompt dentro) em `data/requests/<modelo>/<id>.<cenário>.request.json` e um `summary.json`, conferindo que o enunciado, o código e o exemplo de cada prompt são idênticos ao dataset (`1` se algum não for) e avisando os enunciados com expoente perdido; nada é chamado; `--force` substitui a pasta do modelo |
 | `docker compose run --rm app python -m ai_clients show-request --model gemini --problem ID --scenario S --output ARQUIVO` | `app` | grava no arquivo o corpo do pedido de uma tentativa (a última; `--attempt N`, ou `--barred N` nos comerciais), conferido contra o hash gravado e o dataset, sem chamar nada e sem mostrar o pedido no terminal; sem tentativa, a prévia do próximo; `--suites-dir` lê uma execução guardada; texto-base mudado: busca a versão antiga no histórico do Git |
 | `docker compose run --rm app python -m ai_clients show-request --model slm --suite-attempts --output-dir data/requests/suites` (ou `--model gpt`/`gemini`) | `app` | de uma vez: o corpo do pedido da tentativa que gerou a suíte de cada combinação (a do `suite.json`, não necessariamente a última), com as mesmas conferências e um `summary.json`; sem suíte: pulada; não conferido: não gravado e saída `1`; `--problem`, `--scenario`, `--suites-dir`, `--force` |
-| `unzip data/slm_suites.zip -d data/` | (host) | descompacta as suítes em `data/suites/slm/` (`gemini_suites.zip` da mesma forma; `gpt_suites.zip` e `claude_suites.zip` quando existirem) |
+| `unzip data/slm_suites.zip -d data/` | (host) | descompacta as suítes em `data/suites/slm/` (`gemini_suites.zip`, `gpt_suites.zip` e `claude_suites.zip` da mesma forma) |
 
 ### Módulo `cli` ([README](src/cli/README.md))
 

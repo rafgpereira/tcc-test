@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-20
 
-**Status**: Draft
+**Status**: Implemented (execução completa em 2026-10-20)
 
 **Input**: User description: "Módulo 008 — terceiro modelo comercial: Claude (Anthropic)
 claude-haiku5.5, --model claude, nas mesmas condições do GPT-5.4-mini e do Gemini 3.8 Flash
@@ -218,6 +218,7 @@ check` passa a conferir uma camada `claude_suites`.
   anteriores e nos 3 cenários. Ele é guardado à parte, e só o seu relatório é versionado. O piloto
   mede os tokens de saída, a taxa de falha de formato e o raciocínio, e serve para conferir se o teto
   de saída (32.768) basta e o custo real.
+  **Emenda de 2026-10-20 (Milena)**: sem piloto separado. A chamada de conferência (`--limit 1`) confirmou a contagem de raciocínio e o custo; ela fica na execução completa, e as medidas do piloto vêm do relatório da execução completa.
 
 ### Relatório, pacote e conferência
 

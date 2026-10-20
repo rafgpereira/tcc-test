@@ -1,0 +1,366 @@
+{
+  "attempts_by_number": {
+    "1": 591,
+    "2": 3,
+    "3": 2
+  },
+  "barred": {
+    "combinations": [
+      "1023_A black_box",
+      "1023_A black_box",
+      "1023_A black_box",
+      "1029_C black_box",
+      "1029_C black_box",
+      "1029_C black_box",
+      "1141_A hybrid",
+      "1141_A hybrid",
+      "1141_A hybrid",
+      "171_F hybrid",
+      "171_F hybrid",
+      "171_F hybrid",
+      "237_A hybrid",
+      "237_A hybrid",
+      "285_B black_box",
+      "334_B black_box",
+      "349_A black_box",
+      "349_A black_box",
+      "349_A black_box",
+      "352_A black_box",
+      "365_A black_box",
+      "365_A black_box",
+      "365_A black_box",
+      "538_A hybrid",
+      "53_A hybrid",
+      "53_A hybrid",
+      "53_A hybrid",
+      "570_A hybrid",
+      "630_J hybrid",
+      "630_J hybrid",
+      "630_J hybrid",
+      "981_B black_box",
+      "981_B black_box",
+      "981_B hybrid",
+      "981_B hybrid",
+      "981_B hybrid"
+    ],
+    "count": 36
+  },
+  "combinations": {
+    "black_box": {
+      "accepted_barred": 4,
+      "accepted_predicted": 194,
+      "awaiting_manual": 0,
+      "discarded_manual": 2,
+      "pending": 0,
+      "total": 200
+    },
+    "hybrid": {
+      "accepted_barred": 4,
+      "accepted_predicted": 195,
+      "awaiting_manual": 0,
+      "discarded_manual": 1,
+      "pending": 0,
+      "total": 200
+    },
+    "total": {
+      "accepted_barred": 8,
+      "accepted_predicted": 589,
+      "awaiting_manual": 0,
+      "discarded_manual": 3,
+      "pending": 0,
+      "total": 600
+    },
+    "white_box": {
+      "accepted_barred": 0,
+      "accepted_predicted": 200,
+      "awaiting_manual": 0,
+      "discarded_manual": 0,
+      "pending": 0,
+      "total": 200
+    }
+  },
+  "cost_usd": {
+    "barred_cost_usd": 0.0187947,
+    "by_group": {
+      "black_box": 0.3286019,
+      "hybrid": 0.3103525,
+      "total": 0.9570274,
+      "white_box": 0.318073
+    },
+    "price_rows_used": [
+      {
+        "accessed_on": "2026-10-20",
+        "cached_input_per_mtok": 0.01,
+        "input_per_mtok": 0.1,
+        "model_key": "claude",
+        "output_per_mtok": 0.5,
+        "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+        "valid_from": "2026-10-20"
+      }
+    ],
+    "total": 0.9758221
+  },
+  "dataset_manifest_sha256": "70d93346b79c111be51dce2eb9e05d73d4dd540058f6995864b9be75ccef05bc",
+  "failures": {
+    "refusal": {
+      "1": 1,
+      "2": 1,
+      "3": 1
+    },
+    "truncated": {
+      "1": 2,
+      "2": 1,
+      "3": 1
+    }
+  },
+  "latency_s": {
+    "calls": 632,
+    "max_s": 89.784,
+    "mean_s": 12.65808544,
+    "median_s": 11.0145,
+    "total_s": 7999.91
+  },
+  "model_key": "claude",
+  "model_requested": "claude-haiku-5-5",
+  "models_returned": {
+    "claude-haiku-5-5": 632
+  },
+  "request_parameters": {
+    "max_tokens": 32768,
+    "messages": [
+      {
+        "content": "<prompt>",
+        "role": "user"
+      }
+    ],
+    "model": "claude-haiku-5-5",
+    "output_config": {
+      "effort": "medium",
+      "format": {
+        "schema": {
+          "additionalProperties": false,
+          "properties": {
+            "edge_cases_analysis": {
+              "type": "string"
+            },
+            "tests": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "input": {
+                    "type": "string"
+                  },
+                  "output": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "input",
+                  "output"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "edge_cases_analysis",
+            "tests"
+          ],
+          "type": "object"
+        },
+        "type": "json_schema"
+      }
+    },
+    "thinking": {
+      "type": "adaptive"
+    }
+  },
+  "safety_blocks_by_category": null,
+  "schema_version": 1,
+  "suite_size": {
+    "black_box": {
+      "count": 198,
+      "histogram": {
+        "10": 33,
+        "11": 26,
+        "12": 32,
+        "13": 12,
+        "14": 13,
+        "15": 4,
+        "16": 9,
+        "17": 4,
+        "19": 1,
+        "2": 1,
+        "20": 1,
+        "3": 1,
+        "4": 3,
+        "5": 2,
+        "6": 3,
+        "7": 18,
+        "8": 25,
+        "9": 10
+      },
+      "max": 20,
+      "median": 11.0,
+      "min": 2,
+      "p25": 8.0,
+      "p75": 12.0
+    },
+    "hybrid": {
+      "count": 199,
+      "histogram": {
+        "10": 34,
+        "11": 22,
+        "12": 29,
+        "13": 13,
+        "14": 17,
+        "15": 15,
+        "16": 7,
+        "17": 2,
+        "19": 1,
+        "20": 2,
+        "21": 1,
+        "24": 1,
+        "3": 1,
+        "4": 1,
+        "5": 3,
+        "6": 5,
+        "7": 8,
+        "8": 25,
+        "9": 12
+      },
+      "max": 24,
+      "median": 11.0,
+      "min": 3,
+      "p25": 9.0,
+      "p75": 13.0
+    },
+    "total": {
+      "count": 597,
+      "histogram": {
+        "10": 95,
+        "11": 74,
+        "12": 100,
+        "13": 45,
+        "14": 53,
+        "15": 28,
+        "16": 20,
+        "17": 7,
+        "18": 4,
+        "19": 2,
+        "2": 1,
+        "20": 4,
+        "21": 1,
+        "22": 1,
+        "24": 1,
+        "3": 2,
+        "4": 4,
+        "5": 9,
+        "6": 12,
+        "7": 33,
+        "8": 65,
+        "9": 36
+      },
+      "max": 24,
+      "median": 11.0,
+      "min": 2,
+      "p25": 9.0,
+      "p75": 13.0
+    },
+    "white_box": {
+      "count": 200,
+      "histogram": {
+        "10": 28,
+        "11": 26,
+        "12": 39,
+        "13": 20,
+        "14": 23,
+        "15": 9,
+        "16": 4,
+        "17": 1,
+        "18": 4,
+        "20": 1,
+        "22": 1,
+        "5": 4,
+        "6": 4,
+        "7": 7,
+        "8": 15,
+        "9": 14
+      },
+      "max": 22,
+      "median": 12.0,
+      "min": 5,
+      "p25": 10.0,
+      "p75": 13.0
+    }
+  },
+  "template_changes": [],
+  "template_sha256": "a0b8f42a8e4c3205c8bb29694749e87053cc73500299b7c44bde3740e6c70b5f",
+  "test_discards": {
+    "black_box": {
+      "abbreviated_tests": 0,
+      "conflicting_outputs": 0,
+      "duplicate_inputs": 0,
+      "empty_tests": 1,
+      "example_copies": 15,
+      "markdown_fences_removed": 0
+    },
+    "hybrid": {
+      "abbreviated_tests": 0,
+      "conflicting_outputs": 1,
+      "duplicate_inputs": 2,
+      "empty_tests": 1,
+      "example_copies": 11,
+      "markdown_fences_removed": 0
+    },
+    "total": {
+      "abbreviated_tests": 0,
+      "conflicting_outputs": 1,
+      "duplicate_inputs": 2,
+      "empty_tests": 4,
+      "example_copies": 45,
+      "markdown_fences_removed": 0
+    },
+    "white_box": {
+      "abbreviated_tests": 0,
+      "conflicting_outputs": 0,
+      "duplicate_inputs": 0,
+      "empty_tests": 2,
+      "example_copies": 19,
+      "markdown_fences_removed": 0
+    }
+  },
+  "tokens": {
+    "black_box": {
+      "cached_input": 0,
+      "input": 396174,
+      "output": 597424,
+      "reasoning": 358684
+    },
+    "hybrid": {
+      "cached_input": 0,
+      "input": 478997,
+      "output": 543040,
+      "reasoning": 362190
+    },
+    "total": {
+      "cached_input": 0,
+      "input": 1193446,
+      "output": 1712955,
+      "reasoning": 1162001
+    },
+    "white_box": {
+      "cached_input": 0,
+      "input": 318275,
+      "output": 572491,
+      "reasoning": 441127
+    }
+  },
+  "truncated": {
+    "black_box": 3,
+    "hybrid": 1,
+    "total": 4,
+    "white_box": 0
+  }
+}

@@ -51,8 +51,9 @@ TCC de dupla — Milena e Rafael, UnB.
   relatório (gerados em 2026-10-11)
 - `data/gpt_suites.zip`, `data/gemini_suites.zip`, `data/claude_suites.zip` + `manifests/<modelo>_suites.manifest.json` +
   `manifests/<modelo>_generation_report.json` — pacotes da execução final de cada modelo
-  comercial; o do Gemini gerado em 2026-10-20 (600 combinações sobre a revisão 2 do dataset, 599
-  `accepted_predicted` e 1 `accepted_barred`, US$ 4,90), os do GPT e do Claude ainda não
+  comercial; os do Gemini (599 `accepted_predicted` e 1 `accepted_barred`, US$ 4,90) e do GPT (600
+  `accepted_predicted`, US$ 13,47) e do Claude (589 `accepted_predicted`, 8 `accepted_barred`, 3
+  `discarded_manual`, US$ 0,98) gerados em 2026-10-20 sobre a revisão 2 do dataset
 - `specs/NNN-nome/` — specs do spec-kit, uma por módulo
 - `Dockerfile` / `docker-compose.yml` — ambiente de execução reprodutível
   (Constitution, Princípio II)

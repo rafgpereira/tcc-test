@@ -189,7 +189,7 @@ Nenhum teste chama a API: o provedor é falso, e as respostas no formato da Anth
   - **`CLAUDE.md`**: a lista dos modelos, `data/claude_suites.zip` e a referência à constitution 1.9.0;
   - **`check_docs_sync.py`** sai 0.
 - [X] T019 📌 PROPAGAR — **Dry-run real** (sem custo): `generate --model claude --dry-run` e `--save-requests`. Registrar na metodologia a faixa de custo das 600 combinações e confirmar que o `template_sha256` é o mesmo dos outros dois.
-- [ ] T020 📌 PROPAGAR — **Piloto (pago; só com pedido dos autores)**, quickstart §2:
+- [X] T020 📌 PROPAGAR — **Piloto (pago; só com pedido dos autores)** — **substituído (2026-10-20, Milena)** pela chamada de conferência (`--limit 1`: `thinking_tokens` 5.165, US$ 0,0031); as medidas vêm da execução completa (T021), quickstart §2:
   - primeiro `--limit 1`, para conferir o sinal de raciocínio (research R2, S2);
   - depois os 5 problemas.
 
@@ -200,14 +200,14 @@ Nenhum teste chama a API: o provedor é falso, e as respostas no formato da Anth
   - o custo real comparado com o dry-run.
 
   Guardar o relatório do piloto e mover a pasta.
-- [ ] T021 📌 PROPAGAR — **Execução completa (paga; só com pedido dos autores)**, quickstart §3. Carimbar os comandos em "Comandos verificados" e corrigir as frases que os davam como pendentes (grep nos dois READMEs).
+- [X] T021 📌 PROPAGAR — **Execução completa (paga; só com pedido dos autores)**, quickstart §3. Carimbar os comandos em "Comandos verificados" e corrigir as frases que os davam como pendentes (grep nos dois READMEs).
 
 ---
 
 ## Phase 8: Polish
 
 - [X] T022 Conferência contra a constitution 1.9.0 no `plan.md`: Princípios III, VIII e IX, conferidos contra o código e os testes.
-- [ ] T023 Fechamento:
+- [X] T023 Fechamento:
   - a suíte inteira passa (comparar com T001);
   - `ruff` e `black` limpos;
   - `check_docs_sync.py` e `--feature specs/008-claude-test-generation` saem 0;
@@ -232,3 +232,8 @@ Nenhum teste chama a API: o provedor é falso, e as respostas no formato da Anth
 2. **US2 a US4**: custo, retomada, pacote e `cli check`.
 3. **Documentação e dry-run real**, sem custo.
 4. **Piloto e execução completa**: pagos, quando os autores pedirem.
+
+## Fechamento (2026-10-20)
+
+- T021: execução completa — 589 `accepted_predicted`, 8 `accepted_barred`, 3 `discarded_manual`, 632 chamadas, US$ 0,98; pacote conferido (`verify` e `cli check --deep`).
+- T023: 1.981 testes passando; `ruff`, `black` e `check_docs_sync` (raiz e `--feature`) limpos.

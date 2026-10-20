@@ -135,7 +135,7 @@ A3). Nenhuma decisão em aberto.
 - **A8 — Teto de gasto** — **DECIDIDA em 2026-10-15**: obrigatório por invocação, junto com a
   confirmação; ao atingi-lo nenhuma chamada nova sai e o comando sai com código próprio (FR-022a).
 - **A9 — Piloto aproveitado ou descartado** — **DECIDIDA em 2026-10-15**: descartado; a execução
-  completa começa do zero e só o relatório do piloto é versionado (FR-023a).
+  completa começa do zero e só o relatório do piloto é versionado (FR-023a). **Emenda de 2026-10-20 (decisão de Milena), só para o GPT:** o piloto do GPT rodou com a configuração idêntica à da execução completa (revisão 2 do dataset `70d93346…`, texto-base `a0b8f42a…`, os mesmos modelo e parâmetros), então as suas 15 combinações são aproveitadas: a execução completa continua a mesma árvore com `--resume`, e o relatório do piloto é guardado à parte como registro (`manifests/gpt_generation_report.piloto1.json`). O piloto do Gemini continua descartado (rodou sobre a revisão 1 do dataset).
 - **A10 — Campo de cálculo por teste no schema** — **DECIDIDA em 2026-10-15**: não há; o cálculo
   da saída fica no raciocínio interno do modelo (FR-004, FR-007).
 - **A11 — Prompt numa mensagem só ou com instrução de sistema** — **DECIDIDA em 2026-10-15**:
@@ -519,6 +519,7 @@ faltando ou sobrando é apontada pelo `check`.
   configuração para as 1.200 combinações. O relatório do piloto MUST ser versionado como registro
   do piloto (como os relatórios dos pilotos do SLM); as respostas do piloto não entram no pacote
   (FR-026).
+  **Emenda de 2026-10-20 (decisão de Milena), só para o GPT:** o piloto do GPT rodou com a configuração idêntica à da execução completa (revisão 2 do dataset `70d93346…`, texto-base `a0b8f42a…`, os mesmos modelo e parâmetros), então as suas 15 combinações são aproveitadas: a execução completa continua a mesma árvore com `--resume`, e o relatório do piloto é guardado à parte como registro (`manifests/gpt_generation_report.piloto1.json`). O piloto do Gemini continua descartado (rodou sobre a revisão 1 do dataset).
 - **FR-024**: Um processo de geração MUST poder fazer chamadas simultâneas a um modelo, em número
   configurável por modelo no `.env` (padrão 4, ajustado depois do piloto; A5, decidida em
   2026-10-13), cada chamada de uma combinação diferente, protegida pela trava exclusiva por

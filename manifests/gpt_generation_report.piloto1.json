@@ -1,0 +1,258 @@
+{
+  "attempts_by_number": {
+    "1": 15,
+    "2": 0,
+    "3": 0
+  },
+  "barred": {
+    "combinations": [],
+    "count": 0
+  },
+  "combinations": {
+    "black_box": {
+      "accepted_barred": 0,
+      "accepted_predicted": 5,
+      "awaiting_manual": 0,
+      "discarded_manual": 0,
+      "pending": 195,
+      "total": 200
+    },
+    "hybrid": {
+      "accepted_barred": 0,
+      "accepted_predicted": 5,
+      "awaiting_manual": 0,
+      "discarded_manual": 0,
+      "pending": 195,
+      "total": 200
+    },
+    "total": {
+      "accepted_barred": 0,
+      "accepted_predicted": 15,
+      "awaiting_manual": 0,
+      "discarded_manual": 0,
+      "pending": 585,
+      "total": 600
+    },
+    "white_box": {
+      "accepted_barred": 0,
+      "accepted_predicted": 5,
+      "awaiting_manual": 0,
+      "discarded_manual": 0,
+      "pending": 195,
+      "total": 200
+    }
+  },
+  "cost_usd": {
+    "barred_cost_usd": 0.0,
+    "by_group": {
+      "black_box": 0.1473015,
+      "hybrid": 0.11630415,
+      "total": 0.38016615,
+      "white_box": 0.1165605
+    },
+    "price_rows_used": [
+      {
+        "accessed_on": "2026-10-15",
+        "cached_input_per_mtok": 0.075,
+        "input_per_mtok": 0.75,
+        "model_key": "gpt",
+        "output_per_mtok": 4.5,
+        "source": "https://developers.openai.com/api/docs/models/gpt-5.4-mini",
+        "valid_from": "2026-10-15"
+      }
+    ],
+    "total": 0.38016615
+  },
+  "dataset_manifest_sha256": "70d93346b79c111be51dce2eb9e05d73d4dd540058f6995864b9be75ccef05bc",
+  "failures": {},
+  "latency_s": {
+    "calls": 15,
+    "max_s": 73.481,
+    "mean_s": 27.4234,
+    "median_s": 19.844,
+    "total_s": 411.351
+  },
+  "model_key": "gpt",
+  "model_requested": "gpt-5.4-mini-2026-03-17",
+  "models_returned": {
+    "gpt-5.4-mini-2026-03-17": 15
+  },
+  "request_parameters": {
+    "input": "<prompt>",
+    "max_output_tokens": 32768,
+    "model": "gpt-5.4-mini-2026-03-17",
+    "reasoning": {
+      "effort": "medium"
+    },
+    "store": false,
+    "text": {
+      "format": {
+        "name": "test_suite",
+        "schema": {
+          "additionalProperties": false,
+          "properties": {
+            "edge_cases_analysis": {
+              "type": "string"
+            },
+            "tests": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "input": {
+                    "type": "string"
+                  },
+                  "output": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "input",
+                  "output"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "edge_cases_analysis",
+            "tests"
+          ],
+          "type": "object"
+        },
+        "strict": true,
+        "type": "json_schema"
+      }
+    }
+  },
+  "safety_blocks_by_category": null,
+  "schema_version": 1,
+  "suite_size": {
+    "black_box": {
+      "count": 5,
+      "histogram": {
+        "4": 1,
+        "7": 1,
+        "8": 2,
+        "9": 1
+      },
+      "max": 9,
+      "median": 8.0,
+      "min": 4,
+      "p25": 7.0,
+      "p75": 8.0
+    },
+    "hybrid": {
+      "count": 5,
+      "histogram": {
+        "10": 2,
+        "5": 2,
+        "8": 1
+      },
+      "max": 10,
+      "median": 8.0,
+      "min": 5,
+      "p25": 5.0,
+      "p75": 10.0
+    },
+    "total": {
+      "count": 15,
+      "histogram": {
+        "10": 2,
+        "4": 2,
+        "5": 2,
+        "6": 1,
+        "7": 2,
+        "8": 3,
+        "9": 3
+      },
+      "max": 10,
+      "median": 8.0,
+      "min": 4,
+      "p25": 5.5,
+      "p75": 9.0
+    },
+    "white_box": {
+      "count": 5,
+      "histogram": {
+        "4": 1,
+        "6": 1,
+        "7": 1,
+        "9": 2
+      },
+      "max": 9,
+      "median": 7.0,
+      "min": 4,
+      "p25": 6.0,
+      "p75": 9.0
+    }
+  },
+  "template_changes": [],
+  "template_sha256": "a0b8f42a8e4c3205c8bb29694749e87053cc73500299b7c44bde3740e6c70b5f",
+  "test_discards": {
+    "black_box": {
+      "abbreviated_tests": 0,
+      "conflicting_outputs": 0,
+      "duplicate_inputs": 0,
+      "empty_tests": 0,
+      "example_copies": 0,
+      "markdown_fences_removed": 0
+    },
+    "hybrid": {
+      "abbreviated_tests": 0,
+      "conflicting_outputs": 0,
+      "duplicate_inputs": 0,
+      "empty_tests": 1,
+      "example_copies": 0,
+      "markdown_fences_removed": 0
+    },
+    "total": {
+      "abbreviated_tests": 0,
+      "conflicting_outputs": 0,
+      "duplicate_inputs": 0,
+      "empty_tests": 1,
+      "example_copies": 0,
+      "markdown_fences_removed": 0
+    },
+    "white_box": {
+      "abbreviated_tests": 0,
+      "conflicting_outputs": 0,
+      "duplicate_inputs": 0,
+      "empty_tests": 0,
+      "example_copies": 0,
+      "markdown_fences_removed": 0
+    }
+  },
+  "tokens": {
+    "black_box": {
+      "cached_input": 0,
+      "input": 5974,
+      "output": 31738,
+      "reasoning": 29846
+    },
+    "hybrid": {
+      "cached_input": 1152,
+      "input": 8233,
+      "output": 24646,
+      "reasoning": 22547
+    },
+    "total": {
+      "cached_input": 1152,
+      "input": 19567,
+      "output": 81393,
+      "reasoning": 75489
+    },
+    "white_box": {
+      "cached_input": 0,
+      "input": 5360,
+      "output": 25009,
+      "reasoning": 23096
+    }
+  },
+  "truncated": {
+    "black_box": 0,
+    "hybrid": 0,
+    "total": 0,
+    "white_box": 0
+  }
+}
