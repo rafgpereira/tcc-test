@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-18
 
-**Status**: Draft
+**Status**: Implemented (revisão 2 gerada em 2026-10-18; SLM refeito e pacote juntado em 2026-10-22)
 
 **Input**: User description: "Módulo 007 — aplicar ao dataset a correção dos enunciados (revisão 2
 do dataset). Com o relatório da feature 006 (152 expoentes perdidos em 79 problemas e 701 índices

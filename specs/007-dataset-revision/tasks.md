@@ -175,22 +175,22 @@ combinações, e o `cli check` passa.
 
   Registrar quantos mudaram (automáticos e manuais), quantos foram mantidos e o tamanho do zip novo; carimbar `revise`.
   **Feito (2026-10-18)**: 104 alterados (102 automáticos, 2 manuais), 13 mantidos; zip `5a9b66b8…`, 12.892.995 bytes; detalhes na metodologia 1.6.1.
-- [ ] T020 📌 PROPAGAR — **Mutantes (F4)**: `python -m mutation report` (aponta para a revisão 2) e `python -m mutation verify` (`OK`, sem mudança no pacote); registrar que o relatório antigo apontava para `6b3628c3…` (S4).
-- [ ] T021 📌 PROPAGAR — **SLM (D2, F2)**:
+- [X] T020 📌 PROPAGAR — **Mutantes (F4)**: `python -m mutation report` (aponta para a revisão 2) e `python -m mutation verify` (`OK`, sem mudança no pacote); registrar que o relatório antigo apontava para `6b3628c3…` (S4).
+- [X] T021 📌 PROPAGAR — **SLM (D2, F2)**:
   - `mv data/suites/slm data/suites/slm-rev1` (o `revise` imprime esse passo); conferir que `data/suites/slm` não existe antes do primeiro `generate` e que `data/suites/slm-rev1` não existia antes do `mv`;
   - alternar o `generate` e o `execute` que o `revise` imprimiu até o fim;
   - `package --merge-from data/suites/slm-rev1`;
   - `cli check --deep`.
 
   Registrar o número de combinações refeitas, o tempo e o resultado (`status` das suítes novas comparado com as antigas das mesmas combinações); carimbar `package --merge-from`.
-- [ ] T022 📌 PROPAGAR — **Documentação**:
+- [X] T022 📌 PROPAGAR — **Documentação**:
   - `README.md` da raiz: a revisão 2, a 1 guardada, a referência de comandos e a lista de artefatos;
   - `CLAUDE.md`: a frase "commitado uma única vez" passa a dizer que há revisões numeradas (1.8.0), e a "Estrutura" e os comandos ganham `dataset.rev1.zip`, `dataset_revision.json`, as decisões e o `revise`;
   - metodologia: a seção 1.6.1 passa a implementada, com os números;
   - limitações do TCC: o que a correção garante e não garante (FR-009);
   - nos modelos comerciais, a revisão de cada suíte é identificada pelo hash do manifesto do dataset gravado no `run.json` e nos relatórios (SC-004); no SLM, pelo `provenance.json`.
-- [ ] T023 Constitution 1.8.0 compliance review no `plan.md`: as quatro obrigações da emenda conferidas contra o código e os artefatos; revisão do código por um dos autores.
-- [ ] T024 Fechamento:
+- [X] T023 Constitution 1.8.0 compliance review no `plan.md`: as quatro obrigações da emenda conferidas contra o código e os artefatos; revisão do código por um dos autores.
+- [X] T024 Fechamento:
   - suíte inteira passando (T001 mais os novos);
   - `ruff`, `black --check` e `check_docs_sync` (com `--closing --feature specs/007-dataset-revision`) saem 0;
   - entrega: dizer aos autores os arquivos a commitar (`data/dataset.zip`, `data/dataset.rev1.zip`, os manifestos, `dataset_revision.json`, as decisões, `data/slm_suites.zip` e o manifesto dele, o relatório dos mutantes, o código e a documentação), sem rodar Git.
@@ -209,3 +209,10 @@ combinações, e o `cli check` passa.
 1. **MVP**: Foundational + US2 + US1. O `revise` funciona nos testes.
 2. **Junção (US3)**: pacote do SLM e `cli check`.
 3. **Execução real (Phase 6)**, na ordem: decisões dos autores, revisão 2, mutantes, SLM, documentação.
+
+## Fechamento (2026-10-22)
+
+- T020: os mutantes ficaram intactos por decisão de Milena (2026-10-18); `mutation verify` OK; o `mutation report` não foi regenerado (registrado na metodologia, 1.6.1).
+- T021: SLM refeito nas 208 combinações afetadas (165 `accepted`, 43 `accepted_fallback`); `package --merge-from` juntou 208 + 392; `verify` e `cli check --deep` OK.
+- T022: documentação propagada (metodologia 1.6.1, `CLAUDE.md`, READMEs).
+- T023/T024: conferência contra a constitution 1.8.0 (as quatro obrigações: só os enunciados justificados mudaram; revisão 1 guardada e conferida; proveniência no manifesto e em `dataset_revision.json`; cada combinação do SLM diz a revisão em `provenance.json`, e os comerciais gravam o manifesto da revisão 2 no `run.json`); testes, `ruff`, `black` e `check_docs_sync` limpos.

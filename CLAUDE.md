@@ -47,8 +47,10 @@ TCC de dupla — Milena e Rafael, UnB.
   enunciado, com hash) e a conferência deles contra os `enunciado.md` do dataset (2026-10-18: 152
   expoentes perdidos em 79 problemas, 701 índices em 74), base da revisão 2 do dataset
 - `data/slm_suites.zip` + `manifests/slm_suites.manifest.json` +
-  `manifests/slm_generation_report.json` — pacote da execução final do SLM, seu manifesto e o
-  relatório (gerados em 2026-10-11)
+  `manifests/slm_generation_report.json` — pacote final do SLM, seu manifesto e o relatório; desde
+  2026-10-22 o pacote junta a execução da revisão 1 (392 combinações) e a refeita na revisão 2 (as 208
+  afetadas), com a origem em `provenance.json` (504 `accepted`, 95 `accepted_fallback`, 1
+  `accepted_predicted`)
 - `data/gpt_suites.zip`, `data/gemini_suites.zip`, `data/claude_suites.zip` + `manifests/<modelo>_suites.manifest.json` +
   `manifests/<modelo>_generation_report.json` — pacotes da execução final de cada modelo
   comercial; os do Gemini (599 `accepted_predicted` e 1 `accepted_barred`, US$ 4,90) e do GPT (600

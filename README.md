@@ -10,14 +10,14 @@ teste unitários em C++.
 > "Módulos e estado", abaixo); este documento é o ponto de partida e o índice, não o detalhe de
 > cada módulo.
 >
-> **Estado atual (2026-10-20)**: os módulos `dataset` (extração, validação e empacotamento do
+> **Estado atual (2026-10-22)**: os módulos `dataset` (extração, validação e empacotamento do
 > dataset), `sandbox` (motor de execução isolada de C++), `mutation` (100 mutantes por problema) e
 > `ai_clients` para o modelo local (suítes de teste do Qwen2.5-Coder-14B) estão **implementados**,
 > e os três artefatos do experimento já foram gerados de verdade e estão neste repositório, cada
 > um com o seu manifesto de integridade: o dataset (`data/dataset.zip`, 200 problemas), os mutantes
 > (`data/mutants.zip`, 20.000 mutantes) e as suítes do modelo local (`data/slm_suites.zip`, 600
-> combinações de problema e cenário, todas com suíte: 505 `accepted`, 93 `accepted_fallback`, 2
-> `accepted_predicted`, nenhuma fechada à mão). Quem clona o projeto só precisa descompactar e
+> combinações de problema e cenário, todas com suíte: 504 `accepted`, 95 `accepted_fallback`, 1
+> `accepted_predicted`, nenhuma fechada à mão; as 208 afetadas pela revisão 2 do dataset foram refeitas). Quem clona o projeto só precisa descompactar e
 > conferir, não precisa gerar nada. Um comando na raiz, `python -m cli check`, confere se dataset,
 > mutantes e suítes estão completos e 1:1. Os três modelos comerciais (GPT-5.4-mini, Gemini 3.8 Flash
 > e Claude Haiku 5.5) têm código e testes prontos. O Gemini terminou a execução completa sobre a

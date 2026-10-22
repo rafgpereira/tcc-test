@@ -13,9 +13,10 @@ Gera, para cada problema do dataset e cada um dos três cenários de contexto, u
 e tenha o dataset descompactado em `data/dataset/`
 ([README do módulo `dataset`](../dataset/README.md), Cenário B).
 
-**Estado (2026-10-20)**: o modelo local terminou a execução completa em 2026-10-09, com suíte em
-600 de 600 combinações de problema e cenário (números em (f)), e o pacote `data/slm_suites.zip` está
-no repositório: para usar essas suítes, siga o Cenário B. Os três modelos comerciais (opção
+**Estado (2026-10-22)**: o modelo local terminou a execução completa em 2026-10-09 e, depois da
+revisão 2 do dataset, refez as 208 combinações afetadas; o pacote `data/slm_suites.zip` junta as duas
+execuções (600 de 600 combinações com suíte: 504 `accepted`, 95 `accepted_fallback`, 1
+`accepted_predicted`; números em (f)) e está no repositório: para usar essas suítes, siga o Cenário B. Os três modelos comerciais (opção
 `--model gpt`, `--model gemini` ou `--model claude`) têm o código e os testes prontos. O Gemini
 terminou a execução completa sobre a revisão 2 do dataset (600 combinações, 599 `accepted_predicted` e 1 `accepted_barred`, 613 chamadas, US$ 4,90, pacote `data/gemini_suites.zip`; números em (f)), assim como o GPT
 (600 combinações, 600 `accepted_predicted`, 601 chamadas, US$ 13,47, pacote `data/gpt_suites.zip`), assim como o Claude
@@ -393,6 +394,11 @@ há mais de um: `130`, `3`, `1`, `5`, `4`.
 
 ## (f) Limitações conhecidas
 
+- **Revisão 2 do dataset no modelo local** (2026-10-19 a 2026-10-22): as 208 combinações cujo
+  enunciado mudou foram refeitas (165 `accepted`, 43 `accepted_fallback`); as outras 392 vêm da
+  execução anterior. O pacote junta as duas, e `data/suites/slm/provenance.json` diz de qual
+  execução e de qual revisão do dataset vem cada combinação.
+
 - **Resultado da execução completa do Claude** (600 combinações, revisão 2 do dataset, 2026-10-20):
   589 `accepted_predicted`, 8 `accepted_barred` e 3 `discarded_manual`; 632 chamadas, das quais 36
   respostas sem raciocínio em 16 combinações; 4 respostas cortadas pelo teto de saída e 3 recusas;
@@ -474,7 +480,7 @@ há mais de um: `130`, `3`, `1`, `5`, `4`.
 | `package --model gemini` | 2026-10-20 | 29d9245+dirty |
 | `package --model gpt` | 2026-10-20 | 29d9245+dirty |
 | `package --model claude` e `report --model claude` | 2026-10-20 | 29d9245+dirty |
-| `package --merge-from` | pendente | — |
+| `package --merge-from data/suites/slm-rev1` (208 combinações novas e 392 da revisão 1) | 2026-10-22 | 8c22193+dirty |
 | `verify --model gemini` (inclusive `--extracted data/suites/gemini`) | 2026-10-20 | 29d9245+dirty |
 | `verify --model gpt` (inclusive `--extracted data/suites/gpt`) | 2026-10-20 | 29d9245+dirty |
 | `verify --model claude` (inclusive `--extracted data/suites/claude`) | 2026-10-20 | 29d9245+dirty |
