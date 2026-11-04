@@ -16,11 +16,13 @@
 
 ## 0. Contexto Geral do Experimento
 
-Avaliar empiricamente a eficácia de modelos de linguagem (dois LLMs comerciais —
-GPT-5.4-mini e Gemini 3.8 Flash — e um SLM local — Qwen2.5-Coder-14B, `qwen2.5-coder:14b`,
-via Ollama; o texto do TCC cita o 7B, trocado em 2026-10-06, seção 7, item 30, e o Gemini 3.5
-Flash, descontinuado pelo Google e trocado pelo 3.8 Flash em 2026-10-15, seção 7, item 41) na
-geração automática de casos de teste unitários em C++, sob três cenários de contexto:
+Avaliar empiricamente a eficácia de modelos de linguagem (três LLMs comerciais —
+GPT-5.4-mini, Gemini 3.8 Flash e Claude Haiku 5.5 — e um SLM local — Qwen2.5-Coder-14B,
+`qwen2.5-coder:14b`, via Ollama; o texto do TCC cita o 7B, trocado em 2026-10-06, seção 7, item 30,
+o Gemini 3.5 Flash, descontinuado pelo Google e trocado pelo 3.8 Flash em 2026-10-15, seção 7, item
+41, e só 2 LLMs comerciais — o Claude Haiku 5.5 foi acrescentado depois, seção 3, "Terceiro modelo
+comercial: Claude") na geração automática de casos de teste unitários em C++, sob três cenários de
+contexto:
 
 - **Caixa-Preta**: apenas o enunciado do problema (requisito).
 - **Caixa-Branca**: apenas o código-fonte da solução de referência (AC).
