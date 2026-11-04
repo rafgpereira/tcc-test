@@ -544,7 +544,7 @@ Decisões (Milena, 2026-10-04), todas antes do piloto 2, que começa uma execuç
 
 **Piloto 2 (2026-10-04, `data/suites/slm/`; o piloto 1 foi guardado em `data/suites/slm-piloto1/`)**:
 execução nova com as decisões de R13 (template `061b7427…`, `num_predict 5120`, Ollama 0.35.0,
-`qwen2.5-coder:7b` Q4_K_M, hardware "GPU T4 - Google Colab, 16GB RAM"). 5 problemas (`1000_B`,
+`qwen2.5-coder:7b` Q4_K_M, hardware GPU T4, 16GB RAM). 5 problemas (`1000_B`,
 `1005_C`, `1008_B`, `1_B`, `61_B`) × 3 cenários = 15 combinações, todas terminais. Números contados
 nos arquivos de tentativa:
 
@@ -904,7 +904,7 @@ simulados; nenhum número medido com o modelo real.
 
 **Piloto 5 (2026-10-06, `data/suites/slm/`, guardado como `slm-piloto5`; código `7535dee`,
 `qwen2.5-coder:14b`, templates de R17 e de predição, regra de R18/R19, temperatura 0,7, seed base
-42, mesmos 5 problemas × 3 cenários, "GPU T4 - Google Colab")**: as 15 combinações terminaram com
+42, mesmos 5 problemas × 3 cenários, GPU T4)**: as 15 combinações terminaram com
 suíte. Medido dos arquivos de tentativa:
 
 | | Piloto 4 (14B) | Piloto 5 (14B) |
@@ -1087,7 +1087,7 @@ temperatura baixa só o piloto 6 mede.
 
 **Piloto 6 (2026-10-06/07, `data/suites/slm/`, código `e69d2fe`, `qwen2.5-coder:14b` digest
 `9ec8897f…`, Ollama 0.35.0, templates `fc9757e8…` e `421adf86…`, política de 5 fases de R21/R22,
-mesmos 5 problemas × 3 cenários, "GPU T4 - Google Colab, 16GB RAM")**. Medido dos arquivos das 15
+mesmos 5 problemas × 3 cenários, GPU T4, 16GB RAM)**. Medido dos arquivos das 15
 combinações do piloto (as tentativas de `1009_B` e `1011_B`, já começadas na mesma execução, ficam
 de fora):
 
@@ -1113,13 +1113,13 @@ tratamento manual, então as fases 4 e 5 continuam testadas só com o modelo sim
    execução**, com `--resume`, até as 600 combinações: as 15 do piloto 6 entram no resultado final.
    **Alternativa rejeitada**: começar a execução completa numa pasta nova (refaria 15 combinações
    já feitas com a mesma configuração).
-2. **Duas GPUs T4 idênticas (Kaggle), cada uma com seu Ollama**, para gerar as 585 restantes: dois
+2. **Duas GPUs T4 idênticas, cada uma com seu Ollama**, para gerar as 585 restantes: dois
    `generate --resume` em paralelo, com metades disjuntas dos problemas (desde R26, todos os
    problemas nos dois) e o `OLLAMA_BASE_URL` de
    cada um passado com `docker compose run -e`, e um único `execute` depois (desenho em R24).
    `OLLAMA_HARDWARE_LABEL` é o mesmo nos dois processos (o do `.env`), então a etiqueta não
    distingue as duas GPUs. **Não será medido** se as duas GPUs dão respostas idênticas para a
-   mesma seed e temperatura (decisão dos autores: são T4 idênticas, como a do Colab).
+   mesma seed e temperatura (decisão dos autores: são T4 idênticas, como a dos pilotos).
 3. Antes do primeiro `generate` da continuação: `docker compose run --rm app python -m cli check
    --deep` com saída 0.
 
@@ -1395,9 +1395,9 @@ concorrentes, um por GPU (R24, R26), e um `execute`.
 
 **Decisões e registros** (Milena, 2026-10-11):
 
-1. **Etiqueta de hardware**: as 2.185 chamadas têm a etiqueta "GPU T4 - Google Colab, 16GB RAM",
-   mas parte da execução rodou no Kaggle (2×T4: o mesmo modelo de GPU, a mesma versão do Ollama e o
-   mesmo digest do modelo, conferidos pelo `--resume`). Os arquivos gravados **não** mudam (todo
+1. **Etiqueta de hardware**: as 2.185 chamadas têm uma única etiqueta de hardware (GPU T4, 16GB
+   RAM), mas a execução usou mais de uma máquina com GPU T4 (2×T4: o mesmo modelo de GPU, a mesma
+   versão do Ollama e o mesmo digest do modelo, conferidos pelo `--resume`). Os arquivos gravados **não** mudam (todo
    registro é gravado uma vez); a divergência fica registrada aqui e na metodologia, sem impacto
    nos resultados.
 2. **`close` não foi necessário**: nenhuma combinação ficou aguardando os autores; o comando segue

@@ -249,8 +249,8 @@ combinações que chegaram à predição têm a suíte final do template novo (`
 6.597.040 bytes, SHA-256 `b73d2750…`, 4.850 arquivos, inclusive `template_changes/` e
 `superseded/`); `verify --extracted` e `cli check --deep` saíram `OK` (R28).
 
-- Q: A etiqueta de hardware (FR-003a) de todas as chamadas é "GPU T4 - Google Colab, 16GB RAM",
-  mas parte rodou no Kaggle. Corrigir? → A: Não: os arquivos gravados não mudam; a divergência
+- Q: A etiqueta de hardware (FR-003a) é a mesma em todas as chamadas (GPU T4, 16GB RAM),
+  mas a execução usou mais de uma máquina com GPU T4. Corrigir? → A: Não: os arquivos gravados não mudam; a divergência
   (mesma GPU T4, mesma versão do Ollama, mesmo digest do modelo) fica registrada em R28 e na
   metodologia, sem impacto nos resultados.
 - Q: O `close` (FR-022d) foi usado? → A: Não foi necessário: nenhuma combinação ficou aguardando

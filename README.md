@@ -256,7 +256,7 @@ Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
 | `sandbox` | sem uso direto: é a biblioteca de execução isolada; só se opera diretamente para conferir a saúde do motor | [README do módulo](src/sandbox/README.md) |
 | `mutation` | obter os mutantes (descompactar e conferir) ou gerá-los do zero | [README do módulo](src/mutation/README.md) |
 | `cli` | conferir se dataset, mutantes e as suítes dos quatro modelos estão consistentes entre si | [README do módulo](src/cli/README.md) |
-| `ai_clients` | obter as suítes de teste dos quatro modelos (descompactar e conferir) ou gerá-las do zero (a preparação do Ollama, com o exemplo de um notebook do Kaggle com duas placas, está no README do módulo) | [README do módulo](src/ai_clients/README.md) |
+| `ai_clients` | obter as suítes de teste dos quatro modelos (descompactar e conferir) ou gerá-las do zero (a preparação do servidor Ollama com GPU está no README do módulo) | [README do módulo](src/ai_clients/README.md) |
 | avaliação, `metrics` | ainda não implementados | sem README ainda |
 
 Siga os módulos **nesta ordem**, porque cada um depende do anterior: primeiro `dataset` (precisa

@@ -62,21 +62,16 @@ executar código de terceiros) roda as soluções Python e calcula as saídas es
 
 **Parte 1 — modelo local.**
 
-**Preparar o Ollama (exemplo: Kaggle com duas T4).** A execução final rodou com dois servidores
-Ollama 0.35.0, um por placa de vídeo, acessados pela internet por um túnel. Num notebook do Kaggle:
+**Preparar o Ollama.** O modelo local roda num servidor Ollama com GPU; a execução final usou
+duas placas NVIDIA T4, com um servidor Ollama 0.35.0 por placa. Na máquina com as GPUs:
 
-1. Crie o notebook com acelerador **GPU T4 x2** e a opção **Internet** ligada.
-2. Instale o Ollama 0.35.0 (a versão da execução).
-3. Suba um `ollama serve` por placa: `CUDA_VISIBLE_DEVICES=0` na porta `11434` e
+1. Instale o Ollama 0.35.0 (a versão da execução).
+2. Suba um `ollama serve` por placa: `CUDA_VISIBLE_DEVICES=0` na porta `11434` e
    `CUDA_VISIBLE_DEVICES=1` na porta `11435`.
-4. Baixe o modelo em cada um: `ollama pull qwen2.5-coder:14b`.
-5. Abra um túnel por servidor: `cloudflared tunnel --url http://localhost:<porta>`.
-6. Copie os dois endereços `https://….trycloudflare.com` para `GPU0` e `GPU1` do laço do passo 3.
+3. Baixe o modelo em cada um: `ollama pull qwen2.5-coder:14b`.
+4. Copie o endereço de cada servidor para `GPU0` e `GPU1` do laço do passo 3.
 
-As células prontas estão em [`docs/kaggle-ollama.ipynb`](../../docs/kaggle-ollama.ipynb) (o notebook
-usado pelos autores pode diferir em detalhes). O endereço muda toda vez que o túnel reinicia, e a
-sessão do Kaggle tem limite de tempo: quando ela cair, suba tudo de novo e troque os endereços.
-Nunca versione tokens, endereços de túnel nem logs que os contenham. Com o Ollama nesta máquina, o
+Nunca versione tokens, endereços de servidores nem logs que os contenham. Com o Ollama nesta máquina, o
 endereço é `http://host.docker.internal:11434`; noutra máquina da rede, `http://<servidor>:11434`.
 
 **1. Preencher o `.env`** (o arquivo de configuração na raiz, ver `.env.example`):
@@ -478,7 +473,6 @@ há mais de um: `130`, `3`, `1`, `5`, `4`.
 ## Referências
 
 - Metodologia: [`docs/metodologia-referencia.md`](../../docs/metodologia-referencia.md), seção 3
-- Preparação do Ollama no Kaggle: [`docs/kaggle-ollama.ipynb`](../../docs/kaggle-ollama.ipynb)
 - Testes: `tests/ai_clients/` (`docker compose run --rm sandbox pytest tests/ai_clients`)
 
 ## Comandos verificados
