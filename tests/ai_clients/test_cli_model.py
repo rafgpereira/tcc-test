@@ -27,7 +27,7 @@ def test_every_command_takes_model_and_defaults_to_the_slm(argv):
 
 
 def test_an_unknown_model_is_a_usage_error():
-    assert cli.main(["report", "--model", "claude"]) == cli.EXIT_USAGE
+    assert cli.main(["report", "--model", "llama"]) == cli.EXIT_USAGE
 
 
 @pytest.mark.parametrize("model", ["gpt", "gemini"])

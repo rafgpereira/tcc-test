@@ -94,10 +94,10 @@ na avaliação, para que nenhum código do dataset falhe no motor só durante o 
 | `src/dataset/` | extrai, valida e empacota o dataset experimental | seção 1 | **implementado**: dataset real gerado, validado e empacotado (200 problemas, ~12 MiB) | [README](src/dataset/README.md) |
 | `src/sandbox/` | motor de execução isolada de C++, usado pelo `dataset` | seções 1.4 e 4 | **implementado**: motor, isolamento e auto-checagem testados | [README](src/sandbox/README.md) |
 | `src/mutation/` | gera 100 mutantes por problema e os empacota | seção 2 | **implementado**: 200 problemas, 20.000 mutantes, pacote versionado (~9 MiB) | [README](src/mutation/README.md) |
-| `src/ai_clients/` | chamadas stateless aos 3 modelos | seção 3 | **implementado** para o modelo local (SLM): 600 de 600 combinações com suíte, pacote versionado (6.597.040 bytes); **em implementação** para os dois modelos comerciais: código e testes prontos, piloto pago pendente | [README](src/ai_clients/README.md) |
+| `src/ai_clients/` | chamadas stateless aos 3 modelos comerciais e ao modelo local | seção 3 | **implementado**: execução completa e pacote versionado nos quatro modelos — local (600 de 600 combinações, revisão 2 do dataset), GPT-5.4-mini, Gemini 3.8 Flash e Claude Haiku 5.5 (600 combinações cada) | [README](src/ai_clients/README.md) |
 | avaliação | injeta as suítes geradas e registra vereditos em CSV | seção 4 | **sem spec** | a criar |
 | `src/metrics/` | TDF, MS, TFP, IIC | seção 5 | **sem spec** (IIC ainda não operacionalizado) | a criar |
-| `src/cli/` | comandos que cruzam módulos (hoje `check`) e, no futuro, o orquestrador do experimento | — | **em implementação**: `check` pronto; o orquestrador ainda sem especificação | [README](src/cli/README.md) |
+| `src/cli/` | comandos que cruzam módulos (hoje `check`) e, no futuro, o orquestrador do experimento | — | **em implementação**: `check` pronto (dataset, mutantes e as suítes dos quatro modelos); o orquestrador ainda sem especificação | [README](src/cli/README.md) |
 
 O formato dos READMEs de módulo é o de [`docs/template-modulo.md`](docs/template-modulo.md).
 
@@ -255,9 +255,19 @@ Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
 | `dataset` | obter o dataset (o caso comum: descompactar e conferir) ou gerá-lo do zero | [README do módulo](src/dataset/README.md) |
 | `sandbox` | sem uso direto: é a biblioteca de execução isolada; só se opera diretamente para conferir a saúde do motor | [README do módulo](src/sandbox/README.md) |
 | `mutation` | obter os mutantes (descompactar e conferir) ou gerá-los do zero | [README do módulo](src/mutation/README.md) |
-| `cli` | conferir se dataset, mutantes e suítes do modelo local estão consistentes entre si | [README do módulo](src/cli/README.md) |
-| `ai_clients` | obter as suítes de teste do modelo local (descompactar e conferir) ou gerá-las do zero (a preparação do Ollama, com o exemplo de um notebook do Kaggle com duas placas, está no README do módulo) | [README do módulo](src/ai_clients/README.md) |
+| `cli` | conferir se dataset, mutantes e as suítes dos quatro modelos estão consistentes entre si | [README do módulo](src/cli/README.md) |
+| `ai_clients` | obter as suítes de teste dos quatro modelos (descompactar e conferir) ou gerá-las do zero (a preparação do Ollama, com o exemplo de um notebook do Kaggle com duas placas, está no README do módulo) | [README do módulo](src/ai_clients/README.md) |
 | avaliação, `metrics` | ainda não implementados | sem README ainda |
+
+Siga os módulos **nesta ordem**, porque cada um depende do anterior: primeiro `dataset` (precisa
+estar descompactado em `data/dataset/` antes de qualquer outro módulo), depois `mutation` e
+`ai_clients` — os dois leem o dataset descompactado e podem ser feitos em qualquer ordem entre si
+— e, depois de cada um, `cli check` para confirmar que o que acabou de ser obtido está consistente
+antes de seguir para o próximo. `sandbox` não tem uso direto: é a biblioteca de execução que
+`dataset` e `mutation` usam por baixo. O passo a passo exato de cada módulo — os comandos, em que
+ordem dentro dele, e os dois cenários (rodar do zero ou descompactar o que já existe) — está na
+seção "(b) Como executar" do README dele (link na tabela acima); este guia não repete esses
+comandos, para não haver duas fontes que podem divergir.
 
 ## Conferir se os artefatos estão consistentes entre si
 
@@ -363,13 +373,14 @@ no `.env` e nunca fazem uma chamada paga sem `--confirm-spend <US$>`, que també
 | `docker compose run --rm app python -m ai_clients generate --model gpt --dry-run --save-requests data/requests` (ou `--model gemini`, `--model slm`) | `app` | além do dry-run, grava o corpo de cada pedido pendente (com o prompt dentro) em `data/requests/<modelo>/<id>.<cenário>.request.json` e um `summary.json`, conferindo que o enunciado, o código e o exemplo de cada prompt são idênticos ao dataset (`1` se algum não for) e avisando os enunciados com expoente perdido; nada é chamado; `--force` substitui a pasta do modelo |
 | `docker compose run --rm app python -m ai_clients show-request --model gemini --problem ID --scenario S --output ARQUIVO` | `app` | grava no arquivo o corpo do pedido de uma tentativa (a última; `--attempt N`, ou `--barred N` nos comerciais), conferido contra o hash gravado e o dataset, sem chamar nada e sem mostrar o pedido no terminal; sem tentativa, a prévia do próximo; `--suites-dir` lê uma execução guardada; texto-base mudado: busca a versão antiga no histórico do Git |
 | `docker compose run --rm app python -m ai_clients show-request --model slm --suite-attempts --output-dir data/requests/suites` (ou `--model gpt`/`gemini`) | `app` | de uma vez: o corpo do pedido da tentativa que gerou a suíte de cada combinação (a do `suite.json`, não necessariamente a última), com as mesmas conferências e um `summary.json`; sem suíte: pulada; não conferido: não gravado e saída `1`; `--problem`, `--scenario`, `--suites-dir`, `--force` |
-| `unzip data/slm_suites.zip -d data/` | (host) | descompacta as suítes em `data/suites/slm/` (`gemini_suites.zip`, `gpt_suites.zip` e `claude_suites.zip` da mesma forma) |
+| `unzip data/slm_suites.zip -d data/` | (host) | descompacta as suítes do modelo local: a pasta vigente em `data/suites/slm/` **e**, por o pacote juntar as duas execuções da revisão do dataset (`provenance.json`), também `data/suites/slm-rev1/` (a execução anterior, mantida por proveniência) |
+| `unzip data/gpt_suites.zip -d data/` (ou `data/gemini_suites.zip`, `data/claude_suites.zip`) | (host) | descompacta as suítes de cada modelo comercial numa única pasta (`data/suites/gpt/`, `data/suites/gemini/` ou `data/suites/claude/`), sem equivalente ao `-rev1` |
 
 ### Módulo `cli` ([README](src/cli/README.md))
 
 | Comando | Serviço | O que faz / variações |
 |---|---|---|
-| `docker compose run --rm app python -m cli check` | `app` | confere, pelas pastas de verdade, se dataset, mutantes e suítes dos quatro modelos estão completos e 1:1 (200 problemas, 100 mutantes cada, 3 cenários cada, nada sobrando; suítes ainda em geração são só aviso); `--deep` confere também os hashes; `--only dataset` (ou `mutants`, `slm_suites`, `gpt_suites`, `gemini_suites`) confere só uma camada |
+| `docker compose run --rm app python -m cli check` | `app` | confere, pelas pastas de verdade, se dataset, mutantes e suítes dos quatro modelos estão completos e 1:1 (200 problemas, 100 mutantes cada, 3 cenários cada, nada sobrando; suítes ainda em geração são só aviso); `--deep` confere também os hashes; `--only dataset` (ou `mutants`, `slm_suites`, `gpt_suites`, `gemini_suites`, `claude_suites`; várias separadas por vírgula) confere só essas camadas |
 
 ### Módulo `sandbox` ([README](src/sandbox/README.md))
 
