@@ -28,6 +28,11 @@ TCC de dupla — Milena e Rafael, UnB.
 - `src/prompt_templates/` — texto-base dos pedidos ao SLM (solução e predição) e aos 3 modelos
   comerciais (`llm_prompt.txt`)
 - `src/sandbox/` — compilação e execução isolada em C++
+- `src/evaluation/` — executa cada suíte (4 modelos e a 1ª tentativa do SLM) contra AC, WAs e
+  mutantes: AC sem curto-circuito, alvos com curto-circuito e dois oráculos (o declarado e o
+  corrigido pelo AC), erro de execução repetido 3 vezes (`specs/009-suite-evaluation/`)
+- `src/dashboard/` — painel Streamlit só de leitura sobre os resultados da avaliação (visão geral,
+  combinação teste a teste, comparações; métricas quando existirem; `specs/011-results-dashboard/`)
 - `src/metrics/` — TDF, MS, TFP, IIC
 - `src/cli/` — comandos que cruzam módulos (hoje `check`) e, no futuro, o orquestrador que amarra tudo
   (cada `src/<modulo>/` tem `README.md` no formato de `docs/template-modulo.md`)
@@ -116,8 +121,16 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
   3 s ou mais, e depois não acessa mais o site): `docker compose run --rm app python -m dataset
   check-statements [--problem ID] [--refetch]`; os corrigidos para revisão (nunca altera o dataset):
   `... python -m dataset correct-statements --output-dir data/statements/corrected [--force]`
+- Avaliação das suítes (`sandbox`; portões: auto-checagem do motor e `cli check --deep`): piloto
+  `docker compose run --rm sandbox python -m evaluation run --problem 1000_B --problem 1005_C
+  --problem 1008_B --problem 1_B --problem 61_B`, depois `run` sem `--problem` (retoma); no `app`,
+  `python -m evaluation report`, `package --set S` e `verify --set S [--extracted ...]`, com
+  S em `slm|gpt|gemini|claude|slm-attempt1`. O piloto e a execução completa só com pedido dos autores
+- Painel dos resultados (só lê; porta só nesta máquina): `docker compose run --rm -p
+  127.0.0.1:8501:8501 app python -m dashboard serve [--evaluation-dir DIR]` e abrir
+  `http://localhost:8501`
 - Conferir a consistência entre artefatos (dataset descompactado × mutantes × suítes dos 4
-  modelos, 1:1, com contagens; só lê): `docker compose run --rm app python -m cli check [--deep]`. Todo módulo que
+  modelos × avaliações, 1:1, com contagens; só lê): `docker compose run --rm app python -m cli check [--deep]`. Todo módulo que
   passa a produzir uma pasta por problema MUST entrar nele (`docs/verificacao-consistencia.md`)
 - Lint/formatação: `docker compose run --rm app ruff check .` /
   `docker compose run --rm app black .`

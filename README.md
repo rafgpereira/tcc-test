@@ -10,7 +10,7 @@ teste unitários em C++.
 > "Módulos e estado", abaixo); este documento é o ponto de partida e o índice, não o detalhe de
 > cada módulo.
 >
-> **Estado atual (2026-10-22)**: os módulos `dataset` (extração, validação e empacotamento do
+> **Estado atual (2026-11-04)**: os módulos `dataset` (extração, validação e empacotamento do
 > dataset), `sandbox` (motor de execução isolada de C++), `mutation` (100 mutantes por problema) e
 > `ai_clients` para o modelo local (suítes de teste do Qwen2.5-Coder-14B) estão **implementados**,
 > e os três artefatos do experimento já foram gerados de verdade e estão neste repositório, cada
@@ -30,8 +30,11 @@ teste unitários em C++.
 > 152 expoentes perdidos (`10^5` escrito `105`) em 79 problemas e 701 índices (`a_i` escrito `ai`)
 > em 74. Com isso, o `python -m dataset revise` gerou a revisão 2 do dataset: 104 enunciados corrigidos (102
 > automaticamente e 2 na revisão dos 15 restantes), nenhum outro arquivo alterado, e a revisão 1 guardada só para auditoria; as suítes do modelo local das 208 combinações
-> afetadas estão sendo refeitas. Os demais
-> módulos (avaliação, métricas, orquestrador) ainda não têm especificação nem código; a tabela
+> afetadas foram refeitas. O módulo de
+> avaliação (`evaluation`) está implementado e testado: executa cada suíte contra o AC, os WAs e os
+> mutantes e grava os vereditos; o piloto e a execução completa ainda não foram feitos. Um painel
+> (`dashboard`, aberto no navegador) mostra esses resultados só para leitura. Os
+> módulos de métricas e o orquestrador ainda não têm especificação nem código; a tabela
 > "Módulos e estado" marca isso.
 
 ## O que o experimento responde
@@ -51,7 +54,7 @@ defeitos sintéticos, qual gera mais falsos positivos (alucinações) e como com
 ajuda ou atrapalha. Detalhes completos do desenho experimental:
 [`docs/metodologia-referencia.md`](docs/metodologia-referencia.md).
 
-Escala: **200 problemas × 3 modelos × 3 cenários** (1.800 suítes de teste geradas).
+Escala: **200 problemas × 4 modelos × 3 cenários** (2.400 suítes de teste geradas).
 
 ## Arquitetura: como os módulos se conectam
 
@@ -74,8 +77,8 @@ Escala: **200 problemas × 3 modelos × 3 cenários** (1.800 suítes de teste ge
  └──────┬───────┘                                           │
         ▼                                                   │
  ┌──────────────┐  executa cada suíte contra AC, WAs e      │
- │  avaliação   │  mutantes, com curto-circuito ────────────┘
- └──────┬───────┘  → registro CSV de vereditos
+ │  evaluation  │  mutantes (2 oráculos)        ────────────┘
+ └──────┬───────┘  → results.csv de vereditos
         ▼
  ┌──────────────┐  TDF (falhas reais), MS (mutantes),
  │   metrics    │  TFP (falsos positivos), IIC (influência do contexto)
@@ -95,7 +98,8 @@ na avaliação, para que nenhum código do dataset falhe no motor só durante o 
 | `src/sandbox/` | motor de execução isolada de C++, usado pelo `dataset` | seções 1.4 e 4 | **implementado**: motor, isolamento e auto-checagem testados | [README](src/sandbox/README.md) |
 | `src/mutation/` | gera 100 mutantes por problema e os empacota | seção 2 | **implementado**: 200 problemas, 20.000 mutantes, pacote versionado (~9 MiB) | [README](src/mutation/README.md) |
 | `src/ai_clients/` | chamadas stateless aos 3 modelos comerciais e ao modelo local | seção 3 | **implementado**: execução completa e pacote versionado nos quatro modelos — local (600 de 600 combinações, revisão 2 do dataset), GPT-5.4-mini, Gemini 3.8 Flash e Claude Haiku 5.5 (600 combinações cada) | [README](src/ai_clients/README.md) |
-| avaliação | injeta as suítes geradas e registra vereditos em CSV | seção 4 | **sem spec** | a criar |
+| `src/evaluation/` | executa as suítes contra AC, WAs e mutantes e grava os vereditos | seção 4 | **em implementação**: código e testes prontos; piloto e execução completa ainda não feitos | [README](src/evaluation/README.md) |
+| `src/dashboard/` | painel no navegador, só de leitura, sobre os resultados da avaliação | seção 8 | **em implementação**: código e testes prontos; conferência com os autores pendente | [README](src/dashboard/README.md) |
 | `src/metrics/` | TDF, MS, TFP, IIC | seção 5 | **sem spec** (IIC ainda não operacionalizado) | a criar |
 | `src/cli/` | comandos que cruzam módulos (hoje `check`) e, no futuro, o orquestrador do experimento | — | **em implementação**: `check` pronto (dataset, mutantes e as suítes dos quatro modelos); o orquestrador ainda sem especificação | [README](src/cli/README.md) |
 
@@ -257,7 +261,9 @@ Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
 | `mutation` | obter os mutantes (descompactar e conferir) ou gerá-los do zero | [README do módulo](src/mutation/README.md) |
 | `cli` | conferir se dataset, mutantes e as suítes dos quatro modelos estão consistentes entre si | [README do módulo](src/cli/README.md) |
 | `ai_clients` | obter as suítes de teste dos quatro modelos (descompactar e conferir) ou gerá-las do zero (a preparação do servidor Ollama com GPU está no README do módulo) | [README do módulo](src/ai_clients/README.md) |
-| avaliação, `metrics` | ainda não implementados | sem README ainda |
+| `evaluation` | executar as suítes dos quatro modelos contra AC, WAs e mutantes (do zero) ou descompactar e conferir o resultado | [README do módulo](src/evaluation/README.md) |
+| `dashboard` | explorar os resultados da avaliação no navegador (visão geral, uma combinação teste a teste, comparações); só lê | [README do módulo](src/dashboard/README.md) |
+| `metrics` | ainda não implementado | sem README ainda |
 
 Siga os módulos **nesta ordem**, porque cada um depende do anterior: primeiro `dataset` (precisa
 estar descompactado em `data/dataset/` antes de qualquer outro módulo), depois `mutation` e
@@ -314,7 +320,7 @@ está no README dele; `--help` de qualquer comando lista as opções de fato dis
 | Comando | Serviço | O que faz / variações |
 |---|---|---|
 | `docker compose build` | (nenhum) | constrói a imagem; repita depois de mudar o `Dockerfile` ou o `uv.lock` |
-| `docker compose run --rm sandbox pytest` | `sandbox` | todos os testes do projeto; `pytest tests/<pasta>` roda uma parte: `tests/dataset`, `tests/sandbox`, `tests/mutation`, `tests/ai_clients`, `tests/cli` ou `tests/docs` |
+| `docker compose run --rm sandbox pytest` | `sandbox` | todos os testes do projeto; `pytest tests/<pasta>` roda uma parte: `tests/dataset`, `tests/sandbox`, `tests/mutation`, `tests/ai_clients`, `tests/evaluation`, `tests/dashboard`, `tests/cli` ou `tests/docs` |
 | `docker compose run --rm app ruff check .` | `app` | análise estática; `--fix` corrige o que for automático |
 | `docker compose run --rm app black --check .` | `app` | confere a formatação; sem `--check` reformata os arquivos |
 | `docker compose run --rm app python scripts/check_docs_sync.py` | `app` | verifica se a documentação está sincronizada (READMEs, links, metodologia); `--module src/<módulo>` confere só um módulo |
@@ -380,14 +386,30 @@ no `.env` e nunca fazem uma chamada paga sem `--confirm-spend <US$>`, que també
 
 | Comando | Serviço | O que faz / variações |
 |---|---|---|
-| `docker compose run --rm app python -m cli check` | `app` | confere, pelas pastas de verdade, se dataset, mutantes e suítes dos quatro modelos estão completos e 1:1 (200 problemas, 100 mutantes cada, 3 cenários cada, nada sobrando; suítes ainda em geração são só aviso); `--deep` confere também os hashes; `--only dataset` (ou `mutants`, `slm_suites`, `gpt_suites`, `gemini_suites`, `claude_suites`; várias separadas por vírgula) confere só essas camadas |
+| `docker compose run --rm app python -m cli check` | `app` | confere, pelas pastas de verdade, se dataset, mutantes, suítes dos quatro modelos e os resultados da avaliação estão completos e 1:1 (200 problemas, 100 mutantes cada, 3 cenários cada, nada sobrando; suítes e avaliações ainda em andamento são só aviso); `--deep` confere também os hashes; `--only dataset` (ou `mutants`, `slm_suites`, `gpt_suites`, `gemini_suites`, `claude_suites`, `evaluation_slm`, `evaluation_gpt`, `evaluation_gemini`, `evaluation_claude`, `evaluation_slm_attempt1`; várias separadas por vírgula) confere só essas camadas |
+
+### Módulo `evaluation` ([README](src/evaluation/README.md))
+
+| Comando | Serviço | O que faz / variações |
+|---|---|---|
+| `docker compose run --rm sandbox python -m evaluation run` | `sandbox` | executa as suítes contra AC, WAs e mutantes depois da auto-checagem do motor e de `cli check --deep`; `--set S` (repetível: `slm`, `gpt`, `gemini`, `claude`, `slm-attempt1`; padrão os cinco), `--problem ID` (repetível; piloto nos 5 problemas dos pilotos), `--workers N`, `--output-dir DIR` (outra pasta para conferência), `--scenario S` (só com outra `--output-dir`); retoma se interrompido, avaliando só o que falta |
+| `docker compose run --rm app python -m evaluation report` | `app` | refaz `results.csv` e o relatório de cada conjunto; `--set S`, `--output-dir DIR` |
+| `docker compose run --rm app python -m evaluation package --set S` | `app` | zip e manifesto de um conjunto completo |
+| `docker compose run --rm app python -m evaluation verify --set S` | `app` | confere o zip contra o manifesto; `--extracted data/evaluation/S` confere também a pasta descompactada |
+| `unzip data/evaluation_gpt.zip -d data/` (um por conjunto) | (host) | descompacta o resultado de um conjunto em `data/evaluation/<conjunto>/` |
+
+### Módulo `dashboard` ([README](src/dashboard/README.md))
+
+| Comando | Serviço | O que faz / variações |
+|---|---|---|
+| `docker compose run --rm -p 127.0.0.1:8501:8501 app python -m dashboard serve` | `app` | abre o painel em `http://localhost:8501` (só nesta máquina), só de leitura; `--evaluation-dir DIR` (padrão `data/evaluation`), `--port N`; Ctrl+C fecha |
 
 ### Módulo `sandbox` ([README](src/sandbox/README.md))
 
 O motor não tem comando próprio: é uma biblioteca usada pelo `dataset` e pelo `mutation` (e, no
 futuro, pela avaliação). `docker compose run --rm sandbox pytest tests/sandbox` roda os testes dele,
 e `python -m dataset selfcheck` (acima) confere a saúde do motor. Os comandos dos módulos ainda não
-implementados (clientes dos modelos comerciais, avaliação, `metrics`) entram aqui quando existirem.
+implementados (`metrics`) entram aqui quando existirem.
 
 ## Glossário
 

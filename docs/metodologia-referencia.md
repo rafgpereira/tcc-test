@@ -1820,6 +1820,40 @@ concedida se o código sobreviver a 100% da suíte gerada pela IA.
 **Saída**: registro CSV consolidando o comportamento de cada código frente a cada
 suíte gerada — é o insumo direto para o cálculo das métricas (seção 5).
 
+**Avaliação especificada [ESPECIFICADO, 2026-11-04 — `specs/009-suite-evaluation/spec.md`;
+requisitos da seção F de `docs/metricas-referencia.md`, confirmada pelos autores sem C.5 e C.6]**:
+o curto-circuito acima **continua valendo para WAs e mutantes**, mas **não para o `AC_ref`**:
+contra ele todos os testes da suíte são executados e se grava, por teste, o veredito (`passou`,
+`saída diferente`, `erro de execução` com o tipo RE/TLE/MLE) e a **saída real** do `AC_ref`. Cada
+WA e mutante tem a detecção gravada sob **dois oráculos**: o declarado pela IA e o **corrigido**
+(saída esperada trocada pela saída real do `AC_ref` na mesma entrada, só nos testes em que o
+`AC_ref` não deu erro) — base de TDF\*/MS\*/Δ_oráculo. Por combinação, ficam os **conjuntos
+exatos** de WAs e mutantes detectados (fecha o "onde registrar" da pendência 3). Combinação sem
+suíte (`discarded_manual`) é gravada como "sem suíte", sem execução. O modelo local é
+avaliado também pela 1ª tentativa isolada (sem o filtro das 12 tentativas), com resultado
+separado da suíte final. A saída é por combinação (com esquema versionado), mais a
+tabela consolidada, um relatório por modelo, um pacote com manifesto por modelo e uma camada nova
+no `cli check`. **[DECIDIDO, 2026-11-04 — Milena]** Instabilidade de margem: quando o `AC_ref`
+dá erro de execução num teste, ele é executado mais 2 vezes nesse teste e o erro só vale se
+aparecer nas 3 execuções; senão o teste fica marcado como instável e conta no relatório (evita
+inflar o TFP com ruído do ambiente, o mesmo tipo de instabilidade medida na seção 1.4). A mesma
+regra vale para WAs e mutantes (clarify de 2026-11-04): uma detecção por erro de execução só vale
+se o erro aparecer nas 3 execuções; senão o teste fica marcado como instável e o alvo segue para os
+próximos testes; `passou` e `saída diferente` não se repetem. **Piloto obrigatório** antes da
+execução completa: os 5 problemas dos pilotos × 4 modelos × 3 cenários (60 combinações), com
+conferência manual e decisão dos autores registrada; se nada mudar, a execução completa o
+reaproveita (mesmo padrão dos módulos anteriores).
+**Implementação [IMPLEMENTADO, 2026-11-04 — `specs/009-suite-evaluation/plan.md`, `research.md` R1–R11; antes PLANEJADO no mesmo dia]**:
+pacote `src/evaluation/` (`python -m evaluation run|report|package|verify`, `run` no serviço
+`sandbox`). Unidade de trabalho = o problema: cada programa (AC, 100 WAs, 100 mutantes) é compilado
+**uma vez** e executado contra todas as suítes do problema (até 15), um alvo de cada vez (R1, R4).
+Os dois oráculos de um alvo são decididos numa **passada única** pelos testes, com resultado
+idêntico ao de duas passadas com curto-circuito (R3). Cinco conjuntos de avaliação, cada um com
+`run.json` (entradas congeladas por hash), pasta `problems/<id>/<cenário>.json`, tabela consolidada
+`results.csv` (o "registro CSV" previsto acima, derivado dos JSON) e pacote próprio
+`data/evaluation_<conjunto>.zip` com manifesto: `slm`, `gpt`, `gemini`, `claude` e
+`slm-attempt1` (R6, R7, R8). Portões: `selfcheck` do motor e `cli check --deep` (R11). Divergências do plano na implementação: (a) `package` refaz o `results.csv` e o relatório antes de empacotar, em vez de recusar quando estão desatualizados, para que o pacote seja sempre descrito por eles; (b) o relatório de uma `--output-dir` que não é a padrão (conferência, piloto guardado) fica ao lado dela, nunca em `manifests/`; (c) o `elapsed_s` de cada combinação é o tempo de executar os testes, sem a compilação, que é feita uma vez por problema para todas as suítes. **Conferência [MEDIDO, 2026-11-04 — Milena, fora do piloto, em `data/evaluation-conf/`, não versionada]**: `1000_B` com as 15 suítes (5 conjuntos × 3 cenários) levou 489 s com `--workers 2`, quase todo em compilar os 201 programas; os portões (`selfcheck` e `cli check --deep`) levaram cerca de 9 min. Nenhum alvo deixou de compilar, nenhum teste instável. O AC foi reprovado em 2 das 3 suítes do modelo local, nas 3 do Gemini e em nenhuma do GPT e do Claude; no Gemini, os WAs detectados caíram de 300 (oráculo declarado) para 247 (corrigido) e os mutantes de 300 para 230, o efeito que o Δ_oráculo mede. Estimativa ingênua da execução completa (200 problemas, mesma máquina, 2 trabalhadores): ordem de 13 h; o piloto mede de verdade (FR-021).
+
 ---
 
 ## 5. Módulo: Métricas de Avaliação
@@ -2097,6 +2131,8 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-11-04 | **Dashboard de exploração especificado (`specs/011-results-dashboard/`)**: painel só de leitura sobre os resultados da avaliação (visão geral por conjunto × cenário, detalhe teste a teste, oráculo declarado × corrigido, modelo local × comerciais) e, depois, sobre as tabelas do módulo de métricas (feature 010), sem recalcular métrica; ferramenta de exploração, não fonte dos números do TCC. Decidido (Milena): porcentagens de detecção só como prévia rotulada até existirem as métricas oficiais, uso só local (sem publicação), download apenas do CSV das tabelas; as figuras do TCC vêm só do módulo de métricas. Clarify: dados lidos ao abrir, com botão "recarregar" e a hora da leitura na tela (sem releitura automática); no detalhe de um alvo, o código dele e o `AC_ref` lado a lado com as diferenças destacadas. Plano: pacote `src/dashboard/` (Streamlit, fixado no `uv.lock`), aberto por `python -m dashboard serve` no serviço `app` com a porta publicada só em `127.0.0.1` e a telemetria desligada; camada de dados em Python puro, testável, que substitui a prévia provisória do piloto; leitura validada pelo esquema da avaliação; a página de métricas é um aviso até a feature 010. **Implementado (2026-11-05)**: Streamlit 1.66.1 (pandas 3.0.6 mantido); divergências do plano: (a) o pacote das páginas é `views/`, não `pages/`, porque o Streamlit trata uma pasta `pages/` ao lado do script como páginas automáticas; (b) além da telemetria desligada, o endereço anunciado é fixado em `localhost`, porque o Streamlit consultava o IP externo da máquina na internet ao subir. Conferido com a avaliação real de `1000_B` (conferência): cada página abriu em até 1,6 s, e o detalhe Gemini caixa-preta mostra 32 alvos pegos só pelo oráculo declarado (14 WAs e 18 mutantes). Pedido de Milena (2026-11-05): o nome completo de cada sigla e de cada coluna aparece ao passar o mouse, e há um glossário na barra lateral | 4, 5, 8 |
+| 2026-11-04 | **Avaliação das suítes especificada (`specs/009-suite-evaluation/`)**: sem curto-circuito contra o `AC_ref` (veredito e saída real por teste), curto-circuito mantido para WA/mutante, detecção sob o oráculo declarado e o corrigido pelo `AC_ref`, conjuntos exatos de detectados, "sem suíte" para `discarded_manual`, 1ª tentativa isolada do modelo local, pacote por modelo e camada no `cli check`. Clarify: erro de execução do AC e dos alvos repetido 2 vezes (só vale se repetir nas 3); piloto obrigatório de 60 combinações. Implementado: pacote `src/evaluation/`, compilação uma vez por problema, passada única para os dois oráculos, cinco conjuntos (`slm`, `gpt`, `gemini`, `claude`, `slm-attempt1`) com pacote próprio e `results.csv`. Também: a preparação do servidor do modelo local passa a ser descrita só como servidor Ollama com GPU T4, sem plataforma | 3, 4, 8 |
 | 2026-10-22 | **Modelo local refeito nas 208 combinações da revisão 2 e pacote juntado**: 165 `accepted`, 43 `accepted_fallback` nas refeitas; pacote final 504/95/1/0 (208 novas, 392 da revisão 1); geração em GPUs T4, parte com o `generate` fora do Docker (válvula de escape); `cli check --deep` OK com os 4 modelos | 1.6.1 |
 | 2026-10-20 | **Execução completa do Claude terminada e empacotada**: 589 `accepted_predicted`, 8 `accepted_barred`, 3 `discarded_manual` (`171_F` caixa-preta e híbrido por recusa de segurança `bio`; `182_B` caixa-preta por corte no teto de saída), 632 chamadas (36 sem raciocínio), US$ 0,98 | 3 |
 | 2026-10-20 | **Claude sem piloto separado (decisão de Milena)**: a chamada de conferência mostrou `thinking_tokens` 5.165 e custo de US$ 0,0031; as medidas do piloto vêm da execução completa | 3 |

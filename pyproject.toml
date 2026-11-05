@@ -5,7 +5,9 @@ description = "Experimental pipeline that evaluates LLM/SLM unit-test generation
 requires-python = ">=3.11,<3.12"
 dependencies = [
     "datasets==5.0.1",
+    "pandas>=3.0.6",
     "pydantic>=2,<3",
+    "streamlit>=1.66.1",
     "tree-sitter>=0.26,<0.27",
     "tree-sitter-cpp>=0.23,<0.24",
 ]
