@@ -411,7 +411,10 @@ def test_deep_without_the_zip_is_only_a_warning(check, repo, capsys):
 
 
 def test_the_report_object_is_usable_from_code(check, repo):
-    report = check.run_checks(repo)
+    # The layers this repository builds; the evaluation layers (not built here, an absent folder is
+    # a warning) are covered by tests/cli/test_consistency_evaluation.py.
+    built = [layer.key for layer in check.LAYERS if not layer.key.startswith("evaluation_")]
+    report = check.run_checks(repo, built)
     assert report.ok and report.failures == 0 and report.warnings == 0
     assert [s.title for s in report.sections][-1] == "Relação 1:1 entre as camadas"
 

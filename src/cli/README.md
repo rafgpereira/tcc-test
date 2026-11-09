@@ -62,7 +62,7 @@ Esperado: `Resultado: OK (0 falha(s), 0 aviso(s))`. Se faltar descompactar algum
 
 | Comando | Serviço | O que faz / variações |
 |---|---|---|
-| `python -m cli check` | `app` | confere nomes e contagens (menos de 1 s); `--deep` confere também os hashes de todos os arquivos e dos zips; `--only dataset` (ou `mutants`, `slm_suites`, `gpt_suites`, `gemini_suites`, `claude_suites`; várias separadas por vírgula) confere só essas camadas. Termina com `0` sem falhas (avisos são permitidos), `1` com falha, `2` por uso incorreto ou manifesto do dataset ausente |
+| `python -m cli check` | `app` | confere nomes e contagens (menos de 1 s); `--deep` confere também os hashes de todos os arquivos e dos zips; `--only dataset` (ou `mutants`, `slm_suites`, `gpt_suites`, `gemini_suites`, `claude_suites`, `evaluation_slm`, `evaluation_gpt`, `evaluation_gemini`, `evaluation_claude`, `evaluation_slm_attempt1`; várias separadas por vírgula) confere só essas camadas. Termina com `0` sem falhas (avisos são permitidos), `1` com falha, `2` por uso incorreto ou manifesto do dataset ausente |
 | `pytest tests/cli` | `sandbox` | testes do módulo |
 
 `[AVISO]` não impede o `0`: um problema excluído por não alcançar 100 mutantes, a ausência do
