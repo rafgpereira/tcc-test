@@ -1,0 +1,40 @@
+{
+  "ac_approved": 493,
+  "ac_errors": {
+    "MLE": 0,
+    "RE": 5,
+    "TLE": 2
+  },
+  "ac_rejected": 104,
+  "ac_tests": {
+    "passed": 6467,
+    "runtime_error": 7,
+    "wrong_output": 149
+  },
+  "ac_unstable_tests": 1,
+  "combinations": 600,
+  "complete": true,
+  "corrected_oracle_excluded_tests": 7,
+  "detected": {
+    "corrected_mutants": 57159,
+    "corrected_wa": 51550,
+    "declared_mutants": 57635,
+    "declared_wa": 52730
+  },
+  "elapsed_s": 10750.342,
+  "evaluated": 597,
+  "largest_ac_output_bytes": 501,
+  "missing": [],
+  "problems": 200,
+  "run_sha256": "650e3eeb40f3e8f0d78a89e8d994b382b2a3c0a9792595ab484ab04bdff318f4",
+  "schema_version": 1,
+  "set": "claude",
+  "target_unstable_tests": {
+    "mutant": 6,
+    "wa": 4
+  },
+  "targets_not_compiled": [],
+  "without_suite": {
+    "discarded_manual": 3
+  }
+}

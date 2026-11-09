@@ -1,0 +1,3021 @@
+{
+  "evaluation_zip": {
+    "path": "data/evaluation_claude.zip",
+    "sha256": "8269ad08879c79bcc44da7327132e6bb233a24dd48577861b3f839e0715636c2",
+    "size": 2017099
+  },
+  "files": [
+    {
+      "path": "evaluation/claude/problems/1000_B/black_box.json",
+      "sha256": "259fbe42c89b1452711a9fd06c989436c590d32d1c7895455ca42334b0655800",
+      "size": 79574
+    },
+    {
+      "path": "evaluation/claude/problems/1000_B/hybrid.json",
+      "sha256": "61c98b28a7af08727ed555bc1dd4967504b051feeb00cb357ca612e3a61fdf4c",
+      "size": 81371
+    },
+    {
+      "path": "evaluation/claude/problems/1000_B/white_box.json",
+      "sha256": "1d664389704993187a62c7f32fa17a8c4f29ba6159b91444730bf538065e3b72",
+      "size": 81251
+    },
+    {
+      "path": "evaluation/claude/problems/1005_C/black_box.json",
+      "sha256": "47ecda1acab00c14859702aa6b1b19a1a4b18e5deb45eaa4b51aa7ace736dafa",
+      "size": 83795
+    },
+    {
+      "path": "evaluation/claude/problems/1005_C/hybrid.json",
+      "sha256": "acc7e40fe3c9645dc8df855b2256f050deff22dc4b825ee0d070d8f4d4788d13",
+      "size": 82013
+    },
+    {
+      "path": "evaluation/claude/problems/1005_C/white_box.json",
+      "sha256": "4d0075564a1f68c11b7acf1ca4c592d58d59fbd219c71d5a1db485380da9f831",
+      "size": 83498
+    },
+    {
+      "path": "evaluation/claude/problems/1008_B/black_box.json",
+      "sha256": "1b2a06e2ad8df9bfd17e2c6897d6debbc2eb8ace93762e939f33a54fef404db0",
+      "size": 81580
+    },
+    {
+      "path": "evaluation/claude/problems/1008_B/hybrid.json",
+      "sha256": "020ca4b0cc76f3578fd534abe3e1e1227130d89cd50f61b6d3718af332d99d0e",
+      "size": 79918
+    },
+    {
+      "path": "evaluation/claude/problems/1008_B/white_box.json",
+      "sha256": "efa994fa8058f2d2217cb20dc047be1807d08aedc5bd44d22b1e32e1ffe86e09",
+      "size": 81554
+    },
+    {
+      "path": "evaluation/claude/problems/1009_B/black_box.json",
+      "sha256": "33427f8345c06896f73cc7d1ebf080b86c7267c570494c92deb90d81fafe813d",
+      "size": 82668
+    },
+    {
+      "path": "evaluation/claude/problems/1009_B/hybrid.json",
+      "sha256": "5963d42efaed89dbded6503637ef0dfe43b64a0eb237ccf330a41429e9510ef4",
+      "size": 83274
+    },
+    {
+      "path": "evaluation/claude/problems/1009_B/white_box.json",
+      "sha256": "d8fe832d1a6ad5daf8dffbb38ee6731a9a8a9bc1fd30fa511ab77c9f67853fd9",
+      "size": 83925
+    },
+    {
+      "path": "evaluation/claude/problems/1011_B/black_box.json",
+      "sha256": "f9301f99dcd6dbec859c7b7c0246887603d1f703e79b9e2201b188989e458e2f",
+      "size": 81971
+    },
+    {
+      "path": "evaluation/claude/problems/1011_B/hybrid.json",
+      "sha256": "add19932e2ccba4ef93f7a3fa43deb94804e736ec1303aa5b25744b5ad77e1ea",
+      "size": 81760
+    },
+    {
+      "path": "evaluation/claude/problems/1011_B/white_box.json",
+      "sha256": "70d2323ac1505b2bd127500d24f5946dd692a932cf8676981f0adb715bca4d98",
+      "size": 82403
+    },
+    {
+      "path": "evaluation/claude/problems/1023_A/black_box.json",
+      "sha256": "e9569e5f475a946581c89a7943e1c095a0e2ae5c58152c93ab21a032ecc2f3e8",
+      "size": 83525
+    },
+    {
+      "path": "evaluation/claude/problems/1023_A/hybrid.json",
+      "sha256": "92e4ce1c63c39b30a7675c3f39928b7834bfc1541e137bd34dfef373e54abf55",
+      "size": 84885
+    },
+    {
+      "path": "evaluation/claude/problems/1023_A/white_box.json",
+      "sha256": "3115cedb3e420a8e9a1bedb0b4d470ec3ff0685d7ac8704151958f93eaea50fa",
+      "size": 83109
+    },
+    {
+      "path": "evaluation/claude/problems/1023_B/black_box.json",
+      "sha256": "20ed37405c5fddd92c9de757107dd34130d20c61af56e563fec8cf7df3919dc2",
+      "size": 83571
+    },
+    {
+      "path": "evaluation/claude/problems/1023_B/hybrid.json",
+      "sha256": "4aa8e9e3cc9d0974ef22ebe415081c8b47e1adc01cfb41ad84d693cd70ffa8e4",
+      "size": 83508
+    },
+    {
+      "path": "evaluation/claude/problems/1023_B/white_box.json",
+      "sha256": "074fc7d2efb69a0c041819298240a4c6be5a5aa86b97a8b1233d42d384d9d08f",
+      "size": 85115
+    },
+    {
+      "path": "evaluation/claude/problems/1029_C/black_box.json",
+      "sha256": "83cdfd1594de1cc933d02eef3f6b3e0c0fbc497c68389fb1592cb696b4af5dd0",
+      "size": 81955
+    },
+    {
+      "path": "evaluation/claude/problems/1029_C/hybrid.json",
+      "sha256": "8c5da4208303e5a607c277c7ebe5afe844119732066317f19c6c8a9eb8955094",
+      "size": 81996
+    },
+    {
+      "path": "evaluation/claude/problems/1029_C/white_box.json",
+      "sha256": "e31e8b1a38102c6a017ffd7bf869c5ee7c303111723073937613ca45c2dd20f5",
+      "size": 82021
+    },
+    {
+      "path": "evaluation/claude/problems/102_B/black_box.json",
+      "sha256": "1fd7eb9437c1f3faf668d44331e0526195ca2c103058dcee123a6e2bac35719d",
+      "size": 83747
+    },
+    {
+      "path": "evaluation/claude/problems/102_B/hybrid.json",
+      "sha256": "fe5d19f3a0e08a7bfb4a115496a5b57bfaee6e7ba8e564f6ddb34d484d0b4c9b",
+      "size": 82593
+    },
+    {
+      "path": "evaluation/claude/problems/102_B/white_box.json",
+      "sha256": "0eebd4224a609687c885ece7788998862e18ffd78f327e06d8569fce43aba4f7",
+      "size": 83433
+    },
+    {
+      "path": "evaluation/claude/problems/1046_C/black_box.json",
+      "sha256": "67b065731476140d118b2b3695397ddbb054e09d7973de42b50a34b1c512f46d",
+      "size": 82457
+    },
+    {
+      "path": "evaluation/claude/problems/1046_C/hybrid.json",
+      "sha256": "a710edbfcec725a97f34e9be8327c44ce0eafb6fca0b3c75154091dadf21fa0c",
+      "size": 81713
+    },
+    {
+      "path": "evaluation/claude/problems/1046_C/white_box.json",
+      "sha256": "9eb29c65efa05b19446f9d6bb1e047e8851ec1419931912731d97a08883812a0",
+      "size": 82577
+    },
+    {
+      "path": "evaluation/claude/problems/1066_B/black_box.json",
+      "sha256": "a14e72469b4dad3c87764c4ca3c9caa72402e6bf918d6857a0be4a407ae84a2a",
+      "size": 84437
+    },
+    {
+      "path": "evaluation/claude/problems/1066_B/hybrid.json",
+      "sha256": "6f3b91ac4bea581f3f9cb5cb060fac945d7787b281ffa51560cd73aa9e7046a2",
+      "size": 83418
+    },
+    {
+      "path": "evaluation/claude/problems/1066_B/white_box.json",
+      "sha256": "e81e39d5d46f2a394020f662e26a80bb26657fede720217aedbd4fdaf1af8863",
+      "size": 83417
+    },
+    {
+      "path": "evaluation/claude/problems/1068_A/black_box.json",
+      "sha256": "271a3829fd84d6e8d281873f627b386d72817d6b84cea23b93e97d69b3e93222",
+      "size": 82700
+    },
+    {
+      "path": "evaluation/claude/problems/1068_A/hybrid.json",
+      "sha256": "b1e657b901ea3b6e3efb3332b43c5c2ba6b841feb4a61727df5e5f53074240c9",
+      "size": 83564
+    },
+    {
+      "path": "evaluation/claude/problems/1068_A/white_box.json",
+      "sha256": "1ec612a53abc44f4456e897992f128a408f4d755ac4d774631ac412d68be2bbf",
+      "size": 83641
+    },
+    {
+      "path": "evaluation/claude/problems/1068_B/black_box.json",
+      "sha256": "40a5ef1324834ae39977975c59dcf758cd28d3c50d0410b36d6d275fafdd90f1",
+      "size": 82532
+    },
+    {
+      "path": "evaluation/claude/problems/1068_B/hybrid.json",
+      "sha256": "65df48c14eef9b02a402f6e518c856606a4720004881faa0e6b43fb330f570f9",
+      "size": 82781
+    },
+    {
+      "path": "evaluation/claude/problems/1068_B/white_box.json",
+      "sha256": "204e94dcabcf8d65ffebca0b5dc4e5389a1912e6658920dd43930b62c502b51a",
+      "size": 83692
+    },
+    {
+      "path": "evaluation/claude/problems/1088_B/black_box.json",
+      "sha256": "f9f0c0d083009341a5b72f260b7f56303a3b74ce4f75156baf9dbe279ffcb15c",
+      "size": 82101
+    },
+    {
+      "path": "evaluation/claude/problems/1088_B/hybrid.json",
+      "sha256": "04b1ca8dae35dffe216fa175ea43f72c7f7069705ef843593270cf61b7ab8515",
+      "size": 82611
+    },
+    {
+      "path": "evaluation/claude/problems/1088_B/white_box.json",
+      "sha256": "0ab6421f719e58d7e639429589965761a861d6dd7cdeff1974a5985f0f230199",
+      "size": 82371
+    },
+    {
+      "path": "evaluation/claude/problems/1090_M/black_box.json",
+      "sha256": "6f004a14eaa8c35274b229327ea285a5a2334ac663d0429e7fce776dcc9434f9",
+      "size": 82617
+    },
+    {
+      "path": "evaluation/claude/problems/1090_M/hybrid.json",
+      "sha256": "69276f5251fb3d970577281c60d24ca4a85624f5ddb4ee6c48672048a6fb1efe",
+      "size": 82613
+    },
+    {
+      "path": "evaluation/claude/problems/1090_M/white_box.json",
+      "sha256": "be0eb139d06b1f4e1640f4a1fc7d3df43f3463129a46d586b220f8ad5636202c",
+      "size": 82617
+    },
+    {
+      "path": "evaluation/claude/problems/1105_C/black_box.json",
+      "sha256": "39ccfd710d9ca1d4701a5dc2f24d1857838b32e14a1c877e4d9b135dba98770e",
+      "size": 83976
+    },
+    {
+      "path": "evaluation/claude/problems/1105_C/hybrid.json",
+      "sha256": "1743630537d4c6cdc9774b03ace33f2039cd18462b85f8ad28b95bf75d1e8d25",
+      "size": 83472
+    },
+    {
+      "path": "evaluation/claude/problems/1105_C/white_box.json",
+      "sha256": "8d4fecc4125a9d3f289980b3a894a5f2c0bdf73073be9ab772bf6dff0096f877",
+      "size": 83003
+    },
+    {
+      "path": "evaluation/claude/problems/1113_B/black_box.json",
+      "sha256": "ec4a99fcb4941271507d1715ec5b36c8b967327e44fd72e61291b21ed7f41a06",
+      "size": 80976
+    },
+    {
+      "path": "evaluation/claude/problems/1113_B/hybrid.json",
+      "sha256": "4b242e38a3c34db646193885a711b4b62057ae0d0f811e36e64c5ae9bb77268a",
+      "size": 82099
+    },
+    {
+      "path": "evaluation/claude/problems/1113_B/white_box.json",
+      "sha256": "1d0c07816a522cc814d80e373ce546c4899574e2c8f29b2f00fa4e7aa0ce6ac0",
+      "size": 82667
+    },
+    {
+      "path": "evaluation/claude/problems/1141_A/black_box.json",
+      "sha256": "b7fc6699dd90cd5231e2ff1e49ff6a7ee8eb251d581fea0be9aefc8d602722b4",
+      "size": 84448
+    },
+    {
+      "path": "evaluation/claude/problems/1141_A/hybrid.json",
+      "sha256": "a5fd2eac191ee4518760e3be0faa1ec3bf31441de3217532a673e3c37dd2efe1",
+      "size": 85998
+    },
+    {
+      "path": "evaluation/claude/problems/1141_A/white_box.json",
+      "sha256": "9950e527809f322ba8f41db17b9ebfe07bb2a47a3a0fec16834c23384626ead5",
+      "size": 83449
+    },
+    {
+      "path": "evaluation/claude/problems/1154_D/black_box.json",
+      "sha256": "444d9afe99b0e116330a92e4e43bc72e96d93bd9cfa547065bf23cb4283fcfbe",
+      "size": 82120
+    },
+    {
+      "path": "evaluation/claude/problems/1154_D/hybrid.json",
+      "sha256": "195de38d4607eaf0f097864700572c695cf4a318814ef0ee19fafe2c8e11d3e9",
+      "size": 81851
+    },
+    {
+      "path": "evaluation/claude/problems/1154_D/white_box.json",
+      "sha256": "3b3c126fb9133e5ce65bc6b0b4a17cf29b6452d4861cf6592da41ffa9aa27b36",
+      "size": 82829
+    },
+    {
+      "path": "evaluation/claude/problems/1157_B/black_box.json",
+      "sha256": "489fa891d73a0c4f459d6320f3ec73aab1fead0aaead452d093ebfe20e0d2027",
+      "size": 82279
+    },
+    {
+      "path": "evaluation/claude/problems/1157_B/hybrid.json",
+      "sha256": "64eaa9dab65002605f47c38fe425ad21a3225f60838da05f6410a6039fd7547c",
+      "size": 81556
+    },
+    {
+      "path": "evaluation/claude/problems/1157_B/white_box.json",
+      "sha256": "45b4073ad884a70475ed06599f4ca2263126817c9a5c7a8ed0d271f2b45387b5",
+      "size": 81429
+    },
+    {
+      "path": "evaluation/claude/problems/1162_B/black_box.json",
+      "sha256": "eeb956a69421345a2571d887a58227998186e93651f0e2ce3cae3eedcbd5c49f",
+      "size": 81272
+    },
+    {
+      "path": "evaluation/claude/problems/1162_B/hybrid.json",
+      "sha256": "92b0a1c0ec23c165dae9500b3fbd24c0efa5b8c0b065f452ffecd70c9ea6aa0c",
+      "size": 80086
+    },
+    {
+      "path": "evaluation/claude/problems/1162_B/white_box.json",
+      "sha256": "3a76a795d5fdff171f0c51e7c2387ae44ea0c55dcc607a4e197e3ae892e3df47",
+      "size": 81532
+    },
+    {
+      "path": "evaluation/claude/problems/1175_B/black_box.json",
+      "sha256": "c11b1976d375bbd8bd3dfe2fd2ed66f8cbec3b6a63b323c66b2d7ed0486c6ab9",
+      "size": 80629
+    },
+    {
+      "path": "evaluation/claude/problems/1175_B/hybrid.json",
+      "sha256": "e847c2efe21b51438eafbb080fed1a925f3594c05e8ddbb144645c8588a3b26a",
+      "size": 81498
+    },
+    {
+      "path": "evaluation/claude/problems/1175_B/white_box.json",
+      "sha256": "bc8de985c6d01e6966a5fa6e7ecc4df54e1ecda40aecd96eb6e32b2b27ae21fd",
+      "size": 82017
+    },
+    {
+      "path": "evaluation/claude/problems/1177_A/black_box.json",
+      "sha256": "c8beef089e933588b5b01ff865eeaea9b140603787371869a2c0ffcb4f668d89",
+      "size": 83957
+    },
+    {
+      "path": "evaluation/claude/problems/1177_A/hybrid.json",
+      "sha256": "993099d0e23f0310633da794831c02ad6f907da8740b38dbc0107c19fedbe1b9",
+      "size": 84437
+    },
+    {
+      "path": "evaluation/claude/problems/1177_A/white_box.json",
+      "sha256": "2d09e2954ea8cf16f6bae5ce0aa67537426baf674b215110e341fc6a41b98267",
+      "size": 83562
+    },
+    {
+      "path": "evaluation/claude/problems/1180_B/black_box.json",
+      "sha256": "a89ac45f2b1d11eb3a2ca27ce41d18b63cf665fc202da6923002933bbf5d6d2d",
+      "size": 82683
+    },
+    {
+      "path": "evaluation/claude/problems/1180_B/hybrid.json",
+      "sha256": "8a4056f1db28cc006232d40e0b7df3752ba0fb9859f9b6b5ce353e65d99d8f33",
+      "size": 82594
+    },
+    {
+      "path": "evaluation/claude/problems/1180_B/white_box.json",
+      "sha256": "2d42891cc75fde801eb360b2cde433f58597052e13c4156dbc098323b8d70b05",
+      "size": 83300
+    },
+    {
+      "path": "evaluation/claude/problems/1183_D/black_box.json",
+      "sha256": "be04b46c3e370e52ff264009ff04a3dd43722d934b788cfe5841091e9b544907",
+      "size": 82142
+    },
+    {
+      "path": "evaluation/claude/problems/1183_D/hybrid.json",
+      "sha256": "ee13de1703054318e641e37b0b3bad04dad7f9a5e440d3860c30f4d6e661913a",
+      "size": 82463
+    },
+    {
+      "path": "evaluation/claude/problems/1183_D/white_box.json",
+      "sha256": "59883de4eac68a73670072b06fab5a422070b48f87d83ac4ee6062b92ae9366b",
+      "size": 82596
+    },
+    {
+      "path": "evaluation/claude/problems/1196_D1/black_box.json",
+      "sha256": "7fb901d946f1bdde05690e1b831cda95c30c1fca3648fcbdea8d4d35b168abb9",
+      "size": 80265
+    },
+    {
+      "path": "evaluation/claude/problems/1196_D1/hybrid.json",
+      "sha256": "e4fe14b187186768a517b3d9730da0fabc698d54cb61effe1231e39bddcdaff3",
+      "size": 81508
+    },
+    {
+      "path": "evaluation/claude/problems/1196_D1/white_box.json",
+      "sha256": "2392145c515b449d1c0a5401bce69c6667f3b01484ccc00ba19c6e1780a60eeb",
+      "size": 79635
+    },
+    {
+      "path": "evaluation/claude/problems/1197_C/black_box.json",
+      "sha256": "26f7f10d1d23afc932bb54141b68bff96825f7a8b567ee47862bc7497e117540",
+      "size": 82245
+    },
+    {
+      "path": "evaluation/claude/problems/1197_C/hybrid.json",
+      "sha256": "4ca88971f01c9d9b6dc2d95c66c102d74aac829ad8a3b961b2d5af2ff64d9ec4",
+      "size": 82324
+    },
+    {
+      "path": "evaluation/claude/problems/1197_C/white_box.json",
+      "sha256": "33085352702002809e10db92ea49e4bdd33b1b22bdf4d0fb2e0a3db5656604c4",
+      "size": 81925
+    },
+    {
+      "path": "evaluation/claude/problems/1198_A/black_box.json",
+      "sha256": "8051ef8e281391b9fc235348b534fa650e8724b9813f615e2b5071295fdb4d38",
+      "size": 83284
+    },
+    {
+      "path": "evaluation/claude/problems/1198_A/hybrid.json",
+      "sha256": "96fea972e1ca294985266d0ee11e3e81a9e649c001f8f85caa44f921da279cf4",
+      "size": 81457
+    },
+    {
+      "path": "evaluation/claude/problems/1198_A/white_box.json",
+      "sha256": "b397206fb09a7b9ecd5e95aec110dc4d5eef1eb7781c280c65d13d5fb2df0ddf",
+      "size": 82804
+    },
+    {
+      "path": "evaluation/claude/problems/1199_A/black_box.json",
+      "sha256": "d4b81a2d914d68e0829ad75934571d23f388bfd5b683ba4392ef7861f0ae3677",
+      "size": 82762
+    },
+    {
+      "path": "evaluation/claude/problems/1199_A/hybrid.json",
+      "sha256": "d9e2320c78b54b38e058c91e088cd06f41639fb3d757f4399f3d2fe02704ddcb",
+      "size": 81785
+    },
+    {
+      "path": "evaluation/claude/problems/1199_A/white_box.json",
+      "sha256": "07040dbb7b161b57d7caed52f1e6eb6ce531ce746ead14e6142079edd4ffdf6e",
+      "size": 82202
+    },
+    {
+      "path": "evaluation/claude/problems/1201_B/black_box.json",
+      "sha256": "4f28d29205ac9f9086ec78e8f288d110a9ea991ced12a1a6e4700f1a8b103e42",
+      "size": 83211
+    },
+    {
+      "path": "evaluation/claude/problems/1201_B/hybrid.json",
+      "sha256": "47e3ee9d83048684b6df57e61303947e8860887ae14489a10f2a53b36997b62b",
+      "size": 82902
+    },
+    {
+      "path": "evaluation/claude/problems/1201_B/white_box.json",
+      "sha256": "00b6e4cc490dcb3bd9f0fd45ba73d045342464ec31153a960f15c9f4d35f4d5a",
+      "size": 83268
+    },
+    {
+      "path": "evaluation/claude/problems/1203_E/black_box.json",
+      "sha256": "2c88ecd962bd0ae23f92eeb0ea707f044c65fe4de0dd6b62ff93bdaa01ef69a3",
+      "size": 83411
+    },
+    {
+      "path": "evaluation/claude/problems/1203_E/hybrid.json",
+      "sha256": "71c763b9dc33017d6cfc570b4927efcb7663f84d4833173b8bd69b46bedd5b8a",
+      "size": 82310
+    },
+    {
+      "path": "evaluation/claude/problems/1203_E/white_box.json",
+      "sha256": "e0ccbb4b2e967136c901e733308df0a84835323dbb9c580044daab020f7ec9e1",
+      "size": 82382
+    },
+    {
+      "path": "evaluation/claude/problems/1214_A/black_box.json",
+      "sha256": "780626c715b4275835fdb8241f671b29af41b7377b53f89d3f82a1bab15541e5",
+      "size": 80657
+    },
+    {
+      "path": "evaluation/claude/problems/1214_A/hybrid.json",
+      "sha256": "a8bcc9d3f31349feac31e41d84ef40032c3cfd64e64cdd4010e0f63699c4dbf3",
+      "size": 81135
+    },
+    {
+      "path": "evaluation/claude/problems/1214_A/white_box.json",
+      "sha256": "79f6f607a83a7432c2efb7a7287e96e1c5749082c3bd46068cf7696f4599efaf",
+      "size": 82421
+    },
+    {
+      "path": "evaluation/claude/problems/1214_C/black_box.json",
+      "sha256": "7a67b1f1e21adc78908d1c1b0414ea65ee8bd8b4b42991777e8de0c955120602",
+      "size": 83833
+    },
+    {
+      "path": "evaluation/claude/problems/1214_C/hybrid.json",
+      "sha256": "0f1dfa4c5f5edb9baece82c288b7be334410d914c6068ed16d28517199af8107",
+      "size": 83265
+    },
+    {
+      "path": "evaluation/claude/problems/1214_C/white_box.json",
+      "sha256": "959ba0d478fa2555834b57722b5498ee04cd9907a46464e5ce6d02fac3c7a8c3",
+      "size": 82996
+    },
+    {
+      "path": "evaluation/claude/problems/1221_C/black_box.json",
+      "sha256": "b896fe3334b1cec2fc216d3541f3a0a326f07cf81dac7d59959d1b7b2f70d73a",
+      "size": 81697
+    },
+    {
+      "path": "evaluation/claude/problems/1221_C/hybrid.json",
+      "sha256": "7044fd2cd34e3a2839d875d071d60f099f8a058ac7c997e94db6be1a466546e7",
+      "size": 81734
+    },
+    {
+      "path": "evaluation/claude/problems/1221_C/white_box.json",
+      "sha256": "2d7631a834a121e520d8d27b0b3834de8beee68b141da8172336f3e65c3b40d5",
+      "size": 81664
+    },
+    {
+      "path": "evaluation/claude/problems/1230_B/black_box.json",
+      "sha256": "39bf048ed9111a186d90dd21f60bac85e803e451ab2a223828df7e3b8584e064",
+      "size": 84009
+    },
+    {
+      "path": "evaluation/claude/problems/1230_B/hybrid.json",
+      "sha256": "621b488d1aff06f1966a5bdf18409ec5497e1d33ab28ee0a0a79bd72f099c99f",
+      "size": 83360
+    },
+    {
+      "path": "evaluation/claude/problems/1230_B/white_box.json",
+      "sha256": "85c94ce36f1179b0c78e95170572ab50a9ef7cfdf88613a422b50c9c45cc4bca",
+      "size": 84051
+    },
+    {
+      "path": "evaluation/claude/problems/1249_B1/black_box.json",
+      "sha256": "34448ee6f01157e92d1f411b84a6ccded8309c9560937c95a399b65b5769c419",
+      "size": 80244
+    },
+    {
+      "path": "evaluation/claude/problems/1249_B1/hybrid.json",
+      "sha256": "d102fd3084de1bfe2a49e5cf3508aff1e349d7191a8925fa866f32095614ab05",
+      "size": 81781
+    },
+    {
+      "path": "evaluation/claude/problems/1249_B1/white_box.json",
+      "sha256": "07302b7236e31e27d8261c10353f54d056f393cfdd5293bb849edaeeff8fd80e",
+      "size": 81116
+    },
+    {
+      "path": "evaluation/claude/problems/1253_B/black_box.json",
+      "sha256": "29e626da626bd4b0f0b64d9e5e1b42f214bb3124ca09bba0a164f653fcaf5de7",
+      "size": 82100
+    },
+    {
+      "path": "evaluation/claude/problems/1253_B/hybrid.json",
+      "sha256": "e213519e5decd8ace6bb795da883d0e335051d84f371f4b2f430ea203f79837c",
+      "size": 82782
+    },
+    {
+      "path": "evaluation/claude/problems/1253_B/white_box.json",
+      "sha256": "b0d99508021ce3bfd40f03196c4b94aba28213f32bf4c732282bdf86ad06fdcf",
+      "size": 82926
+    },
+    {
+      "path": "evaluation/claude/problems/125_A/black_box.json",
+      "sha256": "c65dbfb123ba5a7f50e27ab5ebd060463243c80b828797eb3b11103d9040ee78",
+      "size": 83639
+    },
+    {
+      "path": "evaluation/claude/problems/125_A/hybrid.json",
+      "sha256": "57f78ece2d9b0c2bd45a25b75bafac89e0e3cc5bb917b918005c98bcc2320774",
+      "size": 83148
+    },
+    {
+      "path": "evaluation/claude/problems/125_A/white_box.json",
+      "sha256": "94455f9836f9d2bb941827e0f03637b49e6569abf261b93b49a5a53b1d3a8006",
+      "size": 82754
+    },
+    {
+      "path": "evaluation/claude/problems/1261_B1/black_box.json",
+      "sha256": "3bafec0f82627c1f4f5d95fb307201a1536572bb431e07501418f892d45bfb25",
+      "size": 81551
+    },
+    {
+      "path": "evaluation/claude/problems/1261_B1/hybrid.json",
+      "sha256": "8cb158b9ce797541d032a85f4d86bbb2b7cbbad643b0b508bfdbc1e7ed82d295",
+      "size": 81629
+    },
+    {
+      "path": "evaluation/claude/problems/1261_B1/white_box.json",
+      "sha256": "026c15a25b106d5877efebd4d34ca3f547c224f5d3cc1fbacdc2575fab4e5f4d",
+      "size": 81329
+    },
+    {
+      "path": "evaluation/claude/problems/1263_C/black_box.json",
+      "sha256": "a5c14e92622da1499df40b612cfcf421ad0c740911bc4dedca1ba08620ceb6a2",
+      "size": 81592
+    },
+    {
+      "path": "evaluation/claude/problems/1263_C/hybrid.json",
+      "sha256": "8b103d1c17a1e614c9ca3f57a3c0bc758136f50a0a275392375a066de527b5e1",
+      "size": 81590
+    },
+    {
+      "path": "evaluation/claude/problems/1263_C/white_box.json",
+      "sha256": "5eba867d1621d17e8be5cb2944181af205d1584df9a13547fdba876b957d6d60",
+      "size": 81455
+    },
+    {
+      "path": "evaluation/claude/problems/1266_A/black_box.json",
+      "sha256": "6e505d67ad363cbda4207a9e4c4bf73c090f1b3fe630c9e1808405b62fd025da",
+      "size": 81539
+    },
+    {
+      "path": "evaluation/claude/problems/1266_A/hybrid.json",
+      "sha256": "827f7f18724b1ae801d95c860632e33615d44da1b0607538f82f213b9fb76d79",
+      "size": 84278
+    },
+    {
+      "path": "evaluation/claude/problems/1266_A/white_box.json",
+      "sha256": "eb5100553ffe9dc069c05b7feca998f049d1fb99149c661644c454ad28994b0b",
+      "size": 81940
+    },
+    {
+      "path": "evaluation/claude/problems/1278_B/black_box.json",
+      "sha256": "d4d52cd40faf4ac10d3d7a05940c28d137b1865962f7142c5fcc847df6a452a8",
+      "size": 82672
+    },
+    {
+      "path": "evaluation/claude/problems/1278_B/hybrid.json",
+      "sha256": "782eee528b33ff3ecbb509cdb98ad12cf372919eff31b394f683618d51cf55da",
+      "size": 82138
+    },
+    {
+      "path": "evaluation/claude/problems/1278_B/white_box.json",
+      "sha256": "7d82ba6ba82aec4dfb2fb4dc99fa5f4dddf74a7f787df96ab8b4121dd87350a1",
+      "size": 82160
+    },
+    {
+      "path": "evaluation/claude/problems/1288_C/black_box.json",
+      "sha256": "fa6bb3765ca048cd9cadae39985913a7452e2762bd66f86a1a151ff27360fca3",
+      "size": 82543
+    },
+    {
+      "path": "evaluation/claude/problems/1288_C/hybrid.json",
+      "sha256": "3aa10e97ff9fe63d9604f88549123557083d0e8e32721420862d60dab97d1a9c",
+      "size": 81279
+    },
+    {
+      "path": "evaluation/claude/problems/1288_C/white_box.json",
+      "sha256": "6e91614259d7e7fe90deb5fded4bd68186df2263afb1395c75bea8340f32f779",
+      "size": 82481
+    },
+    {
+      "path": "evaluation/claude/problems/1290_A/black_box.json",
+      "sha256": "d80849205235f6ddedd803809b2723c29c810e66375711e4f9fb62782084b737",
+      "size": 81288
+    },
+    {
+      "path": "evaluation/claude/problems/1290_A/hybrid.json",
+      "sha256": "df699360933d50f204b42b75fa6e2a5dd44e04e9eab44ad1f6843e9cc9041ab8",
+      "size": 81513
+    },
+    {
+      "path": "evaluation/claude/problems/1290_A/white_box.json",
+      "sha256": "9fbaf97298e99bfdaff9b8ca3de31744b97c4ffaf20765a78eaa89e04d0ce1b5",
+      "size": 81168
+    },
+    {
+      "path": "evaluation/claude/problems/1322_A/black_box.json",
+      "sha256": "114f0d85803936f7e5e64feb3ff0cda6d8eddc3aaf61a76afafcd5643f75ccb8",
+      "size": 81696
+    },
+    {
+      "path": "evaluation/claude/problems/1322_A/hybrid.json",
+      "sha256": "f9803a8fc5b898a5c1e55cc9741362e874c0ee54528255703b3f9363aa6b6fb8",
+      "size": 83198
+    },
+    {
+      "path": "evaluation/claude/problems/1322_A/white_box.json",
+      "sha256": "e2b1fa6b09ae33e7fade486b433c49839c530028b26f37ecd578889d2c806961",
+      "size": 82701
+    },
+    {
+      "path": "evaluation/claude/problems/1330_B/black_box.json",
+      "sha256": "9290ec1c4b821a309603be8f642c2ffbee9fe15583db100d0724f8702563c1e7",
+      "size": 81067
+    },
+    {
+      "path": "evaluation/claude/problems/1330_B/hybrid.json",
+      "sha256": "9fdb0ae340c774eee966d37839edfbf6a7d786882d28a66b8748cff5e0666907",
+      "size": 82366
+    },
+    {
+      "path": "evaluation/claude/problems/1330_B/white_box.json",
+      "sha256": "83290be84b3756a991c98c7456ea80d3c184129dafc6346522389d8343563bd5",
+      "size": 81356
+    },
+    {
+      "path": "evaluation/claude/problems/134_A/black_box.json",
+      "sha256": "c5db7bd729656dc00585c88ecc448643705d2a7e51c180e5f9b93e205489e54e",
+      "size": 83093
+    },
+    {
+      "path": "evaluation/claude/problems/134_A/hybrid.json",
+      "sha256": "ffa94a0e1227b741506abcaad992e1d8fe9e799bafcb51c1b5a5ac763350d520",
+      "size": 81685
+    },
+    {
+      "path": "evaluation/claude/problems/134_A/white_box.json",
+      "sha256": "38cda05760d481731e3a92202707a0bfa84d3ce1583fbb11fc25765a069ea782",
+      "size": 82542
+    },
+    {
+      "path": "evaluation/claude/problems/1359_A/black_box.json",
+      "sha256": "9bcf6e460c2b4f0920b6ad444b7e49aa8c2da9143d32682f3c7be9583b077ce8",
+      "size": 80786
+    },
+    {
+      "path": "evaluation/claude/problems/1359_A/hybrid.json",
+      "sha256": "03fd6f78d758f7a3299ea89b8caa0a9eaa353bd9cb0325432d35cc8b83c6ba0f",
+      "size": 80946
+    },
+    {
+      "path": "evaluation/claude/problems/1359_A/white_box.json",
+      "sha256": "d6f192f8a835c3e516a0df9a5bcc77e43fc2b0b18720c343640cd0e561ba09ea",
+      "size": 83911
+    },
+    {
+      "path": "evaluation/claude/problems/1362_A/black_box.json",
+      "sha256": "dced14df5f3999cb9ce125ff80315d9319f83f7a2b77eec1c342029f17f72d98",
+      "size": 80039
+    },
+    {
+      "path": "evaluation/claude/problems/1362_A/hybrid.json",
+      "sha256": "d6f35a0c8fb9c94eea8ec4940cb6285d295432d9f103e6cc1da27290b97fe961",
+      "size": 83017
+    },
+    {
+      "path": "evaluation/claude/problems/1362_A/white_box.json",
+      "sha256": "5473105134271e3b5e2ac263d9b3de97d1182de430af2f0557d440d7dde0c233",
+      "size": 82996
+    },
+    {
+      "path": "evaluation/claude/problems/1363_B/black_box.json",
+      "sha256": "aef17577cafa68bafd9e5c306e9fcd741699ef4202c06624d4a6dbce4f17dede",
+      "size": 79921
+    },
+    {
+      "path": "evaluation/claude/problems/1363_B/hybrid.json",
+      "sha256": "c446cf92b39341573d3ddebdd882f7dcbf4b2765860eeaf951b56ac2f5355cf9",
+      "size": 80562
+    },
+    {
+      "path": "evaluation/claude/problems/1363_B/white_box.json",
+      "sha256": "49b1129153570d459b887867bae3ec6a2e185862e8b4177c67279269c3cf4ad5",
+      "size": 80935
+    },
+    {
+      "path": "evaluation/claude/problems/1371_C/black_box.json",
+      "sha256": "87a553fb8bf5e42f90254bb684d2f7d60f0faffbd143229d9577eee39131cd47",
+      "size": 82124
+    },
+    {
+      "path": "evaluation/claude/problems/1371_C/hybrid.json",
+      "sha256": "b4922d10f8bf934aa9189c1083eec0e0b348b2d139e07427e24dce6dcf51b891",
+      "size": 81359
+    },
+    {
+      "path": "evaluation/claude/problems/1371_C/white_box.json",
+      "sha256": "5393da3aa1b5b04ad8545b679d8b356cf51b1f74d00428c42da1ea76e7df56a6",
+      "size": 81267
+    },
+    {
+      "path": "evaluation/claude/problems/1372_B/black_box.json",
+      "sha256": "fe599203103d0d6708b40025d08f065e076111cbd36c40e5eefc0b73aace6315",
+      "size": 81226
+    },
+    {
+      "path": "evaluation/claude/problems/1372_B/hybrid.json",
+      "sha256": "6af8bfd2905615cc295ca1d75ee73a3e59292a3cba930d1a851aea893c038bbf",
+      "size": 82632
+    },
+    {
+      "path": "evaluation/claude/problems/1372_B/white_box.json",
+      "sha256": "1386fdfbcfe4aa3cfd5e94bc922cf324cff3da41c58695e8c6cf630aa17cf322",
+      "size": 81496
+    },
+    {
+      "path": "evaluation/claude/problems/1373_A/black_box.json",
+      "sha256": "90123e08e321eceb595e8ec9c6f20a5085b8c856a589101ffa156fe6750b3675",
+      "size": 82119
+    },
+    {
+      "path": "evaluation/claude/problems/1373_A/hybrid.json",
+      "sha256": "81f7cb43f287a4d2ae5e4cc98fc1e405382478f05dcdb0f9e4452e03fbc158e0",
+      "size": 82717
+    },
+    {
+      "path": "evaluation/claude/problems/1373_A/white_box.json",
+      "sha256": "9a5e83a90aec0ce89f307bb9b9bc8edaa423bd5d35119de91155e1819c1e2c32",
+      "size": 83066
+    },
+    {
+      "path": "evaluation/claude/problems/1373_D/black_box.json",
+      "sha256": "081bed7ee0ef0c7ca9843f8a397d9f1c07c14ac94aac3c9ef7b72c6bf005d23e",
+      "size": 79891
+    },
+    {
+      "path": "evaluation/claude/problems/1373_D/hybrid.json",
+      "sha256": "c72d8e5d83593c6bc2bd1c33cde6e841c012726853158487ffdf50817523e14a",
+      "size": 81775
+    },
+    {
+      "path": "evaluation/claude/problems/1373_D/white_box.json",
+      "sha256": "e077b19d3fca954a081b360c9593c77f65e5a389a90608581ec90dccfb6e1882",
+      "size": 81590
+    },
+    {
+      "path": "evaluation/claude/problems/1379_B/black_box.json",
+      "sha256": "4b77dd5d0e9c9dbb0de4a94e437d93203b50c08631b10068668856b655ce87e4",
+      "size": 79197
+    },
+    {
+      "path": "evaluation/claude/problems/1379_B/hybrid.json",
+      "sha256": "7f069a0ce86647d348b3bfa8a613fd2dbc34ae808d2964424bd367ad815e0372",
+      "size": 81539
+    },
+    {
+      "path": "evaluation/claude/problems/1379_B/white_box.json",
+      "sha256": "da097bb059151455bc3f0ff7a27fb6e00e6f513fd89a1333d45cc3e74abc751f",
+      "size": 82992
+    },
+    {
+      "path": "evaluation/claude/problems/1380_C/black_box.json",
+      "sha256": "4f38dac0c370dc4d35e3a6511c7036d20cb7822364d4bba2dcf20111ada5f136",
+      "size": 81830
+    },
+    {
+      "path": "evaluation/claude/problems/1380_C/hybrid.json",
+      "sha256": "ff94fb67ba90338213b108a4c9232bfc2edeb9133dd568a9241efd75f55b1020",
+      "size": 81859
+    },
+    {
+      "path": "evaluation/claude/problems/1380_C/white_box.json",
+      "sha256": "80d51320ddcfe7e400e4f5893a3318c5a45c3b310616d816ca4404fef07de72e",
+      "size": 81961
+    },
+    {
+      "path": "evaluation/claude/problems/139_A/black_box.json",
+      "sha256": "cf02ceb153a599fbc5be460563b63f9b8be58fc5de7444b4dbc1ada38a6b866c",
+      "size": 82998
+    },
+    {
+      "path": "evaluation/claude/problems/139_A/hybrid.json",
+      "sha256": "29c78fbb8574bcc904c9e3eec82ba0012827457726a0b6ea9aff10306a3caf56",
+      "size": 83297
+    },
+    {
+      "path": "evaluation/claude/problems/139_A/white_box.json",
+      "sha256": "879dd064c9c001c5b726f5f6bf8a440185e1b0e25d9e2df85eb7276f12f5fcb4",
+      "size": 82742
+    },
+    {
+      "path": "evaluation/claude/problems/1409_C/black_box.json",
+      "sha256": "5f7a0f7368cb84700ba42e0db687bad56a04f4bcf52a5f37aca2d2ee44f2ac33",
+      "size": 81942
+    },
+    {
+      "path": "evaluation/claude/problems/1409_C/hybrid.json",
+      "sha256": "c04509834aa090884b2d61457885b597be0204f0615ade59f9e47aa92627978a",
+      "size": 81391
+    },
+    {
+      "path": "evaluation/claude/problems/1409_C/white_box.json",
+      "sha256": "4794caf3606dae8b1bee5ff7502e7d8ba3ff86ed48f266b9209426dd7d63b459",
+      "size": 83691
+    },
+    {
+      "path": "evaluation/claude/problems/143_C/black_box.json",
+      "sha256": "f9918ad5fa2802ecbb61496afcfc3dc86ed001057d5551d36daf12901b882ba5",
+      "size": 81328
+    },
+    {
+      "path": "evaluation/claude/problems/143_C/hybrid.json",
+      "sha256": "462b76294b769a2be51d34a226fac014a625b5d6285063135efa68f57f55c710",
+      "size": 81075
+    },
+    {
+      "path": "evaluation/claude/problems/143_C/white_box.json",
+      "sha256": "d21af4e1ab50042c8f71c97ea85e07e5ce0e239bac7e49016bcdeb8aef8a4cc0",
+      "size": 78262
+    },
+    {
+      "path": "evaluation/claude/problems/1443_C/black_box.json",
+      "sha256": "72719da46fbcd64236be5650f4cd2655ed5eeb51e35710c46be866cc6fe42530",
+      "size": 79307
+    },
+    {
+      "path": "evaluation/claude/problems/1443_C/hybrid.json",
+      "sha256": "d7ee8f0438351b33b299ebf5d9fe10c50a9249e65ed5122d32b3805111f97190",
+      "size": 80788
+    },
+    {
+      "path": "evaluation/claude/problems/1443_C/white_box.json",
+      "sha256": "69ff8fbbec3736d448141beaad0641fa7cf805128a7ca22036bad6cf7d6d6c16",
+      "size": 81612
+    },
+    {
+      "path": "evaluation/claude/problems/148_B/black_box.json",
+      "sha256": "9a6018196512a84e08c3811efa5733f4b3651f411d2b968a37c5ff69c921225e",
+      "size": 81504
+    },
+    {
+      "path": "evaluation/claude/problems/148_B/hybrid.json",
+      "sha256": "9bc11234c45f36d105a37e0f8eb9e72e42c5c456e737ae2c7e41a535499bebf1",
+      "size": 82230
+    },
+    {
+      "path": "evaluation/claude/problems/148_B/white_box.json",
+      "sha256": "2101db3d04431a8b1024f0eda517924821001bbb2ef1fc24beaf6d1eb8a36696",
+      "size": 82208
+    },
+    {
+      "path": "evaluation/claude/problems/151_D/black_box.json",
+      "sha256": "8709e0cb236f140548435f8e665fab0728a51b5f92d67e4ff007dae7004f91e0",
+      "size": 83443
+    },
+    {
+      "path": "evaluation/claude/problems/151_D/hybrid.json",
+      "sha256": "1272d383a3ddaadd07f3429e0fd5c16d2383b6ad92a5482f540f0829f69a2b29",
+      "size": 83737
+    },
+    {
+      "path": "evaluation/claude/problems/151_D/white_box.json",
+      "sha256": "fe39a99f3546010e9860aa2641ed6388ea2f55f18e595640d96f2d439a3cb07e",
+      "size": 83585
+    },
+    {
+      "path": "evaluation/claude/problems/155_C/black_box.json",
+      "sha256": "755ea9827baf5c9ba3fc33e05b3ab7445007b6310089f34ed3d14d19324324a6",
+      "size": 82447
+    },
+    {
+      "path": "evaluation/claude/problems/155_C/hybrid.json",
+      "sha256": "a54dbbe300555d0cdae4e677d0ca2b26395ad51b486189865b01a260ebae4d54",
+      "size": 82197
+    },
+    {
+      "path": "evaluation/claude/problems/155_C/white_box.json",
+      "sha256": "df55cbab1294e0502f9a7fde949ddd529c1b9d0b6016da6650eaa4434c365ebf",
+      "size": 82784
+    },
+    {
+      "path": "evaluation/claude/problems/158_C/black_box.json",
+      "sha256": "6d840dc24d4b5a63cf607558704eab86e178879b9a86b86362db6e8e6759ecaf",
+      "size": 81124
+    },
+    {
+      "path": "evaluation/claude/problems/158_C/hybrid.json",
+      "sha256": "21d9a58de085b006479ceec84f3204b2729424f792fbeaa0ec2ef779f3f88d88",
+      "size": 81879
+    },
+    {
+      "path": "evaluation/claude/problems/158_C/white_box.json",
+      "sha256": "d2ff57b28d6a1a32414bccdd7c9e2a339b78b56df37e1d73d60181ca5fcfed58",
+      "size": 81376
+    },
+    {
+      "path": "evaluation/claude/problems/15_A/black_box.json",
+      "sha256": "03879a7a82031eeb720b2d4856f74578763f0b758974fc2ab03c1731d060d95b",
+      "size": 81802
+    },
+    {
+      "path": "evaluation/claude/problems/15_A/hybrid.json",
+      "sha256": "34a49e2e2f440086fe59d2d26d19219d85f5f883c6c99416de3c55b19d7057fe",
+      "size": 82225
+    },
+    {
+      "path": "evaluation/claude/problems/15_A/white_box.json",
+      "sha256": "38bf0bf8582340e40c804d56ea557871caacea998b1d6ed03ba6875132bacd56",
+      "size": 81444
+    },
+    {
+      "path": "evaluation/claude/problems/1604_D/black_box.json",
+      "sha256": "89996a3c04c200a0cef97f21058bde13238c87703c9196912a56c5ab5b3421af",
+      "size": 81311
+    },
+    {
+      "path": "evaluation/claude/problems/1604_D/hybrid.json",
+      "sha256": "fc2b09e4341864ac23d1145ce8e57f4d396004a9e2eeec1c2b380a74517aab9e",
+      "size": 82252
+    },
+    {
+      "path": "evaluation/claude/problems/1604_D/white_box.json",
+      "sha256": "e169b72e9b0aaeb5de5edcd951677a734e40e557b10faf770c60488fd4459860",
+      "size": 82256
+    },
+    {
+      "path": "evaluation/claude/problems/160_B/black_box.json",
+      "sha256": "74fc99336f457fabdfd0cf531f487ca95bdfc0de834a5c7789edff3dde730076",
+      "size": 79161
+    },
+    {
+      "path": "evaluation/claude/problems/160_B/hybrid.json",
+      "sha256": "59341ff6f18c8e390b287686d89e93dd705a71940daa63668f9ae297208d498c",
+      "size": 82500
+    },
+    {
+      "path": "evaluation/claude/problems/160_B/white_box.json",
+      "sha256": "b1cdedf3aadf277954dd3e49b0d156cd3f191cf03cecff818d49da20c04b48fc",
+      "size": 82431
+    },
+    {
+      "path": "evaluation/claude/problems/161_A/black_box.json",
+      "sha256": "895c2e68a83021a8fcf277358fa3a80017d8a277dbe55319c87c2b7e9f509abb",
+      "size": 81282
+    },
+    {
+      "path": "evaluation/claude/problems/161_A/hybrid.json",
+      "sha256": "71b6b9637c218ee32edc31204143f4444933ed735f8527045e3e9500acdfd614",
+      "size": 82632
+    },
+    {
+      "path": "evaluation/claude/problems/161_A/white_box.json",
+      "sha256": "2e06ca83b66fe0f0aba550f6b5feed31a05936e674fcb1f29dbed7f8fc5db92e",
+      "size": 82706
+    },
+    {
+      "path": "evaluation/claude/problems/1622_C/black_box.json",
+      "sha256": "31635d206e56132d890174d0edc563ad03477577967bbd5a2877a51a2bdeb865",
+      "size": 79945
+    },
+    {
+      "path": "evaluation/claude/problems/1622_C/hybrid.json",
+      "sha256": "d729fabf9983cc697e2392d4de5f7f84b3129913cb11b90c809bf0be6fa8bf19",
+      "size": 81145
+    },
+    {
+      "path": "evaluation/claude/problems/1622_C/white_box.json",
+      "sha256": "4d49a8033ab362eee63a9116a5e9d00360fed08a4f8cca58f3f307671d63db7e",
+      "size": 81057
+    },
+    {
+      "path": "evaluation/claude/problems/165_C/black_box.json",
+      "sha256": "92e64c7a2f90a053c19aaed85df2b58ffaf7223e5d3fd62cd423bb66816dcac5",
+      "size": 82529
+    },
+    {
+      "path": "evaluation/claude/problems/165_C/hybrid.json",
+      "sha256": "6af51655e91f229b7b10e99d6e945d50697ee16bcbef4a06d00b99b856a851bd",
+      "size": 84078
+    },
+    {
+      "path": "evaluation/claude/problems/165_C/white_box.json",
+      "sha256": "61b1fe0be3356f257fc89c11cf95e62832be18e03f7d4df3d127541d82cc6e73",
+      "size": 83818
+    },
+    {
+      "path": "evaluation/claude/problems/171_F/black_box.json",
+      "sha256": "3835b0424b113af3a4a67167ff67ff37edc3734711c726f0a9a3cc1ac2a44bcd",
+      "size": 636
+    },
+    {
+      "path": "evaluation/claude/problems/171_F/hybrid.json",
+      "sha256": "469057677a1de942ee4bcfbc6f6aeaec9031084f5dfe7fdc438d1f743b110c9b",
+      "size": 633
+    },
+    {
+      "path": "evaluation/claude/problems/171_F/white_box.json",
+      "sha256": "8e5c73f2a30547df11d233646ca21447049f6b89c34c38f5cf20d3a3c00a9245",
+      "size": 81948
+    },
+    {
+      "path": "evaluation/claude/problems/175_B/black_box.json",
+      "sha256": "cbf9201a40527f9e24b836416600b9471aefff5b02f870101f94f5a80bace359",
+      "size": 81688
+    },
+    {
+      "path": "evaluation/claude/problems/175_B/hybrid.json",
+      "sha256": "4a42da4d503861a4f6132b3b6d1a53efd2ac9abc3e5a3c73c5c4e2a9ca7e7227",
+      "size": 82607
+    },
+    {
+      "path": "evaluation/claude/problems/175_B/white_box.json",
+      "sha256": "7749cb99365fe0b29d78b98eba94c54ec78f0c5c5bc53aafa7d3a8dd69cef6b7",
+      "size": 82718
+    },
+    {
+      "path": "evaluation/claude/problems/178_A1/black_box.json",
+      "sha256": "c0c25b35aae6f9ea2356ba889b58fbd634253bd96a38f22c8b2cb8055bdf2c47",
+      "size": 81307
+    },
+    {
+      "path": "evaluation/claude/problems/178_A1/hybrid.json",
+      "sha256": "9a8d9e9aecfa8123b45abaa90e7b1268227e8eeadccef7445584e3f2404fc239",
+      "size": 82520
+    },
+    {
+      "path": "evaluation/claude/problems/178_A1/white_box.json",
+      "sha256": "465e5364a9809be4b729b82a68950e501b09b8b3866df9a51ba11ae4814f0274",
+      "size": 81650
+    },
+    {
+      "path": "evaluation/claude/problems/181_C/black_box.json",
+      "sha256": "38ad88fbf525fbd914540361a5d6a4eed8f2fd804e42dae4b12a05280fad8caa",
+      "size": 79553
+    },
+    {
+      "path": "evaluation/claude/problems/181_C/hybrid.json",
+      "sha256": "84d8c65b5ef646d6dccb8e1a2d7bed1f8f697c90f4b52964b183676de16adbeb",
+      "size": 81850
+    },
+    {
+      "path": "evaluation/claude/problems/181_C/white_box.json",
+      "sha256": "aaf537ddaf62546c30c27b931e622a8589679edc6615447a062633b6f79030bd",
+      "size": 81988
+    },
+    {
+      "path": "evaluation/claude/problems/182_B/black_box.json",
+      "sha256": "76199e4448c86c6730769422e526c89c31a387bf1c12074ffd07dea0ec4d3ef1",
+      "size": 636
+    },
+    {
+      "path": "evaluation/claude/problems/182_B/hybrid.json",
+      "sha256": "8518ce3ac28c3f6c846632ee1c67cb4eef8ca353e725c913c6dd6830fc833924",
+      "size": 82178
+    },
+    {
+      "path": "evaluation/claude/problems/182_B/white_box.json",
+      "sha256": "d1a95265ec790e3410a0609be9b57d1892b713cd06b47e6c06a67538f55271ec",
+      "size": 82678
+    },
+    {
+      "path": "evaluation/claude/problems/189_C/black_box.json",
+      "sha256": "a7fbaca20338704dda5f0a78ef7b869cd505355db7a6295cd013a31b878305ad",
+      "size": 82727
+    },
+    {
+      "path": "evaluation/claude/problems/189_C/hybrid.json",
+      "sha256": "e88d24776d4d78efced062bed7546ea1be5974ddad910090fc3ea227cf0d8b75",
+      "size": 82201
+    },
+    {
+      "path": "evaluation/claude/problems/189_C/white_box.json",
+      "sha256": "18544424f53b2f8ae502184eb6f78984e3d95d2213ac6721c05ef34822041ddc",
+      "size": 82882
+    },
+    {
+      "path": "evaluation/claude/problems/18_C/black_box.json",
+      "sha256": "a5b087cdeba1f5206452ee2ec1c845d0667827454cab4377b7f26ce8d2c92ce1",
+      "size": 83420
+    },
+    {
+      "path": "evaluation/claude/problems/18_C/hybrid.json",
+      "sha256": "0e05c789db4c1e407f8decc3157c73c0ce108ed6479a8e4146f9fa7327be9e58",
+      "size": 82790
+    },
+    {
+      "path": "evaluation/claude/problems/18_C/white_box.json",
+      "sha256": "df6a2d0b55b9ab6fdec5ac68715f18cc7aa0b57988609b19552ed2bd428d3b99",
+      "size": 82151
+    },
+    {
+      "path": "evaluation/claude/problems/190_A/black_box.json",
+      "sha256": "45554081b5e4439451b4cd524f8d169f88051658f39451cdf770fc29fb538968",
+      "size": 83179
+    },
+    {
+      "path": "evaluation/claude/problems/190_A/hybrid.json",
+      "sha256": "0ccbae8617711a8802b5d59b071ecf362a4b7417ab8de7cc3eccb2a7ceca8bb3",
+      "size": 82684
+    },
+    {
+      "path": "evaluation/claude/problems/190_A/white_box.json",
+      "sha256": "ebb4c3c47209620e1f959eb526879727292f460ce2b4ba91df9e8920c0ead7fb",
+      "size": 83340
+    },
+    {
+      "path": "evaluation/claude/problems/192_B/black_box.json",
+      "sha256": "9f5a1185a0f4ea8c8770883d28d5c6d1807986f76e444db474022b372d83327f",
+      "size": 82473
+    },
+    {
+      "path": "evaluation/claude/problems/192_B/hybrid.json",
+      "sha256": "2277ec7210f3cfb5e41c0026c98d65a1c30cd66c193fa71142adcbaa4b3f5091",
+      "size": 82410
+    },
+    {
+      "path": "evaluation/claude/problems/192_B/white_box.json",
+      "sha256": "14286802052e6c1a6d06b94933592b0ee36045855997e4de741efb34b940a9b0",
+      "size": 83440
+    },
+    {
+      "path": "evaluation/claude/problems/1_B/black_box.json",
+      "sha256": "00644695b13550511e71e8876143aa4bfe61d6912428db0512647518de20b8c6",
+      "size": 83808
+    },
+    {
+      "path": "evaluation/claude/problems/1_B/hybrid.json",
+      "sha256": "45c88bb722fd479de936fb93c56e150e89926dbd708d05337823c3af5b40e8a7",
+      "size": 82557
+    },
+    {
+      "path": "evaluation/claude/problems/1_B/white_box.json",
+      "sha256": "b0f94d06fcef815ff90ed9d2c594f27fca29f969f07e365402ad2f37379c91a8",
+      "size": 81750
+    },
+    {
+      "path": "evaluation/claude/problems/203_A/black_box.json",
+      "sha256": "2d04c49943dd32e221adc41e85fcdb524ae34b20b3b2f73aa29469706483e6b5",
+      "size": 79770
+    },
+    {
+      "path": "evaluation/claude/problems/203_A/hybrid.json",
+      "sha256": "bd8885ef4177bbdde54219357bcd05fa324a54a30a60adf018d37960accbe236",
+      "size": 81571
+    },
+    {
+      "path": "evaluation/claude/problems/203_A/white_box.json",
+      "sha256": "48bc5d34069762caade07d3e257d65dcc7e9495d8234e55954ed6f8b85d48d75",
+      "size": 80123
+    },
+    {
+      "path": "evaluation/claude/problems/203_B/black_box.json",
+      "sha256": "67d20542aff0ed1c57bca1030c6ecb000503b9df900465e360ebf5c31a89aba8",
+      "size": 80792
+    },
+    {
+      "path": "evaluation/claude/problems/203_B/hybrid.json",
+      "sha256": "13585dc260e495c10c2e06d9c1b46485724941d3ff7f5376ad958c54af2644c8",
+      "size": 76230
+    },
+    {
+      "path": "evaluation/claude/problems/203_B/white_box.json",
+      "sha256": "b1f34cf327dc1b8273215f4f09114bb06afa2058044ea9b5bd03fdd1d1a0117b",
+      "size": 81152
+    },
+    {
+      "path": "evaluation/claude/problems/204_B/black_box.json",
+      "sha256": "7820c56983e9c6b65f9d34cd967525a826497643057e2f7480488b31fb576a7d",
+      "size": 82349
+    },
+    {
+      "path": "evaluation/claude/problems/204_B/hybrid.json",
+      "sha256": "3789fbf208dea3fff2936c87938df34df413bdac52456bbdd87a359bf5a06eba",
+      "size": 81315
+    },
+    {
+      "path": "evaluation/claude/problems/204_B/white_box.json",
+      "sha256": "dd50aee8fd6ffe8f79e5336a7e33a445b640b452b9d85a6c7bbced4011e92341",
+      "size": 81579
+    },
+    {
+      "path": "evaluation/claude/problems/205_B/black_box.json",
+      "sha256": "c5c0217da356095850650f329a762b9882a6b02a2f2fb5ec33752d7ef6a9a980",
+      "size": 82344
+    },
+    {
+      "path": "evaluation/claude/problems/205_B/hybrid.json",
+      "sha256": "db752c9d88467fde6ebc2cfd82c6b03532eddf7d64045bdd1a7978ecbc1ec515",
+      "size": 82085
+    },
+    {
+      "path": "evaluation/claude/problems/205_B/white_box.json",
+      "sha256": "3dbaa9900d566bbcf2eee9f7f3a43760a013868ccf4de5861700937c2e187fea",
+      "size": 82689
+    },
+    {
+      "path": "evaluation/claude/problems/219_A/black_box.json",
+      "sha256": "97f230b4a48eca127578c891a5b2cf8d6b1147d6841333896b5dc060ad032b54",
+      "size": 82507
+    },
+    {
+      "path": "evaluation/claude/problems/219_A/hybrid.json",
+      "sha256": "74f8b7a14d1a8aff728cc7812fd755563f0797e34c5528dab520031dc3b95a41",
+      "size": 83167
+    },
+    {
+      "path": "evaluation/claude/problems/219_A/white_box.json",
+      "sha256": "cf8c16ebfff56deefa0e1b21ee84d15849167e8da09f027fbfd62722942a9e3c",
+      "size": 82201
+    },
+    {
+      "path": "evaluation/claude/problems/220_A/black_box.json",
+      "sha256": "012620d7ffd8ea23174862d4a5b8bd837e75efd060889cc743c09243d361ea76",
+      "size": 83016
+    },
+    {
+      "path": "evaluation/claude/problems/220_A/hybrid.json",
+      "sha256": "deb5150f826cf43e49bb3c7a81dc87c90b3a4c6b44af42daecee7d26fd8db515",
+      "size": 83020
+    },
+    {
+      "path": "evaluation/claude/problems/220_A/white_box.json",
+      "sha256": "b9640e6d03a364f0da639425e44d9a0c18816cb8e328cbbb63a97350afbbc172",
+      "size": 83758
+    },
+    {
+      "path": "evaluation/claude/problems/224_B/black_box.json",
+      "sha256": "4eb95fbc15fb49fd558842b296beba371cf8013d09d2df91ad61c3dc0efd17c8",
+      "size": 81963
+    },
+    {
+      "path": "evaluation/claude/problems/224_B/hybrid.json",
+      "sha256": "084a3ca89889cc830a44cde1e25d82d66b68c6d3a2e3ebf65430a613a9d10663",
+      "size": 81691
+    },
+    {
+      "path": "evaluation/claude/problems/224_B/white_box.json",
+      "sha256": "0570300802a04436b2afca84a487b1a6bf2a1e1cf8a512fa089131d677ad922d",
+      "size": 82961
+    },
+    {
+      "path": "evaluation/claude/problems/231_C/black_box.json",
+      "sha256": "dddfa6415da7737d8489d5f937598e84d1517dcd54b15ee86f06b1211b447830",
+      "size": 82655
+    },
+    {
+      "path": "evaluation/claude/problems/231_C/hybrid.json",
+      "sha256": "95654c36c7e2843d8d54197922458a8f5ab7dd4605f6134563116195e8b81c44",
+      "size": 81983
+    },
+    {
+      "path": "evaluation/claude/problems/231_C/white_box.json",
+      "sha256": "05e2e7e8027cd6a33df3c9fba3f608e9430ebcb60f1051f3c0f0fa1568d6d15b",
+      "size": 81484
+    },
+    {
+      "path": "evaluation/claude/problems/237_A/black_box.json",
+      "sha256": "602a9f0d9b176d9599c1c39b6fdba540b5083be57243c5ef0d29ff85b5aa5171",
+      "size": 81170
+    },
+    {
+      "path": "evaluation/claude/problems/237_A/hybrid.json",
+      "sha256": "05f6433b2b5684e45f62dedb023440c43bec215a8a007ed16d0993121876b690",
+      "size": 81401
+    },
+    {
+      "path": "evaluation/claude/problems/237_A/white_box.json",
+      "sha256": "2fc90feeb6322e3b5b21db14d2e7636895295d59bd8265b7e57904439486e96b",
+      "size": 82288
+    },
+    {
+      "path": "evaluation/claude/problems/252_A/black_box.json",
+      "sha256": "edb9a35f89ff55cc028efb6bded971530959c98ef37e8dbffed40a85625cfe33",
+      "size": 82075
+    },
+    {
+      "path": "evaluation/claude/problems/252_A/hybrid.json",
+      "sha256": "6c08c772cf35922c1d16b887a82b10116071c742c10701120286b7ca40c70534",
+      "size": 81767
+    },
+    {
+      "path": "evaluation/claude/problems/252_A/white_box.json",
+      "sha256": "23a45ebeed82521a99a74dfdf3ac90938741172f3bbd9cc44ab2e06090dcda32",
+      "size": 82107
+    },
+    {
+      "path": "evaluation/claude/problems/256_A/black_box.json",
+      "sha256": "148fd7c980c3d0c12ad703d5b66ed85922fd7fe9cb17b47a81632a64eb017a31",
+      "size": 82146
+    },
+    {
+      "path": "evaluation/claude/problems/256_A/hybrid.json",
+      "sha256": "ff4f7263381ee0f1420dc441a7574eac9a4c73352242e17e0fb4f54cb4ac6e6b",
+      "size": 82937
+    },
+    {
+      "path": "evaluation/claude/problems/256_A/white_box.json",
+      "sha256": "dc5e871c3a75098387f5bee07f83cd283a446014f30171b38dbcff907b817314",
+      "size": 82463
+    },
+    {
+      "path": "evaluation/claude/problems/257_A/black_box.json",
+      "sha256": "3ad14fc4b273ce98aad45388b53d820ad20a6e71e1e3876f2dd3d668ad3417f8",
+      "size": 81581
+    },
+    {
+      "path": "evaluation/claude/problems/257_A/hybrid.json",
+      "sha256": "7330e6dad0acd0600c987da5bc5acc7e34710bc7dbc5a4eb719e5cd1d7cd233b",
+      "size": 82952
+    },
+    {
+      "path": "evaluation/claude/problems/257_A/white_box.json",
+      "sha256": "7181bee9b036a5520a8e93cdf37af319321a685a70a39a4a9a6028e37acd0fae",
+      "size": 83127
+    },
+    {
+      "path": "evaluation/claude/problems/25_B/black_box.json",
+      "sha256": "cc73dc2c562a915b41c4ad9f3cfb91a0bc45d414d5965088da531353515c40ea",
+      "size": 82723
+    },
+    {
+      "path": "evaluation/claude/problems/25_B/hybrid.json",
+      "sha256": "0b5d0c87b9260cf505271d12a1c6e8ce5b926e9429133f3e66ccb1e60da47648",
+      "size": 82744
+    },
+    {
+      "path": "evaluation/claude/problems/25_B/white_box.json",
+      "sha256": "af7fbcb5f35a6a51298ecb314534b0a81055b8052fc88ed16aebf536e5855e65",
+      "size": 83047
+    },
+    {
+      "path": "evaluation/claude/problems/265_D/black_box.json",
+      "sha256": "f3118765cba82ff0abbacd2efea772df8abc4464072f5f22ceb4ccde28cdf2f1",
+      "size": 82301
+    },
+    {
+      "path": "evaluation/claude/problems/265_D/hybrid.json",
+      "sha256": "d36da2d8b48b8c0048f6518c15b65d55d9fbe4e9606acf3487e205d25235c3e5",
+      "size": 81338
+    },
+    {
+      "path": "evaluation/claude/problems/265_D/white_box.json",
+      "sha256": "c6366376da1a89be89863947b3e1cce8b7c7ba682e27bc226517bccbf9aef2a2",
+      "size": 83260
+    },
+    {
+      "path": "evaluation/claude/problems/270_B/black_box.json",
+      "sha256": "6835fc8cb911afc9cc7bef42b1cd16ad4f9ce0fa76f74c7c34ab25fe90fc0613",
+      "size": 81503
+    },
+    {
+      "path": "evaluation/claude/problems/270_B/hybrid.json",
+      "sha256": "eb889a2c8310e35250932a3d124c8f6106a9168af33d62f7f4dc62eee4fa0246",
+      "size": 82081
+    },
+    {
+      "path": "evaluation/claude/problems/270_B/white_box.json",
+      "sha256": "ac3f61861724f6c63fee9f57395ed7b73a1439df627c10fcd01f67df87026912",
+      "size": 82616
+    },
+    {
+      "path": "evaluation/claude/problems/271_B/black_box.json",
+      "sha256": "09fd6f68d48ac01e54ad69bf9f668ed3e916b7a3b19450cc9565add0a2c6d0d7",
+      "size": 82560
+    },
+    {
+      "path": "evaluation/claude/problems/271_B/hybrid.json",
+      "sha256": "51f603f8a5f285a8ff332021eae5a6e4f1b25265d867dff16aea131e7debb6ab",
+      "size": 82673
+    },
+    {
+      "path": "evaluation/claude/problems/271_B/white_box.json",
+      "sha256": "af886d0a8b9274b29887296699e2c66b846681f516069fb8f292eb5d3c6e911b",
+      "size": 82766
+    },
+    {
+      "path": "evaluation/claude/problems/284_B/black_box.json",
+      "sha256": "cebc0bf9887c91918534dbc54c53719d0d9c9b6d7139d5d108b04828c6e3f6de",
+      "size": 83122
+    },
+    {
+      "path": "evaluation/claude/problems/284_B/hybrid.json",
+      "sha256": "8d78efbf1ba25faf81bff68d2e565a9916f35d7bcd2b15e809f16ad2f3c0c4d8",
+      "size": 83607
+    },
+    {
+      "path": "evaluation/claude/problems/284_B/white_box.json",
+      "sha256": "b52d92dd3e548ea145e9b4cf7348efec7130344299dc45ec70136f62f14d66c1",
+      "size": 83613
+    },
+    {
+      "path": "evaluation/claude/problems/285_B/black_box.json",
+      "sha256": "2ea736f5a12b33ed7746eb07e3307d62391e72609e03665da941c179d3d08f3e",
+      "size": 82347
+    },
+    {
+      "path": "evaluation/claude/problems/285_B/hybrid.json",
+      "sha256": "83fea4e9ca0a5ea2febf66b938a9508d2e45f519ec7d5ce2b04df1a3f85e5015",
+      "size": 82232
+    },
+    {
+      "path": "evaluation/claude/problems/285_B/white_box.json",
+      "sha256": "8ef64c96fb04052ada88bcc6b8cd5f578d48cb94c1bc989a30e850ad2af067ce",
+      "size": 83398
+    },
+    {
+      "path": "evaluation/claude/problems/289_C/black_box.json",
+      "sha256": "e8c091ef3155d43fd42e3c786c1a1eead860a9dbfe3576986620cd17eaa2f5c6",
+      "size": 82921
+    },
+    {
+      "path": "evaluation/claude/problems/289_C/hybrid.json",
+      "sha256": "b4470d9806383ab0063e8dee1e04fb4229df5348ce6193ce69923e33a3e74a53",
+      "size": 83957
+    },
+    {
+      "path": "evaluation/claude/problems/289_C/white_box.json",
+      "sha256": "e5bd506ae51b15b3eed7793786799a1c1af56cad1fe726735141edba9a892ee2",
+      "size": 83954
+    },
+    {
+      "path": "evaluation/claude/problems/291_C/black_box.json",
+      "sha256": "68ada8b90c4cba80d4c42f56c3f51e0566bfe3df34446de8f1110764edd87d69",
+      "size": 82121
+    },
+    {
+      "path": "evaluation/claude/problems/291_C/hybrid.json",
+      "sha256": "21a62dad339fc5bb43ce111f8a2a373aac3b0d01a4ef7b089a5e5f898aa9c120",
+      "size": 82500
+    },
+    {
+      "path": "evaluation/claude/problems/291_C/white_box.json",
+      "sha256": "df427b21590944bf0b6fe74d8f8cfef0e5b3825898196b2e0f1de7ecc3a1aded",
+      "size": 82097
+    },
+    {
+      "path": "evaluation/claude/problems/322_A/black_box.json",
+      "sha256": "434397bbc8947a210bbc9be27d5478205742b52f0af16046e3b5a3c8942fa848",
+      "size": 82062
+    },
+    {
+      "path": "evaluation/claude/problems/322_A/hybrid.json",
+      "sha256": "5e2ed62bf1dbe83c069320609555fed58a729f8d1cc5c470f0f06ea55a98a1e7",
+      "size": 82275
+    },
+    {
+      "path": "evaluation/claude/problems/322_A/white_box.json",
+      "sha256": "48ea55c653051fb35e854e844cfef0e340f220f0f3a3670d8e715c595e996642",
+      "size": 82559
+    },
+    {
+      "path": "evaluation/claude/problems/328_B/black_box.json",
+      "sha256": "68ea75fb121b90cb91a416bab0e015cb1826040518240e1b6c12ff3163fd2288",
+      "size": 83314
+    },
+    {
+      "path": "evaluation/claude/problems/328_B/hybrid.json",
+      "sha256": "e1726ab2f0d7adde4acc0429d5e6d6c05d3c67ff4ba4e9f9a399a15a4bce269c",
+      "size": 81935
+    },
+    {
+      "path": "evaluation/claude/problems/328_B/white_box.json",
+      "sha256": "5ac6088a29ae64beb296971f7e50382f57003f214108fe2a6b2a358810d84bae",
+      "size": 84239
+    },
+    {
+      "path": "evaluation/claude/problems/332_A/black_box.json",
+      "sha256": "f24d64c965f8fb8713308862091aed681c6b5cadb07bc6303ed0d8e08a278dd3",
+      "size": 81454
+    },
+    {
+      "path": "evaluation/claude/problems/332_A/hybrid.json",
+      "sha256": "daa833a9b6a3284b76417da95df3401fffa6f2a719de657980d3b857c768ad99",
+      "size": 82639
+    },
+    {
+      "path": "evaluation/claude/problems/332_A/white_box.json",
+      "sha256": "19be33439ab1c889693ee44e2de0ce6723f6ed0a096457486da9615481b2ddce",
+      "size": 82991
+    },
+    {
+      "path": "evaluation/claude/problems/334_B/black_box.json",
+      "sha256": "fefdf557af3af4dcb06bf38637bb5e51b27432d3f29b71da97382213a1940de3",
+      "size": 82144
+    },
+    {
+      "path": "evaluation/claude/problems/334_B/hybrid.json",
+      "sha256": "0b6bd27bc8f66b77f1cd8a2ec605837129345d963aaaf52f2f0258642610aac7",
+      "size": 81891
+    },
+    {
+      "path": "evaluation/claude/problems/334_B/white_box.json",
+      "sha256": "e8ace115438a3bebc42924419695b2ea28d77f056d311bcbf36059553e09ebc9",
+      "size": 81182
+    },
+    {
+      "path": "evaluation/claude/problems/349_A/black_box.json",
+      "sha256": "c08afc30c0d4caff7da81c55d7b93d9e31f71d8414fa7363e3c4109d0318ea81",
+      "size": 83785
+    },
+    {
+      "path": "evaluation/claude/problems/349_A/hybrid.json",
+      "sha256": "7f79c2335639e70eac1650cbf15bf40eaa3f2bb114314a4c15baa7c0cf426bbc",
+      "size": 84067
+    },
+    {
+      "path": "evaluation/claude/problems/349_A/white_box.json",
+      "sha256": "9e8fa2422bc7badb8328ec4ffba6c8f94acbce19d9bf566ced7bbde5f27f418a",
+      "size": 83532
+    },
+    {
+      "path": "evaluation/claude/problems/352_A/black_box.json",
+      "sha256": "b9b3aacc693be8e6b19fc3760d18c561465eecd51b1d2bd87ea7848d6005b469",
+      "size": 83383
+    },
+    {
+      "path": "evaluation/claude/problems/352_A/hybrid.json",
+      "sha256": "2688aab4a3c3c63f8ad914bfc40426b53369a7b1b4cb73d44db3221c9de52e0b",
+      "size": 82929
+    },
+    {
+      "path": "evaluation/claude/problems/352_A/white_box.json",
+      "sha256": "b0349f15356bcbc42657c0498c0a1034ee80d7298a8df39349ad00842ea3314b",
+      "size": 82576
+    },
+    {
+      "path": "evaluation/claude/problems/355_B/black_box.json",
+      "sha256": "32c6b84208907240f810ce6dfa271f4815c9787f924888fd9c0b43df8d8f3858",
+      "size": 81583
+    },
+    {
+      "path": "evaluation/claude/problems/355_B/hybrid.json",
+      "sha256": "8347791ecccab927dbbd80773af7f0c6e803a1cd3d6bb08e4db031b2d1687937",
+      "size": 81853
+    },
+    {
+      "path": "evaluation/claude/problems/355_B/white_box.json",
+      "sha256": "d0ded1bc56682d1be0897a47759788b8a6dd74039e3dac4ada08cc18304c1a0c",
+      "size": 81884
+    },
+    {
+      "path": "evaluation/claude/problems/357_A/black_box.json",
+      "sha256": "40a2aa9095a53570bec59351d2aaacd83f46b8b9c038142673f6e1deecde5a8a",
+      "size": 79910
+    },
+    {
+      "path": "evaluation/claude/problems/357_A/hybrid.json",
+      "sha256": "f778a64ce7b729121bdce734adeed8a7cb02a4b78c00bd7153335ad08286e3ca",
+      "size": 82017
+    },
+    {
+      "path": "evaluation/claude/problems/357_A/white_box.json",
+      "sha256": "0accf7207e72785a6fd1519e5cdd0b3c8c35ef3cd16364d80d1732437b279f69",
+      "size": 80972
+    },
+    {
+      "path": "evaluation/claude/problems/358_B/black_box.json",
+      "sha256": "26c121df881d4e12e4110d8a4ac189a078766dd661e52920a22b4c21e9867304",
+      "size": 83200
+    },
+    {
+      "path": "evaluation/claude/problems/358_B/hybrid.json",
+      "sha256": "563cc0408e451f658a29baac480d8f15e4d9c3c6e7ed92f9fdab94d89372746f",
+      "size": 83445
+    },
+    {
+      "path": "evaluation/claude/problems/358_B/white_box.json",
+      "sha256": "341c2c5b34b9fe878c9f239f5f27b5a1d8401a3fbb7ee1790305d4a8327332c1",
+      "size": 83452
+    },
+    {
+      "path": "evaluation/claude/problems/362_B/black_box.json",
+      "sha256": "3f327044633a40e269005a1f768363a14718def761282ad2c13f210501b0c2d3",
+      "size": 82656
+    },
+    {
+      "path": "evaluation/claude/problems/362_B/hybrid.json",
+      "sha256": "ba87503ad64bd39c6604d3effb34642ac0aca9e02ba5ea6119801f4380ccd1f2",
+      "size": 82760
+    },
+    {
+      "path": "evaluation/claude/problems/362_B/white_box.json",
+      "sha256": "8547a54605e8a2e6677ab6f30cb9482ef432b87b09c28120139ffc82b35d90e3",
+      "size": 83557
+    },
+    {
+      "path": "evaluation/claude/problems/365_A/black_box.json",
+      "sha256": "ace4d7e43e841ba9903cf98caaa54e1175c3dc86a8e52169f1ede1c36979071d",
+      "size": 82701
+    },
+    {
+      "path": "evaluation/claude/problems/365_A/hybrid.json",
+      "sha256": "431b65fa5fd6630caf91c1292331bfdf3262b3a1d2a340c3303a06a5068144eb",
+      "size": 83166
+    },
+    {
+      "path": "evaluation/claude/problems/365_A/white_box.json",
+      "sha256": "9f64df9ec1735471f690ebbb62228902d20d1bae1dcd862c8b17fbc3448ffbef",
+      "size": 82711
+    },
+    {
+      "path": "evaluation/claude/problems/368_C/black_box.json",
+      "sha256": "660debf53f829e1c61244992712dfda12685d46f922e6fdda7034e082080bbe2",
+      "size": 80745
+    },
+    {
+      "path": "evaluation/claude/problems/368_C/hybrid.json",
+      "sha256": "b82952c0bd4293254a5fa3ee556147bdad394f8e4fc1c99452e4733d1b9000ae",
+      "size": 82195
+    },
+    {
+      "path": "evaluation/claude/problems/368_C/white_box.json",
+      "sha256": "76983a58951e1a69a54ecdcd823ddf00b9e3237f83f798e2bca12380672f25a1",
+      "size": 82209
+    },
+    {
+      "path": "evaluation/claude/problems/370_B/black_box.json",
+      "sha256": "785cd80d7f7201e45d7f798f0b971862513501e6ddc46643e31ca93afcfe272b",
+      "size": 80589
+    },
+    {
+      "path": "evaluation/claude/problems/370_B/hybrid.json",
+      "sha256": "3136246ed8ac0b0cbed7796dd670a3ccf83e41be323d43d45064d27a8f814d2b",
+      "size": 81715
+    },
+    {
+      "path": "evaluation/claude/problems/370_B/white_box.json",
+      "sha256": "45bbe1e0b610ac8e98e2245ed77f7bd2fd02d46c63b08f9155ad92871ccd1310",
+      "size": 82562
+    },
+    {
+      "path": "evaluation/claude/problems/372_A/black_box.json",
+      "sha256": "656d2c0f770b9e9026c2cd31199a06bf4830a2a82d04cfd2829381826af2433a",
+      "size": 83118
+    },
+    {
+      "path": "evaluation/claude/problems/372_A/hybrid.json",
+      "sha256": "d73e16bcea78f63ed9a88774b370ecda38ff8580a2cdc3ec9d9c7fd3c2363542",
+      "size": 83015
+    },
+    {
+      "path": "evaluation/claude/problems/372_A/white_box.json",
+      "sha256": "8c8ed8856e356d27e1e6e3d5ff0925b2e3ac58605227865d686b46e9d7848325",
+      "size": 82159
+    },
+    {
+      "path": "evaluation/claude/problems/380_A/black_box.json",
+      "sha256": "31311fddba76ce2827c52b1c61535d90f73bfe00185d82a942f6c6fde6b40b5f",
+      "size": 80513
+    },
+    {
+      "path": "evaluation/claude/problems/380_A/hybrid.json",
+      "sha256": "8902c8b2959b336e5c277065b06358de8da3a0cebfcde22d7a0e00da3e914d56",
+      "size": 81105
+    },
+    {
+      "path": "evaluation/claude/problems/380_A/white_box.json",
+      "sha256": "ce0546c696951b7aea45282e3dd61d19ed2dd85d6ea97d33bbbc18e01b8cc354",
+      "size": 81755
+    },
+    {
+      "path": "evaluation/claude/problems/385_B/black_box.json",
+      "sha256": "4c13d373cf2eac0fef3ce97a894a732520e341215d6d73afb108b5c7a1cc06f5",
+      "size": 82404
+    },
+    {
+      "path": "evaluation/claude/problems/385_B/hybrid.json",
+      "sha256": "a0ea823cd09311ae6fbb6fdfa9ebea896308df8807965b814bcc035128f78baf",
+      "size": 81918
+    },
+    {
+      "path": "evaluation/claude/problems/385_B/white_box.json",
+      "sha256": "4aad6bc3130e45d63b9ca106f4c205fc0d5ccfa98beead6730ed7746968ef70e",
+      "size": 82739
+    },
+    {
+      "path": "evaluation/claude/problems/413_B/black_box.json",
+      "sha256": "f70f6d69d4ac05805c35e4c5afeeccad823c3d3f4de4718e7bb9f182c5b6f3fc",
+      "size": 81716
+    },
+    {
+      "path": "evaluation/claude/problems/413_B/hybrid.json",
+      "sha256": "601938a63befc41b78f46382d47d55aafcecbd6aaef0919633a223d91066e0d5",
+      "size": 81791
+    },
+    {
+      "path": "evaluation/claude/problems/413_B/white_box.json",
+      "sha256": "e56b1badd08dc6aff21295f9ff127c47800ae9faa7aefa10661ab5845f2ac2b2",
+      "size": 81506
+    },
+    {
+      "path": "evaluation/claude/problems/417_A/black_box.json",
+      "sha256": "eaef78cc83647a18747f26bdb676fb8f8808402ed19bd9c5de2857592ec7aac7",
+      "size": 81953
+    },
+    {
+      "path": "evaluation/claude/problems/417_A/hybrid.json",
+      "sha256": "f3a7b9b838217a2f3e3b044a9eb818fde8fc8cb9971b7f4a0002ccbd82e2c3eb",
+      "size": 81218
+    },
+    {
+      "path": "evaluation/claude/problems/417_A/white_box.json",
+      "sha256": "f2b13389c726d1d817cc1d5ad85ffc9223856f67685713e0b17c45adffc16d0b",
+      "size": 82613
+    },
+    {
+      "path": "evaluation/claude/problems/417_B/black_box.json",
+      "sha256": "35a478c3f8b31683b13343cfd8210d8eb67b138f2fd59ba29dfefb471688a834",
+      "size": 82334
+    },
+    {
+      "path": "evaluation/claude/problems/417_B/hybrid.json",
+      "sha256": "3f71f8f9a0eaf23ae0fe388e1fdc43ade35b68d98d541d71ac48647e1b85ab7e",
+      "size": 81279
+    },
+    {
+      "path": "evaluation/claude/problems/417_B/white_box.json",
+      "sha256": "73680c73ce4b2418947a8cf16b0cec31cf2609eda18c3b19c634b8ecdca2163b",
+      "size": 82323
+    },
+    {
+      "path": "evaluation/claude/problems/445_A/black_box.json",
+      "sha256": "50c771c7722c316bff516be1794c61ac0d924f78008cc31837cf11e097b57c5b",
+      "size": 82191
+    },
+    {
+      "path": "evaluation/claude/problems/445_A/hybrid.json",
+      "sha256": "af2c17f04819e38e3cc8a7ef35b6d912c6291a07d3a5f6e8ccbdb0ac1375e085",
+      "size": 82696
+    },
+    {
+      "path": "evaluation/claude/problems/445_A/white_box.json",
+      "sha256": "4fa46849880be4e6bec1ad49564b85c396562cb33ad3bbd529de4085c50cbc5d",
+      "size": 82203
+    },
+    {
+      "path": "evaluation/claude/problems/446_A/black_box.json",
+      "sha256": "2bcc8a4b4caead38b48a49bc27cbd7bfe6a12983c4cf43dbbc0aea6e77680be0",
+      "size": 82317
+    },
+    {
+      "path": "evaluation/claude/problems/446_A/hybrid.json",
+      "sha256": "54483f7eae36a12cc998c6c665380ef29a22e2a8451b42b6574a7d876d2ff6bf",
+      "size": 82754
+    },
+    {
+      "path": "evaluation/claude/problems/446_A/white_box.json",
+      "sha256": "32f5adf0ff418206dfd99064ba991b7ea6c185041647684b845a3ba6fb0d6898",
+      "size": 82723
+    },
+    {
+      "path": "evaluation/claude/problems/447_C/black_box.json",
+      "sha256": "7bb3514069ff02b63fb795c9204ec3ac036657f77df54cf3ec633a3e3e30ff0e",
+      "size": 83605
+    },
+    {
+      "path": "evaluation/claude/problems/447_C/hybrid.json",
+      "sha256": "7831da59031e8840d31c14deb70694b2b4cf543d5955a916a934e2793c8cb891",
+      "size": 83469
+    },
+    {
+      "path": "evaluation/claude/problems/447_C/white_box.json",
+      "sha256": "359b0a284b972726cf20ea77ed202760bb3317cd1c35fce4bbb6c20975cdcdb7",
+      "size": 83411
+    },
+    {
+      "path": "evaluation/claude/problems/448_B/black_box.json",
+      "sha256": "a9aed7ce552f859f063443fa63a2813eff80e3a2ed3e4667bca1d36a5df9a068",
+      "size": 84248
+    },
+    {
+      "path": "evaluation/claude/problems/448_B/hybrid.json",
+      "sha256": "9510566766a722e1c2cc57091812f0a94efdcc86774558b598bc6ab40ddb5aee",
+      "size": 83840
+    },
+    {
+      "path": "evaluation/claude/problems/448_B/white_box.json",
+      "sha256": "7d106e59f15371f029a595d69e974ffd235f47413b16a09d9f0290a9503cf832",
+      "size": 82959
+    },
+    {
+      "path": "evaluation/claude/problems/450_A/black_box.json",
+      "sha256": "79c7ac38e62d4f9f9b66ea05962decc41a27d1ef2e54fe24d929a6f347f77496",
+      "size": 82569
+    },
+    {
+      "path": "evaluation/claude/problems/450_A/hybrid.json",
+      "sha256": "136cfb26d6711725590672d05583dc8385958d56105f096fe7f91275b70de662",
+      "size": 82524
+    },
+    {
+      "path": "evaluation/claude/problems/450_A/white_box.json",
+      "sha256": "17a2f11d12251894ae04cb0647ed2e3f7b961bf843f3eba1435314a219799bfb",
+      "size": 83581
+    },
+    {
+      "path": "evaluation/claude/problems/452_A/black_box.json",
+      "sha256": "137ada63272059605f7627b3c6db29a18aa8a359079345823331c75ee4ae2264",
+      "size": 81808
+    },
+    {
+      "path": "evaluation/claude/problems/452_A/hybrid.json",
+      "sha256": "65c0112fe8ac34a8e97712911bc81ff93c4605d758bbece5122c42a2daed96c9",
+      "size": 82277
+    },
+    {
+      "path": "evaluation/claude/problems/452_A/white_box.json",
+      "sha256": "03268e5581daf17104900ba8d639b756e051f03e67f895bc0ff9d2d3a87c369f",
+      "size": 82002
+    },
+    {
+      "path": "evaluation/claude/problems/455_A/black_box.json",
+      "sha256": "5c44d9d9a509ec9eb12923f219d9bd854a58faa54b12447237e08d7b752dba0d",
+      "size": 82208
+    },
+    {
+      "path": "evaluation/claude/problems/455_A/hybrid.json",
+      "sha256": "26c2b654c6e303108138b70e2ce7c6e33d503b390c0a9d7be524d8f352e93f2b",
+      "size": 81708
+    },
+    {
+      "path": "evaluation/claude/problems/455_A/white_box.json",
+      "sha256": "ceb9806243161f730416de2a69e1675424b71ff976b585652512b648df42dcfe",
+      "size": 82640
+    },
+    {
+      "path": "evaluation/claude/problems/459_A/black_box.json",
+      "sha256": "b348754193bc69b58374f47aa43f7f57754b9bb3a31af81c881dcd84f353b4e8",
+      "size": 83438
+    },
+    {
+      "path": "evaluation/claude/problems/459_A/hybrid.json",
+      "sha256": "0a7ca76f4f47e971385850c02803561543e2b00ea4c5f09c7f408c2fd52ffa79",
+      "size": 83833
+    },
+    {
+      "path": "evaluation/claude/problems/459_A/white_box.json",
+      "sha256": "f781143a8a4627f517d729bbcffcd262ecd67dda6b8c1065bf5cd4b8b8e0817e",
+      "size": 83089
+    },
+    {
+      "path": "evaluation/claude/problems/459_B/black_box.json",
+      "sha256": "cc30fe092ecf05b78706cfbe59a851c4d0c4741f18a5e503eaa467e7f56f182f",
+      "size": 83245
+    },
+    {
+      "path": "evaluation/claude/problems/459_B/hybrid.json",
+      "sha256": "49fac660e3f9c8df751f8ef5d010735e4567968e3d805ca17e4d753819f126bf",
+      "size": 83250
+    },
+    {
+      "path": "evaluation/claude/problems/459_B/white_box.json",
+      "sha256": "ba36d1598dfd4865509a79301cd1723697b7906216a91ea881393ee5bb60adf1",
+      "size": 83156
+    },
+    {
+      "path": "evaluation/claude/problems/466_A/black_box.json",
+      "sha256": "0841da63b92c3e5a2e8f10e5a951658e5d6733efaf07d9fc5db758f9480931e2",
+      "size": 82377
+    },
+    {
+      "path": "evaluation/claude/problems/466_A/hybrid.json",
+      "sha256": "a5887cccc8f9abaeccf7def217c90daa4990beba7924153b347e446d91024b3b",
+      "size": 83260
+    },
+    {
+      "path": "evaluation/claude/problems/466_A/white_box.json",
+      "sha256": "5259894971a7c5f902b0b575ee060002f41bad75208a704cd84bb515b03474c2",
+      "size": 82867
+    },
+    {
+      "path": "evaluation/claude/problems/478_A/black_box.json",
+      "sha256": "7341290f0916b3ba600269bc748a969562f43a2483bf25860ad6e160959994d9",
+      "size": 83674
+    },
+    {
+      "path": "evaluation/claude/problems/478_A/hybrid.json",
+      "sha256": "cba601156b57647f52f45740406e316ad6d6d0f606076ba646f7b296f8909133",
+      "size": 83179
+    },
+    {
+      "path": "evaluation/claude/problems/478_A/white_box.json",
+      "sha256": "465042b43ca8c66d29699cc6fa0a2b4399ef906c0279bd3b09c0a9ffb933851d",
+      "size": 83186
+    },
+    {
+      "path": "evaluation/claude/problems/493_B/black_box.json",
+      "sha256": "79730d2530ec1e4aab7c5bc63d5ff3553f8edbc5ee0848f435babad9c4c4d7ef",
+      "size": 81610
+    },
+    {
+      "path": "evaluation/claude/problems/493_B/hybrid.json",
+      "sha256": "db1f2732e002120070c61650b62c08894a069c77a24bc27ea972ec358c5c0581",
+      "size": 81603
+    },
+    {
+      "path": "evaluation/claude/problems/493_B/white_box.json",
+      "sha256": "ee7abdfdadc64b132d8a155f0e09e9a1cb09d98b440d608bc79d4b6ecbd1b584",
+      "size": 82033
+    },
+    {
+      "path": "evaluation/claude/problems/493_C/black_box.json",
+      "sha256": "fa5e5d676fcf96e3c31a6d55c9dcfe6f774a7b607b2c21901b6fdc0ebb5174ac",
+      "size": 80188
+    },
+    {
+      "path": "evaluation/claude/problems/493_C/hybrid.json",
+      "sha256": "b504460839ec07662266f3bfbfa475aa053fd043afc38bfe7926bf3e6f89acd7",
+      "size": 81574
+    },
+    {
+      "path": "evaluation/claude/problems/493_C/white_box.json",
+      "sha256": "c6d73ca9258d8c24587421483dde080c94b8078e544dd744fbcb76e4a83a66ae",
+      "size": 81463
+    },
+    {
+      "path": "evaluation/claude/problems/518_B/black_box.json",
+      "sha256": "29a14117df504f56668e70973ebd12c40dff5931e779c19f0fe22c121280e393",
+      "size": 80952
+    },
+    {
+      "path": "evaluation/claude/problems/518_B/hybrid.json",
+      "sha256": "bb9b74e3b0b7c56a953a78b8cb6e4a00654c82630a0b02f02cf2bf5f2852a116",
+      "size": 82793
+    },
+    {
+      "path": "evaluation/claude/problems/518_B/white_box.json",
+      "sha256": "8e8031468f441a8cb2ca2f48c9e567760a805115ada071f9c3f2dd60c3f01019",
+      "size": 80564
+    },
+    {
+      "path": "evaluation/claude/problems/523_C/black_box.json",
+      "sha256": "f687977c02837e7cd3f86541eb64be97335beb821db67044e2eecf2b544ea316",
+      "size": 81518
+    },
+    {
+      "path": "evaluation/claude/problems/523_C/hybrid.json",
+      "sha256": "d8de34d419cd2dce26a8eb2c7c1ce6bb739fd0c45dbcd6cd33c1a9e88bc5d14d",
+      "size": 82929
+    },
+    {
+      "path": "evaluation/claude/problems/523_C/white_box.json",
+      "sha256": "1196c3c5a360e604287421d14d3f3af87a1c6f959c4ed8162e99fbd04fb980f7",
+      "size": 82683
+    },
+    {
+      "path": "evaluation/claude/problems/534_C/black_box.json",
+      "sha256": "77d03a34c88e5cba5b6ab2d71788644f7802fe5a9e670c957ec611ba2fa0fe6d",
+      "size": 82444
+    },
+    {
+      "path": "evaluation/claude/problems/534_C/hybrid.json",
+      "sha256": "fc7658c1b4feff6ccd2cebbe0e88359c35c1a22b818154d10d016b1fff88ace8",
+      "size": 81991
+    },
+    {
+      "path": "evaluation/claude/problems/534_C/white_box.json",
+      "sha256": "9046f59445de6c9930c8ea4c302f4a4f65ba5b2b423c4a6e31017ed5f7bed04b",
+      "size": 83111
+    },
+    {
+      "path": "evaluation/claude/problems/538_A/black_box.json",
+      "sha256": "4d98751d8bc0318fd2e4141014ff4f990727a3bb16544b291f05edd43e5e2c38",
+      "size": 81365
+    },
+    {
+      "path": "evaluation/claude/problems/538_A/hybrid.json",
+      "sha256": "0fe7b75da0f4cbcd64f29f9fd223f1378325fbf2dbcd6a36f724ffc75d3bfecf",
+      "size": 82422
+    },
+    {
+      "path": "evaluation/claude/problems/538_A/white_box.json",
+      "sha256": "4e598c6b14305241032e031b67489e04e1eca24452a50df20f3a0d5c11823473",
+      "size": 83702
+    },
+    {
+      "path": "evaluation/claude/problems/53_A/black_box.json",
+      "sha256": "f992e2f97377a1712d32e17fc0cfbc3a1cad2681d199568a9152bb35971bdbaf",
+      "size": 82271
+    },
+    {
+      "path": "evaluation/claude/problems/53_A/hybrid.json",
+      "sha256": "262d3764ebcbae08f1db22eeaf6b99d2e2da56b5990170c76dc7507723b204cd",
+      "size": 83112
+    },
+    {
+      "path": "evaluation/claude/problems/53_A/white_box.json",
+      "sha256": "97b72e5fb9a313a88aed5a19bb8b318b75bdc7ad39762111dd226c1baa437913",
+      "size": 82254
+    },
+    {
+      "path": "evaluation/claude/problems/544_A/black_box.json",
+      "sha256": "19444427050bdb09a3e3eda00d851d579aa4c35ab2e7ded680218a3356acb388",
+      "size": 82889
+    },
+    {
+      "path": "evaluation/claude/problems/544_A/hybrid.json",
+      "sha256": "29ca83893e8af4c9aea1f6f587c23c309449da32a6ef3ade207fa6f17f77eb7b",
+      "size": 83250
+    },
+    {
+      "path": "evaluation/claude/problems/544_A/white_box.json",
+      "sha256": "54ff91141792439be428d7b120275a4a42c8d6f6f32118c8db72464e9f69896d",
+      "size": 83615
+    },
+    {
+      "path": "evaluation/claude/problems/569_A/black_box.json",
+      "sha256": "913074a406decf8b664420380e7676f7a8db364a82c0bf59c85b6e163e3325b2",
+      "size": 82463
+    },
+    {
+      "path": "evaluation/claude/problems/569_A/hybrid.json",
+      "sha256": "106e428da1b18ebab38775d806b84b1b3a0361ed8d6b89d9be0012018242ec29",
+      "size": 82421
+    },
+    {
+      "path": "evaluation/claude/problems/569_A/white_box.json",
+      "sha256": "1c9f37dc9ce5551bee14baf065255772949a79983621bdc9c41192b02db8cceb",
+      "size": 83146
+    },
+    {
+      "path": "evaluation/claude/problems/56_A/black_box.json",
+      "sha256": "815245b5d9c8220765b1c90fe68b010837be7b25074aa43d6eddf7359c971fe3",
+      "size": 83049
+    },
+    {
+      "path": "evaluation/claude/problems/56_A/hybrid.json",
+      "sha256": "eb9a8041c0e40d222f6abc4b6314db31f12fdd0e5b6a18405967dfb1a7ad65f2",
+      "size": 84188
+    },
+    {
+      "path": "evaluation/claude/problems/56_A/white_box.json",
+      "sha256": "0c342d10efa5054b5e9b0e1eeba873d86b8bbacda4f38e833db6026a85962f01",
+      "size": 82664
+    },
+    {
+      "path": "evaluation/claude/problems/570_A/black_box.json",
+      "sha256": "18eff4bfd0a4d8dc95ba65d4e1eed92da8ce25648b3fc6c6111b602d392389cc",
+      "size": 82520
+    },
+    {
+      "path": "evaluation/claude/problems/570_A/hybrid.json",
+      "sha256": "3b80297ec4964669dbe7f245e70475439079c8c80a7622360ca3cba67903501a",
+      "size": 82103
+    },
+    {
+      "path": "evaluation/claude/problems/570_A/white_box.json",
+      "sha256": "40e2b7228e0ef8dfdf0e58ef7463a15b4d7db834c02a826a085485b7418d34e2",
+      "size": 82231
+    },
+    {
+      "path": "evaluation/claude/problems/572_B/black_box.json",
+      "sha256": "56161047149f52a63bc11c004f51c39977daec74c0d24adedf5075954ab1cbc7",
+      "size": 81925
+    },
+    {
+      "path": "evaluation/claude/problems/572_B/hybrid.json",
+      "sha256": "526ccf17f3f12e0be39ca111596019f7e10d9b3eb7c6313bb8d7b25690690922",
+      "size": 81843
+    },
+    {
+      "path": "evaluation/claude/problems/572_B/white_box.json",
+      "sha256": "51a75a42c2bd790546c05b1ca5e31515ecf1e1de04a4a3bf4079d35417b754c4",
+      "size": 81373
+    },
+    {
+      "path": "evaluation/claude/problems/574_A/black_box.json",
+      "sha256": "3b80fff99282776925c66f3271c9eb765ca74db941ba06d3ff0a3f9cf3ddcd4d",
+      "size": 81012
+    },
+    {
+      "path": "evaluation/claude/problems/574_A/hybrid.json",
+      "sha256": "681d750d9ce9a70945c1de8dfa9f8a86f84d7ca5acfce03f197f78a79ca42d03",
+      "size": 81213
+    },
+    {
+      "path": "evaluation/claude/problems/574_A/white_box.json",
+      "sha256": "c71d862d03185c6c4ccba1992b54765306f1e45c1a496b21fd1304948427c74a",
+      "size": 81825
+    },
+    {
+      "path": "evaluation/claude/problems/608_A/black_box.json",
+      "sha256": "7f7241ee1d85d806965cbaf56a6b168bbde440edb29dbbbbadf83f70730ea4cd",
+      "size": 81210
+    },
+    {
+      "path": "evaluation/claude/problems/608_A/hybrid.json",
+      "sha256": "d87980011fc02acb96d39b0938a255141d082884b9d2308350c40181ce6c33c8",
+      "size": 82961
+    },
+    {
+      "path": "evaluation/claude/problems/608_A/white_box.json",
+      "sha256": "dad2730f31c6c2bc5f1cff6bf80abc4036c430fb6b5d9002f187b90ec814529a",
+      "size": 82719
+    },
+    {
+      "path": "evaluation/claude/problems/61_B/black_box.json",
+      "sha256": "4b367b3bfbd8a4a4c12ec0819a4b209ecf10ff86f423b571c4c9a9e8c008df38",
+      "size": 80465
+    },
+    {
+      "path": "evaluation/claude/problems/61_B/hybrid.json",
+      "sha256": "45c8d9defd1825c58f158a80d5c186cf0011c3a1a6f19788bd9e7763d5ec236a",
+      "size": 79278
+    },
+    {
+      "path": "evaluation/claude/problems/61_B/white_box.json",
+      "sha256": "cfc7cfd547cb837e875ca746e05a7267406d3ddc868112a18b7b952e96c7521a",
+      "size": 79777
+    },
+    {
+      "path": "evaluation/claude/problems/628_A/black_box.json",
+      "sha256": "bed7a9e50d04442dde6b5f443a57894c1d4ef85db78722729f43499bddd068e9",
+      "size": 82047
+    },
+    {
+      "path": "evaluation/claude/problems/628_A/hybrid.json",
+      "sha256": "5d0b170fbdd6929b81d6cd194c74bfa93e82d25100efede0554469e7d2c7598b",
+      "size": 82036
+    },
+    {
+      "path": "evaluation/claude/problems/628_A/white_box.json",
+      "sha256": "4fe99f651f844b9232fe41e78f1569d0d4c154c151b511e80bf1903a61a50da1",
+      "size": 82034
+    },
+    {
+      "path": "evaluation/claude/problems/630_G/black_box.json",
+      "sha256": "ff144f76e177d8e71a1be4d0c6097db89985ed481ba726f3e58330fc1dfd204e",
+      "size": 80915
+    },
+    {
+      "path": "evaluation/claude/problems/630_G/hybrid.json",
+      "sha256": "45c4c7c10d85aede52b0223d8ef59b26bda0a8196c7e12113ffc0ee09d0e93e0",
+      "size": 79769
+    },
+    {
+      "path": "evaluation/claude/problems/630_G/white_box.json",
+      "sha256": "26457987046f97a9b9f11366293c704d63cfb44b946a843a6dcf0459431bdc8f",
+      "size": 82235
+    },
+    {
+      "path": "evaluation/claude/problems/630_J/black_box.json",
+      "sha256": "7546c220f5c1d331277c2ba670dc18bd0ca36e08b049c655e947410f63ee214a",
+      "size": 82741
+    },
+    {
+      "path": "evaluation/claude/problems/630_J/hybrid.json",
+      "sha256": "5e6a09b47aa1283b06e0da04b03ba5a6b8a589f6021f607b59b37cf8d8032a8f",
+      "size": 82242
+    },
+    {
+      "path": "evaluation/claude/problems/630_J/white_box.json",
+      "sha256": "d5dbdd78e7261891e0c05594e4cc56a6a3ae2be3b6c29fe946ebda4133b88d97",
+      "size": 82492
+    },
+    {
+      "path": "evaluation/claude/problems/630_L/black_box.json",
+      "sha256": "975228f8159335097328c9dcd00cb981bfadc739e062b39358762a2c5f1914b4",
+      "size": 81508
+    },
+    {
+      "path": "evaluation/claude/problems/630_L/hybrid.json",
+      "sha256": "3dc06b8c68428135f38d554ab88d37308b5d3a742a14954788a4288c7b70a384",
+      "size": 82015
+    },
+    {
+      "path": "evaluation/claude/problems/630_L/white_box.json",
+      "sha256": "e7a53c5eb1cef49c32b8c6e939ee5dcbc23928f1a6f184c4238bbb4caae35469",
+      "size": 81991
+    },
+    {
+      "path": "evaluation/claude/problems/652_A/black_box.json",
+      "sha256": "8c830c0ac5dcafed8489805c034515649629b750a27d3c3a0b6de8010bcb20a0",
+      "size": 82074
+    },
+    {
+      "path": "evaluation/claude/problems/652_A/hybrid.json",
+      "sha256": "25f9e6ab14f3a580467b9057b410f3a6e3a406a52604e7880e4453e3ffb8375d",
+      "size": 80930
+    },
+    {
+      "path": "evaluation/claude/problems/652_A/white_box.json",
+      "sha256": "d8fe9f7134ccd2125e3f06884ea4566f50401a0a3f7c4246023076ad65f52ca8",
+      "size": 81952
+    },
+    {
+      "path": "evaluation/claude/problems/670_D1/black_box.json",
+      "sha256": "16e68df6c1295cb6a24a1ab77b9af05b79a99caba1c5fd9cdbde9e1de9b78036",
+      "size": 82421
+    },
+    {
+      "path": "evaluation/claude/problems/670_D1/hybrid.json",
+      "sha256": "bec44179e194c1a06bbd4fe5ccd236f04abd2f20f70afcf1f1e523df4fcf573d",
+      "size": 81669
+    },
+    {
+      "path": "evaluation/claude/problems/670_D1/white_box.json",
+      "sha256": "5dd57fd5aa6bece45bf937efd4b17e9ec766149ff5eff4cdfa6173133e7551d7",
+      "size": 83356
+    },
+    {
+      "path": "evaluation/claude/problems/670_D2/black_box.json",
+      "sha256": "30fd4297137f18d344c04f33319fc1d01d5d2d98ba03a064a00f7ad716c98bf4",
+      "size": 81309
+    },
+    {
+      "path": "evaluation/claude/problems/670_D2/hybrid.json",
+      "sha256": "e0a934400a2fb5f878a4a2e80f7a3613655c4c6394475df19842ec1a00e78e95",
+      "size": 82580
+    },
+    {
+      "path": "evaluation/claude/problems/670_D2/white_box.json",
+      "sha256": "ea43aa22c0b7630ebe0766e27ef36d6fd7222b8abefb61a12d82b08eda5ee6d9",
+      "size": 81752
+    },
+    {
+      "path": "evaluation/claude/problems/675_A/black_box.json",
+      "sha256": "1136039aba41d9dc20afda07992ed12d170db513b5290bf935b82adab95af396",
+      "size": 83658
+    },
+    {
+      "path": "evaluation/claude/problems/675_A/hybrid.json",
+      "sha256": "e352f86561148d4582fa2dbc9931d1c146c2d6a4a4d9d388b3b1b60ed9e5e609",
+      "size": 82178
+    },
+    {
+      "path": "evaluation/claude/problems/675_A/white_box.json",
+      "sha256": "050250ccd3b6040d1122d8cf579ec31b23195c157d15069559556e79c2b0b122",
+      "size": 84115
+    },
+    {
+      "path": "evaluation/claude/problems/702_C/black_box.json",
+      "sha256": "1923e2d4b232127cbd34c30bbcf02f2796cf87c74df3bbce5f80b62f86aaea79",
+      "size": 81670
+    },
+    {
+      "path": "evaluation/claude/problems/702_C/hybrid.json",
+      "sha256": "adb7a2a20e34bfb1afebd9fbae8a810eccc9b39f46b0018b43bbd04c53fb0321",
+      "size": 81158
+    },
+    {
+      "path": "evaluation/claude/problems/702_C/white_box.json",
+      "sha256": "1af4926ba3d2e2a58ff609c4ccc5ef3a7eaf4c51da4b64b59e7e33d0aa2d0380",
+      "size": 80545
+    },
+    {
+      "path": "evaluation/claude/problems/709_B/black_box.json",
+      "sha256": "e65cd1a7740db6db5c4d7494ce6b650dc6e32610cc2522f1f504fe26c1f27544",
+      "size": 82471
+    },
+    {
+      "path": "evaluation/claude/problems/709_B/hybrid.json",
+      "sha256": "22f5ce3ced7a40d3f5d8d41a4f32688cc7d022a2362de0782dedf69027c418dd",
+      "size": 82064
+    },
+    {
+      "path": "evaluation/claude/problems/709_B/white_box.json",
+      "sha256": "d898857a29dbc739ec8d205aba6ced61f2d2384c1b5a10129dc505530b0dc1bc",
+      "size": 82819
+    },
+    {
+      "path": "evaluation/claude/problems/70_B/black_box.json",
+      "sha256": "a8871eb94beddeabc986cf2fe18a368c665d0d1031a210d969d2cbe26da97ab1",
+      "size": 83505
+    },
+    {
+      "path": "evaluation/claude/problems/70_B/hybrid.json",
+      "sha256": "eb6b2b5e66e6d6f3933b204a1790c3060c73aa3656d8718c87d3743e766dfb51",
+      "size": 84371
+    },
+    {
+      "path": "evaluation/claude/problems/70_B/white_box.json",
+      "sha256": "7c787c3709791774132f4f07ba2a3680848126de19b76e5c1bca46f9b22b487f",
+      "size": 82816
+    },
+    {
+      "path": "evaluation/claude/problems/710_B/black_box.json",
+      "sha256": "4b1c16ef4474b94a8020d2f21367d239f7eebc1fe7c2824e3f025141f2de63b3",
+      "size": 82830
+    },
+    {
+      "path": "evaluation/claude/problems/710_B/hybrid.json",
+      "sha256": "d75437692205601f450b6d5e068b4643975eee7b72361e39dbf6f806d3127135",
+      "size": 82478
+    },
+    {
+      "path": "evaluation/claude/problems/710_B/white_box.json",
+      "sha256": "ad0b3a416a758b5f302281fde7a6d4a04b547aa3cc245bbb9853598d6d93a2dd",
+      "size": 82492
+    },
+    {
+      "path": "evaluation/claude/problems/712_B/black_box.json",
+      "sha256": "86156b0a41ebdad396ecc00516fcf157400dfeb5197f0675bffd0e7f14eabf6a",
+      "size": 82864
+    },
+    {
+      "path": "evaluation/claude/problems/712_B/hybrid.json",
+      "sha256": "35c2b046bab5d4682c669e34d00afea5ec5451778313397c632849dbbe9c7b5c",
+      "size": 83393
+    },
+    {
+      "path": "evaluation/claude/problems/712_B/white_box.json",
+      "sha256": "2bef8b326268a9791da678eb6f32f01285c4ed8c9760b5a947bb1d6e54e4a3e6",
+      "size": 83208
+    },
+    {
+      "path": "evaluation/claude/problems/713_A/black_box.json",
+      "sha256": "51f8bf7c7256191654d13816c9ff96ed76e3bbe0d392c03ee2cf3131e6539ef0",
+      "size": 81729
+    },
+    {
+      "path": "evaluation/claude/problems/713_A/hybrid.json",
+      "sha256": "e60afab4fe622f473e447dcebb1cee13529bab7341fcd6eb1c7854aee8038b77",
+      "size": 81327
+    },
+    {
+      "path": "evaluation/claude/problems/713_A/white_box.json",
+      "sha256": "8b95e129c698221854b98c1810ee1a382a87b7b602211d9bd5250f8908d61862",
+      "size": 81514
+    },
+    {
+      "path": "evaluation/claude/problems/719_A/black_box.json",
+      "sha256": "1e2f198f26da408b43661883125201d63e5da973faed6dcc3ff835d2bd238328",
+      "size": 83449
+    },
+    {
+      "path": "evaluation/claude/problems/719_A/hybrid.json",
+      "sha256": "e94bb099b70111eebfa9640c89dc6c43e7c01ea546e303dede52955e8de32453",
+      "size": 83877
+    },
+    {
+      "path": "evaluation/claude/problems/719_A/white_box.json",
+      "sha256": "c464ba34dbcb0a2f1a6481c00c64b7bc6e7cca48506ef3e5a74415dd50df4325",
+      "size": 84697
+    },
+    {
+      "path": "evaluation/claude/problems/723_B/black_box.json",
+      "sha256": "4c93eadbdd1a70be2209880e54c12fb216bfe94b35f760d8a316929bd18ad3c2",
+      "size": 82936
+    },
+    {
+      "path": "evaluation/claude/problems/723_B/hybrid.json",
+      "sha256": "7cc56be34fae04826c8592c7782dfe1ebd99785f727251565132264aa7014ace",
+      "size": 83188
+    },
+    {
+      "path": "evaluation/claude/problems/723_B/white_box.json",
+      "sha256": "e606ba0a5d3b8befd4eb74d3a638103302b6a29eb135a5c4b8fac80c5f874b84",
+      "size": 82023
+    },
+    {
+      "path": "evaluation/claude/problems/733_B/black_box.json",
+      "sha256": "95a40b4e7096423e2543990f5852c7255b7a75d89c789431c4ee9eafb8250703",
+      "size": 82381
+    },
+    {
+      "path": "evaluation/claude/problems/733_B/hybrid.json",
+      "sha256": "e875cf2f5cab6b28c6c0dcfeae3b7126c0c8746d584d4951dfc28672c37f6691",
+      "size": 81751
+    },
+    {
+      "path": "evaluation/claude/problems/733_B/white_box.json",
+      "sha256": "5e5923fd1bf0e2947cf1e441e6428e237cfda766156bb6cb31f70e1cd1665313",
+      "size": 82434
+    },
+    {
+      "path": "evaluation/claude/problems/734_C/black_box.json",
+      "sha256": "2569a295d3a1fbddb3e04b8b48032af42779b3833e936a3dc3cfb4514b468473",
+      "size": 82548
+    },
+    {
+      "path": "evaluation/claude/problems/734_C/hybrid.json",
+      "sha256": "2df132f2738a2ea938f602ed4dde8c8a05183c2cf3a305f50609d98e55e9186b",
+      "size": 81822
+    },
+    {
+      "path": "evaluation/claude/problems/734_C/white_box.json",
+      "sha256": "f9893fb5ccaab9afaa40e4ca7cbd7a72c694ff1c70e23a849def63033b641cd0",
+      "size": 82202
+    },
+    {
+      "path": "evaluation/claude/problems/73_A/black_box.json",
+      "sha256": "6137e520df9ec3c2c9ee4350444aa629f4ffe438c1939a4020bead49319dd55c",
+      "size": 82823
+    },
+    {
+      "path": "evaluation/claude/problems/73_A/hybrid.json",
+      "sha256": "0c527d8ab71632ffaa08a0f67cdac9c80616345ff77d0c738397ba265745492d",
+      "size": 83077
+    },
+    {
+      "path": "evaluation/claude/problems/73_A/white_box.json",
+      "sha256": "9d097e6d28993012823a04944b988dbb4fc3110241ed9c2c8a76555b29137f64",
+      "size": 81886
+    },
+    {
+      "path": "evaluation/claude/problems/747_C/black_box.json",
+      "sha256": "4fedbfb20834ea01501db60d00a9ea8c29da9c72c5fd93b221d135a21c7c8745",
+      "size": 79820
+    },
+    {
+      "path": "evaluation/claude/problems/747_C/hybrid.json",
+      "sha256": "e8c8adfb3c5b7a7626749f2c5507432140c9440a0e857267862b002dcf7a36ec",
+      "size": 78621
+    },
+    {
+      "path": "evaluation/claude/problems/747_C/white_box.json",
+      "sha256": "d38bf41d17cfa972f4c2a557ea45c0f1f457a09e854f1a461a9067e22f64be67",
+      "size": 78990
+    },
+    {
+      "path": "evaluation/claude/problems/753_A/black_box.json",
+      "sha256": "43d4fabcf1c321fc404a4d5d2ba5e6a5ac23e2cfc6e044797ec277f011e067b3",
+      "size": 82729
+    },
+    {
+      "path": "evaluation/claude/problems/753_A/hybrid.json",
+      "sha256": "e3571a9f51db1b63474380d9104a1c64122edb65bcaa407eb73ab8029d7cca93",
+      "size": 83687
+    },
+    {
+      "path": "evaluation/claude/problems/753_A/white_box.json",
+      "sha256": "296f3cca2cdacba2dd8657e943cd0820427a043ece0bed5515168eed801573e0",
+      "size": 84496
+    },
+    {
+      "path": "evaluation/claude/problems/75_A/black_box.json",
+      "sha256": "44f8ca49ec94eba25637178da72c2126ef6fddc6005361b2617f4a3094acfc91",
+      "size": 81650
+    },
+    {
+      "path": "evaluation/claude/problems/75_A/hybrid.json",
+      "sha256": "27e6868f900c03b40acbf9efdee0aad28d8d34f444a7c437daef10675296c02b",
+      "size": 82995
+    },
+    {
+      "path": "evaluation/claude/problems/75_A/white_box.json",
+      "sha256": "8805884e15f70359e526888c0752a9de858ebff19b2164539ce9413f6f2a0bff",
+      "size": 82695
+    },
+    {
+      "path": "evaluation/claude/problems/765_C/black_box.json",
+      "sha256": "96edeeb55b4dec487d773fe744e764bb0bf45080a4f7fe341adb4abf7ecd36d1",
+      "size": 82111
+    },
+    {
+      "path": "evaluation/claude/problems/765_C/hybrid.json",
+      "sha256": "8aa0ac46be5b15c9564e7a472be0fb3676e3b56f4b5ce0b08021741e1e124f82",
+      "size": 83942
+    },
+    {
+      "path": "evaluation/claude/problems/765_C/white_box.json",
+      "sha256": "3af5d5d74ed2ea71dfebc3cd408465fcf269485df8118fc2940bd87aa1aa7a3f",
+      "size": 82766
+    },
+    {
+      "path": "evaluation/claude/problems/770_C/black_box.json",
+      "sha256": "de1ff363dbbae10b1c421d4ec8f2f010876fabd7d1366684f4db0ac5917faa05",
+      "size": 82175
+    },
+    {
+      "path": "evaluation/claude/problems/770_C/hybrid.json",
+      "sha256": "496ec77dbfcbb6d58e763969b2f1cf5ffc23b7765331b47c741b5b82827c0c3e",
+      "size": 82812
+    },
+    {
+      "path": "evaluation/claude/problems/770_C/white_box.json",
+      "sha256": "ffc8988ac632645940fbb7d48db0429732f92689892bfe917d530a7c1c021ca0",
+      "size": 80229
+    },
+    {
+      "path": "evaluation/claude/problems/789_A/black_box.json",
+      "sha256": "6a21a4bf9bb1e0a747e246c8f26629fcbde70aff86ff3123035a699ed1737c8e",
+      "size": 82237
+    },
+    {
+      "path": "evaluation/claude/problems/789_A/hybrid.json",
+      "sha256": "60e63029eed5eec2878fc0a0e3512e7f6e1ea09328a27aa6225b80f0cc96564b",
+      "size": 82315
+    },
+    {
+      "path": "evaluation/claude/problems/789_A/white_box.json",
+      "sha256": "91732747245d93d7cd07eb8c328033c3e56d45d8d99d9b43ddd6b3c36048a1de",
+      "size": 83489
+    },
+    {
+      "path": "evaluation/claude/problems/799_A/black_box.json",
+      "sha256": "ff38c0a0b880ff83aa2a8d7b29f93906ad16ad2d052a1e62fb0ff069ab605b51",
+      "size": 81486
+    },
+    {
+      "path": "evaluation/claude/problems/799_A/hybrid.json",
+      "sha256": "ae1977f0c6617e073d95ebf412de89c5b4d7d8108020d33a038fd6935295fcb7",
+      "size": 83369
+    },
+    {
+      "path": "evaluation/claude/problems/799_A/white_box.json",
+      "sha256": "ef0c29717d7150088be490faded89b0d90a0e7e14c3854c754884f6fecfc2013",
+      "size": 82837
+    },
+    {
+      "path": "evaluation/claude/problems/79_A/black_box.json",
+      "sha256": "4380a92d815c883db6fd5862d95e9498d3d758d84074d9bec7630cf2eae0421b",
+      "size": 81622
+    },
+    {
+      "path": "evaluation/claude/problems/79_A/hybrid.json",
+      "sha256": "717f9eec81a7cfe1143f466d7e7054f7c83acd792b9b454f5e11ecebb746f20c",
+      "size": 84434
+    },
+    {
+      "path": "evaluation/claude/problems/79_A/white_box.json",
+      "sha256": "976381e1c4988fee4f93f38e2b13f5a64c61124ec3f07b4400cd973d71768cb7",
+      "size": 82638
+    },
+    {
+      "path": "evaluation/claude/problems/832_B/black_box.json",
+      "sha256": "07ff5b3346e3b19a4663e8a8d22305839644cda1c78ef1794c4a1409f73b0cf6",
+      "size": 81766
+    },
+    {
+      "path": "evaluation/claude/problems/832_B/hybrid.json",
+      "sha256": "508fd172520f1c860e45a67ec81b75fd51b1f1139d5b5d7d80282ba8c790c56f",
+      "size": 82314
+    },
+    {
+      "path": "evaluation/claude/problems/832_B/white_box.json",
+      "sha256": "72925e6093ba3fd90232effaa17d13bf788566f4d47946788ee24a97e3d3b800",
+      "size": 82235
+    },
+    {
+      "path": "evaluation/claude/problems/847_H/black_box.json",
+      "sha256": "cdab9026f1f28125feabab8df15f3171f5c4eb07a1abc421c1fcbe6bf1d96ae3",
+      "size": 80696
+    },
+    {
+      "path": "evaluation/claude/problems/847_H/hybrid.json",
+      "sha256": "4419d9b6c7020cd9cdb282e23b3dbc59120c13804ada5fbc051afc9f1f00f78d",
+      "size": 82015
+    },
+    {
+      "path": "evaluation/claude/problems/847_H/white_box.json",
+      "sha256": "9df2c83b28db68738fd342015e50071bfd38fb5e36a3757ed505ae2915a5b7f0",
+      "size": 81147
+    },
+    {
+      "path": "evaluation/claude/problems/858_C/black_box.json",
+      "sha256": "7c0a8c893240940d687db0ad803ebb8f67256a8d68947a946ee83754002db91b",
+      "size": 80965
+    },
+    {
+      "path": "evaluation/claude/problems/858_C/hybrid.json",
+      "sha256": "63f4bf9c1598e5ae4f03749f1b3e690f02870c1b97c0538388b73cc9c04a96a0",
+      "size": 82317
+    },
+    {
+      "path": "evaluation/claude/problems/858_C/white_box.json",
+      "sha256": "4944ce19214cf9d0a2099d6926c289956ff76cf8e05a04a42acda3bd184c96f7",
+      "size": 80422
+    },
+    {
+      "path": "evaluation/claude/problems/860_A/black_box.json",
+      "sha256": "779bab29f05235edae559d883cea0b977aa85231181eb9f1f0214248a39091a2",
+      "size": 81997
+    },
+    {
+      "path": "evaluation/claude/problems/860_A/hybrid.json",
+      "sha256": "47daffeab8123475642afc61a94a0529414b03b2ccc3e7b8815bc0cc7a4e0f51",
+      "size": 81750
+    },
+    {
+      "path": "evaluation/claude/problems/860_A/white_box.json",
+      "sha256": "b12d79bc806406a872c6104d07eeb1ac12c434b8c92ffdb958ff1ce68e663111",
+      "size": 81239
+    },
+    {
+      "path": "evaluation/claude/problems/860_B/black_box.json",
+      "sha256": "297a0f080ebef21ddefc027b8e76f0ebc6414e3412d087281f4e6336832f55b2",
+      "size": 80613
+    },
+    {
+      "path": "evaluation/claude/problems/860_B/hybrid.json",
+      "sha256": "bc7f68d69c40f6d46ba4725bbb7b1748fdf03c2b50bc661504ba16569c48a65a",
+      "size": 81111
+    },
+    {
+      "path": "evaluation/claude/problems/860_B/white_box.json",
+      "sha256": "c9f92206acc1ed2394880ec77963743406fcc788ef564cbb612aea341452a5bf",
+      "size": 81205
+    },
+    {
+      "path": "evaluation/claude/problems/864_B/black_box.json",
+      "sha256": "d3a80422fed7c6173f1c2200ec9d5a6c39659beb7c738a0e7824365f54598147",
+      "size": 83224
+    },
+    {
+      "path": "evaluation/claude/problems/864_B/hybrid.json",
+      "sha256": "9fa80330ca4ad23ab9a7f82a5290fa79cbe883b4a53c0cb780367ff17bb759c4",
+      "size": 82730
+    },
+    {
+      "path": "evaluation/claude/problems/864_B/white_box.json",
+      "sha256": "0a7005d96fe074915db948ba0981dd941f63921042179285655c7812b9d71cca",
+      "size": 83181
+    },
+    {
+      "path": "evaluation/claude/problems/870_B/black_box.json",
+      "sha256": "ed064fd7d5df85e1ee60b7c3db648dfeb045596e439a84d1a997cc1a30e22613",
+      "size": 81738
+    },
+    {
+      "path": "evaluation/claude/problems/870_B/hybrid.json",
+      "sha256": "e3ede8198631bf268efb72c0ca536b32aeda105c0d717b8f2392fd84bd3b79c4",
+      "size": 81973
+    },
+    {
+      "path": "evaluation/claude/problems/870_B/white_box.json",
+      "sha256": "57dd61f185f07c9259e9a0d1f7a9c897ad187be85691c3fd74442a21814f6119",
+      "size": 82985
+    },
+    {
+      "path": "evaluation/claude/problems/876_B/black_box.json",
+      "sha256": "2f31667242006facff2f202d8fec51f6461fac686e96c890694f45aab96b8c31",
+      "size": 82446
+    },
+    {
+      "path": "evaluation/claude/problems/876_B/hybrid.json",
+      "sha256": "bb756550e16d674aed061cc17882440c07e918b29251931e10807ec192370be0",
+      "size": 81570
+    },
+    {
+      "path": "evaluation/claude/problems/876_B/white_box.json",
+      "sha256": "e05a4f8da6f9ffba34063bfd40e964ee5d7a0dd5fc2d0195d80a7b512ed08b73",
+      "size": 83108
+    },
+    {
+      "path": "evaluation/claude/problems/877_A/black_box.json",
+      "sha256": "49170cd9259480f675004c5fcb241d373cc62aab0cf9e6e09e00d658acc8cbc2",
+      "size": 82610
+    },
+    {
+      "path": "evaluation/claude/problems/877_A/hybrid.json",
+      "sha256": "bccc15d9daad2f2686750bc03a6051d3bb85d0b7fd484bead5849ae6d16fea15",
+      "size": 83486
+    },
+    {
+      "path": "evaluation/claude/problems/877_A/white_box.json",
+      "sha256": "c71eeb25d235d1d49d1aafe12a32e8cd0d1f49f5e1f19a21e6f6126d58c08d5b",
+      "size": 85053
+    },
+    {
+      "path": "evaluation/claude/problems/887_B/black_box.json",
+      "sha256": "3d0255e7fd462e39cd163b54bd23cf1110c088b3ad159897459d8b8dfdc0259d",
+      "size": 79515
+    },
+    {
+      "path": "evaluation/claude/problems/887_B/hybrid.json",
+      "sha256": "55d57db68810ef0217294147ad5b788f15924d6a0dfacf24527718947a5c86eb",
+      "size": 80563
+    },
+    {
+      "path": "evaluation/claude/problems/887_B/white_box.json",
+      "sha256": "81dad2c3e40ecbfb207ca1f8deb3604ef598555a9e3c32199cf4778182e0e413",
+      "size": 81037
+    },
+    {
+      "path": "evaluation/claude/problems/888_D/black_box.json",
+      "sha256": "55b4bfbb6ba1182cce3104739c4df7e76b1020667a708a79b900c0c789ef801b",
+      "size": 83096
+    },
+    {
+      "path": "evaluation/claude/problems/888_D/hybrid.json",
+      "sha256": "f5586ac8590ea52a5410f3bfbc5fdc8ba583908329566cc86ba03e75f4234d33",
+      "size": 83596
+    },
+    {
+      "path": "evaluation/claude/problems/888_D/white_box.json",
+      "sha256": "ccb30a338604bb89a83d50537965f5b9793974d9ab88677b5581638bb1045e2a",
+      "size": 82337
+    },
+    {
+      "path": "evaluation/claude/problems/88_C/black_box.json",
+      "sha256": "b6a0654acb6c632332ddf3aa7865e9c139cf4c398ef6a969957f8bfc215e1191",
+      "size": 83146
+    },
+    {
+      "path": "evaluation/claude/problems/88_C/hybrid.json",
+      "sha256": "c68c5c875a473c4577dc3185ba04af1d5f8214ad882597c1008e382b6e07dea3",
+      "size": 84179
+    },
+    {
+      "path": "evaluation/claude/problems/88_C/white_box.json",
+      "sha256": "2300c41e6059502cf1122d59bcb8c5ff332e01fb9aa9edd915c646faa2142915",
+      "size": 83380
+    },
+    {
+      "path": "evaluation/claude/problems/893_C/black_box.json",
+      "sha256": "c321921f8451f1167c987cef46f0cb008c9ac32c489a8d5fc0e934f3b22d8069",
+      "size": 82923
+    },
+    {
+      "path": "evaluation/claude/problems/893_C/hybrid.json",
+      "sha256": "00218116d1227782c6d457121e6c09cfbc2f8bee74eeaa6b735296fcce41eabd",
+      "size": 81692
+    },
+    {
+      "path": "evaluation/claude/problems/893_C/white_box.json",
+      "sha256": "498669220a395c1d4ebdeb389a9fdbc6040ba318ccfaaabd6623e0c7814a8b98",
+      "size": 81980
+    },
+    {
+      "path": "evaluation/claude/problems/913_C/black_box.json",
+      "sha256": "8ee0d5be55336ca11d827c690acc09d8d57d24f062e53a1cbfc7d29061d0681c",
+      "size": 82252
+    },
+    {
+      "path": "evaluation/claude/problems/913_C/hybrid.json",
+      "sha256": "4fa1fb334c4ea82a709ebb0d62a9534fc59392a308875a0d647586bfd1d8856f",
+      "size": 82549
+    },
+    {
+      "path": "evaluation/claude/problems/913_C/white_box.json",
+      "sha256": "750c71559daef47e3a1fcd42530182bf07004d085aa0ecd9a5d7cc01ab9b89e7",
+      "size": 81626
+    },
+    {
+      "path": "evaluation/claude/problems/91_B/black_box.json",
+      "sha256": "8946e3a261572977da654e9314dab0000d51fca483eade99aae245f67fa8dfa6",
+      "size": 82080
+    },
+    {
+      "path": "evaluation/claude/problems/91_B/hybrid.json",
+      "sha256": "b4322c55439ad70b96d0b0a438aeca23dbffcc6a06a2479c0b140feba6b64ce6",
+      "size": 82737
+    },
+    {
+      "path": "evaluation/claude/problems/91_B/white_box.json",
+      "sha256": "253effce094d1e600abd86655d914047815362a49988d37e1ebeacb624aab963",
+      "size": 80468
+    },
+    {
+      "path": "evaluation/claude/problems/920_C/black_box.json",
+      "sha256": "5a646a3b7b0c3ed8b7622eb93acf29369655c0c2f06f22d7483e00d82d2118b6",
+      "size": 83501
+    },
+    {
+      "path": "evaluation/claude/problems/920_C/hybrid.json",
+      "sha256": "fc98575b7935c45b51ce95cdb6588520e9e2ee56d5d5f1e771b07acfd63749da",
+      "size": 83870
+    },
+    {
+      "path": "evaluation/claude/problems/920_C/white_box.json",
+      "sha256": "6f6885cb22a23152da73b69a1db070ce866e07590eb78926a0215d9687de674a",
+      "size": 82598
+    },
+    {
+      "path": "evaluation/claude/problems/925_A/black_box.json",
+      "sha256": "cbc16b5e13f1981d43dbc367cf16692e5395ae2649ab672180762d0c72b5c55b",
+      "size": 81095
+    },
+    {
+      "path": "evaluation/claude/problems/925_A/hybrid.json",
+      "sha256": "61c1ab1b9ab110e3642a2fb402353e0ac11775cafae9ef4f521aa4775653b298",
+      "size": 78255
+    },
+    {
+      "path": "evaluation/claude/problems/925_A/white_box.json",
+      "sha256": "a105ec8c88ec9e97130ac72a32cfd81c8442bf472cc71fa71f6e308699a3849e",
+      "size": 81892
+    },
+    {
+      "path": "evaluation/claude/problems/939_C/black_box.json",
+      "sha256": "c2cb4aa6248fcd9be7611c5765c4d5e163f0f70c1ce53b69737125d86e72155b",
+      "size": 81917
+    },
+    {
+      "path": "evaluation/claude/problems/939_C/hybrid.json",
+      "sha256": "61fe4b6fcc1c28f849a490c8357c1b9aec2be55ca31bfeff60bef769b2287bbc",
+      "size": 81345
+    },
+    {
+      "path": "evaluation/claude/problems/939_C/white_box.json",
+      "sha256": "fda721771c15586c1076d9a51b18872631fe23c09ad860233783aad70d8cf547",
+      "size": 81856
+    },
+    {
+      "path": "evaluation/claude/problems/950_B/black_box.json",
+      "sha256": "3d1549fee0e22f0785912bb6f53b0e8e3764d542521ca22582d01dd709cc5d0c",
+      "size": 83082
+    },
+    {
+      "path": "evaluation/claude/problems/950_B/hybrid.json",
+      "sha256": "f72b211e76e91ea75bf1c6cd070ca1f6fc6e9972772abc87d58c476b58d237a0",
+      "size": 82240
+    },
+    {
+      "path": "evaluation/claude/problems/950_B/white_box.json",
+      "sha256": "cbc7e7cf48c5a7535564d6cfbd211fd841e602c94cfc28627ffd375c39787d2f",
+      "size": 83676
+    },
+    {
+      "path": "evaluation/claude/problems/958_A1/black_box.json",
+      "sha256": "996b586b5107800b14e3aa095784ad1cc5dd4f6f83358587190893eadd6998a6",
+      "size": 81925
+    },
+    {
+      "path": "evaluation/claude/problems/958_A1/hybrid.json",
+      "sha256": "ee8029cb7d2855c1e2eedb6d87f409c3e3af93a5951dffbf4b4aea43224b51e9",
+      "size": 81973
+    },
+    {
+      "path": "evaluation/claude/problems/958_A1/white_box.json",
+      "sha256": "cc2c837de9f786b8388173ceaada527e6ac09a5db649e30d25991945a6e3c290",
+      "size": 82873
+    },
+    {
+      "path": "evaluation/claude/problems/967_C/black_box.json",
+      "sha256": "8c435824d3cd3d22add79be13c7192769ddff8fc4919a841bbf4c5ef1ea1094e",
+      "size": 78448
+    },
+    {
+      "path": "evaluation/claude/problems/967_C/hybrid.json",
+      "sha256": "4e9b9cb64695de779c06aeb84a54d9c28eb0724dfdc81c66f582c3b947aa7f9d",
+      "size": 80051
+    },
+    {
+      "path": "evaluation/claude/problems/967_C/white_box.json",
+      "sha256": "f99381e486d044b83f76d87a1d1e2b0573b2eec1bb798f1998bc5f6a47bd56a6",
+      "size": 80967
+    },
+    {
+      "path": "evaluation/claude/problems/975_C/black_box.json",
+      "sha256": "ab52e88fe20c5a4f5b6ce3419ba90f673995d92845d07c7779cc85a5e10958b5",
+      "size": 80416
+    },
+    {
+      "path": "evaluation/claude/problems/975_C/hybrid.json",
+      "sha256": "ffa15c14d42f49f527a8288463cd306d44ea31caeb0cbff814afae60aa5fe7ff",
+      "size": 80839
+    },
+    {
+      "path": "evaluation/claude/problems/975_C/white_box.json",
+      "sha256": "2b477307be8509a604b9b753258c17187a4e9f0b16ae316ecad75c43bfada6fe",
+      "size": 81109
+    },
+    {
+      "path": "evaluation/claude/problems/977_D/black_box.json",
+      "sha256": "3dd8c595ca2cac6ecd160f467a2babf5c46ccdd3d4995802cf9fb22639672a7b",
+      "size": 82187
+    },
+    {
+      "path": "evaluation/claude/problems/977_D/hybrid.json",
+      "sha256": "7cf003a5430a18cc1e185439225d6b14d77b66fc3d446d2f9bdd6b78713a8059",
+      "size": 82514
+    },
+    {
+      "path": "evaluation/claude/problems/977_D/white_box.json",
+      "sha256": "e9d32d6b8359e3ffc859cc5f1f7b7aeb588d1de6338c0621346478cebe8023c1",
+      "size": 81980
+    },
+    {
+      "path": "evaluation/claude/problems/978_E/black_box.json",
+      "sha256": "d34473c84fe16f60c12743385d018c6c9213312f8d72b3a64f39906567a21ad7",
+      "size": 81792
+    },
+    {
+      "path": "evaluation/claude/problems/978_E/hybrid.json",
+      "sha256": "39b2daf7adaa7f4feca3626806b872d3b9c7efcf4f3f267a1e1b5118ad96bb91",
+      "size": 81552
+    },
+    {
+      "path": "evaluation/claude/problems/978_E/white_box.json",
+      "sha256": "ed174f4281e27eb58342f79e02725f8c27e644f135b64d4da8775717de882140",
+      "size": 82146
+    },
+    {
+      "path": "evaluation/claude/problems/978_F/black_box.json",
+      "sha256": "288cf4c4221958851158c4bee9b1379a63805d3ea689902c73aacd9d6e401df1",
+      "size": 82071
+    },
+    {
+      "path": "evaluation/claude/problems/978_F/hybrid.json",
+      "sha256": "0f734bcb07d586474b77c9f7d4448af5d24d7287cb14265f4c5477591d4d4b8b",
+      "size": 82562
+    },
+    {
+      "path": "evaluation/claude/problems/978_F/white_box.json",
+      "sha256": "f13dab14252994b00f84104de8b93bee76ebeaf34a19c0b9129e3ae7f0623de7",
+      "size": 82718
+    },
+    {
+      "path": "evaluation/claude/problems/979_A/black_box.json",
+      "sha256": "77d2fac22744d8b8655394f76c877b3b18e63368243cb715760ebbf54e9d51cb",
+      "size": 82214
+    },
+    {
+      "path": "evaluation/claude/problems/979_A/hybrid.json",
+      "sha256": "2d81c836a584e154afa88c7af48245ba3c5e93c4e8c261ec298c8b1e79bf326b",
+      "size": 82211
+    },
+    {
+      "path": "evaluation/claude/problems/979_A/white_box.json",
+      "sha256": "afe29f86fbcb08c750e8e07309ea65daddb0c965ac88a80ef885272c8c5cc098",
+      "size": 83039
+    },
+    {
+      "path": "evaluation/claude/problems/981_B/black_box.json",
+      "sha256": "cc818824744dc4a4d594a999a4f3df0e039622763ba2ff6dc7c6d0800fbe471d",
+      "size": 82117
+    },
+    {
+      "path": "evaluation/claude/problems/981_B/hybrid.json",
+      "sha256": "e94b29a8846736ea8940fc220e0286c0089366f32295043c9a8cf5c68479671d",
+      "size": 81683
+    },
+    {
+      "path": "evaluation/claude/problems/981_B/white_box.json",
+      "sha256": "d42221bed7b55741a328525d26b0878f0008ad355dd6beb67edb9e982e076c96",
+      "size": 80492
+    },
+    {
+      "path": "evaluation/claude/problems/982_B/black_box.json",
+      "sha256": "c84825e9252ac511f7271fabd7cf5349951208d75ba44745da1c6a5a9fdea79e",
+      "size": 81933
+    },
+    {
+      "path": "evaluation/claude/problems/982_B/hybrid.json",
+      "sha256": "f7f397167243feb199faec7e1cf7c92652fb3fdc64b198eb18fa997f934ee36b",
+      "size": 81964
+    },
+    {
+      "path": "evaluation/claude/problems/982_B/white_box.json",
+      "sha256": "6a0ca1f5df04356f7506e9897e2e839a937705cc4eea3448327f03b3f3f60da2",
+      "size": 82350
+    },
+    {
+      "path": "evaluation/claude/results.csv",
+      "sha256": "d397b94bf072ec21591b76c6e01b0939f2d347c0c04d2b3f91bf5d4fb7199128",
+      "size": 15230419
+    },
+    {
+      "path": "evaluation/claude/run.json",
+      "sha256": "650e3eeb40f3e8f0d78a89e8d994b382b2a3c0a9792595ab484ab04bdff318f4",
+      "size": 486
+    }
+  ],
+  "schema_version": 1,
+  "set": "claude"
+}

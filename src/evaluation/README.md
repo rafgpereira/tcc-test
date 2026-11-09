@@ -1,6 +1,6 @@
 # Módulo `evaluation` (avaliação das suítes)
 
-> **Status**: em implementação (código e testes prontos; piloto e execução completa pendentes) · **Metodologia**: `docs/metodologia-referencia.md`, seção 4
+> **Status**: implementado · **Metodologia**: `docs/metodologia-referencia.md`, seção 4
 
 ## (a) Propósito
 
@@ -148,6 +148,11 @@ problema em andamento é gravado; rode de novo), `130` interrompido.
 
 ## (f) Limitações conhecidas
 
+- **Resultado da execução real** (200 problemas, 5 conjuntos, de 2026-11-04 a 2026-11-06): 3.000
+  combinações, nenhum alvo sem compilar; 56 combinações sem suíte (3 do Claude, fechadas à mão, e 53
+  da 1ª tentativa do modelo local, sem entrada aproveitável). Os pacotes têm de 1,9 a 3,1 MiB; a
+  maior saída do AC numa entrada gerada pelas IAs teve 3,1 MB (modelo local).
+
 - O tempo medido (`elapsed_s` de cada combinação e o total do relatório) é o de executar os testes;
   a compilação, feita uma vez por problema para todas as suítes, fica de fora e é a maior parte do
   tempo de um problema (veja o tempo impresso por `run`).
@@ -167,7 +172,7 @@ problema em andamento é gravado; rode de novo), `130` interrompido.
 
 | Comando | Verificado em | Revisão |
 |---|---|---|
-| `run` | pendente | — |
-| `report` | pendente | — |
-| `package` | pendente | — |
-| `verify` | pendente | — |
+| `run` (inclusive interrupção e retomada) | 2026-11-06 | 893505a |
+| `report` | 2026-11-09 | 893505a |
+| `package` | 2026-11-09 | 893505a |
+| `verify` (inclusive `--extracted`) | 2026-11-09 | 893505a |

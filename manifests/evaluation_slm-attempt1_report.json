@@ -1,0 +1,40 @@
+{
+  "ac_approved": 292,
+  "ac_errors": {
+    "MLE": 0,
+    "RE": 3,
+    "TLE": 2
+  },
+  "ac_rejected": 255,
+  "ac_tests": {
+    "passed": 3932,
+    "runtime_error": 5,
+    "wrong_output": 1174
+  },
+  "ac_unstable_tests": 0,
+  "combinations": 600,
+  "complete": true,
+  "corrected_oracle_excluded_tests": 5,
+  "detected": {
+    "corrected_mutants": 49628,
+    "corrected_wa": 38533,
+    "declared_mutants": 51174,
+    "declared_wa": 44961
+  },
+  "elapsed_s": 6381.039,
+  "evaluated": 547,
+  "largest_ac_output_bytes": 3100173,
+  "missing": [],
+  "problems": 200,
+  "run_sha256": "64c1aa9f9d363dc61835868ad0376138edabce725aa0a7f667ba8e3eb989be1c",
+  "schema_version": 1,
+  "set": "slm-attempt1",
+  "target_unstable_tests": {
+    "mutant": 5,
+    "wa": 6
+  },
+  "targets_not_compiled": [],
+  "without_suite": {
+    "attempt_without_tests": 53
+  }
+}

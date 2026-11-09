@@ -1,0 +1,38 @@
+{
+  "ac_approved": 271,
+  "ac_errors": {
+    "MLE": 0,
+    "RE": 0,
+    "TLE": 0
+  },
+  "ac_rejected": 329,
+  "ac_tests": {
+    "passed": 6283,
+    "runtime_error": 0,
+    "wrong_output": 736
+  },
+  "ac_unstable_tests": 0,
+  "combinations": 600,
+  "complete": true,
+  "corrected_oracle_excluded_tests": 0,
+  "detected": {
+    "corrected_mutants": 58213,
+    "corrected_wa": 54083,
+    "declared_mutants": 59140,
+    "declared_wa": 57315
+  },
+  "elapsed_s": 9847.491,
+  "evaluated": 600,
+  "largest_ac_output_bytes": 568,
+  "missing": [],
+  "problems": 200,
+  "run_sha256": "d49f6b79822840e1933d3da48922ac27420740b874e01a09887a43f5d9139996",
+  "schema_version": 1,
+  "set": "gemini",
+  "target_unstable_tests": {
+    "mutant": 14,
+    "wa": 7
+  },
+  "targets_not_compiled": [],
+  "without_suite": {}
+}

@@ -10,7 +10,7 @@ teste unitários em C++.
 > "Módulos e estado", abaixo); este documento é o ponto de partida e o índice, não o detalhe de
 > cada módulo.
 >
-> **Estado atual (2026-11-04)**: os módulos `dataset` (extração, validação e empacotamento do
+> **Estado atual (2026-11-09)**: os módulos `dataset` (extração, validação e empacotamento do
 > dataset), `sandbox` (motor de execução isolada de C++), `mutation` (100 mutantes por problema) e
 > `ai_clients` para o modelo local (suítes de teste do Qwen2.5-Coder-14B) estão **implementados**,
 > e os três artefatos do experimento já foram gerados de verdade e estão neste repositório, cada
@@ -32,7 +32,8 @@ teste unitários em C++.
 > automaticamente e 2 na revisão dos 15 restantes), nenhum outro arquivo alterado, e a revisão 1 guardada só para auditoria; as suítes do modelo local das 208 combinações
 > afetadas foram refeitas. O módulo de
 > avaliação (`evaluation`) está implementado e testado: executa cada suíte contra o AC, os WAs e os
-> mutantes e grava os vereditos; o piloto e a execução completa ainda não foram feitos. Um painel
+> mutantes e grava os vereditos; a execução completa terminou (5 conjuntos × 600 combinações, pacotes
+> `data/evaluation_<conjunto>.zip` no repositório). Um painel
 > (`dashboard`, aberto no navegador) mostra esses resultados só para leitura. Os
 > módulos de métricas e o orquestrador ainda não têm especificação nem código; a tabela
 > "Módulos e estado" marca isso.
@@ -98,7 +99,7 @@ na avaliação, para que nenhum código do dataset falhe no motor só durante o 
 | `src/sandbox/` | motor de execução isolada de C++, usado pelo `dataset` | seções 1.4 e 4 | **implementado**: motor, isolamento e auto-checagem testados | [README](src/sandbox/README.md) |
 | `src/mutation/` | gera 100 mutantes por problema e os empacota | seção 2 | **implementado**: 200 problemas, 20.000 mutantes, pacote versionado (~9 MiB) | [README](src/mutation/README.md) |
 | `src/ai_clients/` | chamadas stateless aos 3 modelos comerciais e ao modelo local | seção 3 | **implementado**: execução completa e pacote versionado nos quatro modelos — local (600 de 600 combinações, revisão 2 do dataset), GPT-5.4-mini, Gemini 3.8 Flash e Claude Haiku 5.5 (600 combinações cada) | [README](src/ai_clients/README.md) |
-| `src/evaluation/` | executa as suítes contra AC, WAs e mutantes e grava os vereditos | seção 4 | **em implementação**: código e testes prontos; piloto e execução completa ainda não feitos | [README](src/evaluation/README.md) |
+| `src/evaluation/` | executa as suítes contra AC, WAs e mutantes e grava os vereditos | seção 4 | **implementado**: execução completa (5 conjuntos × 600 combinações) e pacotes versionados | [README](src/evaluation/README.md) |
 | `src/dashboard/` | painel no navegador, só de leitura, sobre os resultados da avaliação | seção 8 | **em implementação**: código e testes prontos; conferência com os autores pendente | [README](src/dashboard/README.md) |
 | `src/metrics/` | TDF, MS, TFP, IIC | seção 5 | **sem spec** (IIC ainda não operacionalizado) | a criar |
 | `src/cli/` | comandos que cruzam módulos (hoje `check`) e, no futuro, o orquestrador do experimento | — | **em implementação**: `check` pronto (dataset, mutantes e as suítes dos quatro modelos); o orquestrador ainda sem especificação | [README](src/cli/README.md) |

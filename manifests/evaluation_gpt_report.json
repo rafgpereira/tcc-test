@@ -1,0 +1,38 @@
+{
+  "ac_approved": 479,
+  "ac_errors": {
+    "MLE": 0,
+    "RE": 0,
+    "TLE": 3
+  },
+  "ac_rejected": 121,
+  "ac_tests": {
+    "passed": 4631,
+    "runtime_error": 3,
+    "wrong_output": 183
+  },
+  "ac_unstable_tests": 0,
+  "combinations": 600,
+  "complete": true,
+  "corrected_oracle_excluded_tests": 3,
+  "detected": {
+    "corrected_mutants": 56627,
+    "corrected_wa": 50838,
+    "declared_mutants": 57260,
+    "declared_wa": 51972
+  },
+  "elapsed_s": 9186.571,
+  "evaluated": 600,
+  "largest_ac_output_bytes": 496,
+  "missing": [],
+  "problems": 200,
+  "run_sha256": "2585a53b2263892a7b2343159c0fad1c2fdfbf9dd4f75aee6cb074d40527d8c8",
+  "schema_version": 1,
+  "set": "gpt",
+  "target_unstable_tests": {
+    "mutant": 13,
+    "wa": 4
+  },
+  "targets_not_compiled": [],
+  "without_suite": {}
+}
