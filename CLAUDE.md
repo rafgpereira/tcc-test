@@ -33,7 +33,9 @@ TCC de dupla — Milena e Rafael, UnB.
   corrigido pelo AC), erro de execução repetido 3 vezes (`specs/009-suite-evaluation/`)
 - `src/dashboard/` — painel Streamlit só de leitura sobre os resultados da avaliação (visão geral,
   combinação teste a teste, comparações; métricas quando existirem; `specs/011-results-dashboard/`)
-- `src/metrics/` — TDF, MS, TFP, IIC
+- `src/metrics/` — TDF, MS, TFP, IIC, TC, TDF*/MS*/Δ_oráculo, TFP por causa, custo por detecção,
+  densidade, Friedman/Wilcoxon/McNemar com Holm e A12, e as figuras do TCC; tabelas em `data/metrics/`
+  (`specs/010-metrics/`)
 - `src/cli/` — comandos que cruzam módulos (hoje `check`) e, no futuro, o orquestrador que amarra tudo
   (cada `src/<modulo>/` tem `README.md` no formato de `docs/template-modulo.md`)
 - `data/dataset.zip` — dataset validado, compactado e versionado; hoje a **revisão 2** (2026-10-18: 104
@@ -126,6 +128,8 @@ A lista completa e atual de comandos (com serviço, estado e onde está o passo 
   --problem 1008_B --problem 1_B --problem 61_B`, depois `run` sem `--problem` (retoma); no `app`,
   `python -m evaluation report`, `package --set S` e `verify --set S [--extracted ...]`, com
   S em `slm|gpt|gemini|claude|slm-attempt1`. O piloto e a execução completa só com pedido dos autores
+- Métricas (`app`; só lê a avaliação): `docker compose run --rm app python -m metrics compute`,
+  `... figures [--macrocategoria M --set S ...]`, `... package` e `... verify [--extracted data/metrics]`
 - Painel dos resultados (só lê; porta só nesta máquina): `docker compose run --rm -p
   127.0.0.1:8501:8501 app python -m dashboard serve [--evaluation-dir DIR]` e abrir
   `http://localhost:8501`

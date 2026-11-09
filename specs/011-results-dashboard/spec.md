@@ -201,8 +201,10 @@ da tabela, sem nenhuma conta refeita.
   nas células (conjuntos, cenários, status, vereditos, macrocategorias). Pedido de Milena em
   2026-11-05.
 - **FR-012**: Cada tabela exibida (já filtrada) MUST poder ser baixada em CSV pelo navegador, sem
-  gravar nada no repositório. Gráficos não têm download próprio: as figuras do TCC vêm só do módulo
-  de métricas, reproduzíveis por comando.
+  gravar nada no repositório. **Emenda de 2026-11-09 (Milena)**: a página de métricas mostra as
+  figuras oficiais, desenhadas pelas funções do módulo de métricas com os filtros escolhidos, e
+  oferece o download delas em PNG e PDF, com o filtro e a fonte no rodapé e no nome do arquivo
+  (feature 010, FR-017); nenhum outro gráfico do painel tem download.
 
 ### Key Entities
 

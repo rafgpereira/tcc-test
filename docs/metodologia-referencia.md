@@ -33,6 +33,14 @@ Perguntas de pesquisa centrais: qual abordagem detecta melhor falhas lógicas re
 falsos positivos/alucinações (TFP), e como a combinação de insumos influencia
 positiva ou negativamente a cobertura (IIC — ver seção 5).
 
+**Perguntas de pesquisa [DECIDIDO, 2026-11-04 — Milena e Rafael; formalizadas na proposta de
+métricas]**: Q1 — qual cenário detecta melhor falhas lógicas reais (TDF); Q2 — qual é mais
+sensível a defeitos sintéticos (MS); Q3 — qual produz mais falsos positivos (TFP); Q4 — juntar
+requisito e código ajuda ou atrapalha (IIC); **Q5 — como o SLM e os três LLMs comerciais se
+comparam em eficácia, confiabilidade e custo-benefício** (a pergunta implícita desde que o
+desenho passou a 4 modelos; respondida pelas métricas da seção 5 por modelo, por TDF\*/MS\* e
+Δ_oráculo, pelo custo por detecção e pelos testes estatísticos).
+
 ### 0.1 Verificação de consistência entre artefatos **[DECIDIDO E EXECUTADO, 2026-09-25 — `docs/verificacao-consistencia.md`, `specs/002-mutant-generation/research.md` R22]**
 
 Cada módulo confere o seu artefato contra o manifesto (`dataset verify`, `mutation verify`); o
@@ -1924,14 +1932,111 @@ $$IIC_{req} = \frac{G - P}{|D(C)|} \times 100$$
 - `IIC < 0` → **Sensibilidade negativa**: o insumo causou sobrecarga de contexto ou
   viés de implementação, degradando a capacidade original do modelo.
 
-**[PENDENTE]**: esta métrica ainda não está operacionalizada no pipeline (não havia
-sido incorporada à seção de Métricas do texto atual da metodologia). Precisa de
-`spec`/`plan` próprios no módulo de métricas — provavelmente exige que o módulo de
-avaliação (seção 4) registre, por problema e por cenário, o **conjunto exato de WAs
-detectados** (não só a taxa agregada), já que o cálculo do IIC depende de operações
-de conjunto (`\`, diferença) entre os cenários. A macrocategoria persistida em
-`metadata.json` (seção 1.5) permite cruzar o IIC por categoria também, respondendo
-diretamente ao objetivo específico de mapear desempenho por categoria algorítmica.
+**[DECIDIDO E IMPLEMENTADO, 2026-11-04/09 — `specs/010-metrics/`; proposta B.3]**: `D(R)`,
+`D(C)` e `D(H)` são a **união, nos 200 problemas do cenário, dos pares (problema, WA)
+detectados** (forma agregada, a oficial): como `W_total` e `M` são constantes (100), é a mesma
+convenção que TDF e MS já seguem, e o denominador só zera se o cenário inteiro não detectar
+nenhum WA. Junto, uma **visão por problema** só para diagnóstico: mediana, intervalo
+interquartil e quantos problemas têm IIC positivo, negativo e zero, **excluindo e contando** os
+problemas com denominador zero. O IIC não tem teto (passa de 100% se o híbrido pegar mais WAs
+novos do que a base inteira) e tem piso −100%. É calculado também pelo oráculo corrigido (5.5),
+numa coluna à parte, para nenhum ganho de contexto vir de gabarito errado. Os conjuntos vêm da
+avaliação (seção 4), e a macrocategoria permite o corte (5.7).
+
+### 5.1–5.3: regras de borda **[DECIDIDO, 2026-11-04 — proposta B.1, B.2, B.4]**
+
+- **Combinação sem suíte** (`discarded_manual`; e, na 1ª tentativa do SLM, sem entrada
+  aproveitável): conta **0%** em TDF e MS (o modelo falhou em produzir a suíte) e **não** conta como
+  falso positivo. A **TFP oficial mantém N = 200** e é sempre reportada com o número de
+  combinações sem suíte e com a **TFP entre as combinações com suíte** (visão secundária), para a
+  ausência de teste não parecer acerto.
+- **TC — Taxa de Cobertura** = combinações com suíte ÷ 200 × 100, ao lado de TDF/MS/TFP.
+- Todas as métricas das tabelas estão em %, inclusive o MS (DM ÷ M × 100).
+
+### 5.5 Métricas complementares **[DECIDIDO, 2026-11-04 — proposta C.1 a C.4; sem C.5 e C.6]**
+
+- **TDF\* e MS\*** — as mesmas de 5.1/5.2, com a saída esperada de cada teste trocada pela saída
+  real do `AC_ref` na mesma entrada (as entradas continuam as da IA; testes em que o AC falha ficam
+  fora). **Δ_oráculo = TDF − TDF\*** (e MS − MS\*): quanto da detecção depende de a IA ter acertado o
+  gabarito. É o que torna comparáveis o SLM (oráculo por execução) e os comerciais (por predição).
+- **TFP por teste e por causa** — testes que reprovam o AC ÷ total de testes, separando `oráculo`
+  (o AC roda e dá outra saída: a IA errou o valor) de `entrada_inválida` (o próprio AC falha: a
+  entrada está fora das restrições).
+- **CPD — Custo por Detecção** — US$ do conjunto × cenário (todos os pedidos, inclusive repetidos e
+  barrados) ÷ WAs (e ÷ mutantes) detectados, só dos comerciais; o SLM é reportado em *tokens* e
+  tempo, **nunca convertido para US$**.
+- **Densidade de detecção** = TDF ÷ tamanho médio das suítes: separa "detecta mais porque o
+  contexto é melhor" de "detecta mais porque gera mais testes" (fecha a pendência 26).
+- **Fora do escopo**: complementaridade entre modelos (C.5) e IIC sobre mutantes (C.6).
+
+### 5.6 Camada estatística **[DECIDIDO, 2026-11-04 — proposta D; `specs/010-metrics/research.md` R3]**
+
+Pareada pelos 200 problemas (uma combinação sem suíte entra com o valor de 5.1–5.3). Mais de dois
+grupos (os 3 cenários de um conjunto; os 4 modelos de um cenário): **Friedman** e, se p < 0,05,
+**Wilcoxon pareado** nos pares com **Holm-Bonferroni**; a 1ª tentativa do SLM contra cada modelo,
+Wilcoxon com Holm. A **TFP** (binária por problema) só em pares, com **McNemar exato** (binomial
+bilateral nos pares discordantes) e Holm, sem teste global. Tamanho de efeito **A12 de
+Vargha-Delaney** e **delta de Cliff** (2·A12 − 1) em toda comparação par a par. α = 0,05.
+
+### 5.7 Cortes **[DECIDIDO, 2026-11-04 — proposta E]**
+
+Toda métrica é recalculável por **macrocategoria** e por **status da suíte** (sempre com o número de
+problemas do corte; nunca um problema só); a **1ª tentativa do SLM** (`slm-attempt1`) entra como um
+conjunto a mais, para a comparação "uma chamada contra uma". Não são métricas novas.
+
+### 5.8 Figuras **[DECIDIDO, 2026-11-09 — Milena; `specs/010-metrics/` FR-017]**
+
+Desenhadas por funções do módulo de métricas a partir das tabelas, com filtros por macrocategoria,
+status, conjuntos e cenários; geradas por `python -m metrics figures` e exibidas na página de
+métricas do dashboard com download em PNG e PDF. O filtro e a fonte vão no rodapé e no nome do
+arquivo, para toda figura se refazer pelo comando. As figuras do texto do TCC saem daqui.
+
+### 5.9 Resultados **[MEDIDO, 2026-11-09 — `python -m metrics compute`, pacote `data/metrics.zip`]**
+
+Sobre a avaliação completa (seção 4). Somas de detectados idênticas aos relatórios da avaliação e
+custo total de cada comercial idêntico ao relatório de geração (GPT US$ 13,47; Gemini 4,90; Claude
+0,98). Em %:
+
+| Conjunto | Cenário | TDF | TDF\* | MS | MS\* | TFP | TC |
+|---|---|---|---|---|---|---|---|
+| SLM | caixa-preta | 82,74 | 69,90 | 94,25 | 91,77 | 55,50 | 100 |
+| SLM | caixa-branca | 74,77 | 72,27 | 90,79 | 88,83 | 16,50 | 100 |
+| SLM | híbrido | 75,98 | 72,33 | 93,83 | 92,19 | 19,50 | 100 |
+| GPT | caixa-preta | 85,88 | 84,40 | 95,82 | 94,93 | 20,00 | 100 |
+| GPT | caixa-branca | 88,92 | 86,67 | 95,64 | 93,95 | 25,50 | 100 |
+| GPT | híbrido | 85,06 | 83,12 | 94,84 | 94,25 | 15,00 | 100 |
+| Gemini | caixa-preta | 95,20 | 90,00 | 98,64 | 97,10 | 54,50 | 100 |
+| Gemini | caixa-branca | 95,62 | 89,75 | 98,64 | 96,82 | 55,00 | 100 |
+| Gemini | híbrido | 95,75 | 90,67 | 98,42 | 97,14 | 55,00 | 100 |
+| Claude | caixa-preta | 86,11 | 83,76 | 95,39 | 94,36 | 18,00 | 99,0 |
+| Claude | caixa-branca | 89,71 | 88,03 | 96,87 | 96,22 | 17,50 | 100 |
+| Claude | híbrido | 87,83 | 85,96 | 95,92 | 95,22 | 16,50 | 99,5 |
+| SLM 1ª tentativa | caixa-preta | 80,43 | 62,36 | 85,85 | 83,06 | 65,50 | 90,5 |
+| SLM 1ª tentativa | caixa-branca | 69,81 | 64,91 | 83,16 | 79,77 | 25,00 | 91,0 |
+| SLM 1ª tentativa | híbrido | 74,57 | 65,39 | 86,86 | 85,31 | 37,00 | 92,0 |
+
+Achados para a discussão (todos em `data/metrics/`):
+- **Δ_oráculo**: maior no SLM caixa-preta (TDF − TDF\* = 12,8 pontos) e na 1ª tentativa do SLM
+  caixa-preta (18,1), seguido do Gemini (5,1 a 5,9); GPT e Claude entre 1,5 e 2,4.
+- **Cenários dentro do SLM**: a TDF difere entre os cenários (Friedman p < 0,001), mas a **TDF\*
+  não** (p = 0,75): a vantagem aparente da caixa-preta do SLM vem do gabarito errado, não de
+  detectar mais falhas reais. No GPT e no Claude, os cenários diferem também na TDF\* (p < 0,001);
+  no Gemini, em nenhuma das duas.
+- **Modelos**: a TDF\* difere entre os 4 modelos nos 3 cenários (Friedman p < 0,001); todos os comerciais
+  superam o SLM nos 3 cenários (Holm p < 0,001); Gemini > Claude na caixa-preta e no híbrido (na
+  caixa-branca, sem diferença significativa, Holm p = 0,07); GPT × Claude só difere no híbrido
+  (Holm p < 0,001).
+- **TFP**: Gemini reprova o AC em 54,5–55% dos problemas, SLM caixa-preta em 55,5%; GPT 15–25,5% e
+  Claude 16,5–18%; quase todos os testes que reprovam o AC são de causa `oráculo` (a IA errou a
+  saída); `entrada_inválida` é rara (0 a 7 testes por conjunto × cenário).
+- **IIC** (agregado, oráculo declarado): pequeno em todos os conjuntos (de −8,2% no SLM, híbrido
+  sobre caixa-preta, a +6,8% na 1ª tentativa do SLM, híbrido sobre caixa-branca); pelo oráculo
+  corrigido, o sinal do SLM inverte (IIC_cod +3,5%): a "perda" do híbrido no SLM também vem do
+  gabarito errado da caixa-preta.
+- **Densidade**: de 7,7 a 11,4 de TDF por teste; o GPT tem as suítes mais curtas (≈ 8 testes) e a
+  maior densidade.
+- **CPD** (por WA detectado, oráculo declarado): Claude US$ 0,000018–0,000020, Gemini
+  0,000080–0,000090, GPT 0,000235–0,000281.
 
 ---
 
@@ -1947,10 +2052,13 @@ diretamente ao objetivo específico de mapear desempenho por categoria algorítm
    a **predição** como último recurso (`accepted_predicted`); sem predição interpretável, o
    **fechamento manual** pelos autores (`discarded_manual`). Resultado: 505 `accepted`, 93
    `accepted_fallback`, 2 `accepted_predicted`, 0 manuais (`research.md` R16, R18, R21 e R28).
-3. Operacionalização do IIC no módulo de métricas: como e onde os conjuntos `D(R)`,
-   `D(C)`, `D(H)` de falhas detectadas são registrados para permitir o cálculo de
-   diferença de conjuntos.
-26. **[PENDENTE]** Regra de tamanho/normalização de suíte a alinhar entre os 3 clientes de
+3. ~~Operacionalização do IIC no módulo de métricas: como e onde os conjuntos `D(R)`,
+   `D(C)`, `D(H)` de falhas detectadas são registrados~~ — **RESOLVIDO** em 2026-11-09: a
+   avaliação grava os conjuntos exatos de detectados por combinação (seção 4) e o IIC é agregado
+   nos 200 problemas, com a visão por problema (5.4).
+26. ~~**[PENDENTE]** Regra de tamanho/normalização de suíte~~ — **RESOLVIDO** em 2026-11-09 pela
+    densidade de detecção (TDF ÷ tamanho médio da suíte, 5.5), reportada ao lado da TDF; texto
+    original: Regra de tamanho/normalização de suíte a alinhar entre os 3 clientes de
     modelo (SLM, GPT-5.4-mini, Gemini 3.8 Flash), para que a comparação entre cenários e
     modelos não seja enviesada pela variável de confusão "tamanho da suíte" (ver 3). Medido no
     SLM (execução completa, 2026-10-11): mediana 10; `accepted` 1 a 33 (mediana 10),
@@ -2119,6 +2227,7 @@ decisão A3 de 2026-10-15 (item 41).
 | 39 | Geração em **GPUs T4** (mais de uma máquina, uma delas com 2×T4, cada GPU com seu Ollama, vários `generate --resume` em paralelo), com **uma etiqueta de hardware única** (GPU T4, 16GB RAM) em todas as 2.185 chamadas e **sem teste de determinismo entre GPUs**; modelo, digest e versão do Ollama conferidos pelo `--resume` (R23, R24, R26; decisão de 2026-10-11 de não reescrever os arquivos) | 3 |
 | 40 | O **piloto 6 conta dentro da execução final**: a execução completa é a continuação da mesma execução com `--resume`, e as 15 combinações do piloto entram no resultado (2026-10-07, R23) | 3 |
 | 41 | **Gemini 3.8 Flash (`gemini-3.8-flash`) em vez do Gemini 3.5 Flash** do texto do TCC (2026-10-15, `specs/004-llm-test-generation/research.md`, A3). O Google descontinuou o `gemini-3.5-flash` em 2026-10-08 e redireciona as chamadas a ele para o `gemini-3.6-flash`; entre os substitutos, os autores escolheram o Flash GA mais recente (GA desde 2026-09-02, recomendado pelo Google para projetos novos), e não o 3.6, que o próprio Google descreve como "previous-generation" (o 3.6 chegou a ser escolhido e foi revisto no mesmo dia). Também mudaram os nomes da Tabela 2 do PDF: `reasoning_effort` → `reasoning.effort` (Responses API), JSON estrito por `text.format` `json_schema` com `strict: true`; no Gemini, o `mimeType: application/json` vai em `generationConfig.responseFormat.text`, com o valor `"APPLICATION_JSON"` (conferido na API em 2026-10-16; plano, R3) e o nível de raciocínio em `generationConfig.thinkingConfig.thinkingLevel`. GPT pelo snapshot datado `gpt-5.4-mini-2026-03-17`; raciocínio `medium` enviado explicitamente nos dois modelos (o padrão do GPT-5.4-mini é `none`); sem seed nem temperatura | 3 |
+| 42 | **Oráculo por execução (SLM) × por predição (comerciais)** — limitação a declarar no texto: o SLM escreve uma solução em Python, executada e validada nos testes públicos, e é ela que dá as saídas esperadas; os três comerciais escrevem as saídas direto, sem executar nada. A diferença não é arbitrária: a predição direta foi testada no SLM e descartada, porque as saídas previstas erravam muito e o modelo (Qwen2.5-Coder) é treinado para escrever código, não para prever a saída de um programa (decisão dos autores, registrada em 2026-11-09). TDF\*, MS\* e Δ_oráculo (5.5) existem para isolar esse efeito | 3, 5.5 |
 
 ---
 
@@ -2131,6 +2240,8 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-11-09 | **Métricas calculadas (`specs/010-metrics/`, implementado)**: seção 5 reescrita com a proposta confirmada (regras de borda, 5.5 complementares, 5.6 estatística, 5.7 cortes, 5.8 figuras, 5.9 resultados medidos); Q5 na seção 0; pendências 3 e 26 fechadas; limitação do oráculo na seção 7 (item 42). Divergências da implementação: o custo por cenário dos comerciais soma o `by_group` do relatório de geração com as respostas barradas daquele cenário (o `by_group` não as inclui); o pacote leva as tabelas e só as figuras sem filtro; as figuras filtradas são exploração e se refazem pelo comando | 0, 5, 6, 7, 8 |
+| 2026-11-09 | **Módulo de métricas especificado (`specs/010-metrics/`)**: implementa a proposta de `docs/metricas-referencia.md` confirmada em 2026-11-04 sem C.5 e C.6 — TDF, MS, TFP (N = 200, com a nota de combinações sem suíte e a visão entre as com suíte), IIC agregado nos 200 problemas com a visão por problema, TC, TDF\*/MS\*/Δ_oráculo, TFP por teste e por causa, CPD (o modelo local só em *tokens* e tempo), densidade, Friedman/Wilcoxon/McNemar com A12 e Holm, cortes por macrocategoria e status; tabelas versionadas lidas pelo dashboard; a seção 5 desta metodologia será substituída pela proposta. Decidido (Milena): a predição direta foi descartada no modelo local porque as saídas previstas erravam muito e o modelo é treinado para escrever código, não para prever saídas. Figuras (Milena, 2026-11-09): desenhadas por funções deste módulo a partir das tabelas, com filtros por macrocategoria, status, modelos e cenários (nunca um problema só), geradas por comando e exibidas na página de métricas do dashboard com download em PNG e PDF; filtros e fonte no rodapé e no nome do arquivo, para toda figura se refazer pelo comando. Emenda a decisão do dashboard de 2026-11-04 ("gráficos sem download"). Plano: pacote `src/metrics/` (`python -m metrics compute|figures|package|verify`, serviço `app`); fonte única o `results.csv` dos 5 conjuntos, mais a macrocategoria e os relatórios de geração; uma tabela por problema (conjunto × cenário × problema) como base de todas as médias e dos testes pareados; IIC também pelo oráculo corrigido, em coluna à parte; McNemar exato pelo teste binomial, Holm e A12 à mão; novas dependências `scipy` e `matplotlib`; seis tabelas e figuras determinísticas em `data/metrics/`, empacotadas com manifesto | 0, 5, 8 |
 | 2026-11-09 | **Avaliação das suítes concluída**: execução completa dos 5 conjuntos (3.000 combinações) de 2026-11-04 a 06, pacotes `data/evaluation_<conjunto>.zip` com manifesto, `cli check --deep` OK; AC reprovado em 183 (SLM), 121 (GPT), 329 (Gemini), 104 (Claude) e 255 (1ª tentativa do SLM) combinações; detecções nos dois oráculos na seção 4 | 4, 8 |
 | 2026-11-04 | **Dashboard de exploração especificado (`specs/011-results-dashboard/`)**: painel só de leitura sobre os resultados da avaliação (visão geral por conjunto × cenário, detalhe teste a teste, oráculo declarado × corrigido, modelo local × comerciais) e, depois, sobre as tabelas do módulo de métricas (feature 010), sem recalcular métrica; ferramenta de exploração, não fonte dos números do TCC. Decidido (Milena): porcentagens de detecção só como prévia rotulada até existirem as métricas oficiais, uso só local (sem publicação), download apenas do CSV das tabelas; as figuras do TCC vêm só do módulo de métricas. Clarify: dados lidos ao abrir, com botão "recarregar" e a hora da leitura na tela (sem releitura automática); no detalhe de um alvo, o código dele e o `AC_ref` lado a lado com as diferenças destacadas. Plano: pacote `src/dashboard/` (Streamlit, fixado no `uv.lock`), aberto por `python -m dashboard serve` no serviço `app` com a porta publicada só em `127.0.0.1` e a telemetria desligada; camada de dados em Python puro, testável, que substitui a prévia provisória do piloto; leitura validada pelo esquema da avaliação; a página de métricas é um aviso até a feature 010. **Implementado (2026-11-05)**: Streamlit 1.66.1 (pandas 3.0.6 mantido); divergências do plano: (a) o pacote das páginas é `views/`, não `pages/`, porque o Streamlit trata uma pasta `pages/` ao lado do script como páginas automáticas; (b) além da telemetria desligada, o endereço anunciado é fixado em `localhost`, porque o Streamlit consultava o IP externo da máquina na internet ao subir. Conferido com a avaliação real de `1000_B` (conferência): cada página abriu em até 1,6 s, e o detalhe Gemini caixa-preta mostra 32 alvos pegos só pelo oráculo declarado (14 WAs e 18 mutantes). Pedido de Milena (2026-11-05): o nome completo de cada sigla e de cada coluna aparece ao passar o mouse, e há um glossário na barra lateral | 4, 5, 8 |
 | 2026-11-04 | **Avaliação das suítes especificada (`specs/009-suite-evaluation/`)**: sem curto-circuito contra o `AC_ref` (veredito e saída real por teste), curto-circuito mantido para WA/mutante, detecção sob o oráculo declarado e o corrigido pelo `AC_ref`, conjuntos exatos de detectados, "sem suíte" para `discarded_manual`, 1ª tentativa isolada do modelo local, pacote por modelo e camada no `cli check`. Clarify: erro de execução do AC e dos alvos repetido 2 vezes (só vale se repetir nas 3); piloto obrigatório de 60 combinações. Implementado: pacote `src/evaluation/`, compilação uma vez por problema, passada única para os dois oráculos, cinco conjuntos (`slm`, `gpt`, `gemini`, `claude`, `slm-attempt1`) com pacote próprio e `results.csv`. Também: a preparação do servidor do modelo local passa a ser descrita só como servidor Ollama com GPU T4, sem plataforma | 3, 4, 8 |

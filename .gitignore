@@ -16,6 +16,8 @@ data/*
 !data/evaluation_gemini.zip
 !data/evaluation_claude.zip
 !data/evaluation_slm-attempt1.zip
+# The metrics tables and default figures (derived, small; the numbers of the thesis).
+!data/metrics.zip
 !data/statement_originals.zip
 # Revision 1 of the dataset, kept for audit after revision 2 (constitution 1.8.0, Principle II).
 !data/dataset.rev1.zip

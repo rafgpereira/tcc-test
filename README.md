@@ -34,9 +34,10 @@ teste unitários em C++.
 > avaliação (`evaluation`) está implementado e testado: executa cada suíte contra o AC, os WAs e os
 > mutantes e grava os vereditos; a execução completa terminou (5 conjuntos × 600 combinações, pacotes
 > `data/evaluation_<conjunto>.zip` no repositório). Um painel
-> (`dashboard`, aberto no navegador) mostra esses resultados só para leitura. Os
-> módulos de métricas e o orquestrador ainda não têm especificação nem código; a tabela
-> "Módulos e estado" marca isso.
+> (`dashboard`, aberto no navegador) mostra esses resultados só para leitura. O módulo de
+> métricas (`metrics`) calculou TDF, MS, TFP, IIC e as complementares, os testes estatísticos e
+> as figuras do texto (`data/metrics.zip`). O orquestrador ainda não tem especificação nem código;
+> a tabela "Módulos e estado" marca isso.
 
 ## O que o experimento responde
 
@@ -101,7 +102,7 @@ na avaliação, para que nenhum código do dataset falhe no motor só durante o 
 | `src/ai_clients/` | chamadas stateless aos 3 modelos comerciais e ao modelo local | seção 3 | **implementado**: execução completa e pacote versionado nos quatro modelos — local (600 de 600 combinações, revisão 2 do dataset), GPT-5.4-mini, Gemini 3.8 Flash e Claude Haiku 5.5 (600 combinações cada) | [README](src/ai_clients/README.md) |
 | `src/evaluation/` | executa as suítes contra AC, WAs e mutantes e grava os vereditos | seção 4 | **implementado**: execução completa (5 conjuntos × 600 combinações) e pacotes versionados | [README](src/evaluation/README.md) |
 | `src/dashboard/` | painel no navegador, só de leitura, sobre os resultados da avaliação | seção 8 | **em implementação**: código e testes prontos; conferência com os autores pendente | [README](src/dashboard/README.md) |
-| `src/metrics/` | TDF, MS, TFP, IIC | seção 5 | **sem spec** (IIC ainda não operacionalizado) | a criar |
+| `src/metrics/` | TDF, MS, TFP, IIC, complementares, estatística e figuras | seção 5 | **em implementação**: tabelas e figuras calculadas sobre a avaliação completa; conferência com os autores pendente | [README](src/metrics/README.md) |
 | `src/cli/` | comandos que cruzam módulos (hoje `check`) e, no futuro, o orquestrador do experimento | — | **em implementação**: `check` pronto (dataset, mutantes e as suítes dos quatro modelos); o orquestrador ainda sem especificação | [README](src/cli/README.md) |
 
 O formato dos READMEs de módulo é o de [`docs/template-modulo.md`](docs/template-modulo.md).
@@ -264,7 +265,7 @@ Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
 | `ai_clients` | obter as suítes de teste dos quatro modelos (descompactar e conferir) ou gerá-las do zero (a preparação do servidor Ollama com GPU está no README do módulo) | [README do módulo](src/ai_clients/README.md) |
 | `evaluation` | executar as suítes dos quatro modelos contra AC, WAs e mutantes (do zero) ou descompactar e conferir o resultado | [README do módulo](src/evaluation/README.md) |
 | `dashboard` | explorar os resultados da avaliação no navegador (visão geral, uma combinação teste a teste, comparações); só lê | [README do módulo](src/dashboard/README.md) |
-| `metrics` | ainda não implementado | sem README ainda |
+| `metrics` | calcular as métricas, os testes estatísticos e as figuras do texto (do zero) ou descompactar e conferir as tabelas | [README do módulo](src/metrics/README.md) |
 
 Siga os módulos **nesta ordem**, porque cada um depende do anterior: primeiro `dataset` (precisa
 estar descompactado em `data/dataset/` antes de qualquer outro módulo), depois `mutation` e
@@ -321,7 +322,7 @@ está no README dele; `--help` de qualquer comando lista as opções de fato dis
 | Comando | Serviço | O que faz / variações |
 |---|---|---|
 | `docker compose build` | (nenhum) | constrói a imagem; repita depois de mudar o `Dockerfile` ou o `uv.lock` |
-| `docker compose run --rm sandbox pytest` | `sandbox` | todos os testes do projeto; `pytest tests/<pasta>` roda uma parte: `tests/dataset`, `tests/sandbox`, `tests/mutation`, `tests/ai_clients`, `tests/evaluation`, `tests/dashboard`, `tests/cli` ou `tests/docs` |
+| `docker compose run --rm sandbox pytest` | `sandbox` | todos os testes do projeto; `pytest tests/<pasta>` roda uma parte: `tests/dataset`, `tests/sandbox`, `tests/mutation`, `tests/ai_clients`, `tests/evaluation`, `tests/dashboard`, `tests/metrics`, `tests/cli` ou `tests/docs` |
 | `docker compose run --rm app ruff check .` | `app` | análise estática; `--fix` corrige o que for automático |
 | `docker compose run --rm app black --check .` | `app` | confere a formatação; sem `--check` reformata os arquivos |
 | `docker compose run --rm app python scripts/check_docs_sync.py` | `app` | verifica se a documentação está sincronizada (READMEs, links, metodologia); `--module src/<módulo>` confere só um módulo |
@@ -399,6 +400,16 @@ no `.env` e nunca fazem uma chamada paga sem `--confirm-spend <US$>`, que també
 | `docker compose run --rm app python -m evaluation verify --set S` | `app` | confere o zip contra o manifesto; `--extracted data/evaluation/S` confere também a pasta descompactada |
 | `unzip data/evaluation_gpt.zip -d data/` (um por conjunto) | (host) | descompacta o resultado de um conjunto em `data/evaluation/<conjunto>/` |
 
+### Módulo `metrics` ([README](src/metrics/README.md))
+
+| Comando | Serviço | O que faz / variações |
+|---|---|---|
+| `docker compose run --rm app python -m metrics compute` | `app` | calcula as tabelas de métricas em `data/metrics/` (confere antes que as avaliações estão completas e o `cli check --deep`); `--evaluation-dir DIR` |
+| `docker compose run --rm app python -m metrics figures` | `app` | desenha as figuras em PNG e PDF; `--figure NOME`, filtros `--macrocategoria`, `--status`, `--set`, `--scenario` (repetíveis), `--format`, `--output-dir` |
+| `docker compose run --rm app python -m metrics package` | `app` | `data/metrics.zip` (tabelas e figuras sem filtro) e o manifesto |
+| `docker compose run --rm app python -m metrics verify` | `app` | confere o zip; `--extracted data/metrics` também a pasta |
+| `unzip data/metrics.zip -d data/` | (host) | descompacta as tabelas e as figuras em `data/metrics/` |
+
 ### Módulo `dashboard` ([README](src/dashboard/README.md))
 
 | Comando | Serviço | O que faz / variações |
@@ -410,7 +421,7 @@ no `.env` e nunca fazem uma chamada paga sem `--confirm-spend <US$>`, que també
 O motor não tem comando próprio: é uma biblioteca usada pelo `dataset` e pelo `mutation` (e, no
 futuro, pela avaliação). `docker compose run --rm sandbox pytest tests/sandbox` roda os testes dele,
 e `python -m dataset selfcheck` (acima) confere a saúde do motor. Os comandos dos módulos ainda não
-implementados (`metrics`) entram aqui quando existirem.
+implementados (o orquestrador) entram aqui quando existirem.
 
 ## Glossário
 

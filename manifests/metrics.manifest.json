@@ -1,0 +1,105 @@
+{
+  "files": [
+    {
+      "path": "metrics/cost.csv",
+      "sha256": "1af7c007df53e121e2f9e2ad1645a08e3acf846b45540ab492ef0a898ed701b9",
+      "size": 1329
+    },
+    {
+      "path": "metrics/detected_wa.csv",
+      "sha256": "f606c84b3cfd8d41320f2c22634881bfbe04b72f63262041b80525424165ee72",
+      "size": 18429242
+    },
+    {
+      "path": "metrics/figures/cost_per_detection.pdf",
+      "sha256": "7679944fd8319197dd13ceefd66f645d5eebf32ef9356fa421fefcaa459f8c67",
+      "size": 21005
+    },
+    {
+      "path": "metrics/figures/cost_per_detection.png",
+      "sha256": "d98d72ebbf0544ac5028010ac3b0ced3b7c42df058d8e3f6da501294513471d2",
+      "size": 71444
+    },
+    {
+      "path": "metrics/figures/iic_distribution.pdf",
+      "sha256": "e4f629b863219f7d366f3c15f28ad3852761303e39c5f4825983317354a523cc",
+      "size": 21629
+    },
+    {
+      "path": "metrics/figures/iic_distribution.png",
+      "sha256": "a747984b9c4f513efc9757400007b0ed3d046181968a57acc8b5684c23b7d9b7",
+      "size": 75073
+    },
+    {
+      "path": "metrics/figures/ms_declared_vs_corrected.pdf",
+      "sha256": "1465ec561c03be834cd3dd2c770b5883d89098e5e583035c3632bfc43b29bdc3",
+      "size": 22648
+    },
+    {
+      "path": "metrics/figures/ms_declared_vs_corrected.png",
+      "sha256": "9ff38931fef07a24ff2899cb689286eb569121a5245094d2e6feeba3476b0901",
+      "size": 79090
+    },
+    {
+      "path": "metrics/figures/tdf_by_model.pdf",
+      "sha256": "ae64ff08afd4a52b94cdafe3a3c3cc96044dcb93ab383c5a9c2f066a7f390542",
+      "size": 21546
+    },
+    {
+      "path": "metrics/figures/tdf_by_model.png",
+      "sha256": "758bbba5fed622c3d15f723f1b294a4d1a9bff8a66ce16b34f0466b5589da98c",
+      "size": 47762
+    },
+    {
+      "path": "metrics/figures/tdf_declared_vs_corrected.pdf",
+      "sha256": "97978dc4da8e7ce7465b410bad50fdbc158021809eefa4722d4967b2875df35a",
+      "size": 23511
+    },
+    {
+      "path": "metrics/figures/tdf_declared_vs_corrected.png",
+      "sha256": "fe56a2dc43bf784f844ff65dfdcab1b6b1a869f59cf4de72b4a8d1ed6322f59b",
+      "size": 79074
+    },
+    {
+      "path": "metrics/figures/tfp_by_cause.pdf",
+      "sha256": "2b38efc3e4187c6a3f91fd5e8748d957ac666db466ff43f574bc4fe39b4900db",
+      "size": 23290
+    },
+    {
+      "path": "metrics/figures/tfp_by_cause.png",
+      "sha256": "6f6e4efb3ef054530b90468b3e278525677c4653a41d9049350f3ff2fe058fa1",
+      "size": 87102
+    },
+    {
+      "path": "metrics/iic.csv",
+      "sha256": "fafde77d9dc804c777a02e7240c2fd4b5c432d4b12032aac02d92a6b83820198",
+      "size": 1695
+    },
+    {
+      "path": "metrics/metrics.csv",
+      "sha256": "1354b247f59f2d3dcc6568de3ad4a0dd831b274d7ca21fb127882036d6e39b35",
+      "size": 12100
+    },
+    {
+      "path": "metrics/per_problem.csv",
+      "sha256": "90205635442c80882fa37a019420dd0db4a25f3eee448f79f5867b06c7cc5766",
+      "size": 270951
+    },
+    {
+      "path": "metrics/run.json",
+      "sha256": "56c183b8f715c51d4ecf6c05e8063c83dbfd55d3e4f6300ff5fff870e325ae33",
+      "size": 934
+    },
+    {
+      "path": "metrics/stats.csv",
+      "sha256": "14da5ed4744e70a7f52f69e324a526deabdaade6d9fc7fc4810838e6b35f2a32",
+      "size": 23562
+    }
+  ],
+  "metrics_zip": {
+    "path": "data/metrics.zip",
+    "sha256": "6ed320537afe6a09da354ab5514f4e8569a35a647ef1d8690ab9cc2a36ff624b",
+    "size": 1639130
+  },
+  "schema_version": 1
+}

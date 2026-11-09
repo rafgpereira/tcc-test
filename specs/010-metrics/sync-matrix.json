@@ -1,0 +1,45 @@
+{
+ "rows": [
+  {
+   "id": "D1",
+   "methodology_section": "5.5",
+   "needles": [
+    "sem C.5 e C.6"
+   ],
+   "source": "spec.md#D1"
+  },
+  {
+   "id": "D2",
+   "methodology_section": "5",
+   "needles": [
+    "A **TFP oficial mant\u00e9m N = 200**"
+   ],
+   "source": "spec.md#D2"
+  },
+  {
+   "id": "D3",
+   "methodology_section": "5.4",
+   "needles": [
+    "forma agregada, a oficial"
+   ],
+   "source": "spec.md#D3"
+  },
+  {
+   "id": "D4",
+   "methodology_section": "5.6",
+   "needles": [
+    "**McNemar exato**"
+   ],
+   "source": "spec.md#D4"
+  },
+  {
+   "id": "D5",
+   "methodology_section": "5.8",
+   "needles": [
+    "python -m metrics figures"
+   ],
+   "source": "spec.md#D5"
+  }
+ ],
+ "schema_version": 1
+}

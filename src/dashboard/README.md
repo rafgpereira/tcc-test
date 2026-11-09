@@ -41,8 +41,10 @@ concluídos por conjunto:
   foi detectado e o código dele ao lado do `AC_ref`, com as diferenças destacadas.
 - **Comparações**: a diferença entre o oráculo declarado e o corrigido por combinação (em vermelho,
   as com o AC reprovado), e o modelo local (suíte final e 1ª tentativa) ao lado dos comerciais.
-- **Métricas**: as métricas oficiais, quando o módulo de métricas as tiver calculado; até lá, um
-  aviso.
+- **Métricas**: as tabelas oficiais do módulo de métricas (com o corte por macrocategoria ou
+  status), os testes estatísticos, o custo e as figuras do texto, com filtros e os botões de
+  baixar PNG e PDF (a figura baixada é a mesma que o comando `python -m metrics figures` gera com
+  o mesmo filtro); antes de as métricas serem calculadas, um aviso.
 
 **Prévia**: as porcentagens de detecção do painel (detectados ÷ total, somados só sobre as
 combinações com suíte) são uma prévia, sempre marcada assim. Os números oficiais (TDF, MS e as
