@@ -4,7 +4,7 @@ Comandos em [contracts/cli.md](contracts/cli.md); tabelas em [data-model.md](dat
 
 ## Pré-requisitos
 
-- `docker compose build` depois de entrarem `scipy` e `matplotlib`.
+- `docker compose build` depois de entrarem `scipy`, `altair` e `vl-convert-python`.
 - Avaliações descompactadas (`unzip data/evaluation_<conjunto>.zip -d data/`), dataset e suítes
   descompactados; `cli check --deep` com `Resultado: OK`.
 
@@ -38,8 +38,8 @@ docker compose run --rm app python -m metrics figures --macrocategoria matematic
 ```
 
 Esperado: arquivos `data/metrics/figures/tdf_by_model.png` e
-`tdf_by_model__macrocategoria-matematica.pdf` etc., com o filtro no rodapé. A mesma figura baixada
-no dashboard (página Métricas, mesmo filtro) é idêntica.
+`tdf_by_model__macrocategoria-matematica.png` (e `.svg`, `.pdf`), com o filtro no subtítulo. A
+mesma figura baixada no dashboard (página Métricas, mesmo filtro, tema claro) é idêntica.
 
 ## 5. Pacote
 

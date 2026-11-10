@@ -14,6 +14,7 @@ def apply(
     statuses=(),
     sets=(),
     scenarios=(),
+    problems=(),
     detected_wa: pd.DataFrame | None = None,
 ):
     """The rows of the cut (and, if given, the detected WAs of the same problems and sets)."""
@@ -23,6 +24,7 @@ def apply(
         ("status", statuses),
         ("set", sets),
         ("scenario", scenarios),
+        ("problem", problems),
     ):
         if allowed:
             mask &= per_problem[column].isin(list(allowed))

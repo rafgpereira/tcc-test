@@ -6,9 +6,11 @@ from dashboard import config, data
 from dashboard.views.common import download, table, text
 from dashboard.views.overview import PREVIEW_NOTE
 
+REJECTED = "background-color: rgba(227, 73, 72, 0.22)"  # a red wash: legible on light and dark
+
 
 def _highlight_rejected(row):
-    color = "background-color: #ffe0e0" if row["ac_approved"] is False else ""
+    color = REJECTED if row["ac_approved"] is False else ""
     return [color] * len(row)
 
 

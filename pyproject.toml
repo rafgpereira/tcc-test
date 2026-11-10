@@ -4,14 +4,15 @@ version = "0.1.0"
 description = "Experimental pipeline that evaluates LLM/SLM unit-test generation for C++ (TCC, UnB)."
 requires-python = ">=3.11,<3.12"
 dependencies = [
+    "altair>=6.3.0",
     "datasets==5.0.1",
-    "matplotlib>=3.11.2",
     "pandas>=3.0.6",
     "pydantic>=2,<3",
     "scipy>=1.17.1",
     "streamlit>=1.66.1",
     "tree-sitter>=0.26,<0.27",
     "tree-sitter-cpp>=0.23,<0.24",
+    "vl-convert-python>=1.9.0.post1",
 ]
 
 [dependency-groups]

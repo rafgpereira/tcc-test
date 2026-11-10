@@ -1990,6 +1990,28 @@ Desenhadas por funções do módulo de métricas a partir das tabelas, com filtr
 status, conjuntos e cenários; geradas por `python -m metrics figures` e exibidas na página de
 métricas do dashboard com download em PNG e PDF. O filtro e a fonte vão no rodapé e no nome do
 arquivo, para toda figura se refazer pelo comando. As figuras do texto do TCC saem daqui.
+**Emenda (2026-11-09, Milena)**: no dashboard, os gráficos são interativos (Altair, já incluído no
+Streamlit), desenhados com os dados que o módulo de métricas devolve para cada figura (as mesmas
+funções das tabelas, então os números são idênticos), com o valor escrito em cada barra, filtrados
+pelos filtros da barra lateral do painel (incluindo um subconjunto de problemas, com pelo menos 2) e
+com o filtro e a fonte no subtítulo; cada gráfico se salva como foto (PNG ou SVG) pelo seu menu, e o PDF para o texto
+continua sendo o do comando.
+**Emenda (2026-11-09, Milena — legibilidade)**: os gráficos seguem o tema claro ou escuro do painel,
+cada um com a sua paleta categórica validada para daltonismo e contraste (3 cores: azul, laranja,
+verde-água; a cor segue a série, nunca a posição) e textos em tons de tinta, nunca na cor da série,
+para não haver texto preto sobre fundo preto; as figuras com muitas barras ganham um painel por
+cenário, em largura cheia, com barras finas e espaço entre elas para os valores não se sobreporem; o
+IIC é uma caixa por conjunto sem os pontos extremos (que ficam na tabela) e com a mediana escrita; a
+TFP por causa mostra só o total de cada barra (a divisão por causa fica na legenda e no tooltip); o
+custo por detecção é mostrado em US$ por 1.000 WAs detectados, também na figura do comando.
+**Emenda (2026-11-09, Milena — download igual à tela)**: a figura baixada é o próprio gráfico
+mostrado. O comando `python -m metrics figures` e os botões PNG, SVG e PDF da página de métricas
+exportam o mesmo gráfico (Altair, pelo vl-convert; o matplotlib saiu do projeto): o comando no tema
+claro, o painel no tema em uso. PNG e SVG saem iguais byte a byte a cada execução e são os formatos
+do pacote `data/metrics.zip`; o PDF tem o mesmo desenho, mas o vl-convert muda a ordem interna dos
+objetos de fonte a cada chamada (medido: 4 variantes em 20), então ele não é empacotado. Na página
+de comparações, as combinações com o AC reprovado são marcadas por um vermelho translúcido, legível
+nos temas claro e escuro.
 
 ### 5.9 Resultados **[MEDIDO, 2026-11-09 — `python -m metrics compute`, pacote `data/metrics.zip`]**
 
@@ -2014,6 +2036,31 @@ custo total de cada comercial idêntico ao relatório de geração (GPT US$ 13,4
 | SLM 1ª tentativa | caixa-preta | 80,43 | 62,36 | 85,85 | 83,06 | 65,50 | 90,5 |
 | SLM 1ª tentativa | caixa-branca | 69,81 | 64,91 | 83,16 | 79,77 | 25,00 | 91,0 |
 | SLM 1ª tentativa | híbrido | 74,57 | 65,39 | 86,86 | 85,31 | 37,00 | 92,0 |
+
+**Quantos alvos a IA matou**: cada WA e cada mutante conta uma vez, morto se algum teste da suíte
+o reprovou (a avaliação para no primeiro teste que o reprova). São 100 WAs e 100 mutantes por
+problema, então 20.000 de cada por conjunto × cenário; a TDF é *WAs mortos ÷ 20.000* e o MS,
+*mutantes mortos ÷ 20.000* (as combinações sem suíte contam 0). Colunas `WA_killed`,
+`WA_killed_star`, `WA_total`, `mutants_killed`, `mutants_killed_star` e `mutants_total` de
+`metrics.csv` (acrescentadas em 2026-11-09, a pedido da Milena):
+
+| Conjunto | Cenário | WAs mortos | WAs mortos\* | mutantes mortos | mutantes mortos\* |
+|---|---|---|---|---|---|
+| SLM | caixa-preta | 16.548 | 13.980 | 18.851 | 18.353 |
+| SLM | caixa-branca | 14.954 | 14.453 | 18.158 | 17.765 |
+| SLM | híbrido | 15.196 | 14.465 | 18.765 | 18.437 |
+| GPT | caixa-preta | 17.175 | 16.880 | 19.164 | 18.986 |
+| GPT | caixa-branca | 17.785 | 17.333 | 19.127 | 18.790 |
+| GPT | híbrido | 17.012 | 16.625 | 18.969 | 18.851 |
+| Gemini | caixa-preta | 19.040 | 18.000 | 19.729 | 19.420 |
+| Gemini | caixa-branca | 19.124 | 17.949 | 19.728 | 19.364 |
+| Gemini | híbrido | 19.151 | 18.134 | 19.683 | 19.429 |
+| Claude | caixa-preta | 17.222 | 16.752 | 19.077 | 18.871 |
+| Claude | caixa-branca | 17.942 | 17.606 | 19.374 | 19.245 |
+| Claude | híbrido | 17.566 | 17.192 | 19.184 | 19.043 |
+| SLM 1ª tentativa | caixa-preta | 16.086 | 12.472 | 17.170 | 16.613 |
+| SLM 1ª tentativa | caixa-branca | 13.961 | 12.982 | 16.631 | 15.954 |
+| SLM 1ª tentativa | híbrido | 14.914 | 13.079 | 17.373 | 17.061 |
 
 Achados para a discussão (todos em `data/metrics/`):
 - **Δ_oráculo**: maior no SLM caixa-preta (TDF − TDF\* = 12,8 pontos) e na 1ª tentativa do SLM
@@ -2240,6 +2287,9 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-11-09 | **Cópia pública do painel (emenda da decisão "uso só local" de 2026-11-04)**: decidido (Milena) publicar o painel, só de leitura e gratuito, no Streamlit Community Cloud (até 2,7 GB de memória). O Hugging Face Spaces chegou a ser escolhido por ter mais memória, mas criar um Space Docker exige plano pago (documentação do Hugging Face conferida em 2026-11-10). A cópia pública roda `src/dashboard/public/streamlit_app.py` num clone do repositório, com dependências mínimas nas versões do `uv.lock`, e descompacta em `data/` os 12 pacotes versionados (avaliação dos 5 conjuntos, métricas, dataset, mutantes e suítes) na primeira abertura do servidor; é publicada pelos autores. Medido num Python 3.11 limpo, simulando um clone: primeira abertura em 39 s, 3.000 combinações sem arquivo inválido, nenhuma exceção, 176 MB de pico de memória, 720 MB em `data/`, figura PNG igual à do projeto. Na mesma conferência, `data/metrics.zip` foi reempacotado com as colunas de alvos mortos (`verify --extracted` OK) | 8 |
+| 2026-11-09 | **Contagem de alvos mortos**: `metrics.csv` ganha WAs e mutantes mortos (pelos dois oráculos) e o total, ao lado da TDF e do MS; tabela na seção 5.9 e no painel; cada alvo conta uma vez (morto se algum teste o reprova) | 5.9 |
+| 2026-11-09 | **Figuras legíveis e download igual à tela**: paleta e tons de texto por tema, um painel por cenário, custo em US$ por 1.000 WAs; as figuras do comando e os botões PNG/SVG/PDF do painel passam a ser o mesmo gráfico (Altair + vl-convert, sem matplotlib); pacote com PNG e SVG (o PDF não sai igual byte a byte); destaque das combinações com AC reprovado legível no tema escuro | 5.8 |
 | 2026-11-09 | **Métricas calculadas (`specs/010-metrics/`, implementado)**: seção 5 reescrita com a proposta confirmada (regras de borda, 5.5 complementares, 5.6 estatística, 5.7 cortes, 5.8 figuras, 5.9 resultados medidos); Q5 na seção 0; pendências 3 e 26 fechadas; limitação do oráculo na seção 7 (item 42). Divergências da implementação: o custo por cenário dos comerciais soma o `by_group` do relatório de geração com as respostas barradas daquele cenário (o `by_group` não as inclui); o pacote leva as tabelas e só as figuras sem filtro; as figuras filtradas são exploração e se refazem pelo comando | 0, 5, 6, 7, 8 |
 | 2026-11-09 | **Módulo de métricas especificado (`specs/010-metrics/`)**: implementa a proposta de `docs/metricas-referencia.md` confirmada em 2026-11-04 sem C.5 e C.6 — TDF, MS, TFP (N = 200, com a nota de combinações sem suíte e a visão entre as com suíte), IIC agregado nos 200 problemas com a visão por problema, TC, TDF\*/MS\*/Δ_oráculo, TFP por teste e por causa, CPD (o modelo local só em *tokens* e tempo), densidade, Friedman/Wilcoxon/McNemar com A12 e Holm, cortes por macrocategoria e status; tabelas versionadas lidas pelo dashboard; a seção 5 desta metodologia será substituída pela proposta. Decidido (Milena): a predição direta foi descartada no modelo local porque as saídas previstas erravam muito e o modelo é treinado para escrever código, não para prever saídas. Figuras (Milena, 2026-11-09): desenhadas por funções deste módulo a partir das tabelas, com filtros por macrocategoria, status, modelos e cenários (nunca um problema só), geradas por comando e exibidas na página de métricas do dashboard com download em PNG e PDF; filtros e fonte no rodapé e no nome do arquivo, para toda figura se refazer pelo comando. Emenda a decisão do dashboard de 2026-11-04 ("gráficos sem download"). Plano: pacote `src/metrics/` (`python -m metrics compute|figures|package|verify`, serviço `app`); fonte única o `results.csv` dos 5 conjuntos, mais a macrocategoria e os relatórios de geração; uma tabela por problema (conjunto × cenário × problema) como base de todas as médias e dos testes pareados; IIC também pelo oráculo corrigido, em coluna à parte; McNemar exato pelo teste binomial, Holm e A12 à mão; novas dependências `scipy` e `matplotlib`; seis tabelas e figuras determinísticas em `data/metrics/`, empacotadas com manifesto | 0, 5, 8 |
 | 2026-11-09 | **Avaliação das suítes concluída**: execução completa dos 5 conjuntos (3.000 combinações) de 2026-11-04 a 06, pacotes `data/evaluation_<conjunto>.zip` com manifesto, `cli check --deep` OK; AC reprovado em 183 (SLM), 121 (GPT), 329 (Gemini), 104 (Claude) e 255 (1ª tentativa do SLM) combinações; detecções nos dois oráculos na seção 4 | 4, 8 |

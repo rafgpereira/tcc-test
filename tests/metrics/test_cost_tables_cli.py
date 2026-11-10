@@ -88,10 +88,12 @@ def test_render_is_deterministic_and_names_the_filters(repo, monkeypatch):
     loaded = tables.read(repo)
     filters = {"sets": ["gpt", "gemini"], "scenarios": ["hybrid", "black_box"]}
     for name in figures.FIGURES:
-        for fmt in ("png", "pdf"):
+        for fmt in figures.PACKAGED_FORMATS:  # the packaged formats are the same bytes
             a = figures.render(name, loaded, filters, fmt, "fonte-x")
             b = figures.render(name, loaded, filters, fmt, "fonte-x")
             assert a == b
+    pdf = figures.render("tfp_by_cause", loaded, filters, "pdf", "fonte-x")[1]
+    assert pdf.startswith(b"%PDF")  # drawn the same, but never packaged (font order varies)
     file_name, _ = figures.render("tdf_by_model", loaded, filters, "pdf", "s")
     assert file_name == "tdf_by_model__set-gemini+gpt__scenario-black_box+hybrid.pdf"
     assert "set = gemini, gpt" in figures.footer(filters, "s")

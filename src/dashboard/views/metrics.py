@@ -1,8 +1,9 @@
-"""Métricas (US4 of the dashboard): the official tables and figures of the metrics module.
+"""Métricas (US4 of the dashboard): the official tables and the charts of the metrics module.
 
-Nothing is computed here: the tables are read from ``data/metrics`` and the figures are drawn by
-``metrics.figures.render`` with the filters chosen, so a downloaded figure is byte for byte the one
-``python -m metrics figures`` writes with the same filters.
+Nothing is computed here. The tables are read from ``data/metrics``; the charts are drawn
+interactively by ``metrics.figures.chart`` (the same numbers as the tables), with the filters
+chosen, in the viewer's theme; the PNG, SVG and PDF buttons save that same chart
+(``metrics.figures.render``), so the picture is what the screen shows.
 """
 
 import json
@@ -21,43 +22,84 @@ def _tables(folder: str, stamp: float) -> dict:
     return tables.read(Path("."), Path(folder))
 
 
-def _figure_section(loaded: dict, run: dict) -> None:
+KILLED = (
+    "WA_killed",
+    "WA_killed_star",
+    "WA_total",
+    "TDF",
+    "mutants_killed",
+    "mutants_killed_star",
+    "mutants_total",
+    "MS",
+)
+MIME = {"png": "image/png", "svg": "image/svg+xml", "pdf": "application/pdf"}
+
+
+@st.cache_data(show_spinner="preparando o arquivo...")
+def _file(
+    name: str, filters_key: tuple, folder: str, stamp: float, source: str, fmt: str, mode: str
+) -> tuple[str, bytes]:
+    from metrics import figures
+
+    loaded = _tables(folder, stamp)
+    return figures.render(name, loaded, dict(filters_key), fmt, source, mode)
+
+
+def _mode() -> str:
+    """The theme the viewer is using (light or dark); light when it cannot be told."""
+    try:
+        return "dark" if st.context.theme.type == "dark" else "light"
+    except AttributeError:
+        return "light"
+
+
+def _charts_section(loaded: dict, run: dict, folder: str, stamp: float, sidebar: dict) -> None:
     from metrics import cuts, figures
 
-    st.subheader("Figuras")
+    st.subheader("Gráficos")
     text(
-        "Desenhadas pelo módulo de métricas, com os filtros abaixo; o arquivo baixado é o mesmo "
-        "que `python -m metrics figures` gera com os mesmos filtros (o filtro e a fonte vão no "
-        "rodapé e no nome do arquivo)."
+        "Os valores estão escritos em cada barra (e a mediana em cada caixa do IIC); os filtros são "
+        "os da **barra lateral**. Os botões **PNG**, **SVG** e **PDF** baixam o gráfico como ele "
+        "aparece na tela (no tema claro ou escuro), com os filtros e a fonte no subtítulo; no tema "
+        "claro, é a mesma figura do comando `python -m metrics figures` com os mesmos filtros."
     )
-    per = loaded["per_problem"]
-    name = st.selectbox("Figura", list(figures.FIGURES))
-    columns = st.columns(4)
-    filters = {
-        "macrocategorias": columns[0].multiselect(
-            "Macrocategoria", sorted(m for m in set(per["macrocategoria"]) if m), key="f_macro"
-        ),
-        "statuses": columns[1].multiselect(
-            "Status", sorted(s for s in set(per["status"]) if s), key="f_status"
-        ),
-        "sets": columns[2].multiselect(
-            "Conjuntos", [s for s in config.SETS if s in set(per["set"])], key="f_sets"
-        ),
-        "scenarios": columns[3].multiselect("Cenários", list(config.SCENARIOS), key="f_scen"),
-    }
+    filters = {k: list(sidebar.get(k) or []) for k in figures.FILTER_KEYS}
     source = figures.source_label(run)
-    try:
-        png_name, png = figures.render(name, loaded, filters, "png", source)
-        pdf_name, pdf = figures.render(name, loaded, filters, "pdf", source)
-    except cuts.CutError as exc:
-        st.warning(str(exc))
-        return
-    st.image(png)
-    left, right = st.columns(2)
-    left.download_button("baixar PNG", png, file_name=png_name, mime="image/png", key="dl_png")
-    right.download_button(
-        "baixar PDF", pdf, file_name=pdf_name, mime="application/pdf", key="dl_pdf"
-    )
+    filters_key = tuple((k, tuple(v)) for k, v in filters.items() if v)
+    for name in figures.FIGURES:
+        title = figures.TITLES[name][0]
+        try:
+            values = figures.figure_data(name, loaded, filters)
+        except cuts.CutError:
+            if name in figures.NO_PROBLEM_CUTS:
+                reason = (
+                    "não tem corte por macrocategoria, status ou problema (o custo é por modelo "
+                    "e cenário)"
+                )
+            else:
+                reason = "estes filtros deixam um problema só ou nenhum; amplie os filtros"
+            st.caption(f"{title}: {reason}")
+            continue
+        if values.empty:
+            st.caption(f"{title}: sem dados com esses filtros")
+            continue
+        mode = _mode()
+        st.altair_chart(
+            figures.chart(name, loaded, filters, source, mode), theme=None, width="content"
+        )
+        for column, fmt in zip(st.columns(6)[:3], ("png", "svg", "pdf"), strict=True):
+            with column:
+                st.download_button(
+                    fmt.upper(),
+                    lambda fmt=fmt, name=name, mode=mode: _file(
+                        name, filters_key, folder, stamp, source, fmt, mode
+                    )[1],
+                    file_name=figures.file_name(name, filters, fmt),
+                    mime=MIME[fmt],
+                    key=f"{fmt}_{name}",
+                    icon=":material/download:",
+                    on_click="ignore",
+                )
 
 
 def render(tree: data.LoadedTree, filters: dict) -> None:
@@ -77,9 +119,12 @@ def render(tree: data.LoadedTree, filters: dict) -> None:
     run_path = Path(folder) / "run.json"
     run = json.loads(run_path.read_text()) if run_path.is_file() else {}
     text(
-        "Números oficiais do experimento (em %), calculados pelo módulo de métricas; os filtros "
-        "da barra lateral não se aplicam aqui: use o corte de cada tabela."
+        "Números oficiais do experimento (em %), calculados pelo módulo de métricas. Os filtros da "
+        "barra lateral valem para os gráficos; as tabelas abaixo são as oficiais, com o corte "
+        "escolhido nelas."
     )
+    _charts_section(loaded, run, str(folder), stamp, filters)
+
     metrics = loaded["metrics"]
     cut_labels = ["all"] + sorted(
         {
@@ -89,13 +134,24 @@ def render(tree: data.LoadedTree, filters: dict) -> None:
         }
     )
     chosen = st.selectbox(
-        "Corte", cut_labels, help="all = os 200 problemas; ou só uma macrocategoria ou um status"
+        "Corte das tabelas",
+        cut_labels,
+        help="all = os 200 problemas; ou só uma macrocategoria ou um status",
     )
     if chosen == "all":
         shown = metrics[metrics["cut"] == "all"]
     else:
         cut, value = chosen.split(": ", 1)
         shown = metrics[(metrics["cut"] == cut) & (metrics["cut_value"] == value)]
+    st.subheader("WAs e mutantes mortos")
+    text(
+        "Cada WA e cada mutante conta uma vez: **morto** se algum teste da suíte o reprovou. São "
+        "100 WAs e 100 mutantes por problema; a TDF é *WAs mortos ÷ WAs no total* e o MS, *mutantes "
+        "mortos ÷ mutantes no total*. Com \\* = pelo gabarito do AC."
+    )
+    killed = shown[["set", "scenario", *KILLED]]
+    table(killed)
+    download(killed, "mortos")
     st.subheader("TDF, MS, TFP, TC e complementares")
     table(shown)
     download(shown, "metricas")
@@ -112,4 +168,3 @@ def render(tree: data.LoadedTree, filters: dict) -> None:
     st.subheader("Custo, tokens e tempo")
     table(loaded["cost"])
     download(loaded["cost"], "custo")
-    _figure_section(loaded, run)

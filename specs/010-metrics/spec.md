@@ -33,6 +33,12 @@ O dashboard (feature 011) passa a exibir essas tabelas sem recalcular nada.
 - Q: Quem gera as figuras do TCC, e com filtro? → A: Este módulo, por funções com filtros
   (macrocategoria, status, modelos, cenários); geradas por comando e exibidas no dashboard com
   download PNG/PDF; filtros e fonte no rodapé e no nome do arquivo (Milena; FR-017, US6).
+- Q: As figuras do dashboard eram imagens estáticas; pode plotar os gráficos no painel? → A: Sim:
+  gráficos interativos com os filtros, exportáveis como foto pelo menu de cada gráfico; o PDF do
+  texto continua sendo o do comando (Milena, 2026-11-09; FR-017).
+- Q: As cores estão ruins no tema escuro (texto preto sobre fundo preto) e alguns gráficos estão
+  pequenos; o que fazer? → A: paleta e tons de texto por tema, um painel por cenário em largura
+  cheia, barras finas e espaçadas, custo em US$ por 1.000 WAs (Milena, 2026-11-09; FR-017).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -194,6 +200,10 @@ com o mesmo filtro, e o rodapé diz o filtro e a fonte.
 - **FR-003**: TDF = (WAs detectados ÷ 100) × 100, média nos 200 problemas; combinação sem suíte
   conta 0%. MS = mutantes detectados ÷ (100 − equivalentes), equivalentes = 0, média nos problemas
   com mutantes completos (os 200).
+  **Emenda de 2026-11-09 (Milena)**: ao lado da TDF e do MS, a tabela de métricas MUST trazer as
+  contagens — WAs e mutantes mortos, pelo oráculo declarado e pelo corrigido, e o total de cada —,
+  em que cada alvo conta uma vez (morto se algum teste da suíte o reprovou); com 100 de cada por
+  problema, TDF = WAs mortos ÷ total × 100.
 - **FR-004**: TFP = (problemas com o AC reprovado ÷ 200) × 100, sempre acompanhada do número de
   combinações sem suíte do conjunto × cenário e da TFP entre as combinações com suíte (visão
   secundária).
@@ -257,12 +267,27 @@ com o mesmo filtro, e o rodapé diz o filtro e a fonte.
   métricas do dashboard redesenha a figura pela mesma função com os filtros escolhidos e oferece o
   download em PNG e PDF. Cada figura traz no rodapé e no nome do arquivo os filtros aplicados e a
   fonte (as tabelas e a revisão), de modo que qualquer figura baixada se refaz pelo comando.
+  **Emenda de 2026-11-09 (Milena)**: no dashboard, os gráficos são **interativos** (valor ao passar
+  o mouse e escrito em cada barra), desenhados com os dados que este módulo devolve para cada figura
+  (as mesmas funções das tabelas), filtrados pelos filtros da barra lateral do painel (que valem
+  também para um subconjunto de problemas, com pelo menos 2), com o filtro e a fonte no subtítulo; cada gráfico
+  se salva como foto (PNG ou SVG) pelo seu menu, e o botão "PDF para o texto" baixa a versão do
+  comando, idêntica à de `python -m metrics figures` com o mesmo filtro.
+  **Emenda de 2026-11-09 (Milena — legibilidade)**: os gráficos MUST seguir o tema (claro ou
+  escuro) do painel, com uma paleta categórica validada por tema (a cor segue a série) e textos em
+  tons de tinta, nunca na cor da série; figuras com muitas barras têm um painel por cenário; os
+  valores escritos não se sobrepõem; o IIC omite os pontos extremos (ficam na tabela); a TFP por
+  causa escreve só o total; o custo por detecção é mostrado em US$ por 1.000 WAs detectados.
+  **Emenda de 2026-11-09 (Milena — download igual à tela)**: a figura baixada MUST ser o gráfico
+  mostrado: os botões PNG, SVG e PDF do painel e o comando exportam o mesmo gráfico (o comando no
+  tema claro, o painel no tema em uso); PNG e SVG são iguais byte a byte a cada execução e são os
+  formatos do pacote; o PDF tem o mesmo desenho, mas não é empacotado.
 
 ### Key Entities
 
 - **Linha por problema**: conjunto × cenário × problema, com detecção (declarada e corrigida), AC
   aprovado, tamanho da suíte, macrocategoria e status; base de todas as médias e dos testes pareados.
-- **Tabela de métricas**: conjunto × cenário (× corte), com TDF, MS, TFP, TC, TDF\*, MS\*,
+- **Tabela de métricas**: conjunto × cenário (× corte), com TDF, MS, WAs e mutantes mortos (e o total), TFP, TC, TDF\*, MS\*,
   Δ_oráculo, TFP por teste e por causa, CPD, *tokens*, tempo e densidade.
 - **Tabela de IIC**: por conjunto, IIC_cod e IIC_req agregados e a visão por problema.
 - **Tabela estatística**: comparação, métrica, teste, estatística, p-valor (bruto e corrigido),

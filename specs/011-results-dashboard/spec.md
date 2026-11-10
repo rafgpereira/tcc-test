@@ -35,6 +35,7 @@ são calculadas pelo módulo de métricas (feature 010), e as figuras do texto s
 - Q: Antes das métricas oficiais, mostrar porcentagens de detecção ou só contagens? → A: Porcentagens,
   rotuladas como prévia; quando a 010 existir, a página de métricas é a referência (Milena; FR-004).
 - Q: Uso local ou publicado? → A: Só local, no navegador de quem roda; sem publicação (FR-011).
+  Revisto em 2026-11-09: também uma cópia pública no Streamlit Community Cloud (FR-011, emenda).
 - Q: Baixar tabelas e gráficos? → A: CSV das tabelas filtradas; as figuras do TCC só pelo módulo de
   métricas (FR-012).
 - Q: Como trazer os problemas concluídos durante uma avaliação em andamento? → A: Lê ao abrir e
@@ -195,7 +196,14 @@ da tabela, sem nenhuma conta refeita.
   containerizado do projeto, e acessado pelo navegador da própria máquina.
 - **FR-011**: O dashboard é de uso **local**: aberto por quem roda o comando, no navegador da
   própria máquina, sem publicação na internet nem controle de acesso; para mostrar a outra pessoa,
-  compartilha-se a tela. Os dados não saem da máquina.
+  compartilha-se a tela. Os dados não saem da máquina. **Emenda de 2026-11-09 (Milena)**: além do
+  uso local, existe uma **cópia pública** no Streamlit Community Cloud (gratuito, até 2,7 GB de
+  memória). Ela é o mesmo painel, só de leitura, sobre os 12 pacotes versionados (avaliação dos 5
+  conjuntos, métricas, dataset, mutantes e suítes), descompactados em `data/` na primeira abertura
+  do servidor; entrada `src/dashboard/public/streamlit_app.py`, dependências mínimas em
+  `src/dashboard/public/requirements.txt` (versões do `uv.lock`). Ela é publicada pelos autores, na
+  conta do GitHub com acesso ao repositório. O Hugging Face Spaces chegou a ser escolhido, mas um
+  Space Docker exige plano pago para ser criado (documentação conferida em 2026-11-10).
 - **FR-013**: Toda sigla (AC, WA, TLE, TDF…) e todo cabeçalho de coluna MUST mostrar o nome completo
   ao passar o mouse, e a barra lateral MUST ter um glossário com as siglas e os valores que aparecem
   nas células (conjuntos, cenários, status, vereditos, macrocategorias). Pedido de Milena em
@@ -204,7 +212,10 @@ da tabela, sem nenhuma conta refeita.
   gravar nada no repositório. **Emenda de 2026-11-09 (Milena)**: a página de métricas mostra as
   figuras oficiais, desenhadas pelas funções do módulo de métricas com os filtros escolhidos, e
   oferece o download delas em PNG e PDF, com o filtro e a fonte no rodapé e no nome do arquivo
-  (feature 010, FR-017); nenhum outro gráfico do painel tem download.
+  (feature 010, FR-017); nenhum outro gráfico do painel tem download. **Emenda de 2026-11-09
+  (Milena)**: os botões são PNG, SVG e PDF e baixam o gráfico exatamente como aparece na tela, no
+  tema em uso; as linhas das combinações com o AC reprovado (Comparações) são marcadas por um tom
+  vermelho translúcido, legível nos dois temas.
 
 ### Key Entities
 
@@ -247,6 +258,7 @@ da tabela, sem nenhuma conta refeita.
 - **D2 — Prévia rotulada (decidido por Milena em 2026-11-04)**: antes das métricas oficiais, as
   porcentagens de detecção aparecem sempre como prévia (FR-004).
 - **D3 — Uso só local (decidido por Milena em 2026-11-04)**: sem publicação nem controle de acesso;
-  os dados não saem da máquina (FR-011).
+  os dados não saem da máquina (FR-011). Emendada em 2026-11-09 (Milena): também há uma cópia
+  pública no Streamlit Community Cloud (FR-011).
 - **D4 — Download só de CSV (decidido por Milena em 2026-11-04)**: as tabelas filtradas podem ser
   baixadas; gráficos não, para não haver uma segunda fonte de figuras (FR-012).

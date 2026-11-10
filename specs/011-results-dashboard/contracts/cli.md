@@ -19,3 +19,11 @@ Códigos de saída: `0` fechado normalmente ou por Ctrl+C; `2` uso incorreto (pa
 `3` Streamlit ausente na imagem (`docker compose build`).
 
 Não grava nada no repositório nem em `data/` (FR-003).
+
+## Cópia pública (emenda de 2026-11-09)
+
+Sem comando próprio: o Streamlit Community Cloud roda
+`streamlit run src/dashboard/public/streamlit_app.py` num clone do repositório, com as dependências
+de `src/dashboard/public/requirements.txt`. Na primeira abertura do servidor,
+`dashboard.cloud.prepare` descompacta em `data/` cada pacote de `config.PUBLIC_PACKAGES` cuja pasta
+ainda não existe (primeiro numa pasta temporária, depois movido); não grava mais nada.

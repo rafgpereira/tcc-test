@@ -24,6 +24,9 @@ custo.
 As figuras (US6) são funções de desenho que recebem a tabela por problema e filtros, recalculam
 pelas mesmas funções de métrica e gravam PNG/PDF determinísticos, com o filtro e a fonte no
 rodapé e no nome (R7). O dashboard chama essas mesmas funções na página de métricas.
+**Emenda de 2026-11-09 (Milena)**: as figuras passaram a ser o gráfico Altair do painel
+(`metrics/charts.py`), exportado pelo vl-convert em PNG, SVG e PDF; o matplotlib saiu do projeto
+(R7).
 
 `package`/`verify` empacotam `data/metrics/` (tabelas e figuras padrão) com manifesto. A seção 5
 da metodologia é reescrita com a proposta confirmada (R9).
@@ -33,7 +36,7 @@ da metodologia é reescrita com a proposta confirmada (R9).
 **Language/Version**: Python 3.11 (imagem única do projeto)
 
 **Primary Dependencies**: `pandas` 3.0.6 e `numpy` 2.4.6 (já no lock); **novas** `scipy` (Friedman,
-Wilcoxon pareado, teste binomial exato para o McNemar) e `matplotlib` (figuras), fixadas no
+Wilcoxon pareado, teste binomial exato para o McNemar) e `matplotlib` (figuras; trocado por `altair` + `vl-convert-python` na emenda de 2026-11-09), fixadas no
 `uv.lock` (R3, R7); Holm-Bonferroni e A12 de Vargha-Delaney implementados à mão (fórmulas curtas,
 testadas contra valores conhecidos)
 
@@ -52,7 +55,7 @@ testadas contra valores conhecidos)
 **Performance Goals**: `compute` em poucos minutos sobre ~3 milhões de linhas de `results.csv`
 (5 × 600 × 200 + sem suíte); medido na execução
 
-**Constraints**: determinismo (mesmas entradas → mesmos bytes, inclusive PNG/PDF); nenhuma
+**Constraints**: determinismo (mesmas entradas → mesmos bytes, inclusive PNG/SVG; o PDF do vl-convert não, e fica fora do pacote); nenhuma
 conversão do custo do modelo local para US$; nada calculado sem o portão de consistência
 
 **Scale/Scope**: 5 conjuntos × 3 cenários × 200 problemas; ~40 comparações estatísticas por métrica
@@ -106,7 +109,8 @@ src/metrics/
 ├── stats.py             # Friedman, Wilcoxon, McNemar exato, Holm, A12/Cliff
 ├── cuts.py              # filtros (macrocategoria, status, conjuntos, cenários)
 ├── tables.py            # monta e grava as cinco tabelas (esquema validado)
-├── figures.py           # funções de figura (filtros → matplotlib), rodapé e nome
+├── figures.py           # dados de cada figura (filtros), subtítulo, nome e exportação (vl-convert)
+├── charts.py            # o gráfico Altair de cada figura, por tema (claro/escuro)
 ├── gate.py              # cli check --deep nas camadas lidas
 └── packaging.py         # zip + manifesto + verify
 

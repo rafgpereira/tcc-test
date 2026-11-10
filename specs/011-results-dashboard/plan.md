@@ -43,7 +43,10 @@ cada página com `AppTest` (sem navegador) (R8)
 **Performance Goals**: abrir com as 3.000 combinações em menos de 1 min e responder a um filtro em
 menos de 5 s (SC-002); medir no piloto e na execução completa
 
-**Constraints**: só leitura (FR-003); uso local (FR-011, porta só em `127.0.0.1`, sem telemetria);
+**Constraints**: só leitura (FR-003); uso local (FR-011, porta só em `127.0.0.1`, sem telemetria),
+e, desde 2026-11-09, uma cópia pública no Streamlit Community Cloud (`src/dashboard/cloud.py`
+descompacta os pacotes na primeira abertura; entrada e dependências mínimas em
+`src/dashboard/public/`; num Python 3.11 limpo, a primeira abertura levou 39 s com 176 MB de pico);
 nenhuma métrica oficial calculada (FR-004, FR-005); a raiz do contêiner é somente leitura, então a
 configuração do Streamlit e o seu diretório de trabalho ficam no `/tmp` (R3)
 

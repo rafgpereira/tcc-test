@@ -57,6 +57,10 @@ def test_corrected_oracle_delta_and_causes():
     ]
     r = one(primary.table(per_problem_rows(rows)))
     assert (r["TDF"], r["TDF_star"], r["delta_TDF"]) == (50.0, 40.0, 10.0)
+    # the counts: each target killed or not, summed over the problems
+    assert (r["WA_killed"], r["WA_killed_star"], r["WA_total"]) == (100, 80, 200)
+    assert r["TDF"] == 100 * r["WA_killed"] / r["WA_total"]
+    assert r["mutants_total"] == 200
     assert r["delta_MS"] == 0.0
     assert (r["FP_tests_oracle"], r["FP_tests_invalid_input"], r["total_tests"]) == (2, 1, 20)
     assert r["TFP_test"] == 15.0

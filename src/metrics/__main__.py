@@ -21,11 +21,16 @@ def _run_gate(root: Path) -> list[str]:  # replaced in the tests
 
 def _summary(metrics) -> str:
     rows = metrics[metrics["cut"] == "all"]
-    lines = ["set           scenario    TDF      MS       TFP      TC       TDF*     MS*"]
+    header = (
+        "set           scenario    TDF      MS       TFP      TC       TDF*     MS*      "
+        "WAs mortos     mutantes mortos"
+    )
+    lines = [header]
     for _, r in rows.iterrows():
         lines.append(
             f"{r['set']:<13} {r['scenario']:<11} {r['TDF']:<8.2f} {r['MS']:<8.2f} "
-            f"{r['TFP']:<8.2f} {r['TC']:<8.2f} {r['TDF_star']:<8.2f} {r['MS_star']:<8.2f}"
+            f"{r['TFP']:<8.2f} {r['TC']:<8.2f} {r['TDF_star']:<8.2f} {r['MS_star']:<8.2f} "
+            f"{r['WA_killed']:>6}/{r['WA_total']:<7} {r['mutants_killed']:>6}/{r['mutants_total']}"
         )
     return "\n".join(lines)
 
@@ -57,6 +62,7 @@ def _figures(args) -> int:
         "statuses": args.status,
         "sets": args.set,
         "scenarios": args.scenario,
+        "problems": args.problem,
     }
     out = Path(args.output_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -85,7 +91,9 @@ def _package(args) -> int:
     root = Path(".")
     folder = root / config.METRICS_DIR
     missing = [f for f in config.TABLES.values() if not (folder / f).is_file()]
-    defaults = [figures.file_name(n, {}, fmt) for n in figures.FIGURES for fmt in ("png", "pdf")]
+    defaults = [
+        figures.file_name(n, {}, fmt) for n in figures.FIGURES for fmt in figures.PACKAGED_FORMATS
+    ]
     missing += [f"figures/{f}" for f in defaults if not (folder / "figures" / f).is_file()]
     if missing:
         print(
@@ -129,7 +137,8 @@ def build_parser() -> argparse.ArgumentParser:
     figs.add_argument("--status", action="append", default=[])
     figs.add_argument("--set", action="append", choices=config.SETS, default=[])
     figs.add_argument("--scenario", action="append", choices=config.SCENARIOS, default=[])
-    figs.add_argument("--format", default="png,pdf")
+    figs.add_argument("--problem", action="append", default=[], metavar="ID")
+    figs.add_argument("--format", default="png,svg,pdf")
     figs.add_argument("--output-dir", default=str(config.FIGURES_DIR))
     sub.add_parser("package", help="build data/metrics.zip and its manifest")
     verify = sub.add_parser(

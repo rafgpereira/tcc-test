@@ -18,7 +18,7 @@ def _sha(data: bytes) -> str:
 
 
 def _files(folder: Path) -> list[Path]:
-    """The packaged files: the tables, ``run.json`` and the figures WITHOUT filters.
+    """The packaged files: the tables, ``run.json`` and the figures WITHOUT filters, in PNG and SVG.
 
     Filtered figures (``<figure>__<filter>...``) are exploration; any of them is redrawn by
     ``figures`` with the filter its name carries, so they are never packaged.
@@ -29,6 +29,8 @@ def _files(folder: Path) -> list[Path]:
             continue
         if path.parent.name == "figures" and "__" in path.stem:
             continue
+        if path.parent.name == "figures" and path.suffix[1:] not in config.PACKAGED_FIGURE_FORMATS:
+            continue  # the PDF is not the same bytes on every call (``metrics.figures``)
         files.append(path)
     return files
 

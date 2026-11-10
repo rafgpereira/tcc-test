@@ -41,10 +41,16 @@ concluídos por conjunto:
   foi detectado e o código dele ao lado do `AC_ref`, com as diferenças destacadas.
 - **Comparações**: a diferença entre o oráculo declarado e o corrigido por combinação (em vermelho,
   as com o AC reprovado), e o modelo local (suíte final e 1ª tentativa) ao lado dos comerciais.
-- **Métricas**: as tabelas oficiais do módulo de métricas (com o corte por macrocategoria ou
-  status), os testes estatísticos, o custo e as figuras do texto, com filtros e os botões de
-  baixar PNG e PDF (a figura baixada é a mesma que o comando `python -m metrics figures` gera com
-  o mesmo filtro); antes de as métricas serem calculadas, um aviso.
+- **Métricas**: os gráficos das métricas, nas cores do tema escolhido (claro ou escuro), um painel
+  por cenário quando há muitas barras, com o valor escrito em cada barra (o total, na TFP por causa;
+  a mediana, em cada caixa do IIC; o custo em US$ por 1.000 WAs detectados), filtrados pelos mesmos filtros da barra lateral (conjunto, cenário, problema,
+  macrocategoria, status; o filtro de problema precisa de pelo menos 2); os botões **PNG**,
+  **SVG** e **PDF** embaixo de cada gráfico baixam o gráfico exatamente como aparece na tela (no
+  tema claro ou escuro), com o filtro e a fonte no subtítulo; no tema claro, é a mesma figura do
+  comando `python -m metrics figures`. Abaixo, **quantos WAs e mutantes a IA matou** (de 100 de
+  cada por problema) e as tabelas oficiais (com o corte por
+  macrocategoria ou status), os testes estatísticos e o custo; antes de as métricas serem
+  calculadas, um aviso.
 
 **Prévia**: as porcentagens de detecção do painel (detectados ÷ total, somados só sobre as
 combinações com suíte) são uma prévia, sempre marcada assim. Os números oficiais (TDF, MS e as
@@ -53,6 +59,30 @@ já filtrado (vai para a pasta de downloads do navegador, não para o repositór
 
 **Durante uma avaliação em andamento**, os dados são lidos ao abrir e guardados; clique em
 **recarregar dados** para ver os problemas concluídos depois disso.
+
+### Cópia pública (Streamlit Community Cloud)
+
+O mesmo painel, só de leitura, pode ficar na internet no **Streamlit Community Cloud** (gratuito).
+Ele copia o repositório do GitHub e abre o painel num endereço `https://<nome>.streamlit.app`. A
+cópia pública mostra os pacotes versionados (avaliação, métricas, dataset, mutantes e suítes), não
+a pasta `data/` da sua máquina: na primeira abertura ela descompacta os zips (cerca de 40 s) e
+depois abre direto. Ela mostra o que está commitado e enviado ao GitHub (`git push`), na branch
+escolhida.
+
+1. Entre em **share.streamlit.io** com uma conta do GitHub que tenha acesso ao repositório
+   `rafgpereira/tcc-test` (se o repositório for privado, autorize o acesso a repositórios
+   privados quando o site pedir).
+2. **Create app** → *Deploy a public app from GitHub* e preencha: repositório `rafgpereira/tcc-test`,
+   branch `main`, *Main file path* `src/dashboard/public/streamlit_app.py`; em *Advanced
+   settings*, Python **3.11**. Escolha o endereço e clique em **Deploy**.
+3. A primeira construção instala as dependências de `src/dashboard/public/requirements.txt` e leva
+   alguns minutos; acompanhe em *Manage app*. Cada `git push` na branch atualiza o painel sozinho.
+
+Quem pode ver: em *Settings → Sharing* do app. Com o repositório privado, dá para liberar só para
+e-mails convidados. Sem visitas por 12 horas o app "dorme"; quem abrir o endereço o acorda.
+
+Para testar como ficará, na sua máquina, com o painel normal: os comandos acima mostram as mesmas
+páginas sobre os mesmos pacotes descompactados.
 
 ### Comandos
 
@@ -66,6 +96,7 @@ já filtrado (vai para a pasta de downloads do navegador, não para o repositór
 | O que aparece | O que fazer |
 |---|---|
 | `error: streamlit is not installed in the image` (`3`) | `docker compose build` |
+| a cópia pública mostra um erro | abra *Manage app* no canto inferior direito do app para ver o registro; *Reboot app* refaz a abertura |
 | `error: not a folder: data/evaluation` (`2`) | ainda não há avaliação: rode `python -m evaluation run` (README do módulo `evaluation`) ou aponte `--evaluation-dir` |
 | o navegador não abre `localhost:8501` | confira o `-p 127.0.0.1:8501:8501` no comando e se outro programa já usa a porta (troque as duas, `-p` e `--port`) |
 | "Nenhum resultado concluído" | a avaliação ainda não fechou nenhum problema; espere e clique em **recarregar dados** |
@@ -82,8 +113,9 @@ já filtrado (vai para a pasta de downloads do navegador, não para o repositór
 
 ## (d) Saídas produzidas
 
-Nenhuma no repositório nem em `data/`. Só a página no navegador e, quando você pede, o CSV de uma
-tabela, baixado pelo navegador.
+Nenhuma no repositório. Só a página no navegador e, quando você pede, o CSV de uma tabela ou uma
+figura, baixados pelo navegador. Só a cópia pública descompacta os pacotes em `data/`, no servidor
+dela.
 
 ## (e) Dependências e pré-requisitos
 
@@ -97,6 +129,8 @@ tabela, baixado pelo navegador.
 - O tempo para abrir com a avaliação completa (3.000 combinações) ainda não foi medido; com os 15
   resultados da conferência de um problema, cada página abriu em até 1,6 s (medido em 2026-11-05).
 - As porcentagens são uma prévia; as métricas oficiais só aparecem depois do módulo de métricas.
+- Na cópia pública, o campo "Pasta de avaliação" da barra lateral continua editável; ele só lê
+  resultados no formato da avaliação, no servidor da cópia.
 - O painel não executa código: para saber o que um WA respondeu num teste, compare o código dele
   com o do `AC_ref` no detalhe do alvo.
 

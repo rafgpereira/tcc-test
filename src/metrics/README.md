@@ -19,7 +19,7 @@ código de terceiros nem chama IA.
 
 | Tabela | O que tem |
 |---|---|
-| `metrics.csv` | **TDF** (% de WAs, as falhas reais, que a suíte pega), **MS** (% de mutantes), **TFP** (% de problemas em que a suíte reprova o código correto: falso positivo), **TC** (% de combinações com suíte); as mesmas pelo gabarito do código correto (**TDF\***, **MS\***) e a diferença (**Δ**, quanto da detecção vem de gabarito errado da IA); a TFP por teste, separando saída errada da IA de entrada inválida; a densidade (TDF por teste). Sem corte e por macrocategoria e status da suíte |
+| `metrics.csv` | **TDF** (% de WAs, as falhas reais, que a suíte pega), **MS** (% de mutantes), e as contagens: **WAs e mutantes mortos** de um total de 100 de cada por problema (cada um conta uma vez, morto se algum teste o reprovou), **TFP** (% de problemas em que a suíte reprova o código correto: falso positivo), **TC** (% de combinações com suíte); as mesmas pelo gabarito do código correto (**TDF\***, **MS\***) e a diferença (**Δ**, quanto da detecção vem de gabarito errado da IA); a TFP por teste, separando saída errada da IA de entrada inválida; a densidade (TDF por teste). Sem corte e por macrocategoria e status da suíte |
 | `iic.csv` | **IIC**: quanto juntar enunciado e código ajudou (positivo) ou atrapalhou (negativo), somando os 200 problemas, e a distribuição problema a problema |
 | `stats.csv` | se as diferenças entre cenários e entre modelos são reais: Friedman, Wilcoxon pareado e McNemar, com p-valor corrigido (Holm) e tamanho do efeito (A12) |
 | `cost.csv` | custo em US$ dos modelos comerciais e custo por falha detectada; *tokens* e tempo dos quatro (o modelo local não tem custo em dinheiro) |
@@ -40,16 +40,19 @@ docker compose run --rm app python -m metrics verify --extracted data/metrics
    passa no dataset, nas suítes e nas avaliações (senão para com `1` e não grava nada); grava as
    tabelas em `data/metrics/` (de uma vez: uma interrupção não deixa metade) e imprime TDF, MS,
    TFP, TC, TDF\* e MS\* de cada conjunto e cenário. Rodar de novo dá os mesmos arquivos.
-2. **`figures`** desenha os gráficos em `data/metrics/figures/`, em PNG e PDF: TDF por modelo e
-   cenário, TDF × TDF\*, MS × MS\*, falsos positivos por causa, distribuição do IIC e custo por
-   detecção. Com filtros, o nome do arquivo e o rodapé da figura dizem o filtro (por exemplo,
-   `tdf_by_model__macrocategoria-matematica.pdf`), para qualquer figura poder ser refeita.
+2. **`figures`** desenha os gráficos em `data/metrics/figures/`, em PNG, SVG e PDF: TDF por
+   modelo e cenário, TDF × TDF\*, MS × MS\*, falsos positivos por causa, distribuição do IIC e
+   custo por detecção. É o mesmo desenho do painel, no tema claro. Com filtros, o nome do arquivo e
+   o subtítulo da figura dizem o filtro (por exemplo, `tdf_by_model__macrocategoria-matematica.png`),
+   para qualquer figura poder ser refeita. PNG e SVG saem iguais byte a byte a cada execução; o PDF
+   tem o mesmo desenho, mas não sai igual byte a byte, por isso não entra no pacote.
 3. **`package`** grava `data/metrics.zip` e `manifests/metrics.manifest.json` (recusa se faltarem
-   tabelas ou as figuras sem filtro); **`verify`** confere o zip e a pasta: `OK`.
+   tabelas ou as figuras sem filtro em PNG e SVG); **`verify`** confere o zip e a pasta: `OK`.
 
-As mesmas tabelas e figuras, com filtros e o botão de baixar PNG e PDF, aparecem na página
-**Métricas** do painel (README do módulo [`dashboard`](../dashboard/README.md)); a figura baixada
-lá é idêntica à do comando com o mesmo filtro.
+As mesmas tabelas e os mesmos gráficos, interativos e com filtros, aparecem na página **Métricas**
+do painel (README do módulo [`dashboard`](../dashboard/README.md)): cada gráfico se salva como foto
+pelos botões PNG, SVG e PDF exatamente como aparece na tela; no tema claro, é a figura do comando
+com o mesmo filtro.
 
 ### Cenário B — Descompactar o que já existe
 
@@ -64,7 +67,7 @@ docker compose run --rm app python -m metrics verify --extracted data/metrics
 | Comando | Serviço | O que faz / variações |
 |---|---|---|
 | `python -m metrics compute` | `app` | calcula as tabelas; `--evaluation-dir DIR` (padrão `data/evaluation`). Códigos: `0`; `1` avaliação incompleta ou `cli check` com falha |
-| `python -m metrics figures` | `app` | desenha as figuras; `--figure NOME` (repetível; padrão todas), filtros `--macrocategoria M`, `--status S`, `--set S`, `--scenario C` (repetíveis; nunca um problema só), `--format png,pdf`, `--output-dir DIR`. Códigos: `0`; `1` tabelas ausentes; `2` filtro inválido |
+| `python -m metrics figures` | `app` | desenha as figuras; `--figure NOME` (repetível; padrão todas), filtros `--macrocategoria M`, `--status S`, `--set S`, `--scenario C`, `--problem ID` (repetíveis; nunca um problema só), `--format png,svg,pdf` (padrão os três), `--output-dir DIR`. Códigos: `0`; `1` tabelas ausentes; `2` filtro inválido |
 | `python -m metrics package` | `app` | zip e manifesto |
 | `python -m metrics verify` | `app` | confere o zip; `--extracted DIR` também a pasta |
 | `pytest tests/metrics` | `sandbox` | testes do módulo (casos conhecidos de cada métrica) |
@@ -91,12 +94,12 @@ docker compose run --rm app python -m metrics verify --extracted data/metrics
 | Saída | Formato | Destino |
 |---|---|---|
 | as seis tabelas e `run.json` (hashes das entradas) | CSV e JSON | `data/metrics/` |
-| figuras | PNG e PDF | `data/metrics/figures/` |
+| figuras | PNG e SVG (no pacote) e PDF | `data/metrics/figures/` |
 | `data/metrics.zip`, `manifests/metrics.manifest.json` | zip e JSON | **versionados** (`package`) |
 
 ## (e) Dependências e pré-requisitos
 
-- Python 3.11, pandas, scipy e matplotlib, fixados no `uv.lock`, na imagem (`docker compose build`).
+- Python 3.11, pandas, scipy, Altair e vl-convert (desenho e exportação das figuras), fixados no `uv.lock`, na imagem (`docker compose build`).
 - Serviço `app`; nenhuma variável de ambiente nem segredo.
 
 ## (f) Limitações conhecidas

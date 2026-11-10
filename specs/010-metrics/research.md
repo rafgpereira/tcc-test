@@ -76,6 +76,12 @@ Nenhum `NEEDS CLARIFICATION` ficou. Cada item tem a decisão, o motivo e as alte
   execução. O rodapé traz os filtros e a fonte: os hashes curtos dos manifestos de avaliação lidos,
   não a revisão do Git, que não existe dentro do contêiner. O nome do arquivo é
   `<figura>__<filtros>.{png,pdf}` (sem filtro, só `<figura>`).
+- **Revisão (2026-11-09, Milena)**: a figura baixada precisa ser igual ao gráfico da tela. As
+  figuras passaram a ser o gráfico Altair do painel (`metrics/charts.py`), exportado pelo
+  `vl-convert-python` 1.9.0.post1: PNG (escala 2) e SVG saem iguais byte a byte a cada chamada (os
+  ids `clipN` do SVG são renumerados na ordem em que aparecem); o PDF tem o mesmo desenho, mas o
+  vl-convert muda a ordem dos objetos de fonte de uma chamada para outra (medido: 4 variantes em 20
+  chamadas), por isso o pacote leva PNG e SVG e não o PDF. O matplotlib saiu das dependências.
 - **Figuras iniciais**: `tdf_by_model` (barras, modelo × cenário), `tdf_declared_vs_corrected`
   (barras pareadas, Δ_oráculo), `ms_declared_vs_corrected`, `tfp_by_cause` (barras empilhadas:
   `oráculo` × `entrada_inválida`), `iic_distribution` (boxplot por problema, por conjunto e direção),

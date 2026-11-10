@@ -405,7 +405,7 @@ no `.env` e nunca fazem uma chamada paga sem `--confirm-spend <US$>`, que també
 | Comando | Serviço | O que faz / variações |
 |---|---|---|
 | `docker compose run --rm app python -m metrics compute` | `app` | calcula as tabelas de métricas em `data/metrics/` (confere antes que as avaliações estão completas e o `cli check --deep`); `--evaluation-dir DIR` |
-| `docker compose run --rm app python -m metrics figures` | `app` | desenha as figuras em PNG e PDF; `--figure NOME`, filtros `--macrocategoria`, `--status`, `--set`, `--scenario` (repetíveis), `--format`, `--output-dir` |
+| `docker compose run --rm app python -m metrics figures` | `app` | desenha as figuras em PNG, SVG e PDF (o mesmo desenho do painel); `--figure NOME`, filtros `--macrocategoria`, `--status`, `--set`, `--scenario`, `--problem` (repetíveis; pelo menos 2 problemas), `--format`, `--output-dir` |
 | `docker compose run --rm app python -m metrics package` | `app` | `data/metrics.zip` (tabelas e figuras sem filtro) e o manifesto |
 | `docker compose run --rm app python -m metrics verify` | `app` | confere o zip; `--extracted data/metrics` também a pasta |
 | `unzip data/metrics.zip -d data/` | (host) | descompacta as tabelas e as figuras em `data/metrics/` |
@@ -415,7 +415,6 @@ no `.env` e nunca fazem uma chamada paga sem `--confirm-spend <US$>`, que també
 | Comando | Serviço | O que faz / variações |
 |---|---|---|
 | `docker compose run --rm -p 127.0.0.1:8501:8501 app python -m dashboard serve` | `app` | abre o painel em `http://localhost:8501` (só nesta máquina), só de leitura; `--evaluation-dir DIR` (padrão `data/evaluation`), `--port N`; Ctrl+C fecha |
-
 ### Módulo `sandbox` ([README](src/sandbox/README.md))
 
 O motor não tem comando próprio: é uma biblioteca usada pelo `dataset` e pelo `mutation` (e, no

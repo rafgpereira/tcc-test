@@ -1,7 +1,9 @@
 """TDF, MS, TFP, TC and the complementary C.1, C.2, C.4 per set × scenario (FR-003 to FR-010).
 
-All values are percentages. TDF and MS are means over the problems of the cut; since every problem
-has 100 WAs and 100 mutants, the mean of the ratios equals the ratio of the sums (proposal B.3).
+TDF and MS are percentages: means over the problems of the cut; since every problem has 100 WAs
+and 100 mutants, the mean of the ratios equals the ratio of the sums (proposal B.3). Next to them,
+the counts: each WA and each mutant is killed or not (a target counts once, whatever the number of
+tests that fail it), so ``WA_killed`` of ``WA_total`` is the TDF as a count.
 """
 
 import numpy as np
@@ -16,6 +18,12 @@ COLUMNS = (
     "TC",
     "TDF",
     "MS",
+    "WA_killed",
+    "WA_killed_star",
+    "WA_total",
+    "mutants_killed",
+    "mutants_killed_star",
+    "mutants_total",
     "TFP",
     "TFP_with_suite",
     "without_suite",
@@ -63,6 +71,12 @@ def _row(group: pd.DataFrame, values: pd.DataFrame) -> dict:
         "TC": _ratio(n_with, problems),
         "TDF": tdf,
         "MS": ms,
+        "WA_killed": int(group["wa_declared"].sum()),
+        "WA_killed_star": int(group["wa_corrected"].sum()),
+        "WA_total": int(group["n_wa"].sum()),
+        "mutants_killed": int(group["mutants_declared"].sum()),
+        "mutants_killed_star": int(group["mutants_corrected"].sum()),
+        "mutants_total": int(group["n_mutants"].sum()),
         "TFP": _ratio(rejected, problems),
         "TFP_with_suite": _ratio(rejected, n_with),
         "without_suite": problems - n_with,

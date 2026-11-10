@@ -142,6 +142,21 @@ COLUMNS = {
     "TC": ("TC", "Taxa de Cobertura: % de combinações que têm suíte"),
     "TDF": ("TDF", "Taxa de Detecção de Falhas reais: % médio de WAs detectados (gabarito da IA)"),
     "MS": ("MS", "Mutation Score: % médio de mutantes detectados (gabarito da IA)"),
+    "WA_killed": (
+        "WAs mortos",
+        "Quantos WAs a suíte matou (algum teste reprovou), pelo gabarito da IA; cada WA conta uma vez",
+    ),
+    "WA_killed_star": ("WAs mortos*", "Quantos WAs a suíte matou pelo gabarito do AC"),
+    "WA_total": ("WAs no total", "Total de WAs (100 por problema)"),
+    "mutants_killed": (
+        "mutantes mortos",
+        "Quantos mutantes a suíte matou, pelo gabarito da IA; cada mutante conta uma vez",
+    ),
+    "mutants_killed_star": (
+        "mutantes mortos*",
+        "Quantos mutantes a suíte matou pelo gabarito do AC",
+    ),
+    "mutants_total": ("mutantes no total", "Total de mutantes (100 por problema)"),
     "TFP": ("TFP", "Taxa de Falsos Positivos: % de problemas em que a suíte reprova o AC"),
     "TFP_with_suite": ("TFP com suíte", "TFP só entre as combinações que têm suíte"),
     "TDF_star": ("TDF*", "TDF pelo oráculo corrigido (gabarito do AC)"),

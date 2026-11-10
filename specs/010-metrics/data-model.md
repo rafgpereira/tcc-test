@@ -21,11 +21,14 @@ linha (base do IIC).
 
 ## `metrics.csv`
 
-`set, scenario, cut, cut_value, problems, TC, TDF, MS, TFP, TFP_with_suite, without_suite,
+`set, scenario, cut, cut_value, problems, TC, TDF, MS, WA_killed, WA_killed_star, WA_total,
+mutants_killed, mutants_killed_star, mutants_total, TFP, TFP_with_suite, without_suite,
 TDF_star, MS_star, delta_TDF, delta_MS, TFP_test, FP_tests_oracle, FP_tests_invalid_input,
 total_tests, mean_suite_size, density_TDF`
 
 - `cut` ∈ `all` | `macrocategoria` | `status`, e `cut_value` é o valor do corte (vazio em `all`);
+- `WA_killed`/`mutants_killed` (oráculo declarado) e `*_star` (corrigido): soma, nos problemas do
+  corte, dos alvos mortos (cada alvo conta uma vez); `WA_total`/`mutants_total` = 100 × problemas;
   `problems` é o número de problemas do corte.
 - TDF = média de `wa_declared / n_wa × 100`; MS = média de `mutants_declared / n_mutants`
   (× 100 na tabela); os `_star` usam os campos `corrected`.
@@ -67,5 +70,5 @@ cpd_wa_corrected, cpd_mutants_declared, cpd_mutants_corrected`
 
 ## Figura
 
-Nome `<figura>[__<filtro>-<valor>...].{png,pdf}`; rodapé: `filtros: …  ·  fonte: data/metrics
+Nome `<figura>[__<filtro>-<valor>...].{png,svg,pdf}` (no pacote, só PNG e SVG das figuras sem filtro); subtítulo: `filtros: …  ·  fonte: data/metrics
 (avaliação <hash curto dos manifestos>)`.
