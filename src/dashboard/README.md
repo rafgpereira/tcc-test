@@ -70,10 +70,13 @@ depois abre direto. Ela mostra o que está commitado e enviado ao GitHub (`git p
 escolhida.
 
 1. Entre em **share.streamlit.io** com uma conta do GitHub que tenha acesso ao repositório
-   `rafgpereira/tcc-test` (se o repositório for privado, autorize o acesso a repositórios
-   privados quando o site pedir).
-2. **Create app** → *Deploy a public app from GitHub* e preencha: repositório `rafgpereira/tcc-test`,
-   branch `main`, *Main file path* `src/dashboard/public/streamlit_app.py`; em *Advanced
+   `tcc-engenharia-software/ai-testgen-evaluator` (o repositório é de uma organização: se ele
+   não aparecer na lista, autorize a organização para o Streamlit no GitHub, em *Settings →
+   Applications*, ou peça a um dono da organização; se for privado, autorize também o acesso a
+   repositórios privados quando o site pedir).
+2. **Create app** → *Deploy a public app from GitHub* e preencha: repositório
+   `tcc-engenharia-software/ai-testgen-evaluator`, branch `main`, *Main file path*
+   `src/dashboard/public/streamlit_app.py` (não o `src/dashboard/app.py`); em *Advanced
    settings*, Python **3.11**. Escolha o endereço e clique em **Deploy**.
 3. A primeira construção instala as dependências de `src/dashboard/public/requirements.txt` e leva
    alguns minutos; acompanhe em *Manage app*. Cada `git push` na branch atualiza o painel sozinho.
@@ -97,6 +100,7 @@ páginas sobre os mesmos pacotes descompactados.
 |---|---|
 | `error: streamlit is not installed in the image` (`3`) | `docker compose build` |
 | a cópia pública mostra um erro | abra *Manage app* no canto inferior direito do app para ver o registro; *Reboot app* refaz a abertura |
+| a cópia pública falha em `from dashboard import ...`, no `src/dashboard/app.py` | o app foi criado com o *Main file path* errado: apague o app (⋮ → *Delete*) e crie de novo com `src/dashboard/public/streamlit_app.py` |
 | `error: not a folder: data/evaluation` (`2`) | ainda não há avaliação: rode `python -m evaluation run` (README do módulo `evaluation`) ou aponte `--evaluation-dir` |
 | o navegador não abre `localhost:8501` | confira o `-p 127.0.0.1:8501:8501` no comando e se outro programa já usa a porta (troque as duas, `-p` e `--port`) |
 | "Nenhum resultado concluído" | a avaliação ainda não fechou nenhum problema; espere e clique em **recarregar dados** |
