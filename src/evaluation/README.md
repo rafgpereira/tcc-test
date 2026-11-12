@@ -83,15 +83,19 @@ refeito nem reescrito; em cada problema, só os conjuntos que faltam são avalia
 
 ### Cenário B — Descompactar o que já existe
 
+Os cinco conjuntos, um de cada vez:
+
 ```bash
-rm -rf data/evaluation/gpt
-unzip data/evaluation_gpt.zip -d data/        # um por conjunto
-docker compose run --rm app python -m evaluation verify --set gpt --extracted data/evaluation/gpt
+for s in slm gpt gemini claude slm-attempt1; do
+  rm -rf data/evaluation/$s
+  unzip -q data/evaluation_$s.zip -d data/
+  docker compose run --rm app python -m evaluation verify --set $s --extracted data/evaluation/$s
+done
 docker compose run --rm app python -m cli check --deep
 ```
 
 O `unzip` recria `data/evaluation/<conjunto>/` (`run.json`, `results.csv` e `problems/`). Esperado:
-`OK` e `Resultado: OK`.
+`OK` em cada `verify` e `Resultado: OK` no `check`.
 
 ### Comandos
 

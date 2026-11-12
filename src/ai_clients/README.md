@@ -1,6 +1,6 @@
-# Módulo `ai_clients` (geração de suítes de teste pelos três modelos)
+# Módulo `ai_clients` (geração de suítes de teste pelos quatro modelos)
 
-> **Status**: em implementação (modelos comerciais; o modelo local está implementado e executado) · **Metodologia**: `docs/metodologia-referencia.md`, seção 3
+> **Status**: implementado (execução completa dos quatro modelos) · **Metodologia**: `docs/metodologia-referencia.md`, seção 3
 
 ## (a) Propósito
 
@@ -13,16 +13,20 @@ Gera, para cada problema do dataset e cada um dos três cenários de contexto, u
 e tenha o dataset descompactado em `data/dataset/`
 ([README do módulo `dataset`](../dataset/README.md), Cenário B).
 
-**Estado (2026-10-22)**: o modelo local terminou a execução completa em 2026-10-09 e, depois da
-revisão 2 do dataset, refez as 208 combinações afetadas; o pacote `data/slm_suites.zip` junta as duas
-execuções (600 de 600 combinações com suíte: 504 `accepted`, 95 `accepted_fallback`, 1
-`accepted_predicted`; números em (f)) e está no repositório: para usar essas suítes, siga o Cenário B. Os três modelos comerciais (opção
-`--model gpt`, `--model gemini` ou `--model claude`) têm o código e os testes prontos. O Gemini
-terminou a execução completa sobre a revisão 2 do dataset (600 combinações, 599 `accepted_predicted` e 1 `accepted_barred`, 613 chamadas, US$ 4,90, pacote `data/gemini_suites.zip`; números em (f)), assim como o GPT
-(600 combinações, 600 `accepted_predicted`, 601 chamadas, US$ 13,47, pacote `data/gpt_suites.zip`), assim como o Claude
-(600 combinações, 589 `accepted_predicted`, 8 `accepted_barred` e 3 `discarded_manual`, 632 chamadas, US$ 0,98, pacote `data/claude_suites.zip`); os três têm o pacote no repositório (Cenário B). O
-`show-request` e o `generate --dry-run --save-requests` mostram, sem chamar nada, o que é enviado a
-cada modelo (Cenário B).
+**Estado (2026-11-12)**: os quatro modelos terminaram a execução completa sobre a revisão 2 do
+dataset, e os quatro pacotes estão no repositório. **Para usar essas suítes, siga o Cenário B**; o
+Cenário A só serve para gerar tudo de novo (leva dias e, nos comerciais, custa dinheiro).
+
+| Modelo | Pacote | Combinações com suíte (de 600) | Chamadas | Custo |
+|---|---|---|---|---|
+| local (`slm`) | `data/slm_suites.zip` | 600: 504 `accepted`, 95 `accepted_fallback`, 1 `accepted_predicted` | — | sem custo em dinheiro |
+| `gpt` | `data/gpt_suites.zip` | 600: 600 `accepted_predicted` | 601 | US$ 13,47 |
+| `gemini` | `data/gemini_suites.zip` | 600: 599 `accepted_predicted`, 1 `accepted_barred` | 613 | US$ 4,90 |
+| `claude` | `data/claude_suites.zip` | 597: 589 `accepted_predicted`, 8 `accepted_barred` (e 3 `discarded_manual`, sem suíte) | 632 | US$ 0,98 |
+
+O que cada `status` quer dizer está logo abaixo; o detalhe de cada execução, em (f). O `show-request`
+e o `generate --dry-run --save-requests` mostram, sem chamar nada, o que é enviado a cada modelo
+(Cenário B).
 
 Os comandos são os mesmos para os quatro modelos. Sem a opção `--model`, tudo vale para o modelo
 local (`slm`), descrito logo abaixo; com `--model gpt`, `--model gemini` ou `--model claude`, para os comerciais,
@@ -200,6 +204,7 @@ grava nada:
 ```bash
 docker compose run --rm app python -m ai_clients generate --model gpt --dry-run
 docker compose run --rm app python -m ai_clients generate --model gemini --dry-run
+docker compose run --rm app python -m ai_clients generate --model claude --dry-run
 ```
 
 Cada linha diz o número de combinações e de pedidos (`up to` = com as 3 tentativas), os *tokens* de
@@ -246,9 +251,9 @@ docker compose run --rm app python -m ai_clients verify --model gpt --extracted 
 docker compose run --rm app python -m cli check --deep
 ```
 
-O `package` gera `data/gpt_suites.zip` (ou `data/gemini_suites.zip`), o manifesto
-`manifests/gpt_suites.manifest.json` e refaz `manifests/gpt_generation_report.json`; esses três se
-versionam.
+O `package` gera `data/gpt_suites.zip` (ou `data/gemini_suites.zip`, `data/claude_suites.zip`), o
+manifesto `manifests/gpt_suites.manifest.json` e refaz `manifests/gpt_generation_report.json`; esses
+três se versionam. Repita os quatro comandos com `--model gemini` e `--model claude`.
 
 ### Cenário B — Descompactar o que já existe
 
@@ -315,7 +320,7 @@ antes de a execução do modelo começar.
 | `python -m ai_clients package` | `app` | gera `data/slm_suites.zip`, `manifests/slm_suites.manifest.json` e refaz o relatório; sempre da execução inteira (sem `--problem`). Recusa (`1`) se alguma combinação não tem `suite.json` (listando as que aguardam os autores, com o `close`), se há combinação danificada, se `superseded/` não bate com as trocas ou se outro comando estiver rodando |
 | `python -m ai_clients package --merge-from data/suites/slm-rev1` | `app` | depois de uma **revisão do dataset** (só o modelo local): junta a execução nova, que refez só as combinações afetadas (caixa-preta e híbrido dos enunciados alterados, conforme `manifests/dataset_revision.json`), com a execução anterior, guardada em `data/suites/slm-rev1/` (`mv data/suites/slm data/suites/slm-rev1` antes do primeiro `generate` da revisão nova). Grava `data/suites/slm/provenance.json`, com a origem de cada combinação: a pasta que tem a suíte vigente e a revisão do dataset que a gerou; a combinação refeita fica na pasta anterior marcada como substituída. O zip leva as duas pastas. Imprime `merged: N combinations from suites/slm ..., M from suites/slm-rev1 ...`. Recusa (`1`) se faltar uma combinação afetada, se a execução nova tiver uma combinação que a revisão não afetou, se a pasta anterior estiver danificada ou se não houver revisão do dataset |
 | `python -m ai_clients verify` | `app` | confere `data/slm_suites.zip` contra o manifesto; `--extracted data/suites/slm` confere também a pasta descompactada, arquivo a arquivo. `0` se bate, `1` se não, `2` sem o manifesto |
-| `python -m ai_clients generate --model gpt` (ou `--model gemini`, `--model claude`) | `app` | modelos comerciais: para cada combinação pendente, um pedido sem memória de pedidos anteriores (o texto inteiro numa única mensagem), grava a resposta inteira, os *tokens*, o custo e o tempo, e transforma a primeira resposta lida em `suite.json` (`accepted_predicted`); resposta que não pode ser lida gera novo pedido, até 3. **Exige `--confirm-spend US$`** fora do `--dry-run` (sem ele, mostra a estimativa e sai com `2`, sem chamar nada); ao atingir esse gasto, não envia pedido novo e sai com `5` (os já enviados terminam e são gravados). `--dry-run` estima o custo sem chamar nenhuma API, sem gravar e sem chave. `--resume` obrigatório depois do primeiro; recusa (`2`), listando o que mudou, se mudou algo que muda as respostas (modelo, parâmetros, formato da resposta, texto-base, dataset); preços, teto, pedidos ao mesmo tempo e esperas podem mudar. `--limit N`, `--problem ID`, `--scenario S` como no modelo local, inclusive na estimativa. Pedidos ao mesmo tempo: `OPENAI_MAX_CONCURRENCY`/`GEMINI_MAX_CONCURRENCY` (padrão 4); cada combinação é tratada por um só de cada vez, e vários `generate --resume` do mesmo modelo dividem a fila (`skipped`). API fora do ar ou limite de pedidos (429): repete a mesma chamada sem gastar tentativa (espera de 5 s dobrando até 60 s, ou a pedida pela API, se maior) até o teto de repetições e sai com `3`, sem gravar. Chave recusada, crédito esgotado, modelo inexistente ou pedido recusado: `3` na hora. Resposta com 0 *tokens* de raciocínio (ou sem a contagem): gravada em `barred/`, sem gastar tentativa, e pedida de novo; na terceira, a suíte é `accepted_barred` (testes da última legível; nenhuma legível: aguarda os autores). O comando não para; o resumo final diz quantas houve. Combinação que aguarda os autores: `manual: ...` e `4`. Interrompido: `130`; os pedidos em andamento terminam e são gravados |
+| `python -m ai_clients generate --model gpt` (ou `--model gemini`, `--model claude`) | `app` | modelos comerciais: para cada combinação pendente, um pedido sem memória de pedidos anteriores (o texto inteiro numa única mensagem), grava a resposta inteira, os *tokens*, o custo e o tempo, e transforma a primeira resposta lida em `suite.json` (`accepted_predicted`); resposta que não pode ser lida gera novo pedido, até 3. **Exige `--confirm-spend US$`** fora do `--dry-run` (sem ele, mostra a estimativa e sai com `2`, sem chamar nada); ao atingir esse gasto, não envia pedido novo e sai com `5` (os já enviados terminam e são gravados). `--dry-run` estima o custo sem chamar nenhuma API, sem gravar e sem chave. `--resume` obrigatório depois do primeiro; recusa (`2`), listando o que mudou, se mudou algo que muda as respostas (modelo, parâmetros, formato da resposta, texto-base, dataset); preços, teto, pedidos ao mesmo tempo e esperas podem mudar. `--limit N`, `--problem ID`, `--scenario S` como no modelo local, inclusive na estimativa. Pedidos ao mesmo tempo: `OPENAI_MAX_CONCURRENCY`/`GEMINI_MAX_CONCURRENCY`/`ANTHROPIC_MAX_CONCURRENCY` (padrão 4); cada combinação é tratada por um só de cada vez, e vários `generate --resume` do mesmo modelo dividem a fila (`skipped`). API fora do ar ou limite de pedidos (429): repete a mesma chamada sem gastar tentativa (espera de 5 s dobrando até 60 s, ou a pedida pela API, se maior) até o teto de repetições e sai com `3`, sem gravar. Chave recusada, crédito esgotado, modelo inexistente ou pedido recusado: `3` na hora. Resposta com 0 *tokens* de raciocínio (ou sem a contagem): gravada em `barred/`, sem gastar tentativa, e pedida de novo; na terceira, a suíte é `accepted_barred` (testes da última legível; nenhuma legível: aguarda os autores). O comando não para; o resumo final diz quantas houve. Combinação que aguarda os autores: `manual: ...` e `4`. Interrompido: `130`; os pedidos em andamento terminam e são gravados |
 | `python -m ai_clients close --model gpt --problem ID --scenario S --reason "TEXTO"` | `app` | igual ao `close` do modelo local, para uma combinação de um modelo comercial cujas 3 respostas não puderam ser lidas |
 | `python -m ai_clients change-template --model gpt --template llm --reason "TEXTO"` | `app` | igual ao `change-template` do modelo local, para o texto-base dos comerciais (`src/prompt_templates/llm_prompt.txt`, único dos três modelos); move para `data/suites/<modelo>/superseded/<NNN>/` todas as respostas feitas com o texto antigo, para serem refeitas |
 | `python -m ai_clients report --model gpt` | `app` | grava `manifests/gpt_generation_report.json` (ou `gemini_...`, `claude_...`): combinações por `status` e cenário, pedidos por tentativa, falhas por motivo, respostas cortadas, bloqueios por categoria (Gemini), testes descartados, tamanho das suítes, *tokens*, custo (soma exata dos pedidos, inclusive os barrados), tempo, versões do modelo devolvidas pela API e respostas barradas. Pode rodar a qualquer momento |
@@ -323,8 +328,8 @@ antes de a execução do modelo começar.
 | `python -m ai_clients verify --model gpt` | `app` | confere o pacote do modelo contra o manifesto dele; `--extracted data/suites/gpt` confere também a pasta |
 | `python -m ai_clients execute --model gpt` | — | recusado (`2`): os modelos comerciais não executam nada |
 | `python -m ai_clients generate --model gpt --dry-run --save-requests data/requests` (ou `--model gemini`, `--model slm`) | `app` | o dry-run de sempre e, além dele, grava o corpo de cada pedido **pendente** (o que a próxima geração enviaria, com o prompt inteiro dentro) em `data/requests/<modelo>/<id>.<cenário>.request.json`, uma pasta só por modelo, sem subpastas, mais um `summary.json`. Cada prompt é conferido contra os arquivos do problema: o enunciado (`enunciado.md`), o código (`AC_ref.cpp`) e o exemplo (primeiro teste público) têm de aparecer idênticos, conforme o cenário, e a caixa-preta não pode ter código nem a caixa-branca enunciado. Linha `requests: N saved ...; faithful K/N; exponent warnings ...` no fim; uma linha `unfaithful: ...` por divergência (saída `1`, a gravação vai até o fim); `exponent: <id>: "..."` para cada enunciado com potência de 10 sem o expoente (`1 ≤ n ≤ 105` no lugar de `10^5`), só aviso, porque vem do próprio dataset. O arquivo é JSON indentado com `≤` legível; é o mesmo JSON enviado, que na rede leva `≤` como `≤`. Sem chamar nenhuma API, sem chave e sem Ollama. A pasta do modelo com arquivos é recusada (`2`), a menos que se use `--force`, que apaga só ela antes de gravar. Recusa (`2`) gravar dentro de `data/suites/`, `data/dataset/` ou `manifests/`. `--save-requests` sem `--dry-run`, ou `--force` sem `--save-requests`: `2`. `--problem`, `--scenario` e `--limit` valem também aqui |
-| `python -m ai_clients show-request --model gemini --problem 1_B --scenario black_box --output data/requests/1_B.json` | `app` | grava no arquivo o corpo do pedido enviado em uma tentativa (a última, por padrão; `--attempt N` escolhe), com o prompt inteiro dentro, no mesmo formato do dry-run; nada é chamado e o pedido **não** aparece no terminal, só uma linha `written: ... attempt N (of M); prompt sha256 matches; dataset: faithful` e os avisos (`warning: lost exponent ...`, `warning: OLD TEMPLATE VERSION ...`, `warning: parameters changed ...`). O prompt é remontado do texto-base e dos arquivos do problema e conferido contra o hash gravado na tentativa; se o texto-base mudou depois, a versão antiga é procurada no histórico do Git (por isso roda no `app`, que lê o `.git` só para leitura) e, sem ela, nada é gravado (`1`, com os dois hashes). Sem tentativa ainda: a prévia do próximo pedido (`preview, not sent`). `--model slm`, `gpt` ou `gemini`. `--barred N` (só `gpt`/`gemini`) grava uma resposta barrada. `--suites-dir data/suites/gemini-piloto1` lê uma execução guardada do mesmo modelo (os pilotos 1 a 5 do modelo local são de uma versão anterior e não podem ser lidos: `1`). `--output` é obrigatório; arquivo existente → `2`, a menos que se use `--force`; nunca dentro de `data/suites/`, `data/dataset/` ou `manifests/`. Prompt diferente do dataset: gravado (foi o enviado), `dataset: UNFAITHFUL` e `1`. Tentativa inexistente → `2`; combinação danificada → `1` |
-| `python -m ai_clients show-request --model slm --suite-attempts --output-dir data/requests/suites` (ou `--model gpt`/`gemini`) | `app` | de uma vez, para cada combinação que já tem `suite.json`: grava o corpo do pedido da **tentativa que gerou a suíte** (a indicada no `suite.json`, que não é necessariamente a última: numa suíte de reserva pode ser uma das primeiras) em `data/requests/suites/<modelo>/<id>.<cenário>.request.json`, mais um `summary.json`, com as mesmas conferências do `show-request` (hash, texto-base pelo Git, dataset, expoente) e sem mostrar os pedidos. Fim: `suite attempts: N saved ...; prompt sha256 matches in all; faithful K/N; S skipped; ...`. Combinação sem suíte ou fechada à mão: pulada e listada no resumo. Pedido que não pôde ser conferido: linha `refused: ...`, nada gravado para ele, saída `1`. `--problem ID` e `--scenario S` restringem; `--suites-dir` lê uma execução guardada; a pasta do modelo com arquivos exige `--force`; não aceita `--output`, `--attempt` nem `--barred` (`2`) |
+| `python -m ai_clients show-request --model gemini --problem 1_B --scenario black_box --output data/requests/1_B.json` | `app` | grava no arquivo o corpo do pedido enviado em uma tentativa (a última, por padrão; `--attempt N` escolhe), com o prompt inteiro dentro, no mesmo formato do dry-run; nada é chamado e o pedido **não** aparece no terminal, só uma linha `written: ... attempt N (of M); prompt sha256 matches; dataset: faithful` e os avisos (`warning: lost exponent ...`, `warning: OLD TEMPLATE VERSION ...`, `warning: parameters changed ...`). O prompt é remontado do texto-base e dos arquivos do problema e conferido contra o hash gravado na tentativa; se o texto-base mudou depois, a versão antiga é procurada no histórico do Git (por isso roda no `app`, que lê o `.git` só para leitura) e, sem ela, nada é gravado (`1`, com os dois hashes). Sem tentativa ainda: a prévia do próximo pedido (`preview, not sent`). `--model slm`, `gpt`, `gemini` ou `claude`. `--barred N` (só nos comerciais) grava uma resposta barrada. `--suites-dir data/suites/gemini-piloto1` lê uma execução guardada do mesmo modelo (os pilotos 1 a 5 do modelo local são de uma versão anterior e não podem ser lidos: `1`). `--output` é obrigatório; arquivo existente → `2`, a menos que se use `--force`; nunca dentro de `data/suites/`, `data/dataset/` ou `manifests/`. Prompt diferente do dataset: gravado (foi o enviado), `dataset: UNFAITHFUL` e `1`. Tentativa inexistente → `2`; combinação danificada → `1` |
+| `python -m ai_clients show-request --model slm --suite-attempts --output-dir data/requests/suites` (ou `--model gpt`/`gemini`/`claude`) | `app` | de uma vez, para cada combinação que já tem `suite.json`: grava o corpo do pedido da **tentativa que gerou a suíte** (a indicada no `suite.json`, que não é necessariamente a última: numa suíte de reserva pode ser uma das primeiras) em `data/requests/suites/<modelo>/<id>.<cenário>.request.json`, mais um `summary.json`, com as mesmas conferências do `show-request` (hash, texto-base pelo Git, dataset, expoente) e sem mostrar os pedidos. Fim: `suite attempts: N saved ...; prompt sha256 matches in all; faithful K/N; S skipped; ...`. Combinação sem suíte ou fechada à mão: pulada e listada no resumo. Pedido que não pôde ser conferido: linha `refused: ...`, nada gravado para ele, saída `1`. `--problem ID` e `--scenario S` restringem; `--suites-dir` lê uma execução guardada; a pasta do modelo com arquivos exige `--force`; não aceita `--output`, `--attempt` nem `--barred` (`2`) |
 | `unzip data/slm_suites.zip -d data/` | (máquina) | descompacta as suítes do modelo local em `data/suites/slm/` **e**, por o pacote juntar as duas execuções da revisão do dataset, também em `data/suites/slm-rev1/` (Cenário B) |
 | `unzip data/gpt_suites.zip -d data/` (ou `data/gemini_suites.zip`, `data/claude_suites.zip`) | (máquina) | descompacta as suítes de cada modelo comercial numa única pasta (`data/suites/gpt/`, `data/suites/gemini/` ou `data/suites/claude/`), sem equivalente ao `-rev1` |
 | `pytest tests/ai_clients` | `sandbox` | testes do módulo (com modelos simulados; nenhum teste chama uma API paga) |
@@ -357,7 +362,7 @@ há mais de um: `130`, `3`, `1`, `5`, `4`.
 | `FAIL` no `verify` | algum arquivo mudou depois do pacote: apague `data/suites/slm` e descompacte de novo |
 | `missing: suites/slm-rev1/...` no `verify --extracted data/suites/slm`, com os arquivos no lugar certo | limitação conhecida do `--extracted` com o pacote juntado (seção (f) e Cenário B): ele não entende `data/suites/slm-rev1/`; use o `verify` sem `--extracted` e confie no `cli check --deep` |
 | `error: this would make up to N paid calls ...; to confirm, run again with --confirm-spend ...` (`2`) | confira a estimativa e rode de novo com `--confirm-spend <teto em US$>` |
-| `error: OPENAI_API_KEY is not set in .env` (ou `GEMINI_API_KEY`) (`2`) | preencha a chave no `.env` |
+| `error: OPENAI_API_KEY is not set in .env` (ou `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`) (`2`) | preencha a chave no `.env` |
 | `spend cap reached: spent US$ X of US$ Y ...` (`5`) | o teto da invocação foi atingido; para continuar, `generate --model <modelo> --resume --confirm-spend <novo teto>` |
 | `barred: <id> <cenário>: the answer reports ... (at 3, the suite is accepted_barred)` | a resposta veio sem raciocínio; está em `data/suites/<modelo>/barred/` e a combinação é pedida de novo; na terceira, a suíte fica `accepted_barred`. Nada a fazer: o comando segue |
 | `gpt unavailable (...); retrying the same call ...` | a API não respondeu ou pediu para esperar; o comando repete sozinho, sem gastar tentativa |
@@ -379,7 +384,7 @@ há mais de um: `130`, `3`, `1`, `5`, `4`.
 | `src/prompt_templates/slm_prompt.txt` e `slm_predict_prompt.txt` | texto (inglês) | versionados; os textos-base dos pedidos 1 a 12 e 13 a 15, iguais nos três cenários exceto pelo bloco de contexto |
 | `OLLAMA_BASE_URL`, `OLLAMA_HARDWARE_LABEL` (opcionais `OLLAMA_HTTP_TIMEOUT_S`, `OLLAMA_MAX_INFRA_RETRIES`, `OLLAMA_MODEL`) | variáveis do `.env` | preenchidas pelo operador (ver `.env.example`) |
 | `src/prompt_templates/llm_prompt.txt` | texto (inglês) | versionado; o texto-base dos três modelos comerciais, com as mesmas regras de entradas do modelo local |
-| `OPENAI_API_KEY`, `GEMINI_API_KEY` (opcionais `OPENAI_MAX_CONCURRENCY`, `GEMINI_MAX_CONCURRENCY`, `OPENAI_MAX_INFRA_RETRIES`, `GEMINI_MAX_INFRA_RETRIES`, `LLM_HTTP_TIMEOUT_S`, `OPENAI_MAX_REQUESTS_PER_MINUTE`, `GEMINI_MAX_REQUESTS_PER_MINUTE`) | variáveis do `.env` | preenchidas pelo operador; nunca gravadas em arquivo nem em mensagem |
+| `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` (opcionais, com o prefixo de cada modelo, `..._MAX_CONCURRENCY`, `..._MAX_INFRA_RETRIES` e `..._MAX_REQUESTS_PER_MINUTE`, e `LLM_HTTP_TIMEOUT_S`) | variáveis do `.env` | preenchidas pelo operador; nunca gravadas em arquivo nem em mensagem |
 
 ## (d) Saídas produzidas
 
@@ -444,11 +449,12 @@ há mais de um: `130`, `3`, `1`, `5`, `4`.
   respostas sem raciocínio); latência mediana 13,4 s (máxima 129,9 s); suíte mediana de 12 testes
   (10 na caixa-branca). Pacote: `data/gemini_suites.zip`, 3.754.744 bytes, 1.214 arquivos.
 
-- **Resultado da execução completa** (600 combinações, 2026-10-06 a 2026-10-09): 505 `accepted`
-  (84,2%), 93 `accepted_fallback` (15,5%), 2 `accepted_predicted` (0,3%), 0 `discarded_manual`;
-  2.185 chamadas ao modelo. Pacote: `data/slm_suites.zip`, 6.597.040 bytes, 4.850 arquivos. Um
-  texto-base (o de predição) foi trocado uma vez no meio da execução;
-  as duas suítes `accepted_predicted` vêm do texto novo.
+- **Resultado da primeira execução completa do modelo local**, sobre a revisão 1 do dataset (600
+  combinações, 2026-10-06 a 2026-10-09; substituída em parte pela revisão 2, primeiro item desta
+  lista): 505 `accepted` (84,2%), 93 `accepted_fallback` (15,5%), 2 `accepted_predicted` (0,3%), 0
+  `discarded_manual`; 2.185 chamadas ao modelo. Pacote da época: 6.597.040 bytes, 4.850 arquivos. Um
+  texto-base (o de predição) foi trocado uma vez no meio da execução; as duas suítes
+  `accepted_predicted` vêm do texto novo. Os números vigentes (504, 95 e 1) são os da tabela de (b).
 - A solução Python só é validada pelos testes públicos; se errar numa entrada que nenhum teste
   público cobre, a saída esperada daquela entrada fica errada.
 - As suítes `accepted_fallback` vêm de soluções que erraram um exemplo, e as `accepted_predicted`
@@ -462,8 +468,8 @@ há mais de um: `130`, `3`, `1`, `5`, `4`.
   modelo que respondeu fica gravada em cada resposta, e o provedor pode trocá-la sem aviso. As
   saídas esperadas são escritas pelo modelo, sem nenhuma conferência: uma saída errada vira um falso
   positivo na avaliação. Não há conferência de que cada entrada respeita as restrições do enunciado.
-  O teto de saída (32.768 *tokens*) e a razão caracteres/*token* da estimativa são provisórios até o
-  piloto. No Gemini, um limite de cota esgotada não se distingue do limite de pedidos por minuto: os
+  O teto de saída é de 32.768 *tokens*; a estimativa do `--dry-run` usa uma razão caracteres/*token*
+  aproximada. No Gemini, um limite de cota esgotada não se distingue do limite de pedidos por minuto: os
   dois são repetidos até o teto de repetições. A Google passou a chamar o `generateContent` de
   "Legacy" (continua suportado; ver metodologia, seção 3).
 - O `OLLAMA_HARDWARE_LABEL` é texto livre: todas as chamadas da execução final têm a mesma etiqueta,
@@ -493,7 +499,7 @@ há mais de um: `130`, `3`, `1`, `5`, `4`.
 | `generate --model gemini` (chamadas pagas; piloto de 5 problemas) | 2026-10-16 | 94fec3a+dirty |
 | `generate --model gpt` (piloto aproveitado e execução completa, 600 combinações) | 2026-10-20 | 29d9245+dirty |
 | `close --model claude` (3 combinações) | 2026-10-20 | 29d9245+dirty |
-| `change-template --model ... --template llm` | pendente | — |
+| `change-template --model ... --template llm` | não necessário (texto-base dos comerciais nunca trocado: `template_changes` vazio nos três relatórios) | — |
 | `report --model gemini` (piloto) | 2026-10-16 | 94fec3a+dirty |
 | `generate --model gemini` (execução completa, 600 combinações) e `report --model gemini` | 2026-10-20 | 29d9245+dirty |
 | `report --model gpt` | 2026-10-20 | 29d9245+dirty |

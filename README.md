@@ -10,34 +10,19 @@ teste unitários em C++.
 > "Módulos e estado", abaixo); este documento é o ponto de partida e o índice, não o detalhe de
 > cada módulo.
 >
-> **Estado atual (2026-11-09)**: os módulos `dataset` (extração, validação e empacotamento do
-> dataset), `sandbox` (motor de execução isolada de C++), `mutation` (100 mutantes por problema) e
-> `ai_clients` para o modelo local (suítes de teste do Qwen2.5-Coder-14B) estão **implementados**,
-> e os três artefatos do experimento já foram gerados de verdade e estão neste repositório, cada
-> um com o seu manifesto de integridade: o dataset (`data/dataset.zip`, 200 problemas), os mutantes
-> (`data/mutants.zip`, 20.000 mutantes) e as suítes do modelo local (`data/slm_suites.zip`, 600
-> combinações de problema e cenário, todas com suíte: 504 `accepted`, 95 `accepted_fallback`, 1
-> `accepted_predicted`, nenhuma fechada à mão; as 208 afetadas pela revisão 2 do dataset foram refeitas). Quem clona o projeto só precisa descompactar e
-> conferir, não precisa gerar nada. Um comando na raiz, `python -m cli check`, confere se dataset,
-> mutantes e suítes estão completos e 1:1. Os três modelos comerciais (GPT-5.4-mini, Gemini 3.8 Flash
-> e Claude Haiku 5.5) têm código e testes prontos. O Gemini terminou a execução completa sobre a
-> revisão 2 do dataset (600 combinações, 599 `accepted_predicted` e 1 `accepted_barred`, 613 chamadas, US$ 4,90, pacote `data/gemini_suites.zip`, no repositório), assim como o GPT
-> (600 combinações, 600 `accepted_predicted`, 601 chamadas, US$ 13,47, pacote `data/gpt_suites.zip`, no repositório), e o Claude
-> (600 combinações, 589 `accepted_predicted`, 8 `accepted_barred` e 3 `discarded_manual`, 632 chamadas, US$ 0,98, pacote `data/claude_suites.zip`, no repositório). O `show-request` e o `generate --dry-run --save-requests` gravam, sem
-> chamar nada, o pedido enviado (ou a enviar) a cada modelo, conferido contra o dataset; o
-> `show-request --suite-attempts` grava de uma vez o da tentativa que gerou cada suíte. O
-> `python -m dataset check-statements` comparou os 200 enunciados com o original do Codeforces:
-> 152 expoentes perdidos (`10^5` escrito `105`) em 79 problemas e 701 índices (`a_i` escrito `ai`)
-> em 74. Com isso, o `python -m dataset revise` gerou a revisão 2 do dataset: 104 enunciados corrigidos (102
-> automaticamente e 2 na revisão dos 15 restantes), nenhum outro arquivo alterado, e a revisão 1 guardada só para auditoria; as suítes do modelo local das 208 combinações
-> afetadas foram refeitas. O módulo de
-> avaliação (`evaluation`) está implementado e testado: executa cada suíte contra o AC, os WAs e os
-> mutantes e grava os vereditos; a execução completa terminou (5 conjuntos × 600 combinações, pacotes
-> `data/evaluation_<conjunto>.zip` no repositório). Um painel
-> (`dashboard`, aberto no navegador) mostra esses resultados só para leitura. O módulo de
-> métricas (`metrics`) calculou TDF, MS, TFP, IIC e as complementares, os testes estatísticos e
-> as figuras do texto (`data/metrics.zip`). O orquestrador ainda não tem especificação nem código;
-> a tabela "Módulos e estado" marca isso.
+> **Estado atual (2026-11-12)**: **o experimento terminou.** Todos os artefatos foram gerados de verdade
+> e estão neste repositório, cada um com o seu manifesto de integridade (SHA-256):
+>
+> | Artefato | Pacote | Conteúdo |
+> |---|---|---|
+> | dataset (revisão 2) | `data/dataset.zip` | 200 problemas, cada um com enunciado, solução correta (AC) e 100 soluções erradas reais (WAs) |
+> | mutantes | `data/mutants.zip` | 100 mutantes por problema (20.000) |
+> | suítes de teste | `data/slm_suites.zip`, `data/gpt_suites.zip`, `data/gemini_suites.zip`, `data/claude_suites.zip` | 600 combinações (problema × cenário) por modelo |
+> | avaliação | `data/evaluation_<conjunto>.zip` (5 pacotes) | cada suíte executada contra o AC, os WAs e os mutantes |
+> | métricas | `data/metrics.zip` | as tabelas (TDF, MS, TFP, IIC…), os testes estatísticos e as figuras do texto |
+>
+> **Quem clona o projeto não precisa gerar nada**: basta preparar o ambiente e descompactar (ver
+> "Caminho rápido", abaixo). Gerar de novo leva dias e, nos modelos comerciais, custa dinheiro.
 
 ## O que o experimento responde
 
@@ -75,7 +60,7 @@ Escala: **200 problemas × 4 modelos × 3 cenários** (2.400 suítes de teste ge
         │                                   │  pilha e atribui o veredito  │
         ▼                                   └───────────────▲──────────────┘
  ┌──────────────┐  suítes de teste (JSON)                   │ reutilizado sem
- │  ai_clients  │  3 modelos × 3 cenários                   │ alteração
+ │  ai_clients  │  4 modelos × 3 cenários                   │ alteração
  └──────┬───────┘                                           │
         ▼                                                   │
  ┌──────────────┐  executa cada suíte contra AC, WAs e      │
@@ -84,9 +69,13 @@ Escala: **200 problemas × 4 modelos × 3 cenários** (2.400 suítes de teste ge
         ▼
  ┌──────────────┐  TDF (falhas reais), MS (mutantes),
  │   metrics    │  TFP (falsos positivos), IIC (influência do contexto)
+ └──────┬───────┘
+        ▼
+ ┌──────────────┐  painel no navegador, só de leitura,
+ │  dashboard   │  sobre a avaliação e as métricas
  └──────────────┘
-        ▲
-   cli: orquestrador que amarra tudo
+
+ cli check: confere, entre uma etapa e outra, se todos os artefatos estão completos e 1:1
 ```
 
 O **motor de execução** (`src/sandbox/`) é um só: o mesmo que valida o dataset é reutilizado
@@ -112,8 +101,10 @@ O formato dos READMEs de módulo é o de [`docs/template-modulo.md`](docs/templa
 Este guia parte do zero e **não pressupõe conhecimento de Docker**. Ele cobre a preparação do
 ambiente, que se faz **uma vez por máquina** e vale para todos os módulos. Depois disso, cada
 módulo tem o seu próprio passo a passo na seção "(b) Como executar" do seu README (tabela acima).
-O projeto foi desenvolvido e testado em **Linux**; macOS e Windows (WSL2) não foram verificados.
-Nenhum código C++ de terceiros é compilado ou executado fora do Docker.
+O projeto foi desenvolvido e testado em **Linux**. No **Windows 11 com Docker Desktop**, o caminho
+de quem usa os resultados prontos foi conferido num clone novo em 2026-11-12 (Passos 1 a 5 e o
+"Caminho rápido"); a geração do zero não foi conferida lá. macOS não foi verificado. Nenhum código
+C++ de terceiros é compilado ou executado fora do Docker.
 
 ### O que você precisa ter instalado
 
@@ -148,7 +139,7 @@ Teste se o Docker está pronto: `docker run --rm hello-world`. Se aparecer `perm
 | Serviço | Acesso à internet | Para que serve |
 |---|---|---|
 | `app` | sim | baixar dados de origem, gerar relatórios, empacotar e verificar dados, lint e formatação; é o único que vê o histórico do Git (a pasta `.git`, só para leitura), que o `show-request` usa para achar um texto-base antigo |
-| `sandbox` | **não**, de propósito | compilar e executar código C++ de terceiros com segurança (o dataset e, no futuro, as suítes geradas por IA); também roda os testes do projeto. Não vê o `.git` nem o `.env` |
+| `sandbox` | **não**, de propósito | compilar e executar código C++ de terceiros com segurança (o dataset, os mutantes e a avaliação das suítes geradas por IA); também roda os testes do projeto. Não vê o `.git` nem o `.env` |
 
 Como ler um comando do projeto:
 
@@ -164,9 +155,12 @@ Todos os comandos são executados **na pasta do repositório** (a que contém `d
 ### Passo 1: baixar o projeto
 
 ```bash
-git clone <url do repositório>
-cd tcc-testgen-pipeline
+git clone https://github.com/tcc-engenharia-software/ai-testgen-evaluator.git
+cd ai-testgen-evaluator
 ```
+
+O clone tem cerca de 210 MB, porque os pacotes com os resultados do experimento (`data/*.zip`)
+vêm junto.
 
 ### Passo 2: criar o arquivo `.env`
 
@@ -192,9 +186,15 @@ O comando abaixo cria o `.env` já com os seus números (e não sobrescreve um `
 cat .env      # confira: HOST_UID e HOST_GID devem ser iguais à saída de `id -u` e `id -g`
 ```
 
-A alternativa manual é `cp .env.example .env` e editar os números. As chaves de API dos modelos
-comerciais (`OPENAI_API_KEY` e `GEMINI_API_KEY`) também vão neste arquivo, e só nele; elas só são
-necessárias para gerar as suítes desses modelos (ver o README do módulo `ai_clients`).
+A alternativa manual é `cp .env.example .env` e editar os números. No Windows com Docker Desktop,
+use `HOST_UID=1000` e `HOST_GID=1000`, os valores da conferência de 2026-11-12 (o `id -u` do Git
+Bash dá outro número, que não foi testado).
+
+**Para usar os resultados prontos, só esses três valores bastam.** As outras variáveis do
+`.env.example` servem apenas para **gerar** as suítes de novo: `OLLAMA_BASE_URL` e
+`OLLAMA_HARDWARE_LABEL` (modelo local) e as chaves `OPENAI_API_KEY`, `GEMINI_API_KEY` e
+`ANTHROPIC_API_KEY` (modelos comerciais; ficam neste arquivo e só nele). Ver o README do módulo
+`ai_clients`.
 
 ### Passo 3: criar a pasta `data/`
 
@@ -213,7 +213,8 @@ docker compose build
 ```
 
 Baixa a imagem base do compilador e instala o Python e as bibliotecas fixadas em `uv.lock`. A
-primeira vez leva alguns minutos e depende da sua conexão; as seguintes são rápidas. Só é preciso
+primeira vez leva alguns minutos e depende da sua conexão (5 min medidos num clone novo, em
+2026-11-12); as seguintes são rápidas. Só é preciso
 repetir se o `Dockerfile` ou o `uv.lock` mudarem: o código do projeto é lido diretamente da sua
 pasta (volumes de `docker-compose.override.yml`), então editar código não exige reconstruir.
 
@@ -224,8 +225,52 @@ docker compose run --rm sandbox pytest
 ```
 
 Roda a suíte de testes do projeto inteiro. Esperado: a última linha diz `passed` (com o número de
-testes) e não menciona `failed`. Este comando usa o serviço `sandbox` porque parte dos testes
+testes) e não menciona `failed`; no clone novo de 2026-11-12, `2120 passed` em 6 min. Este comando usa o serviço `sandbox` porque parte dos testes
 compila e executa C++, o que só é permitido dentro dele.
+
+### Caminho rápido: usar os resultados prontos e abrir o painel
+
+É o caso comum: você quer ver os resultados, conferir os números do texto ou explorar o painel,
+**sem gerar nada de novo**. Depois dos Passos 1 a 5, rode na pasta do repositório:
+
+**1. Descompactar tudo** (12 pacotes; cada um cria a sua pasta dentro de `data/`):
+
+```bash
+rm -rf data/dataset data/mutants data/suites data/evaluation data/metrics   # só se já houver uma versão antiga
+for z in dataset mutants slm_suites gpt_suites gemini_suites claude_suites \
+         evaluation_slm evaluation_gpt evaluation_gemini evaluation_claude evaluation_slm-attempt1 \
+         metrics; do
+  unzip -q data/$z.zip -d data/
+done
+```
+
+Sem o programa `unzip` (`unzip: command not found`), instale-o (`sudo apt install unzip`) ou troque
+a linha do `unzip` por `docker compose run --rm app python -m zipfile -e data/$z.zip data/`.
+
+**2. Conferir se tudo chegou inteiro:**
+
+```bash
+docker compose run --rm app python -m cli check --deep
+docker compose run --rm app python -m metrics verify --extracted data/metrics
+```
+
+Esperado: `Resultado: OK (0 falha(s), 0 aviso(s))` no primeiro e `OK` no segundo. O `--deep`
+recalcula o hash de cada arquivo, o que demora: 25 min medidos no Windows com Docker Desktop
+(2026-11-12), onde ler a pasta compartilhada é lento. Sem `--deep`, o `check` confere só nomes e
+contagens e termina em menos de 1 s.
+
+**3. Abrir o painel:**
+
+```bash
+docker compose run --rm -p 127.0.0.1:8501:8501 app python -m dashboard serve
+```
+
+Abra **http://localhost:8501** no navegador; Ctrl+C no terminal fecha o painel. As páginas e o que
+cada gráfico mostra estão no [README do módulo `dashboard`](src/dashboard/README.md). As tabelas de
+métricas também ficam em `data/metrics/*.csv` e as figuras do texto em `data/metrics/figures/`.
+
+Para entender o que cada etapa produziu, ou para refazer uma delas, siga a tabela "Depois da
+preparação", abaixo.
 
 ### Onde ficam os arquivos
 
@@ -237,6 +282,12 @@ compila e executa C++, o que só é permitido dentro dele.
 | `data/dataset.zip` | o dataset validado, compactado | **sim** |
 | `data/mutants/` | os mutantes já descompactados (ou gerados) e prontos para uso (ver README do módulo `mutation`) | não (é gerado a partir do zip) |
 | `data/mutants.zip` | os mutantes da execução final, compactados | **sim** |
+| `data/suites/<modelo>/` | as suítes de teste de cada modelo, descompactadas (ver README do módulo `ai_clients`) | não (é gerado a partir do zip) |
+| `data/<modelo>_suites.zip` | as suítes de `slm`, `gpt`, `gemini` e `claude`, compactadas | **sim** |
+| `data/evaluation/<conjunto>/` | o resultado da avaliação de cada conjunto, descompactado (ver README do módulo `evaluation`) | não (é gerado a partir do zip) |
+| `data/evaluation_<conjunto>.zip` | a avaliação de `slm`, `gpt`, `gemini`, `claude` e `slm-attempt1`, compactada | **sim** |
+| `data/metrics/` | as tabelas de métricas e as figuras, descompactadas (ver README do módulo `metrics`) | não (é gerado a partir do zip) |
+| `data/metrics.zip` | as tabelas e as figuras, compactadas | **sim** |
 | `data/statement_originals.zip` | o bloco do enunciado original de cada problema, baixado do Codeforces uma vez (ver README do módulo `dataset`) | **sim** |
 | `data/statements/` | as páginas originais inteiras e os enunciados corrigidos para revisão | não |
 | `manifests/` | manifestos de hashes e relatórios, para conferir a integridade dos artefatos | sim |
@@ -267,12 +318,18 @@ Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
 | `dashboard` | explorar os resultados da avaliação no navegador (visão geral, uma combinação teste a teste, comparações); só lê | [README do módulo](src/dashboard/README.md) |
 | `metrics` | calcular as métricas, os testes estatísticos e as figuras do texto (do zero) ou descompactar e conferir as tabelas | [README do módulo](src/metrics/README.md) |
 
-Siga os módulos **nesta ordem**, porque cada um depende do anterior: primeiro `dataset` (precisa
-estar descompactado em `data/dataset/` antes de qualquer outro módulo), depois `mutation` e
-`ai_clients` — os dois leem o dataset descompactado e podem ser feitos em qualquer ordem entre si
-— e, depois de cada um, `cli check` para confirmar que o que acabou de ser obtido está consistente
+Siga os módulos **nesta ordem**, porque cada um depende do anterior:
+
+1. `dataset` (precisa estar descompactado em `data/dataset/` antes de qualquer outro módulo);
+2. `mutation` e `ai_clients`, que leem o dataset descompactado e podem ser feitos em qualquer ordem
+   entre si;
+3. `evaluation`, que precisa do dataset, dos mutantes e das suítes;
+4. `metrics`, que precisa da avaliação;
+5. `dashboard`, que só lê o que os anteriores deixaram.
+
+Depois de cada um, rode o `cli check` para confirmar que o que acabou de ser obtido está consistente
 antes de seguir para o próximo. `sandbox` não tem uso direto: é a biblioteca de execução que
-`dataset` e `mutation` usam por baixo. O passo a passo exato de cada módulo — os comandos, em que
+`dataset`, `mutation`, `ai_clients` (`execute`) e `evaluation` usam por baixo. O passo a passo exato de cada módulo — os comandos, em que
 ordem dentro dele, e os dois cenários (rodar do zero ou descompactar o que já existe) — está na
 seção "(b) Como executar" do README dele (link na tabela acima); este guia não repete esses
 comandos, para não haver duas fontes que podem divergir.
@@ -282,8 +339,8 @@ comandos, para não haver duas fontes que podem divergir.
 Cada módulo confere o seu próprio artefato contra o manifesto (`dataset verify`, `mutation verify`).
 Para conferir o **conjunto** — se o dataset descompactado tem os 200 problemas e todos os arquivos
 de cada um, se os mutantes têm exatamente 100 por problema, se as suítes de cada modelo (o local,
-o GPT e o Gemini) têm os 3 cenários de cada problema e se **não sobra nem falta nada** em
-nenhum dos lados —, há um comando que percorre as pastas de verdade e imprime um resumo com as
+o GPT, o Gemini e o Claude) e os resultados de cada conjunto de avaliação têm os 3 cenários de cada
+problema e se **não sobra nem falta nada** em nenhum dos lados —, há um comando que percorre as pastas de verdade e imprime um resumo com as
 contagens:
 
 ```bash
@@ -415,12 +472,12 @@ no `.env` e nunca fazem uma chamada paga sem `--confirm-spend <US$>`, que també
 | Comando | Serviço | O que faz / variações |
 |---|---|---|
 | `docker compose run --rm -p 127.0.0.1:8501:8501 app python -m dashboard serve` | `app` | abre o painel em `http://localhost:8501` (só nesta máquina), só de leitura; `--evaluation-dir DIR` (padrão `data/evaluation`), `--port N`; Ctrl+C fecha |
+
 ### Módulo `sandbox` ([README](src/sandbox/README.md))
 
-O motor não tem comando próprio: é uma biblioteca usada pelo `dataset` e pelo `mutation` (e, no
-futuro, pela avaliação). `docker compose run --rm sandbox pytest tests/sandbox` roda os testes dele,
-e `python -m dataset selfcheck` (acima) confere a saúde do motor. Os comandos dos módulos ainda não
-implementados (o orquestrador) entram aqui quando existirem.
+O motor não tem comando próprio: é uma biblioteca usada pelo `dataset`, pelo `mutation`, pelo
+`execute` do `ai_clients` e pela avaliação. `docker compose run --rm sandbox pytest tests/sandbox`
+roda os testes dele, e `python -m dataset selfcheck` (acima) confere a saúde do motor.
 
 ## Glossário
 
@@ -430,10 +487,17 @@ implementados (o orquestrador) entram aqui quando existirem.
 | **WA** | falha lógica real: submissão humana incorreta que responde errado (Wrong Answer) |
 | **TLE / MLE / RE / CE** | tempo excedido, memória excedida, falha de execução, erro de compilação |
 | **Mutante** | cópia do AC com uma alteração sintática (defeito artificial) |
-| **TDF** | Taxa de Detecção de Falhas reais: % de WAs reprovados pela suíte gerada |
-| **MS** | Escore de Mutação: mutantes mortos sobre mutantes válidos |
+| **Caixa-preta / caixa-branca / híbrido** | os três cenários: a IA recebe só o enunciado, só o código do AC, ou os dois |
+| **Combinação** | um problema num cenário (200 × 3 = 600 por modelo) |
+| **Conjunto** | o que a avaliação executa: `slm`, `gpt`, `gemini`, `claude` (a suíte final de cada modelo) e `slm-attempt1` (a 1ª tentativa do modelo local) |
+| **Oráculo declarado / corrigido** | a saída esperada de um teste: a que a IA escreveu na suíte, ou a que o AC produz na mesma entrada |
+| **TDF** | Taxa de Detecção de Falhas reais: % de WAs reprovados pela suíte gerada (oráculo declarado) |
+| **MS** | Escore de Mutação: % de mutantes reprovados pela suíte (oráculo declarado) |
+| **TDF\* / MS\*** | as mesmas, pelo oráculo corrigido: descontam a detecção que veio de saída esperada errada |
+| **Δ_oráculo** | TDF − TDF\* (ou MS − MS\*): quanto da detecção dependia de gabarito errado da IA |
 | **TFP** | Taxa de Falsos Positivos: % de problemas em que a suíte reprova o AC |
-| **IIC** | Índice de Influência do Contexto (sinergia ou sobrecarga ao combinar requisito e código) |
+| **TC** | Taxa de Cobertura: % de combinações que têm suíte |
+| **IIC** | Índice de Influência do Contexto: quanto o híbrido ganhou ou perdeu em relação a um cenário isolado; **IIC_cod** = efeito de acrescentar o código (híbrido × caixa-preta), **IIC_req** = efeito de acrescentar o enunciado (híbrido × caixa-branca); positivo ajuda, negativo atrapalha |
 | **Macrocategoria** | `matematica`, `estrutural_otimizacao` ou `logica_direta` (por prioridade de tags) |
 | **SLM** | modelo de linguagem pequeno, executado localmente (Qwen2.5-Coder-14B) |
 

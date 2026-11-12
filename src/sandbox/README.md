@@ -21,8 +21,9 @@ Tudo aqui roda no serviço **`sandbox`** do Docker Compose, que **não tem inter
 ### O que este módulo faz, na prática
 
 É uma biblioteca Python (`src/sandbox/`), sem comando próprio: quem o usa é o módulo
-[`dataset`](../dataset/README.md) (para validar os códigos do dataset) e, no futuro, a etapa de
-avaliação, sem alteração. Para cada programa ele: grava o código-fonte num diretório privado do
+[`dataset`](../dataset/README.md) (para validar os códigos do dataset), o
+[`mutation`](../mutation/README.md) (para conferir cada mutante) e a
+[avaliação](../evaluation/README.md) (para executar as suítes), sempre sem alteração. Para cada programa ele: grava o código-fonte num diretório privado do
 "slot" (um trabalhador), compila com as flags do juiz original e uma cascata de padrões
 (`gnu++20`, `gnu++17`, `gnu++14`, `gnu++11`), roda cada teste como um usuário sem privilégios (um
 `uid` por slot, sem rede, sem capabilities), com os limites do problema, e dá o veredito do
@@ -42,7 +43,7 @@ infraestrutura (`InfraError`).
 
    Leva cerca de 7 segundos. Esperado: uma linha `ok   <caso>: expected X, obtained X` por caso,
    a última linha `selfcheck OK: 9/9 cases` e código de saída `0` (`echo $?`). É também o portão de
-   entrada do `validate`, quando ele existir: se falhar, nenhum código real é validado.
+   entrada do `dataset validate` e do `evaluation run`: se falhar, nenhum código real é executado.
 
 2. **Rodar os testes do motor.** Unidades e integração (compilam e executam C++ de verdade,
    inclusive testes de isolamento, fork bomb e limites):

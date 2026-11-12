@@ -12,9 +12,16 @@ Mostra num painel no navegador, só para leitura, os resultados da avaliação d
 [guia de execução do README da raiz](../../README.md#guia-de-execução-do-clone-ao-primeiro-comando).
 Depois de um `git pull` que trouxe este módulo, rode `docker compose build` uma vez (a imagem
 ganhou a biblioteca do painel). O painel lê o que já existe; não gera nenhum artefato e não grava
-nada: a pasta de avaliação de um `python -m evaluation run` em andamento (o piloto, por exemplo) ou
-os pacotes de avaliação descompactados (README do módulo [`evaluation`](../evaluation/README.md)).
-Para o detalhe completo, também o dataset, os mutantes e as suítes descompactados.
+nada. O que cada página precisa descompactado:
+
+| Página | Precisa de |
+|---|---|
+| Visão geral e Comparações | os cinco pacotes de avaliação (`data/evaluation/<conjunto>/`, README do módulo [`evaluation`](../evaluation/README.md)) |
+| Combinação | a avaliação e também o dataset, os mutantes e as suítes (para mostrar entradas, saídas e códigos) |
+| Métricas | `data/metrics/` (README do módulo [`metrics`](../metrics/README.md)); sem ela, a página só mostra um aviso |
+
+O jeito mais simples é descompactar tudo de uma vez, com o laço do "Caminho rápido" do
+[README da raiz](../../README.md).
 
 ```bash
 docker compose run --rm -p 127.0.0.1:8501:8501 app python -m dashboard serve
@@ -51,6 +58,18 @@ concluídos por conjunto:
   cada por problema) e as tabelas oficiais (com o corte por
   macrocategoria ou status), os testes estatísticos e o custo; antes de as métricas serem
   calculadas, um aviso.
+
+**Como ler os gráficos da página Métricas** (todos usam os três cenários: caixa-preta = só o
+enunciado, caixa-branca = só o código, híbrido = os dois):
+
+| Gráfico | O que mostra | Como ler |
+|---|---|---|
+| TDF por modelo e cenário | % dos 100 WAs de cada problema que a suíte reprovou, pela saída esperada que a IA escreveu | mais alto é melhor |
+| TDF pelo oráculo declarado e pelo corrigido | duas barras por modelo: TDF (saída esperada da IA) e TDF\* (saída esperada do AC) | a distância entre as barras (Δ_oráculo) é a "detecção" que só existiu porque a IA errou a saída esperada; barras próximas = gabaritos confiáveis |
+| Escore de mutação pelo declarado e pelo corrigido | o mesmo, para os mutantes | igual ao anterior |
+| Falsos positivos por teste, por causa | % dos testes da suíte que reprovam o AC (logo, estão errados), divididos em saída esperada errada e entrada inválida | mais baixo é melhor; é por teste, diferente da TFP da tabela, que é por problema |
+| Influência do contexto (IIC) | uma caixa por modelo e direção: **IIC_cod** = o que acrescentar o código mudou em relação à caixa-preta; **IIC_req** = o que acrescentar o enunciado mudou em relação à caixa-branca | acima de 0, juntar os dois ajudou; abaixo, atrapalhou. A linha dentro da caixa é a mediana dos problemas, a caixa vai do 1º ao 3º quartil, e uma caixa larga quer dizer efeito instável de problema para problema. O gráfico usa só o oráculo declarado; o valor oficial (somando os 200 problemas, pelos dois oráculos) está na tabela "IIC" abaixo dos gráficos |
+| Custo por detecção | US$ gastos para cada 1.000 WAs detectados, só nos modelos comerciais | mais baixo é melhor |
 
 **Prévia**: as porcentagens de detecção do painel (detectados ÷ total, somados só sobre as
 combinações com suíte) são uma prévia, sempre marcada assim. Os números oficiais (TDF, MS e as
