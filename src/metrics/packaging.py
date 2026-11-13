@@ -1,4 +1,8 @@
-"""``data/metrics.zip`` and its manifest (FR-014): tables, ``run.json`` and default figures."""
+"""``data/metrics.zip`` and its manifest (FR-014): the tables and ``run.json``.
+
+No figure is packaged (decision of 2026-11-13): the dashboard draws every chart from the tables
+and saves it from the chart's own menu; ``python -m metrics figures`` redraws any of them.
+"""
 
 import hashlib
 import json
@@ -18,19 +22,13 @@ def _sha(data: bytes) -> str:
 
 
 def _files(folder: Path) -> list[Path]:
-    """The packaged files: the tables, ``run.json`` and the figures WITHOUT filters, in PNG and SVG.
-
-    Filtered figures (``<figure>__<filter>...``) are exploration; any of them is redrawn by
-    ``figures`` with the filter its name carries, so they are never packaged.
-    """
+    """The packaged files: the tables and ``run.json`` (never the ``figures`` folder)."""
     files = []
     for path in sorted(folder.rglob("*")):
         if not path.is_file() or path.name.startswith("."):
             continue
-        if path.parent.name == "figures" and "__" in path.stem:
+        if "figures" in path.relative_to(folder).parts:
             continue
-        if path.parent.name == "figures" and path.suffix[1:] not in config.PACKAGED_FIGURE_FORMATS:
-            continue  # the PDF is not the same bytes on every call (``metrics.figures``)
         files.append(path)
     return files
 

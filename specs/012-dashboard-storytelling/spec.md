@@ -20,7 +20,8 @@ calculado fora do módulo de métricas. Público: a banca, ao vivo, e leitores p
 
 - Q: Os gráficos novos da página 3 também viram figuras do texto do TCC (comando de figuras e pacote
   de métricas)? → A: Sim, todos: placar, detecta × erra, IIC divergente e guia de escolha (Milena;
-  FR-020).
+  FR-020). Emendado em 2026-11-13 (Milena): nenhuma figura no repositório nem no pacote; o comando
+  de figuras fica opcional.
 - Q: As 9 suítes `accepted_barred` (respostas sem raciocínio: 1 do Gemini, 8 do Claude) entram no
   placar e nas métricas? → A: Sim, ficam incluídas, como suítes que a ferramenta entregou; o placar
   diz quantas há no recorte e se algum 1º lugar mudaria sem elas (sem filtro: 9, nenhum muda)
@@ -294,11 +295,14 @@ WAs detectados pelo gabarito da IA e 45 pelo do AC, como hoje.
   `stats.csv` e `cost.csv`.
 - **FR-019**: O painel continua só de leitura (feature 011, FR-003), com o glossário e os nomes
   completos ao passar o mouse (FR-013 da 011), e funciona igual no uso local e na cópia pública.
-- **FR-020**: Os gráficos da página 3 MUST manter os botões PNG, SVG e PDF que baixam o gráfico como
-  aparece na tela, com o recorte e a fonte no subtítulo (feature 011, FR-012). Os gráficos novos da
-  página 3 (placar, detecta × erra, IIC divergente e guia de escolha) MUST entrar também no comando de
-  figuras do módulo de métricas e no pacote de métricas, como figuras do texto do TCC, desenhados
-  pelas mesmas funções do painel (a figura do comando e a da tela são a mesma).
+- **FR-020**: Cada gráfico da página das métricas MUST ter "Como se calcula" (a fórmula, a mesma em
+  palavras e a conta com os números do recorte); salvar o gráfico é pelo menu do próprio gráfico (PNG
+  ou SVG), sem botão próprio. Nenhuma figura MUST ficar no repositório: o pacote de métricas tem só as
+  tabelas e o `run.json`; o comando de figuras fica opcional e desenha com as mesmas funções do
+  painel (emenda de 2026-11-13, Milena: antes, botões PNG, SVG e PDF e as figuras novas no pacote).
+- **FR-021**: Abaixo do placar, a página MUST mostrar o placar por cenário: uma linha por IA e
+  cenário, os mesmos 6 critérios e a posição comparando as IAs dentro do mesmo cenário, com o título
+  dizendo em quantos critérios o 1º lugar muda com o cenário (Milena, 2026-11-13).
 
 ### Key Entities
 

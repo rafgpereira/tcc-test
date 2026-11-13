@@ -237,3 +237,14 @@ def test_iic_oracle_control_does_not_change_the_cut(computed):
     assert not at.exception, at.exception
     assert "gabarito da IA" in _texts(at)
     assert "Sem filtros · 2 problemas" in _texts(at)
+
+
+def test_scoreboard_by_scenario_has_a_row_per_set_and_scenario(computed):
+    loaded = tables.read(computed)
+    values = figures.figure_data("scoreboard_scenarios", loaded, {})
+    sets = loaded["per_problem"]["set"].nunique()
+    scenarios = loaded["per_problem"]["scenario"].nunique()
+    assert values["row"].nunique() == sets * scenarios
+    assert values["row"].iloc[0] == "SLM · caixa-preta"
+    for _, group in values.groupby(["scenario", "criterion"]):
+        assert group["first"].any() or group["rank"].isna().all()

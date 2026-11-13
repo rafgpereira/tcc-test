@@ -156,9 +156,25 @@ Claude nos três cenários como "não testado".
 
 ---
 
+## Phase 6c: Fórmulas e rótulos legíveis (Priority: P1)
+
+**Goal**: cada gráfico diz como foi calculado, com os números do recorte, e nenhum rótulo fica em inglês.
+
+- [X] T052 Labels of the IIC box plot in Portuguese: the box is drawn from computed statistics (whiskers at 1.5 IQR), because the hover of Vega-Lite's `mark_boxplot` is fixed in English; the hover says "Maior efeito (problema extremo)", "Limite superior típico", "75% dos problemas ficam abaixo de", "Mediana (problema do meio)", "25% dos problemas ficam abaixo de", "Limite inferior típico", "Menor efeito (problema extremo)", "Comparação" and "Modelo"; the legend says what each IIC compares; the legacy figures use the model names (SLM, GPT, Gemini, Claude)
+- [X] T053 Implement `src/metrics/formulas.py`: `FORMULAS` (the LaTeX formula and the same in words, one entry per figure) and `example(name, tables, filters, oracle)`, the worked example recomputed from the raw counts of the cut, naming the set the figure ranks first; "Como se calcula" beside "Baixar figura" in every card of page 2
+- [X] T054 `iic_distribution` follows the answer key of the IIC selector, like `iic_diverging` (before: always the AI's answer key, without saying so); `gabarito-ia` in the file name with the AI's key
+- [X] T055 [P] Write `tests/metrics/test_formulas.py`: every figure has a formula and an example; the example gives the plotted number (TDF*, MS*, TFP, Δ_oráculo, TC, the trade-off point, the scenario spread, the IIC, the cost, the IIC median) and names the plotted leader in any cut
+
+- [X] T056 Remove "Baixar figura" from the cards of page 2 (the chart's own menu saves PNG and SVG); "Como se calcula" stays
+- [X] T057 Add `scoreboard_scenarios` below the scoreboard: one row per set × scenario (SLM · caixa-preta, SLM · caixa-branca, SLM · híbrido, ...), the six criteria, the sets ranked inside each scenario; `story.scoreboard(..., scenario)`, `story.scoreboard_by_scenario`, `story.scenario_changes` and the conclusion title ("O 1º lugar muda com o cenário em N dos 6 critérios"); its formula and example in `metrics.formulas`
+- [X] T058 No figure in the repository: `package` packs only the tables and `run.json`, no longer requires the figures; `data/metrics.zip` and its manifest repackaged (the 7 tables and `run.json` with the same SHA-256; the 12 figures removed; 1.776.166 → 1.198.898 bytes); `figures` stays as an optional command. Replaces T038
+- [X] T059 Numbers on the charts, not only on hover (Milena, 2026-11-13): the scenario scoreboard rows are 46 px, so both lines fit; the trade-off points carry the name, TFP and TDF*, and the scenario lines the value of each point, with labels spread apart and a leader line where they would touch (`charts._spread`, `charts._callouts`; values among the lines sit on a page-coloured chip); false positives by cause become side-by-side bars with a number on each; bar and box labels use a decimal comma
+
+---
+
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T038 Update `python -m metrics package` in `src/metrics/__main__.py` to require the new figures without filter (PNG and SVG); run `compute`, `figures`, `package` and `verify --extracted data/metrics` on the real data; record the new zip size in `src/metrics/README.md`
+- [X] T038 (replaced by T058: no figure is packaged) Update `python -m metrics package` in `src/metrics/__main__.py` to require the new figures without filter (PNG and SVG); run `compute`, `figures`, `package` and `verify --extracted data/metrics` on the real data; record the new zip size in `src/metrics/README.md`
 - [ ] T039 [P] Update `src/dashboard/public/streamlit_app.py` only if needed for the three pages and check the public copy logic (`src/dashboard/cloud.py`) still unpacks the 12 packages; run `tests/dashboard/test_cloud.py`
 - [ ] T040 [P] Update `src/dashboard/glossary.py`: `rating`, the criteria in plain language, "não testado", "empate estatístico", the scenario names, always caixa-preta / caixa-branca / híbrido (Milena, 2026-11-12)
 - [ ] T041 Measure on the real data (SC-004): time to open each page and to apply a filter (macrocategoria, rating); if the IIC of a cut exceeds 5 s, cache it by cut; record the numbers in `specs/012-dashboard-storytelling/research.md` R8 and in `docs/metodologia-referencia.md` section 8

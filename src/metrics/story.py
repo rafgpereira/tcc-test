@@ -184,9 +184,11 @@ def _ranked(column: pd.Series, criterion: Criterio) -> pd.Series:
     return present.iloc[order]
 
 
-def scoreboard(tables: dict, recorte: Recorte) -> pd.DataFrame:
-    """Long form ``set, criterion, value, rank``; ties share the rank; no rank = not ranked."""
-    vals = values(tables, recorte)
+def scoreboard(tables: dict, recorte: Recorte, scenario: str | None = None) -> pd.DataFrame:
+    """Long form ``set, criterion, value, rank``; ties share the rank; no rank = not ranked.
+
+    With ``scenario``, the values and the ranks of that scenario only."""
+    vals = values(tables, recorte, scenario)
     rows = []
     for criterion in CRITERIA:
         column = vals[criterion.key]
@@ -205,6 +207,29 @@ def scoreboard(tables: dict, recorte: Recorte) -> pd.DataFrame:
     frame = pd.DataFrame(rows, columns=["set", "criterion", "value", "rank"])
     frame["rank"] = frame["rank"].astype("Int64")
     return frame
+
+
+def scoreboard_by_scenario(tables: dict, recorte: Recorte) -> pd.DataFrame:
+    """``scoreboard`` of each scenario of the cut, with a ``scenario`` column: the sets are
+    ranked against each other inside the same scenario, never across scenarios."""
+    frames = [
+        scoreboard(tables, recorte, scenario).assign(scenario=scenario)
+        for scenario in scenarios_of(tables, recorte)
+    ]
+    return pd.concat(frames, ignore_index=True)
+
+
+def scenario_changes(tables: dict, recorte: Recorte) -> list[str]:
+    """The criteria whose set of 1st places is not the same in every scenario of the cut."""
+    board = scoreboard_by_scenario(tables, recorte)
+    firsts = board[board["rank"] == 1]
+    out = []
+    for criterion in CRITERIA:
+        mine = firsts[firsts["criterion"] == criterion.key]
+        by_scenario = {frozenset(g["set"]) for _, g in mine.groupby("scenario")}
+        if len(by_scenario) > 1:
+            out.append(criterion.key)
+    return out
 
 
 def leader(
@@ -247,6 +272,9 @@ def leader(
 TEMPLATES = {
     "scoreboard_split": "Nenhuma IA venceu em todos os critérios",
     "scoreboard_one": "{leader} venceu em todos os critérios",
+    "scenarios_change": "O 1º lugar muda com o cenário em {n} dos {total} critérios",
+    "scenarios_same": "Em cada critério, o 1º lugar é o mesmo em todos os cenários",
+    "scenarios_single": "Com um cenário só no recorte, o placar por cenário é o próprio placar",
     "tdf": "{leader} encontra {value} das falhas reais",
     "tdf_tie": "{leader} e {second} empatam em falhas reais encontradas ({value} × {second_value})",
     "ms": "{leader} detecta {value} dos mutantes",
@@ -365,6 +393,18 @@ def conclusion(tables: dict, recorte: Recorte, section: str, oracle: str = "corr
         return Titulo(
             _fill(rule, leader=name(winners[0]) if winners else ""),
             f"Posição em cada critério ({words}); 1º = melhor; gabarito do AC; {n} problemas",
+            rule,
+        )
+    if section == "scenarios":
+        changed = scenario_changes(tables, recorte)
+        if len(scenarios) < 2:
+            rule = "scenarios_single"
+        else:
+            rule = "scenarios_change" if changed else "scenarios_same"
+        return Titulo(
+            _fill(rule, n=len(changed), total=len(CRITERIA)),
+            "Posição em cada critério dentro de cada cenário (as IAs comparadas no mesmo "
+            f"cenário); 1º = melhor; gabarito do AC; {n} problemas",
             rule,
         )
     if section == "tdf":

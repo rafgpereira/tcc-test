@@ -50,15 +50,18 @@ mostra a hora da última leitura e quantos problemas estão concluídos por conj
 - **As métricas**: quem se saiu melhor em cada critério, no recorte da barra lateral, sempre
   pelo gabarito do AC (\*). Na ordem: o **placar** (posição de cada IA em falhas reais, mutantes,
   código correto reprovado, erro do gabarito, entrega de suíte e custo; 1º = melhor; com a contagem
-  das suítes "sem raciocínio", que ficam nas métricas, e se algum 1º lugar mudaria sem elas); falhas
+  das suítes "sem raciocínio", que ficam nas métricas, e se algum 1º lugar mudaria sem elas); o
+  **placar por cenário** (o mesmo placar com uma linha por IA e cenário, por exemplo SLM ·
+  caixa-preta, SLM · caixa-branca, SLM · híbrido, com a posição comparando as IAs no mesmo cenário); falhas
   reais e mutantes; falsos positivos; contexto (como a detecção muda entre os cenários e o IIC, com
   a escolha do gabarito); custo; e o **guia de escolha**: em cada cenário, a melhor IA em cada
   critério, o 2º colocado e se a diferença entre os dois é significativa, um empate estatístico ou
   não testada. "Minha prioridade" só realça uma linha do guia; nenhum número muda. Não há um
   vencedor geral. O título de cada cartão é a conclusão dos números do recorte e muda com os
-  filtros; "Baixar figura" salva o gráfico como aparece na tela (tema claro ou escuro), em PNG, SVG
-  ou PDF, com o título, o filtro e a fonte; no tema claro, é a figura de `python -m metrics
-  figures`. No fim, as tabelas oficiais (todas as linhas de `metrics.csv` sem filtro; com filtro,
+  filtros; "Como se calcula" mostra a fórmula do gráfico, a mesma fórmula em palavras e a conta
+  feita com os números do recorte (por exemplo, "Gemini: 54.083 de 60.000 WAs → 90,1%");
+  para salvar um gráfico, use o menu do próprio gráfico ("…", ao passar o mouse), em PNG ou
+  SVG. No fim, as tabelas oficiais (todas as linhas de `metrics.csv` sem filtro; com filtro,
   calculadas para o recorte e marcadas assim), os testes estatísticos e o custo. Um recorte de um
   problema só não tem métrica: a página avisa e aponta a ficha do problema na Rastreabilidade. Antes de as métricas serem
   calculadas, um aviso.
@@ -100,7 +103,7 @@ As duas últimas páginas:
 
 **Prévia**: as porcentagens de detecção do painel (detectados ÷ total, somados só sobre as
 combinações com suíte) são uma prévia, sempre marcada assim. Os números oficiais (TDF, MS e as
-demais) e as figuras do texto vêm do módulo de métricas. Cada tabela tem um botão para baixar o CSV
+demais) vêm do módulo de métricas. Cada tabela tem um botão para baixar o CSV
 já filtrado (vai para a pasta de downloads do navegador, não para o repositório).
 
 **Durante uma avaliação em andamento**, os dados são lidos ao abrir e guardados; clique em
@@ -163,8 +166,8 @@ páginas sobre os mesmos pacotes descompactados.
 
 ## (d) Saídas produzidas
 
-Nenhuma no repositório. Só a página no navegador e, quando você pede, o CSV de uma tabela ou uma
-figura, baixados pelo navegador. Só a cópia pública descompacta os pacotes em `data/`, no servidor
+Nenhuma no repositório. Só a página no navegador e, quando você pede, o CSV de uma tabela ou um
+gráfico (pelo menu do gráfico), baixados pelo navegador. Só a cópia pública descompacta os pacotes em `data/`, no servidor
 dela.
 
 ## (e) Dependências e pré-requisitos

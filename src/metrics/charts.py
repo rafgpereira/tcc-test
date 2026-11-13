@@ -75,6 +75,48 @@ def _tight_x(x_order: list[str], n_series: int, gap: int = 2) -> alt.X:
     )
 
 
+BOX_TIP = (  # the hover of a box, top to bottom, in words a reader without statistics follows
+    ("high", "Maior efeito (problema extremo)"),
+    ("upper", "Limite superior típico"),
+    ("q3", "75% dos problemas ficam abaixo de"),
+    ("median", "Mediana (problema do meio)"),
+    ("q1", "25% dos problemas ficam abaixo de"),
+    ("lower", "Limite inferior típico"),
+    ("low", "Menor efeito (problema extremo)"),
+)
+
+
+def _box_stats(data: pd.DataFrame) -> pd.DataFrame:
+    """Per ``x`` × ``series``: the numbers of a Tukey box (whiskers at 1.5 IQR, as ``extent``)."""
+    rows = []
+    for (x, series), group in data.groupby(["x", "series"], sort=False):
+        values = group["value"].dropna()
+        if values.empty:
+            continue
+        q1, median, q3 = values.quantile([0.25, 0.5, 0.75])
+        reach = 1.5 * (q3 - q1)
+        inside = values[(values >= q1 - reach) & (values <= q3 + reach)]
+        rows.append(
+            {
+                "x": x,
+                "series": series,
+                "low": values.min(),
+                "lower": inside.min(),
+                "q1": q1,
+                "median": median,
+                "q3": q3,
+                "upper": inside.max(),
+                "high": values.max(),
+            }
+        )
+    return pd.DataFrame(rows, columns=["x", "series", *(key for key, _ in BOX_TIP)])
+
+
+def _comma(field: str, fmt: str) -> str:
+    """A Vega expression: the number formatted with ``fmt`` and a decimal comma (17,3)."""
+    return f"replace(format(datum['{field}'], '{fmt}'), '.', ',')"
+
+
 def _panel(
     data: pd.DataFrame, kind: str, fmt: str, y_title: str, colors: list[str], ink: dict, height: int
 ) -> alt.LayerChart:
@@ -100,22 +142,36 @@ def _panel(
             "series:N", sort=series_order, scale=alt.Scale(paddingInner=gap / (BAR + gap))
         )
         x = _tight_x(x_order, len(series_order), gap)
-        boxes = base.mark_boxplot(
-            extent=1.5,
-            outliers=False,  # the extreme problems stay in the table; they would flatten the boxes
-            size=BAR,
-            median={"color": ink["primary"]},
-            rule={"color": ink["secondary"]},
-            ticks={"color": ink["secondary"]},
-        ).encode(x=x, xOffset=offset, y=alt.Y("value:Q", title=y_title), color=color)
-        medians = (
-            base.transform_aggregate(
-                median="median(value)", top="q3(value)", groupby=["x", "series"]
-            )
-            .mark_text(baseline="bottom", dy=-4, fontWeight="bold", **label_style)
-            .encode(x=x, xOffset=offset, y="top:Q", text=alt.Text("median:Q", format=fmt))
+        # Drawn from our own numbers, not mark_boxplot: its hover is fixed in English ("Upper
+        # Whisker", "Q3"). Whiskers at 1.5 IQR; the extreme problems stay out of the drawing (they
+        # would flatten the boxes) but are in the hover.
+        stats = alt.Chart(_box_stats(data))
+        tip = [
+            alt.Tooltip("x:N", title="Modelo"),
+            alt.Tooltip("series:N", title="Comparação"),
+            *(alt.Tooltip(f"{key}:Q", title=label, format=fmt) for key, label in BOX_TIP),
+        ]
+        whiskers = stats.mark_rule(color=ink["secondary"]).encode(
+            x=x, xOffset=offset, y=alt.Y("lower:Q", title=y_title), y2="upper:Q", tooltip=tip
         )
-        layers = [boxes, medians]
+        ends = [
+            stats.mark_tick(color=ink["secondary"], size=BAR / 2, thickness=1).encode(
+                x=x, xOffset=offset, y=f"{end}:Q", tooltip=tip
+            )
+            for end in ("lower", "upper")
+        ]
+        boxes = stats.mark_bar(size=BAR).encode(
+            x=x, xOffset=offset, y="q1:Q", y2="q3:Q", color=color, tooltip=tip
+        )
+        middle = stats.mark_tick(color=ink["primary"], size=BAR, thickness=2).encode(
+            x=x, xOffset=offset, y="median:Q", tooltip=tip
+        )
+        medians = (
+            stats.mark_text(baseline="bottom", dy=-4, fontWeight="bold", **label_style)
+            .transform_calculate(shown=_comma("median", fmt))
+            .encode(x=x, xOffset=offset, y="q3:Q", text="shown:N")
+        )
+        layers = [whiskers, *ends, boxes, middle, medians]
     elif kind == "stacked":
         y = alt.Y("value:Q", title=y_title, stack="zero")
         bars = base.mark_bar(size=BAR * 2, cornerRadiusEnd=4).encode(
@@ -124,7 +180,8 @@ def _panel(
         totals = (
             base.transform_aggregate(total="sum(value)", groupby=["x"])
             .mark_text(baseline="bottom", dy=-4, fontWeight="bold", **label_style)
-            .encode(x=x, y="total:Q", text=alt.Text("total:Q", format=fmt))
+            .transform_calculate(shown=_comma("total", fmt))
+            .encode(x=x, y="total:Q", text="shown:N")
         )
         layers = [bars, totals]  # the split is in the tooltip and the legend
     else:
@@ -137,8 +194,10 @@ def _panel(
         bars = base.mark_bar(cornerRadiusEnd=4).encode(
             x=x, xOffset=offset, y=y, color=color, tooltip=tooltip
         )
-        labels = base.mark_text(baseline="bottom", dy=-4, **label_style).encode(
-            x=x, xOffset=offset, y=y, text=alt.Text("value:Q", format=fmt)
+        labels = (
+            base.transform_calculate(shown=_comma("value", fmt))
+            .mark_text(baseline="bottom", dy=-4, **label_style)
+            .encode(x=x, xOffset=offset, y=y, text="shown:N")
         )
         layers = [bars, labels]
     return alt.layer(*layers).properties(width=WIDTH, height=height)
@@ -315,9 +374,11 @@ def bars(
     marks = base.mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4, color=colors[0]).encode(
         tooltip=[alt.Tooltip("x:N", title=""), alt.Tooltip("value:Q", title=y_title, format=fmt)]
     )
-    labels = base.mark_text(
-        baseline="bottom", dy=-4, fontSize=12, color=ink["primary"], font=FONT
-    ).encode(text=alt.Text("value:Q", format=fmt))
+    labels = (
+        base.mark_text(baseline="bottom", dy=-4, fontSize=12, color=ink["primary"], font=FONT)
+        .transform_calculate(shown=_comma("value", fmt))
+        .encode(text="shown:N")
+    )
     return _card(alt.layer(marks, labels).properties(height=CARD_HEIGHT), ink)
 
 
@@ -475,10 +536,13 @@ def _cell_text(base: alt.Chart, flag: str, ink: dict) -> list[alt.Chart]:
     ]
 
 
-def scoreboard_grid(data: pd.DataFrame, mode: str = "light") -> alt.LayerChart:
-    """``data``: ``row`` (set), ``col`` (criterion), ``text`` ("1º\\n90,1%"), ``first`` (bool).
+def scoreboard_grid(
+    data: pd.DataFrame, mode: str = "light", row_height: int = 50, row_title: str = "IA"
+) -> alt.LayerChart:
+    """``data``: ``row`` (set, or set · scenario), ``col`` (criterion), ``text`` ("1º\\n90,1%"),
+    ``first`` (bool).
 
-    One cell per set × criterion; the 1st place of each criterion in the highlight colour."""
+    One cell per row × criterion; the 1st place of each criterion in the highlight colour."""
     mode, ink, colors = _theme(mode)
     rows = list(dict.fromkeys(data["row"]))
     columns = list(dict.fromkeys(data["col"]))
@@ -490,13 +554,13 @@ def scoreboard_grid(data: pd.DataFrame, mode: str = "light") -> alt.LayerChart:
         ),
         opacity=alt.condition("datum.first", alt.value(0.28), alt.value(0.45)),
         tooltip=[
-            alt.Tooltip("row:N", title="IA"),
+            alt.Tooltip("row:N", title=row_title),
             alt.Tooltip("col:N", title="critério"),
             alt.Tooltip("tip:N", title="posição e valor"),
         ],
     )
     return alt.layer(cells, *_cell_text(base, "first", ink)).properties(
-        height=50 * max(1, len(rows))
+        height=row_height * max(1, len(rows))
     )
 
 
@@ -550,6 +614,75 @@ def ranked_bars(
         )
     )
     return alt.layer(*layers).properties(height=44 * max(1, len(order)))
+
+
+def _pt(value: float, decimals: int = 1) -> str:
+    """Portuguese decimal: 17,3."""
+    return f"{value:.{decimals}f}".replace(".", ",")
+
+
+def _spread(xs: list[float], ys: list[float], gap: float, x_window: float) -> list[float]:
+    """Label heights that keep ``gap`` apart: from the top down, a label that would touch one
+    already placed (within ``x_window`` horizontally) moves down. A moved label gets a leader line
+    to its point, like the callouts of a pie chart."""
+    order = sorted(range(len(ys)), key=lambda i: -ys[i])
+    placed: dict[int, float] = {}
+    for i in order:
+        y = ys[i]
+        for j, other in sorted(placed.items(), key=lambda kv: -kv[1]):
+            if abs(xs[j] - xs[i]) <= x_window and y > other - gap:
+                y = other - gap
+        placed[i] = y
+    return [placed[i] for i in range(len(ys))]
+
+
+def _callouts(
+    frame: pd.DataFrame,
+    x_scale,
+    y_scale,
+    ink: dict,
+    align: str,
+    dx: int,
+    chip: str | None = None,
+):
+    """Text at (``lx``, ``ly``) and, where it moved away from its point, a thin leader line.
+
+    ``chip``: a background colour drawn behind the text (centred, so ``align`` should be
+    "center"), for labels that sit among lines."""
+    text = (
+        alt.Chart(frame)
+        .mark_text(
+            align=align,
+            baseline="middle",
+            dx=dx,
+            fontSize=11,
+            lineBreak="\n",
+            color=ink["primary"],
+            font=FONT,
+        )
+        .encode(x=alt.X("lx:Q", scale=x_scale), y=alt.Y("ly:Q", scale=y_scale), text="text:N")
+    )
+    under = []
+    if chip is not None:
+        under = [
+            alt.Chart(frame)
+            .mark_rect(width=46, height=15, color=chip, cornerRadius=3)
+            .encode(x=alt.X("lx:Q", scale=x_scale), y=alt.Y("ly:Q", scale=y_scale))
+        ]
+    moved = frame[frame["moved"]]
+    if moved.empty:
+        return [*under, text]
+    leaders = (
+        alt.Chart(moved)
+        .mark_rule(color=ink["secondary"], strokeWidth=1)
+        .encode(
+            x=alt.X("px:Q", scale=x_scale),
+            y=alt.Y("py:Q", scale=y_scale),
+            x2="lx:Q",
+            y2="ly:Q",
+        )
+    )
+    return [leaders, *under, text]
 
 
 def tradeoff_scatter(
@@ -608,30 +741,66 @@ def tradeoff_scatter(
             alt.Tooltip("y:Q", title="TDF* (%)", format=".1f"),
         ],
     )
-    labels = base.mark_text(
-        align="left", dx=11, fontSize=12, color=ink["primary"], font=FONT
-    ).encode(text="label:N")
-    return alt.layer(shade, shade_label, points, labels).properties(height=320)
+    xs, ys = list(data["x"].astype(float)), list(data["y"].astype(float))
+    x_shift, gap, window = x_max * 0.03, (y_high - y_low) * 0.11, x_max * 0.22
+    left = [
+        xs[i] > x_max * 0.7  # near the right edge
+        or any(0 < xs[j] - xs[i] <= window and abs(ys[j] - ys[i]) < gap for j in range(len(xs)))
+        for i in range(len(xs))
+    ]
+    labels = []
+    for side in (False, True):
+        idx = [i for i in range(len(xs)) if left[i] == side]
+        if not idx:
+            continue
+        heights = _spread([xs[i] for i in idx], [ys[i] for i in idx], gap, window)
+        callout = pd.DataFrame(
+            {
+                "px": [xs[i] for i in idx],
+                "py": [ys[i] for i in idx],
+                "lx": [xs[i] - x_shift if side else xs[i] + x_shift for i in idx],
+                "ly": heights,
+                "moved": [abs(h - ys[i]) > 1e-9 for h, i in zip(heights, idx, strict=True)],
+                "text": [
+                    f"{data['label'].iloc[i]}\nTFP {_pt(xs[i])}% · TDF* {_pt(ys[i])}%" for i in idx
+                ],
+            }
+        )
+        labels += _callouts(callout, x_scale, y_scale, ink, "right" if side else "left", 0)
+    return alt.layer(shade, shade_label, points, *labels).properties(height=340)
 
 
 def scenario_lines(data: pd.DataFrame, scenarios: list[str], mode: str = "light") -> alt.LayerChart:
     """TDF* across the scenarios: ``set``, ``scenario``, ``value``, ``accent`` (-1 grey, 0, 1); the
     name of each set written at its last point."""
     mode, ink, colors = _theme(mode)
-    frame = data.assign(accent=data["accent"].astype(str))
+    position = {name: i for i, name in enumerate(scenarios)}
+    frame = data.assign(
+        accent=data["accent"].astype(str), pos=data["scenario"].map(position).astype(float)
+    )
     low, high = float(frame["value"].min()), float(frame["value"].max())
     pad = max(1.0, (high - low) * 0.08)
+    last = len(scenarios) - 1
+    names = "[" + ", ".join(f"'{n}'" for n in scenarios) + "]"
+    x_scale = alt.Scale(domain=[-0.5, last + 0.6], nice=False)
     x = alt.X(
-        "scenario:N",
-        sort=scenarios,
+        "pos:Q",
+        scale=x_scale,
         title=None,
-        axis=alt.Axis(labelAngle=0, ticks=False, domain=False, labelPadding=8),
-        scale=alt.Scale(padding=0.35),
+        axis=alt.Axis(
+            values=list(range(len(scenarios))),
+            labelExpr=f"{names}[datum.value]",
+            ticks=False,
+            domain=False,
+            grid=False,
+            labelPadding=8,
+        ),
     )
+    y_scale = alt.Scale(domain=[low - pad, high + pad], zero=False, nice=False)
     y = alt.Y(
         "value:Q",
         title="TDF* (%)",
-        scale=alt.Scale(domain=[low - pad, high + pad], zero=False, nice=False),
+        scale=y_scale,
         axis=alt.Axis(labelExpr="datum.label + '%'", tickCount=5),
     )
     accent = alt.Color(
@@ -648,13 +817,31 @@ def scenario_lines(data: pd.DataFrame, scenarios: list[str], mode: str = "light"
             alt.Tooltip("value:Q", title="TDF* (%)", format=".2f"),
         ]
     )
-    last = frame[frame["scenario"] == scenarios[-1]]
-    labels = (
-        alt.Chart(last)
-        .mark_text(align="left", dx=10, fontSize=12, color=ink["primary"], font=FONT)
-        .encode(x=x, y=y, text="set:N")
-    )
-    return alt.layer(lines, points, labels).properties(height=300)
+    gap = (high - low + 2 * pad) * 0.055  # one line of text, at 300 px
+    layers = [lines, points]
+    for pos in range(len(scenarios)):
+        one = frame[frame["pos"] == pos]
+        ys = list(one["value"].astype(float))
+        heights = _spread([0.0] * len(ys), ys, gap, x_window=1.0)
+        side = 0.12 if pos == last else -0.2
+        callout = pd.DataFrame(
+            {
+                "px": [float(pos)] * len(ys),
+                "py": ys,
+                "lx": [pos + side] * len(ys),
+                "ly": heights,
+                "moved": [abs(h - v) > 1e-9 for h, v in zip(heights, ys, strict=True)],
+                "text": [
+                    f"{name} {_pt(v)}%" if pos == last else f"{_pt(v)}%"
+                    for name, v in zip(one["set"], ys, strict=True)
+                ],
+            }
+        )
+        if pos == last:
+            layers += _callouts(callout, x_scale, y_scale, ink, "left", 0)
+        else:
+            layers += _callouts(callout, x_scale, y_scale, ink, "center", 0, PAGE_BG[mode])
+    return alt.layer(*layers).properties(height=300)
 
 
 def diverging_bars(data: pd.DataFrame, limit: float, mode: str = "light") -> alt.LayerChart:

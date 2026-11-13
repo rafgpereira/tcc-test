@@ -3,8 +3,8 @@
 specs/012-dashboard-storytelling/contracts/narrative.md, "Página 3". Nothing is computed here:
 the tables are read from ``data/metrics``; the titles come from ``metrics.story.conclusion`` (the
 conclusion of the sidebar cut, so they change with the filters); the charts from
-``metrics.figures.card``, the same numbers as the tables. Each card has a "Baixar figura" button
-that saves the same drawing with its title, cut and source (``metrics.figures.render``).
+``metrics.figures.card``, the same numbers as the tables. Each card has "Como se calcula" (the
+formula and the example of ``metrics.formulas``); the chart's own menu saves it as PNG or SVG.
 """
 
 import json
@@ -27,7 +27,6 @@ KILLED = (
     "mutants_total",
     "MS",
 )
-MIME = {"png": "image/png", "svg": "image/svg+xml", "pdf": "application/pdf"}
 ORACLE_CHOICE = {"do AC (corrigido)": "corrected", "da IA (declarado)": "declared"}
 STATE_NOTE = {
     "differ": "Entre o 1º e o 2º: diferença significativa (Wilcoxon pareado, com Holm).",
@@ -69,53 +68,6 @@ def _title(name: str, key: tuple, folder: str, stamp: float, oracle: str) -> tup
     return found.text, found.subtitle, found.rule
 
 
-@st.cache_data(show_spinner="preparando o arquivo...")
-def _file(
-    name: str,
-    key: tuple,
-    folder: str,
-    stamp: float,
-    source: str,
-    fmt: str,
-    mode: str,
-    oracle: str,
-    highlight: str | None,
-) -> bytes:
-    from metrics import figures
-
-    loaded = _tables(folder, stamp)
-    return figures.render(name, loaded, dict(key), fmt, source, mode, oracle, highlight)[1]
-
-
-def _downloads(ctx: _Ctx, name: str, oracle: str = "corrected", highlight: str | None = None):
-    from metrics import figures
-
-    with st.popover("Baixar figura", icon=":material/download:"):
-        st.caption(
-            "Com o título, o recorte e a fonte. Sem filtros e no tema claro, PNG e SVG são os "
-            "mesmos de `python -m metrics figures`."
-        )
-        for fmt in figures.FORMATS:
-            st.download_button(
-                fmt.upper(),
-                lambda fmt=fmt: _file(
-                    name,
-                    ctx.key,
-                    ctx.folder,
-                    ctx.stamp,
-                    ctx.source,
-                    fmt,
-                    ctx.mode,
-                    oracle,
-                    highlight,
-                ),
-                file_name=figures.file_name(name, ctx.filters, fmt, oracle),
-                mime=MIME[fmt],
-                key=f"{fmt}_{name}_{oracle}",
-                on_click="ignore",
-            )
-
-
 def _card(
     ctx: _Ctx,
     name: str,
@@ -123,7 +75,7 @@ def _card(
     oracle: str = "corrected",
     highlight: str | None = None,
 ):
-    """A bordered card: the conclusion, the subtitle, the chart, the notes and the download."""
+    """A bordered card: the conclusion, the subtitle, the chart, the notes and the formula."""
     from metrics import cuts, figures
 
     heading, subtitle, _ = _title(name, ctx.key, ctx.folder, ctx.stamp, oracle)
@@ -141,8 +93,32 @@ def _card(
         st.altair_chart(chart, theme=None, width="content" if fixed else "stretch")
         for note in notes:
             st.caption(note)
-        _downloads(ctx, name, oracle, highlight)
+        _formula(ctx, name, oracle)
     return box
+
+
+@st.cache_data(show_spinner=False)
+def _example(name: str, key: tuple, folder: str, stamp: float, oracle: str) -> list[str]:
+    from metrics import formulas
+
+    return formulas.example(name, _tables(folder, stamp), dict(key), oracle)
+
+
+def _formula(ctx: _Ctx, name: str, oracle: str) -> None:
+    """ "Como se calcula": the formula, the same in words and the example in the current cut."""
+    from metrics import formulas
+
+    formula = formulas.FORMULAS.get(name)
+    if formula is None:
+        return
+    with st.popover("Como se calcula", icon=":material/function:"):
+        for line in formula.latex:
+            st.latex(line)
+        st.markdown(formula.words)
+        lines = _example(name, ctx.key, ctx.folder, ctx.stamp, oracle)
+        if lines:
+            st.markdown("**No recorte atual**")
+            st.markdown("\n".join(f"- {line}" for line in lines))
 
 
 def _no_metrics(folder) -> None:
@@ -185,6 +161,16 @@ def _scoreboard(ctx: _Ctx, recorte) -> None:
         "cenário está no guia de escolha."
     )
     _card(ctx, "scoreboard", notes)
+    _card(
+        ctx,
+        "scoreboard_scenarios",
+        [
+            (
+                "Cada cenário é um placar à parte: a posição compara as IAs no mesmo cenário. O "
+                "teste entre o 1º e o 2º de cada cenário está no guia de escolha."
+            )
+        ],
+    )
 
 
 def _detection(ctx: _Ctx, recorte) -> None:
@@ -276,7 +262,7 @@ def _context(ctx: _Ctx, recorte) -> None:
     oracle = ORACLE_CHOICE[choice]
     _card(ctx, "iic_diverging", story.iic_sign_changes(ctx.loaded, recorte), oracle=oracle)
     with st.expander("Ver o IIC problema a problema (diagnóstico)"):
-        _card(ctx, "iic_distribution")
+        _card(ctx, "iic_distribution", oracle=oracle)
 
 
 def _cost(ctx: _Ctx, recorte) -> None:

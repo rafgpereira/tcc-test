@@ -98,13 +98,9 @@ def _package(args) -> int:
     root = Path(".")
     folder = root / config.METRICS_DIR
     missing = [f for f in config.TABLES.values() if not (folder / f).is_file()]
-    defaults = [
-        figures.file_name(n, {}, fmt) for n in figures.FIGURES for fmt in figures.PACKAGED_FORMATS
-    ]
-    missing += [f"figures/{f}" for f in defaults if not (folder / "figures" / f).is_file()]
     if missing:
         print(
-            f"error: missing in {folder}: {', '.join(missing[:5])}; run `compute` and `figures`",
+            f"error: missing in {folder}: {', '.join(missing[:5])}; run `compute`",
             file=sys.stderr,
         )
         return EXIT_DATA

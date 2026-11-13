@@ -35,7 +35,8 @@ TCC de dupla — Milena e Rafael, UnB.
   (placar e guia de escolha), a rastreabilidade (de um número ao problema, à suíte e ao teste) e a
   avaliação (`specs/011-results-dashboard/`, `specs/012-dashboard-storytelling/`)
 - `src/metrics/` — TDF, MS, TFP, IIC, TC, TDF*/MS*/Δ_oráculo, TFP por causa, custo por detecção,
-  densidade, Friedman/Wilcoxon/McNemar com Holm e A12, e as figuras do TCC; tabelas em `data/metrics/`
+  densidade, Friedman/Wilcoxon/McNemar com Holm e A12, e as figuras (desenhadas sob demanda, fora do
+  pacote); tabelas em `data/metrics/`
   (`specs/010-metrics/`)
 - `src/cli/` — comandos que cruzam módulos (hoje `check`) e, no futuro, o orquestrador que amarra tudo
   (cada `src/<modulo>/` tem `README.md` no formato de `docs/template-modulo.md`)

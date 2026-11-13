@@ -427,3 +427,22 @@ def test_guide_real_numbers():
         "cost": "Claude detecta 1.000 falhas por US$ 0,019, 14× menos que GPT",
     }
     assert story.barred_effect(real, story.Recorte()) == (9, [])
+
+
+def test_scoreboard_by_scenario_ranks_inside_each_scenario():
+    t = fake_tables()
+    board = story.scoreboard_by_scenario(t, story.Recorte.from_filters({}))
+    firsts = board[(board["criterion"] == "tdf_star") & (board["rank"] == 1)]
+    assert dict(zip(firsts["scenario"], firsts["set"], strict=True)) == {
+        "black_box": "gpt",
+        "white_box": "claude",
+    }
+    one = board[(board["scenario"] == "white_box") & (board["criterion"] == "tdf_star")]
+    assert sorted(one["rank"].astype(int)) == [1, 2, 3]  # three sets ranked in the scenario
+    assert "tdf_star" in story.scenario_changes(t, story.Recorte.from_filters({}))
+    title = story.conclusion(t, story.Recorte.from_filters({}), "scenarios")
+    assert title.rule == "scenarios_change"
+    single = story.conclusion(
+        t, story.Recorte.from_filters({"scenarios": ["white_box"]}), "scenarios"
+    )
+    assert single.rule == "scenarios_single"

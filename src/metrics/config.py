@@ -45,4 +45,7 @@ def generation_report(model: str) -> Path:
     return Path("manifests") / f"{model}_generation_report.json"
 
 
-PACKAGED_FIGURE_FORMATS = ("png", "svg")  # the figure formats that are the same bytes on every call
+PACKAGED_FIGURE_FORMATS = (
+    "png",
+    "svg",
+)  # the figure formats that are the same bytes on every call (no figure is packaged since 2026-11-13)

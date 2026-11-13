@@ -10,7 +10,7 @@ teste unitários em C++.
 > "Módulos e estado", abaixo); este documento é o ponto de partida e o índice, não o detalhe de
 > cada módulo.
 >
-> **Estado atual (2026-11-12)**: **o experimento terminou.** Todos os artefatos foram gerados de verdade
+> **Estado atual (2026-11-13)**: **o experimento terminou.** Todos os artefatos foram gerados de verdade
 > e estão neste repositório, cada um com o seu manifesto de integridade (SHA-256):
 >
 > | Artefato | Pacote | Conteúdo |
@@ -19,7 +19,7 @@ teste unitários em C++.
 > | mutantes | `data/mutants.zip` | 100 mutantes por problema (20.000) |
 > | suítes de teste | `data/slm_suites.zip`, `data/gpt_suites.zip`, `data/gemini_suites.zip`, `data/claude_suites.zip` | 600 combinações (problema × cenário) por modelo |
 > | avaliação | `data/evaluation_<conjunto>.zip` (5 pacotes) | cada suíte executada contra o AC, os WAs e os mutantes |
-> | métricas | `data/metrics.zip` | as tabelas (TDF, MS, TFP, IIC…), os testes estatísticos e as figuras do texto |
+> | métricas | `data/metrics.zip` | as tabelas (TDF, MS, TFP, IIC…) e os testes estatísticos; os gráficos são desenhados delas, no painel ou pelo comando de figuras |
 >
 > **Quem clona o projeto não precisa gerar nada**: basta preparar o ambiente e descompactar (ver
 > "Caminho rápido", abaixo). Gerar de novo leva dias e, nos modelos comerciais, custa dinheiro.
@@ -267,7 +267,8 @@ docker compose run --rm -p 127.0.0.1:8501:8501 app python -m dashboard serve
 
 Abra **http://localhost:8501** no navegador; Ctrl+C no terminal fecha o painel. As páginas e o que
 cada gráfico mostra estão no [README do módulo `dashboard`](src/dashboard/README.md). As tabelas de
-métricas também ficam em `data/metrics/*.csv` e as figuras do texto em `data/metrics/figures/`.
+métricas também ficam em `data/metrics/*.csv`; cada gráfico do painel se salva pelo menu do próprio
+gráfico (PNG ou SVG).
 
 Para entender o que cada etapa produziu, ou para refazer uma delas, siga a tabela "Depois da
 preparação", abaixo.
@@ -286,8 +287,8 @@ preparação", abaixo.
 | `data/<modelo>_suites.zip` | as suítes de `slm`, `gpt`, `gemini` e `claude`, compactadas | **sim** |
 | `data/evaluation/<conjunto>/` | o resultado da avaliação de cada conjunto, descompactado (ver README do módulo `evaluation`) | não (é gerado a partir do zip) |
 | `data/evaluation_<conjunto>.zip` | a avaliação de `slm`, `gpt`, `gemini`, `claude` e `slm-attempt1`, compactada | **sim** |
-| `data/metrics/` | as tabelas de métricas e as figuras, descompactadas (ver README do módulo `metrics`) | não (é gerado a partir do zip) |
-| `data/metrics.zip` | as tabelas e as figuras, compactadas | **sim** |
+| `data/metrics/` | as tabelas de métricas descompactadas e, se você rodar o comando de figuras, as figuras (ver README do módulo `metrics`) | não (é gerado a partir do zip) |
+| `data/metrics.zip` | as tabelas, compactadas | **sim** |
 | `data/statement_originals.zip` | o bloco do enunciado original de cada problema, baixado do Codeforces uma vez (ver README do módulo `dataset`) | **sim** |
 | `data/statements/` | as páginas originais inteiras e os enunciados corrigidos para revisão | não |
 | `manifests/` | manifestos de hashes e relatórios, para conferir a integridade dos artefatos | sim |
@@ -463,9 +464,9 @@ no `.env` e nunca fazem uma chamada paga sem `--confirm-spend <US$>`, que també
 |---|---|---|
 | `docker compose run --rm app python -m metrics compute` | `app` | calcula as tabelas de métricas em `data/metrics/` (confere antes que as avaliações estão completas e o `cli check --deep`); `--evaluation-dir DIR` |
 | `docker compose run --rm app python -m metrics figures` | `app` | desenha as figuras em PNG, SVG e PDF (o mesmo desenho do painel); `--figure NOME`, filtros `--macrocategoria`, `--rating`, `--status`, `--set`, `--scenario`, `--problem` (repetíveis; pelo menos 2 problemas), `--format`, `--output-dir` |
-| `docker compose run --rm app python -m metrics package` | `app` | `data/metrics.zip` (tabelas e figuras sem filtro) e o manifesto |
+| `docker compose run --rm app python -m metrics package` | `app` | `data/metrics.zip` (só as tabelas e o `run.json`, sem figuras) e o manifesto |
 | `docker compose run --rm app python -m metrics verify` | `app` | confere o zip; `--extracted data/metrics` também a pasta |
-| `unzip data/metrics.zip -d data/` | (host) | descompacta as tabelas e as figuras em `data/metrics/` |
+| `unzip data/metrics.zip -d data/` | (host) | descompacta as tabelas em `data/metrics/` |
 
 ### Módulo `dashboard` ([README](src/dashboard/README.md))
 

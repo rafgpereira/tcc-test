@@ -40,26 +40,27 @@ docker compose run --rm app python -m metrics verify --extracted data/metrics
    passa no dataset, nas suítes e nas avaliações (senão para com `1` e não grava nada); grava as
    tabelas em `data/metrics/` (de uma vez: uma interrupção não deixa metade) e imprime TDF, MS,
    TFP, TC, TDF\* e MS\* de cada conjunto e cenário. Rodar de novo dá os mesmos arquivos.
-2. **`figures`** desenha os gráficos em `data/metrics/figures/`, em PNG, SVG e PDF: o placar
-   (`scoreboard`), a detecção de falhas reais (`tdf_by_model`) e de mutantes
+2. **`figures`** (opcional) desenha os gráficos em `data/metrics/figures/`, em PNG, SVG e PDF,
+   para quem quiser os arquivos fora do painel; eles não entram no pacote nem no repositório. O
+   placar (`scoreboard`) e o placar por cenário (`scoreboard_scenarios`), a detecção de falhas reais (`tdf_by_model`) e de mutantes
    (`ms_declared_vs_corrected`), TDF × TDF\* por cenário, a troca detecta × reprova o código correto
    (`tradeoff`), falsos positivos por causa, a variação entre cenários (`scenario_shift`), o IIC
-   (`iic_diverging` e, problema a problema, `iic_distribution`), o custo por 1.000 WAs detectados
+   (`iic_diverging` e, problema a problema, `iic_distribution`; os dois pelo gabarito do AC, ou
+   pelo da IA com `gabarito-ia` no nome do arquivo), o custo por 1.000 WAs detectados
    (`cost_per_detection`) e o guia de escolha (`choice_guide`). O título de cada figura é a
    conclusão dos números (por exemplo, "Gemini encontra 90,1% das falhas reais") e muda com os
    filtros. É o mesmo desenho do painel, no tema claro. Com filtros, o nome do arquivo e o
    subtítulo da figura dizem o filtro (por exemplo, `scoreboard__rating-1600.png`), para qualquer
    figura poder ser refeita. O custo não se divide por problema: com um filtro por problema,
    macrocategoria, rating ou status, a figura de custo mostra o valor de todos os problemas e diz
-   isso no subtítulo. PNG e SVG saem iguais byte a byte a cada execução; o PDF
-   tem o mesmo desenho, mas não sai igual byte a byte, por isso não entra no pacote.
-3. **`package`** grava `data/metrics.zip` e `manifests/metrics.manifest.json` (recusa se faltarem
-   tabelas ou as figuras sem filtro em PNG e SVG); **`verify`** confere o zip e a pasta: `OK`.
+   isso no subtítulo. PNG e SVG saem iguais byte a byte a cada execução; o PDF tem o mesmo
+   desenho, mas não sai igual byte a byte.
+3. **`package`** grava `data/metrics.zip` (as tabelas e o `run.json`, nunca as figuras) e
+   `manifests/metrics.manifest.json` (recusa se faltar alguma tabela); **`verify`** confere o zip e a pasta: `OK`.
 
 As mesmas tabelas e os mesmos gráficos, interativos e com filtros, aparecem na página **As
-métricas** do painel (README do módulo [`dashboard`](../dashboard/README.md)): o botão "Baixar
-figura" de cada cartão salva o gráfico como aparece na tela, com o título e o filtro; no tema claro,
-é a figura do comando com o mesmo filtro.
+métricas** do painel (README do módulo [`dashboard`](../dashboard/README.md)), que desenha cada
+gráfico das tabelas; o menu do próprio gráfico o salva em PNG ou SVG.
 
 ### Cenário B — Descompactar o que já existe
 
@@ -101,7 +102,7 @@ docker compose run --rm app python -m metrics verify --extracted data/metrics
 | Saída | Formato | Destino |
 |---|---|---|
 | as seis tabelas e `run.json` (hashes das entradas) | CSV e JSON | `data/metrics/` |
-| figuras | PNG e SVG (no pacote) e PDF | `data/metrics/figures/` |
+| figuras (opcional, fora do pacote) | PNG, SVG e PDF | `data/metrics/figures/` |
 | `data/metrics.zip`, `manifests/metrics.manifest.json` | zip e JSON | **versionados** (`package`) |
 
 ## (e) Dependências e pré-requisitos

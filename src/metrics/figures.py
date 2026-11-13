@@ -21,7 +21,7 @@ import vl_convert
 from metrics import charts, config, cuts, iic, primary, story
 
 LABEL = {"black_box": "caixa-preta", "white_box": "caixa-branca", "hybrid": "híbrido"}
-SET_LABEL = {"slm-attempt1": "SLM 1ª tent."}
+SET_LABEL = {**story.SET_NAME, "slm-attempt1": "SLM 1ª tent."}  # the x axis of the legacy figures
 FILTER_KEYS = ("macrocategorias", "ratings", "statuses", "sets", "scenarios", "problems")
 SHORT = {
     "macrocategorias": "macrocategoria",
@@ -43,6 +43,7 @@ def _sets(frame: pd.DataFrame) -> list[str]:
 
 FIGURES = (
     "scoreboard",
+    "scoreboard_scenarios",
     "tdf_by_model",
     "tdf_declared_vs_corrected",
     "ms_declared_vs_corrected",
@@ -56,6 +57,7 @@ FIGURES = (
 )
 SECTION = {  # figure -> section of story.conclusion (its title is the conclusion of the cut)
     "scoreboard": "scoreboard",
+    "scoreboard_scenarios": "scenarios",
     "tdf_by_model": "tdf",
     "ms_declared_vs_corrected": "ms",
     "tradeoff": "tfp",
@@ -77,7 +79,13 @@ TITLES = {  # the figures whose title is a theme (support and diagnosis), with t
         "IIC por problema (%)",
     ),
 }
-KIND = {"tfp_by_cause": "stacked", "iic_distribution": "box"}  # the others: grouped bars
+KIND = {
+    "iic_distribution": "box"
+}  # tfp_by_cause: grouped, a number on every bar  # the others: grouped bars
+IIC_SERIES = (  # the legend of iic_distribution: what each IIC compares, in words
+    ("cod", "híbrido × caixa-preta (ganho de dar o código)"),
+    ("req", "híbrido × caixa-branca (ganho de dar o requisito)"),
+)
 CRITERION_HEADER = {
     "tdf_star": "falhas reais (TDF*)",
     "ms_star": "mutantes (MS*)",
@@ -99,7 +107,7 @@ def file_name(name: str, filters: dict, fmt: str, oracle: str = "corrected") -> 
         values = sorted(filters.get(key) or [])
         if values:
             parts.append(f"{SHORT[key]}-{'+'.join(str(v) for v in values)}")
-    if oracle == "declared" and name == "iic_diverging":
+    if oracle == "declared" and name in ("iic_diverging", "iic_distribution"):
         parts.append("gabarito-ia")
     return "__".join(parts) + f".{fmt}"
 
@@ -119,6 +127,9 @@ def title(name: str, tables: dict, filters: dict | None, oracle: str = "correcte
     if name in SECTION:
         recorte = story.Recorte.from_filters(_clean(filters))
         return story.conclusion(tables, recorte, SECTION[name], oracle)
+    if name == "iic_distribution":  # follows the answer key of the IIC, like iic_diverging
+        key = "gabarito do AC" if oracle == "corrected" else "gabarito da IA"
+        return story.Titulo(TITLES[name][0], f"WA reprovado pelo {key}", name)
     return story.Titulo(TITLES[name][0], "", name)
 
 
@@ -169,6 +180,32 @@ def _ranked_frame(means: pd.DataFrame, after: str, before: str) -> pd.DataFrame:
                 "label": label,
                 "first": i == 0,
                 "note": note,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def _board_rows(board: pd.DataFrame, row_label) -> pd.DataFrame:
+    """The cells of a scoreboard grid: one per row × criterion, "1º\n90,1%"."""
+    rows = []
+    for _, r in board.iterrows():
+        ranked = not pd.isna(r["rank"])
+        value = _value(r["criterion"], r["value"])
+        if r["criterion"] == "cost" and r["set"] in story.LOCAL:
+            value = "sem custo"
+        text = f"{int(r['rank'])}º\n{value}" if ranked else f"—\n{value}"
+        rows.append(
+            {
+                "row": row_label(r),
+                "col": CRITERION_HEADER[r["criterion"]],
+                "text": text,
+                "tip": text.replace("\n", " · "),
+                "first": bool(ranked and r["rank"] == 1),
+                "set": r["set"],
+                "scenario": r.get("scenario", ""),
+                "criterion": r["criterion"],
+                "value": r["value"],
+                "rank": r["rank"],
             }
         )
     return pd.DataFrame(rows)
@@ -249,27 +286,17 @@ def figure_data(
         raise cuts.CutError("no combination with these filters")
     if name == "scoreboard":
         board = story.scoreboard(tables, recorte)
-        rows = []
-        for _, r in board.iterrows():
-            ranked = not pd.isna(r["rank"])
-            value = _value(r["criterion"], r["value"])
-            if r["criterion"] == "cost" and r["set"] in story.LOCAL:
-                value = "sem custo"
-            text = f"{int(r['rank'])}º\n{value}" if ranked else f"—\n{value}"
-            rows.append(
-                {
-                    "row": story.name(r["set"]),
-                    "col": CRITERION_HEADER[r["criterion"]],
-                    "text": text,
-                    "tip": text.replace("\n", " · "),
-                    "first": bool(ranked and r["rank"] == 1),
-                    "set": r["set"],
-                    "criterion": r["criterion"],
-                    "value": r["value"],
-                    "rank": r["rank"],
-                }
-            )
-        return pd.DataFrame(rows)
+        return _board_rows(board, lambda r: story.name(r["set"]))
+    if name == "scoreboard_scenarios":
+        board = story.scoreboard_by_scenario(tables, recorte)
+        rank_set = {s: i for i, s in enumerate(config.SETS)}
+        rank_sc = {s: i for i, s in enumerate(config.SCENARIOS)}
+        board = board.assign(
+            _s=board["set"].map(rank_set), _c=board["scenario"].map(rank_sc)
+        ).sort_values(["_s", "_c"], kind="stable")
+        return _board_rows(
+            board, lambda r: f"{story.name(r['set'])} · {story.SCENARIO_NAME[r['scenario']]}"
+        )
     if name == "tdf_by_model":
         return _ranked_frame(_means(tables, recorte), "TDF_star", "TDF")
     if name == "ms_declared_vs_corrected":
@@ -332,10 +359,8 @@ def figure_data(
         rows = []
         for set_name in _sets(per_problem):
             problems = set(per_problem.loc[per_problem["set"] == set_name, "problem"])
-            for direction, label in (("cod", "IIC_cod"), ("req", "IIC_req")):
-                values, _ = iic.per_problem_values(
-                    detected, set_name, "declared", direction, problems
-                )
+            for direction, label in IIC_SERIES:
+                values, _ = iic.per_problem_values(detected, set_name, oracle, direction, problems)
                 x = SET_LABEL.get(set_name, set_name)
                 rows += [{"x": x, "series": label, "value": v, "panel": ""} for v in values]
         return pd.DataFrame(rows, columns=["x", "series", "value", "panel"])
@@ -360,6 +385,8 @@ def _body(name: str, values: pd.DataFrame, mode: str, highlight: str | None):
     """The chart of a narrative figure, without title (``charts.card`` or ``charts.framed``)."""
     if name == "scoreboard":
         return charts.scoreboard_grid(values, mode)
+    if name == "scoreboard_scenarios":
+        return charts.scoreboard_grid(values, mode, row_height=46, row_title="IA e cenário")
     if name in ("tdf_by_model", "ms_declared_vs_corrected"):
         x_title = "TDF* (%)" if name == "tdf_by_model" else "MS* (%)"
         return charts.ranked_bars(values, x_title, mode)

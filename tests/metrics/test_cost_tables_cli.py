@@ -3,6 +3,7 @@
 import hashlib
 import json
 import math
+import zipfile
 
 import pytest
 
@@ -66,13 +67,15 @@ def test_compute_is_atomic_deterministic_and_gated(repo, monkeypatch):
 
 def test_figures_package_and_verify(repo, monkeypatch):
     monkeypatch.setattr(cli, "_run_gate", lambda root: [])
+    assert cli.main(["package"]) == 1  # tables missing
     assert cli.main(["compute"]) == 0
-    assert cli.main(["package"]) == 1  # default figures missing
     assert cli.main(["figures"]) == 0
     assert cli.main(["figures", "--figure", "tdf_by_model", "--macrocategoria", "matematica"]) == 2
     assert cli.main(["figures", "--set", "gpt", "--set", "claude"]) == 0
     assert (repo / "data/metrics/figures/tdf_by_model__set-claude+gpt.png").is_file()
     assert cli.main(["package"]) == 0
+    with zipfile.ZipFile(repo / config.METRICS_ZIP) as archive:  # no figure is packaged
+        assert not [n for n in archive.namelist() if "/figures/" in n]
     zip_hash = hashlib.sha256((repo / config.METRICS_ZIP).read_bytes()).hexdigest()
     assert cli.main(["package"]) == 0
     assert hashlib.sha256((repo / config.METRICS_ZIP).read_bytes()).hexdigest() == zip_hash
