@@ -29,7 +29,7 @@ _TC = r"\text{TC} = \frac{\text{combinações com suíte}}{\text{combinações}}
 _COST = r"\text{custo} = \frac{\text{US\$ gastos}}{\text{WAs reprovados pelo gabarito do AC}} \times 1.000"
 _IIC = (
     r"\text{IIC} = \frac{|H \setminus B| - |B \setminus H|}{|B|} \times 100",
-    r"H = \text{WAs que o híbrido reprovou};\quad B = \text{WAs que a base reprovou}",
+    r"H = \text{WAs que o híbrido reprovou};\quad B = \text{WAs que a base reprovou (R ou C)}",
 )
 _MEAN = (
     "Com mais de um cenário no recorte, o valor é a média dos cenários (cada cenário tem os "
@@ -104,7 +104,9 @@ FORMULAS = {
         "Quanto o híbrido muda a detecção em relação à base: os WAs que só o híbrido reprovou, "
         "menos os que só a base reprovou, sobre tudo o que a base reprovou. Base caixa-preta (+ "
         "código) ou caixa-branca (+ requisito). Conta só WAs, nunca mutantes. Os pares (problema, "
-        "WA) são somados em todos os problemas do recorte; o filtro de cenário não se aplica.",
+        "WA) são somados em todos os problemas do recorte; o filtro de cenário não se aplica. "
+        "Os conjuntos (R = caixa-preta, C = caixa-branca, H = híbrido), problema a problema e WA "
+        'a WA, estão na Rastreabilidade, em "De onde vem o IIC".',
     ),
     "iic_distribution": Formula(
         _IIC,

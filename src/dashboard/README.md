@@ -86,7 +86,12 @@ As duas últimas páginas:
   (combinações sem suíte, com o motivo e as tentativas; suítes "sem raciocínio"; origem da suíte do
   modelo local; qual teste reprovou um WA ou mutante; o que um teste derrubou; por que o AC foi
   reprovado; detecções que só existem por um gabarito; WAs que nenhuma IA detectou; WAs que só uma
-  detectou; mutantes que sobreviveram; ficha de um problema). A lista segue os filtros e "Abrir"
+  detectou; mutantes que sobreviveram; de onde vem o IIC; ficha de um problema). "De onde vem o
+  IIC" mostra, para uma IA, uma direção e um gabarito, os WAs que ela pegou em cada cenário (R =
+  caixa-preta, C = caixa-branca, H = híbrido) nas 8 regiões dos três conjuntos, a conta do IIC
+  com esses números (e quais regiões somam em cada termo, para conferir à mão), a tabela por
+  problema e, ao abrir um problema, os 100 WAs com o papel de cada um (ganho, perda, os dois,
+  nenhum); o filtro de cenário não vale nesse caso. A lista segue os filtros e "Abrir"
   mostra o item: a combinação (status, origem, motivo, tentativas, testes com a saída do AC), o alvo
   (quem o detectou e com qual teste, e o código ao lado do AC) ou o problema (enunciado, AC e as 15
   combinações). Cada alvo para no primeiro teste que o reprova, então o "teste que reprovou" é sempre

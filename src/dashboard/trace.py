@@ -425,3 +425,112 @@ def problem_info(root: Path, problem: str) -> dict:
             else ""
         ),
     }
+
+
+# ------------------------------------------------------------------------------------- IIC sets
+# The IIC compares the WAs a set detected in each scenario (metrics.iic): R = black box (only the
+# requirement), C = white box (only the code), H = hybrid. IIC + código = hybrid over R; IIC +
+# requisito = hybrid over C. Each element is a pair (problem, WA); the pairs are counted over
+# every problem of the cut, so the scenario filter does not apply here.
+
+IIC_BASE = {"cod": "black_box", "req": "white_box"}
+IIC_LETTER = {"black_box": "R", "white_box": "C", "hybrid": "H"}
+IIC_REGIONS = (  # the 8 regions of the three sets, as (in R, in C, in H)
+    ("só R (só caixa-preta)", (True, False, False)),
+    ("só C (só caixa-branca)", (False, True, False)),
+    ("só H (só híbrido)", (False, False, True)),
+    ("R e C, não H", (True, True, False)),
+    ("R e H, não C", (True, False, True)),
+    ("C e H, não R", (False, True, True)),
+    ("R, C e H", (True, True, True)),
+    ("nenhum", (False, False, False)),
+)
+
+
+def iic_wa_table(frame: pd.DataFrame, set_name: str, oracle: str = "corrected") -> pd.DataFrame:
+    """One row per (problem, WA) of ``set_name`` in the cut: ``R``, ``C``, ``H`` (detected in that
+    scenario by ``oracle``). A combination without a suite detects nothing."""
+    mine = frame[(frame["set"] == set_name) & (frame["kind"] == "wa")]
+    if mine.empty:
+        return pd.DataFrame(columns=["problem", "target", "R", "C", "H"])
+    wide = mine.pivot_table(
+        index=["problem", "target"], columns="scenario", values=oracle, aggfunc="any"
+    )
+    out = pd.DataFrame(index=wide.index)
+    for scenario, letter in IIC_LETTER.items():
+        column = wide[scenario] if scenario in wide else pd.Series(False, index=wide.index)
+        out[letter] = column.fillna(False).astype(bool)
+    return _target_order(out.reset_index()).reset_index(drop=True)
+
+
+def iic_regions(was: pd.DataFrame) -> pd.DataFrame:
+    """How many pairs fall in each of the 8 regions of R, C and H."""
+    rows = []
+    for label, (r, c, h) in IIC_REGIONS:
+        mask = (was["R"] == r) & (was["C"] == c) & (was["H"] == h)
+        rows.append({"região": label, "WAs (pares problema, WA)": int(mask.sum())})
+    return pd.DataFrame(rows)
+
+
+def iic_terms(was: pd.DataFrame, direction: str) -> dict:
+    r"""The terms of the formula: |H \ B|, |B \ H|, |B| and the IIC (NaN when B is empty)."""
+    base = IIC_LETTER[IIC_BASE[direction]]
+    gains = int((was["H"] & ~was[base]).sum())
+    losses = int((was[base] & ~was["H"]).sum())
+    size = int(was[base].sum())
+    value = 100 * (gains - losses) / size if size else float("nan")
+    return {"base": base, "gains": gains, "losses": losses, "base_size": size, "iic": value}
+
+
+def iic_role(was: pd.DataFrame, direction: str) -> pd.Series:
+    """The part each WA plays in the IIC of ``direction``."""
+    base = was[IIC_LETTER[IIC_BASE[direction]]]
+    hybrid = was["H"]
+    role = pd.Series("nenhum dos dois", index=was.index)
+    role[hybrid & ~base] = "ganho (só o híbrido)"
+    role[base & ~hybrid] = "perda (só a base)"
+    role[base & hybrid] = "os dois"
+    return role
+
+
+def iic_by_problem(was: pd.DataFrame, direction: str) -> pd.DataFrame:
+    """Per problem: |B|, gains, losses, both and the IIC of the problem (empty base: excluded)."""
+    rows = []
+    for problem, group in was.groupby("problem", sort=True):
+        terms = iic_terms(group, direction)
+        role = iic_role(group, direction)
+        rows.append(
+            {
+                "problem": problem,
+                f"|{terms['base']}| (base)": terms["base_size"],
+                "ganhos": terms["gains"],
+                "perdas": terms["losses"],
+                "os dois": int((role == "os dois").sum()),
+                "IIC do problema (%)": round(terms["iic"], 2) if terms["base_size"] else None,
+            }
+        )
+    out = pd.DataFrame(rows)
+    if out.empty:
+        return out
+    out["_weight"] = (out["ganhos"] - out["perdas"]).abs()
+    return (
+        out.sort_values(["_weight", "problem"], ascending=[False, True])
+        .drop(columns="_weight")
+        .reset_index(drop=True)
+    )
+
+
+def iic_term_regions(direction: str) -> dict[str, list[str]]:
+    """Which of the 8 regions add up to each term, so the formula can be done by hand."""
+    base = IIC_LETTER[IIC_BASE[direction]]
+    position = {"R": 0, "C": 1, "H": 2}[base]
+    out = {"gains": [], "losses": [], "base_size": []}
+    for label, flags in IIC_REGIONS:
+        in_base, in_hybrid = flags[position], flags[2]
+        if in_hybrid and not in_base:
+            out["gains"].append(label)
+        if in_base and not in_hybrid:
+            out["losses"].append(label)
+        if in_base:
+            out["base_size"].append(label)
+    return out

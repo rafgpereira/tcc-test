@@ -28,9 +28,11 @@ CASES = {
     "undetected": "WAs que nenhuma IA detectou",
     "exclusive": "WAs que só uma IA detectou",
     "surviving": "Mutantes que sobreviveram a todas as suítes",
+    "iic": "De onde vem o IIC: os conjuntos de WAs de cada cenário",
     "problem": "Ficha de um problema",
 }
 NEEDS_TARGETS = {
+    "iic",
     "test_of_target",
     "targets_of_test",
     "oracle_only",
@@ -444,6 +446,113 @@ def _hard_targets(tree, rows, frame, case: str) -> None:
         _target_card(tree, frame, chosen["problem"], chosen["target"])
 
 
+IIC_ORACLE = {"do AC (corrigido)": "corrected", "da IA (declarado)": "declared"}
+IIC_DIRECTION = {
+    "cod": "+ código: híbrido (H) sobre caixa-preta (R)",
+    "req": "+ requisito: híbrido (H) sobre caixa-branca (C)",
+}
+
+
+def _signed(value: float) -> str:
+    return f"{value:+.1f}%".replace(".", ",").replace("-", "−")
+
+
+def _mark(flag: bool) -> str:
+    return "✓" if flag else "—"
+
+
+def _iic(tree, rows, frame) -> None:
+    text(
+        "O IIC compara os WAs que a mesma IA pegou em cada cenário: **R** = caixa-preta (só o "
+        "requisito), **C** = caixa-branca (só o código), **H** = híbrido (os dois). Cada elemento "
+        "é um par (problema, WA), somado em todos os problemas do recorte; o filtro de cenário "
+        "não vale aqui, porque o IIC compara os cenários."
+    )
+    columns = st.columns(3)
+    sets = [s for s in data.config.SETS if s in set(frame["set"])]
+    if not sets:
+        st.write("Nenhuma IA neste recorte.")
+        return
+    set_name = columns[0].selectbox("IA", sets, format_func=_set, key="iic_set")
+    direction = columns[1].selectbox(
+        "Direção", list(IIC_DIRECTION), format_func=IIC_DIRECTION.get, key="iic_dir"
+    )
+    oracle = IIC_ORACLE[columns[2].radio("Gabarito", list(IIC_ORACLE), key="iic_oracle")]
+    was = trace.iic_wa_table(frame, set_name, oracle)
+    if was.empty:
+        st.write("Nenhum WA desta IA no recorte.")
+        return
+    terms = trace.iic_terms(was, direction)
+    base = terms["base"]
+
+    st.markdown("**1. Os conjuntos**")
+    sizes = " · ".join(f"|{x}| = {number(int(was[x].sum()))}" for x in ("R", "C", "H"))
+    st.caption(
+        f"{number(len(was))} pares (problema, WA) no recorte, {was['problem'].nunique()} "
+        f"problemas. {sizes}."
+    )
+    table(trace.iic_regions(was))
+
+    st.markdown("**2. A conta**")
+    st.latex(
+        rf"\text{{IIC}} = \frac{{|H \setminus {base}| - |{base} \setminus H|}}{{|{base}|}} "
+        rf"\times 100 = \frac{{{terms['gains']} - {terms['losses']}}}{{{terms['base_size']}}} "
+        rf"\times 100"
+    )
+    if terms["base_size"]:
+        st.markdown(
+            f"= **{_signed(terms['iic'])}**. Ganhos ({number(terms['gains'])}): WAs que o "
+            f"híbrido pegou e a base ({base}) não; perdas ({number(terms['losses'])}): WAs que a "
+            f"base pegou e o híbrido não. Os ganhos e as perdas são somas de regiões da tabela "
+            f"acima."
+        )
+    else:
+        st.markdown("A base não pegou nenhum WA: o IIC não se calcula neste recorte.")
+    regions = trace.iic_regions(was).set_index("região")["WAs (pares problema, WA)"]
+    parts = trace.iic_term_regions(direction)
+    names = {
+        "gains": f"|H ∖ {base}| (ganhos)",
+        "losses": f"|{base} ∖ H| (perdas)",
+        "base_size": f"|{base}| (base)",
+    }
+    lines = []
+    for key, label in names.items():
+        summed = " + ".join(f"{r} ({number(int(regions[r]))})" for r in parts[key])
+        lines.append(f"- {label} = {summed} = **{number(terms[key])}**")
+    st.markdown("Para conferir à mão, com as regiões da tabela:\n\n" + "\n".join(lines))
+
+    st.markdown("**3. Problema a problema**")
+    st.caption(
+        "Ordenados pelo que mais pesa no saldo (ganhos − perdas). Sem WA na base, o problema "
+        "fica fora do IIC por problema (o gráfico de caixas)."
+    )
+    by_problem = trace.iic_by_problem(was, direction)
+    table(_pretty(by_problem))
+    chosen = _pick("Abrir o problema", by_problem, lambda r: r["problem"], "iic_problem")
+    if chosen is None:
+        return
+    mine = was[was["problem"] == chosen["problem"]].copy()
+    mine["papel no IIC"] = trace.iic_role(mine, direction)
+    shown = pd.DataFrame(
+        {
+            "WA": mine["target"],
+            "R (caixa-preta)": mine["R"].map(_mark),
+            "C (caixa-branca)": mine["C"].map(_mark),
+            "H (híbrido)": mine["H"].map(_mark),
+            "papel no IIC": mine["papel no IIC"],
+        }
+    )
+    st.markdown(f"**{chosen['problem']}: os {len(mine)} WAs**")
+    table(shown)
+    target = st.selectbox(
+        "Abrir um WA (que teste o reprovou em cada cenário)",
+        list(mine["target"]),
+        format_func=lambda t: f"{t} · {mine.loc[mine['target'] == t, 'papel no IIC'].iloc[0]}",
+        key="iic_target",
+    )
+    _target_card(tree, frame, chosen["problem"], target)
+
+
 def _problem(tree, rows, frame) -> None:
     problems = sorted(set(rows["problem"]))
     problem = st.selectbox("Problema", problems, key="problem_pick")
@@ -458,6 +567,7 @@ HANDLERS = {
     "targets_of_test": _targets_of_test,
     "ac_rejected": _ac_rejected,
     "oracle_only": _oracle_only,
+    "iic": _iic,
     "problem": _problem,
 }
 
@@ -484,7 +594,12 @@ def render(tree: data.LoadedTree, filters: dict) -> None:
                 "avaliação descompactado."
             )
             return
-        frame = trace.cut_targets(everything, rows)
+        cut = rows
+        if case == "iic":  # the IIC compares the scenarios: every scenario of the cut stays
+            cut = data.apply_filters(
+                tree.table, **{k: v for k, v in filters.items() if k != "scenarios"}
+            )
+        frame = trace.cut_targets(everything, cut)
     if case in ("undetected", "exclusive", "surviving"):
         _hard_targets(tree, rows, frame, case)
     else:

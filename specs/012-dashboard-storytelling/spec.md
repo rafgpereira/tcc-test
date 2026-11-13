@@ -159,7 +159,9 @@ mutante, com a entrada, as duas saídas esperadas e o código do alvo ao lado do
 teste derrubou; (6) por que o AC foi reprovado (os testes com a saída esperada errada ou a entrada
 inválida); (7) as detecções que só existem por um dos gabaritos; (8) os WAs que nenhuma IA detectou;
 (9) os WAs que só uma IA detectou; (10) os mutantes que sobreviveram a todas as suítes; (11) a ficha
-de um problema (enunciado, AC, as 15 combinações).
+de um problema (enunciado, AC, as 15 combinações); (12) de onde vem o IIC: os conjuntos de WAs de
+cada cenário (R, C, H) nas 8 regiões, a conta com eles, o IIC por problema e o papel de cada WA
+(emenda de 2026-11-13, Milena).
 
 **Why this priority**: pedido de Milena (2026-11-12) depois de ver a página das métricas: cada número
 precisa poder ser conferido na fonte, na defesa e por quem lê o link.

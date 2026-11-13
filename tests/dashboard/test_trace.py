@@ -145,3 +145,58 @@ def test_without_results_csv_the_target_cases_explain(evaluated, monkeypatch):
     at.selectbox[0].set_value("undetected").run()
     assert not at.exception
     assert any("results.csv" in str(i.value) for i in at.info)
+
+
+# ------------------------------------------------------------------------------------- IIC
+
+
+def test_iic_sets_give_the_numbers_of_the_metrics(loaded, with_metrics):
+    """The terms of the case are the gains, losses and base of ``iic.csv``, for every set,
+    answer key and direction: the sets are the same pairs (problem, WA) the metrics count."""
+    from metrics import tables as metric_tables
+
+    root, _ = with_metrics
+    official = metric_tables.read(root)["iic"]
+    _, frame = loaded
+    for _, r in official.iterrows():
+        was = trace.iic_wa_table(frame, r["set"], r["oracle"])
+        terms = trace.iic_terms(was, r["direction"])
+        assert (terms["gains"], terms["losses"], terms["base_size"]) == (
+            r["gains"],
+            r["losses"],
+            r["base_size"],
+        ), (r["set"], r["oracle"], r["direction"])
+        regions = trace.iic_regions(was).set_index("região")["WAs (pares problema, WA)"]
+        assert regions.sum() == len(was)
+
+
+def test_iic_by_problem_adds_up(loaded):
+    _, frame = loaded
+    was = trace.iic_wa_table(frame, "gemini", "declared")
+    by_problem = trace.iic_by_problem(was, "cod")
+    terms = trace.iic_terms(was, "cod")
+    assert by_problem["ganhos"].sum() == terms["gains"]
+    assert by_problem["perdas"].sum() == terms["losses"]
+    roles = trace.iic_role(was, "cod")
+    assert (roles == "ganho (só o híbrido)").sum() == terms["gains"]
+
+
+def test_iic_case_ignores_the_scenario_filter(with_metrics, monkeypatch):
+    _, base = with_metrics
+    monkeypatch.setenv(config.ENV_EVALUATION_DIR, str(base))
+    at = _page().run()
+    at.selectbox[0].set_value("iic").run()
+    at.sidebar.multiselect[1].select("hybrid").run()  # Cenário: only the hybrid
+    assert not at.exception, at.exception
+    shown = "\n".join(str(m.value) for m in at.caption)
+    assert "|R| = " in shown and "|C| = " in shown
+
+
+def test_iic_term_regions_add_up_to_the_terms(loaded):
+    _, frame = loaded
+    was = trace.iic_wa_table(frame, "gemini", "corrected")
+    regions = trace.iic_regions(was).set_index("região")["WAs (pares problema, WA)"]
+    for direction in ("cod", "req"):
+        terms = trace.iic_terms(was, direction)
+        for key, labels in trace.iic_term_regions(direction).items():
+            assert sum(regions[r] for r in labels) == terms[key], (direction, key)
