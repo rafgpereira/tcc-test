@@ -1,0 +1,37 @@
+{
+ "rows": [
+  {
+   "id": "D1",
+   "methodology_section": "8",
+   "needles": [
+    "sem conclusão única"
+   ],
+   "source": "spec.md#D1"
+  },
+  {
+   "id": "D2",
+   "methodology_section": "8",
+   "needles": [
+    "filtros só na barra lateral"
+   ],
+   "source": "spec.md#D2"
+  },
+  {
+   "id": "D3",
+   "methodology_section": "8",
+   "needles": [
+    "gabarito do AC no placar"
+   ],
+   "source": "spec.md#D3"
+  },
+  {
+   "id": "D4",
+   "methodology_section": "8",
+   "needles": [
+    "1ª tentativa do modelo local no placar"
+   ],
+   "source": "spec.md#D4"
+  }
+ ],
+ "schema_version": 1
+}

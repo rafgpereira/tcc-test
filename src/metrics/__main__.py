@@ -59,11 +59,18 @@ def _figures(args) -> int:
         return EXIT_DATA
     filters = {
         "macrocategorias": args.macrocategoria,
+        "ratings": args.rating,
         "statuses": args.status,
         "sets": args.set,
         "scenarios": args.scenario,
         "problems": args.problem,
     }
+    try:
+        if cuts.apply(loaded["per_problem"], **filters).empty:
+            raise cuts.CutError("no combination with these filters")
+    except cuts.CutError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_USAGE
     out = Path(args.output_dir)
     out.mkdir(parents=True, exist_ok=True)
     names = args.figure or list(figures.FIGURES)
@@ -134,6 +141,7 @@ def build_parser() -> argparse.ArgumentParser:
     figs = sub.add_parser("figures", help="draw the figures (with optional filters)")
     figs.add_argument("--figure", action="append", choices=list(figures.FIGURES), default=[])
     figs.add_argument("--macrocategoria", action="append", default=[])
+    figs.add_argument("--rating", action="append", type=int, default=[], metavar="RATING")
     figs.add_argument("--status", action="append", default=[])
     figs.add_argument("--set", action="append", choices=config.SETS, default=[])
     figs.add_argument("--scenario", action="append", choices=config.SCENARIOS, default=[])

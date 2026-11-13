@@ -35,41 +35,68 @@ internet. Ele fica no ar até Ctrl+C no terminal.
 ver o nome completo e o que significa; o **Glossário**, na barra lateral, explica também os valores
 que aparecem dentro das tabelas (`wrong_output`, `accepted_predicted`, `black_box`…).
 
-O painel tem quatro páginas, com os filtros (conjunto, cenário, problema, macrocategoria, status da
-suíte) na barra lateral, que também mostra a hora da última leitura e quantos problemas estão
-concluídos por conjunto:
+O painel tem quatro páginas, que se leem nesta ordem. Os filtros (conjunto, cenário, problema,
+macrocategoria, rating, status da suíte) ficam só na barra lateral e valem para todas as páginas;
+o topo de cada página diz o recorte ativo e quantos problemas ele tem. A barra lateral também
+mostra a hora da última leitura e quantos problemas estão concluídos por conjunto.
 
-- **Visão geral**: por conjunto e cenário, as combinações avaliadas e sem suíte, o AC aprovado e
-  reprovado, os testes do AC com saída diferente ou com erro, os WAs e mutantes detectados em cada
-  oráculo e os testes instáveis; e uma linha por combinação.
-- **Combinação**: escolha conjunto, problema e cenário e veja, teste a teste, a entrada, a saída
-  esperada escrita na suíte, a saída real do `AC_ref`, o veredito do AC e quantos alvos cada teste
-  detectou em cada oráculo; a lista dos alvos que só o oráculo declarado pegou; e, para um alvo, onde
-  foi detectado e o código dele ao lado do `AC_ref`, com as diferenças destacadas.
-- **Comparações**: a diferença entre o oráculo declarado e o corrigido por combinação (em vermelho,
-  as com o AC reprovado), e o modelo local (suíte final e 1ª tentativa) ao lado dos comerciais.
-- **Métricas**: os gráficos das métricas, nas cores do tema escolhido (claro ou escuro), um painel
-  por cenário quando há muitas barras, com o valor escrito em cada barra (o total, na TFP por causa;
-  a mediana, em cada caixa do IIC; o custo em US$ por 1.000 WAs detectados), filtrados pelos mesmos filtros da barra lateral (conjunto, cenário, problema,
-  macrocategoria, status; o filtro de problema precisa de pelo menos 2); os botões **PNG**,
-  **SVG** e **PDF** embaixo de cada gráfico baixam o gráfico exatamente como aparece na tela (no
-  tema claro ou escuro), com o filtro e a fonte no subtítulo; no tema claro, é a mesma figura do
-  comando `python -m metrics figures`. Abaixo, **quantos WAs e mutantes a IA matou** (de 100 de
-  cada por problema) e as tabelas oficiais (com o corte por
-  macrocategoria ou status), os testes estatísticos e o custo; antes de as métricas serem
+- **O experimento** (abre primeiro): o contexto antes dos resultados. Os números grandes
+  (problemas, falhas, IAs × cenários, suítes, testes gerados, gasto) e os gráficos de rating,
+  macrocategoria, suítes por IA e status, testes por suíte e gasto por IA comercial (o modelo local
+  aparece à parte, com as horas de modelo). Cada título já diz a conclusão do recorte, e cada
+  gráfico fica num cartão, e os números de todos eles estão no fim, em "Ver os números desta
+  página". Funciona mesmo antes de as
+  métricas serem calculadas; só o gasto depende delas.
+- **As métricas**: quem se saiu melhor em cada critério, no recorte da barra lateral, sempre
+  pelo gabarito do AC (\*). Na ordem: o **placar** (posição de cada IA em falhas reais, mutantes,
+  código correto reprovado, erro do gabarito, entrega de suíte e custo; 1º = melhor; com a contagem
+  das suítes "sem raciocínio", que ficam nas métricas, e se algum 1º lugar mudaria sem elas); falhas
+  reais e mutantes; falsos positivos; contexto (como a detecção muda entre os cenários e o IIC, com
+  a escolha do gabarito); custo; e o **guia de escolha**: em cada cenário, a melhor IA em cada
+  critério, o 2º colocado e se a diferença entre os dois é significativa, um empate estatístico ou
+  não testada. "Minha prioridade" só realça uma linha do guia; nenhum número muda. Não há um
+  vencedor geral. O título de cada cartão é a conclusão dos números do recorte e muda com os
+  filtros; "Baixar figura" salva o gráfico como aparece na tela (tema claro ou escuro), em PNG, SVG
+  ou PDF, com o título, o filtro e a fonte; no tema claro, é a figura de `python -m metrics
+  figures`. No fim, as tabelas oficiais (todas as linhas de `metrics.csv` sem filtro; com filtro,
+  calculadas para o recorte e marcadas assim), os testes estatísticos e o custo. Um recorte de um
+  problema só não tem métrica: a página avisa e aponta a ficha do problema na Rastreabilidade. Antes de as métricas serem
   calculadas, um aviso.
 
-**Como ler os gráficos da página Métricas** (todos usam os três cenários: caixa-preta = só o
-enunciado, caixa-branca = só o código, híbrido = os dois):
+**Como ler os gráficos da página As métricas** (os cenários: caixa-preta = só o enunciado,
+caixa-branca = só o código, híbrido = os dois):
 
 | Gráfico | O que mostra | Como ler |
 |---|---|---|
-| TDF por modelo e cenário | % dos 100 WAs de cada problema que a suíte reprovou, pela saída esperada que a IA escreveu | mais alto é melhor |
-| TDF pelo oráculo declarado e pelo corrigido | duas barras por modelo: TDF (saída esperada da IA) e TDF\* (saída esperada do AC) | a distância entre as barras (Δ_oráculo) é a "detecção" que só existiu porque a IA errou a saída esperada; barras próximas = gabaritos confiáveis |
-| Escore de mutação pelo declarado e pelo corrigido | o mesmo, para os mutantes | igual ao anterior |
-| Falsos positivos por teste, por causa | % dos testes da suíte que reprovam o AC (logo, estão errados), divididos em saída esperada errada e entrada inválida | mais baixo é melhor; é por teste, diferente da TFP da tabela, que é por problema |
-| Influência do contexto (IIC) | uma caixa por modelo e direção: **IIC_cod** = o que acrescentar o código mudou em relação à caixa-preta; **IIC_req** = o que acrescentar o enunciado mudou em relação à caixa-branca | acima de 0, juntar os dois ajudou; abaixo, atrapalhou. A linha dentro da caixa é a mediana dos problemas, a caixa vai do 1º ao 3º quartil, e uma caixa larga quer dizer efeito instável de problema para problema. O gráfico usa só o oráculo declarado; o valor oficial (somando os 200 problemas, pelos dois oráculos) está na tabela "IIC" abaixo dos gráficos |
-| Custo por detecção | US$ gastos para cada 1.000 WAs detectados, só nos modelos comerciais | mais baixo é melhor |
+| Placar | posição e valor de cada IA em cada critério, média dos cenários do recorte | o 1º de cada coluna fica destacado; a média dos cenários não tem teste estatístico (o teste está no guia) |
+| Falhas reais (TDF\*) e mutantes (MS\*) | barras ordenadas pelo gabarito do AC; o traço é o valor pelo gabarito da IA | mais alto é melhor; a distância entre a barra e o traço é a "detecção" que só existiu porque a IA errou a saída esperada |
+| Detecta × reprova o código correto | um ponto por IA: TFP no eixo horizontal, TDF\* no vertical | o canto de cima à esquerda (sombreado) é o ideal: detecta muito e reprova pouco o código correto |
+| Variação entre cenários | a TDF\* de cada IA em cada cenário | linha reta = o contexto quase não muda a detecção daquela IA |
+| IIC | quanto o híbrido ganha (azul, acima de 0) ou perde (vermelho) sobre a caixa-preta ("+ código") e sobre a caixa-branca ("+ requisito"), somando os problemas | acima de 0, juntar os dois ajudou; abaixo, atrapalhou; o seletor troca o gabarito |
+| Custo | US$ gastos para cada 1.000 WAs detectados, só nos modelos comerciais | mais baixo é melhor; o custo não se divide por problema |
+| Guia de escolha | em cada cenário, a melhor IA em cada critério e o 2º colocado | "diferem" = diferença significativa; "empate" = sem diferença estatística; "não testado" = não há teste para esse critério ou recorte |
+| De apoio (recolhidos) | TDF × TDF\* por cenário; falsos positivos por causa; o IIC problema a problema | detalham os gráficos acima |
+
+As duas últimas páginas:
+
+- **Rastreabilidade**: de onde vem cada número. Em "O que você quer rastrear?", escolha um caso
+  (combinações sem suíte, com o motivo e as tentativas; suítes "sem raciocínio"; origem da suíte do
+  modelo local; qual teste reprovou um WA ou mutante; o que um teste derrubou; por que o AC foi
+  reprovado; detecções que só existem por um gabarito; WAs que nenhuma IA detectou; WAs que só uma
+  detectou; mutantes que sobreviveram; ficha de um problema). A lista segue os filtros e "Abrir"
+  mostra o item: a combinação (status, origem, motivo, tentativas, testes com a saída do AC), o alvo
+  (quem o detectou e com qual teste, e o código ao lado do AC) ou o problema (enunciado, AC e as 15
+  combinações). Cada alvo para no primeiro teste que o reprova, então o "teste que reprovou" é sempre
+  o primeiro. Os casos de alvos precisam do `results.csv` de cada conjunto, que vem no pacote da
+  avaliação; as tentativas e o código precisam das suítes, do dataset e dos mutantes descompactados.
+- **A avaliação** (a última): duas abas.
+  - **Comparações**: a diferença entre o oráculo declarado e o corrigido por combinação (em
+    vermelho, as com o AC reprovado), e o modelo local (suíte final e 1ª tentativa) ao lado dos
+    comerciais.
+  - **Combinação**: escolha conjunto, problema e cenário e veja, teste a teste, a entrada, a saída
+    esperada escrita na suíte, a saída real do `AC_ref`, o veredito do AC e quantos alvos cada teste
+    detectou em cada oráculo; a lista dos alvos que só o oráculo declarado pegou; e, para um alvo,
+    onde foi detectado e o código dele ao lado do `AC_ref`, com as diferenças destacadas.
 
 **Prévia**: as porcentagens de detecção do painel (detectados ÷ total, somados só sobre as
 combinações com suíte) são uma prévia, sempre marcada assim. Os números oficiais (TDF, MS e as

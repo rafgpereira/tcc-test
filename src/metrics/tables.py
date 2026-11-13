@@ -110,5 +110,6 @@ def read(root: Path = Path("."), folder: Path | None = None) -> dict:
         out["per_problem"][column] = out["per_problem"][column].astype(bool)
     for column in ("macrocategoria", "status"):
         out["per_problem"][column] = out["per_problem"][column].fillna("")
+    out["per_problem"]["rating"] = out["per_problem"]["rating"].astype("Int64")
     out["metrics"]["cut_value"] = out["metrics"]["cut_value"].fillna("")
     return out

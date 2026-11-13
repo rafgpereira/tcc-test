@@ -18,6 +18,7 @@ PER_PROBLEM_COLUMNS = (
     "scenario",
     "problem",
     "macrocategoria",
+    "rating",
     "status",
     "has_suite",
     "suite_size",
@@ -34,15 +35,19 @@ PER_PROBLEM_COLUMNS = (
 DETECTED_COLUMNS = ("set", "scenario", "problem", "target", "oracle")
 
 
-def _macrocategorias(root: Path, problems) -> dict[str, str]:
-    out = {}
+def _metadata(root: Path, problems) -> tuple[dict[str, str], dict[str, int | None]]:
+    """Macrocategoria and Codeforces rating of each problem (empty when the dataset is absent)."""
+    macro, rating = {}, {}
     for problem in problems:
         path = Path(root) / config.DATASET_PROBLEMS_DIR / problem / "metadata.json"
         try:
-            out[problem] = json.loads(path.read_text(encoding="utf-8")).get("macrocategoria", "")
+            meta = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
-            out[problem] = ""
-    return out
+            meta = {}
+        macro[problem] = meta.get("macrocategoria", "")
+        value = meta.get("cf_rating")
+        rating[problem] = int(value) if isinstance(value, int | float) and value else None
+    return macro, rating
 
 
 def _true(series: pd.Series) -> pd.Series:
@@ -125,8 +130,9 @@ def load(
         pers.append(per)
         detected.append(det)
     per_problem = pd.concat(pers, ignore_index=True)
-    macro = _macrocategorias(root, sorted(set(per_problem["problem"])))
+    macro, rating = _metadata(root, sorted(set(per_problem["problem"])))
     per_problem["macrocategoria"] = per_problem["problem"].map(macro)
+    per_problem["rating"] = per_problem["problem"].map(rating).astype("Int64")
     for column in ("n_wa", "n_mutants"):
         per_problem[column] = per_problem[column].astype(int)
     per_problem = _order(per_problem[list(PER_PROBLEM_COLUMNS)])

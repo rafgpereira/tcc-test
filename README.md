@@ -462,7 +462,7 @@ no `.env` e nunca fazem uma chamada paga sem `--confirm-spend <US$>`, que també
 | Comando | Serviço | O que faz / variações |
 |---|---|---|
 | `docker compose run --rm app python -m metrics compute` | `app` | calcula as tabelas de métricas em `data/metrics/` (confere antes que as avaliações estão completas e o `cli check --deep`); `--evaluation-dir DIR` |
-| `docker compose run --rm app python -m metrics figures` | `app` | desenha as figuras em PNG, SVG e PDF (o mesmo desenho do painel); `--figure NOME`, filtros `--macrocategoria`, `--status`, `--set`, `--scenario`, `--problem` (repetíveis; pelo menos 2 problemas), `--format`, `--output-dir` |
+| `docker compose run --rm app python -m metrics figures` | `app` | desenha as figuras em PNG, SVG e PDF (o mesmo desenho do painel); `--figure NOME`, filtros `--macrocategoria`, `--rating`, `--status`, `--set`, `--scenario`, `--problem` (repetíveis; pelo menos 2 problemas), `--format`, `--output-dir` |
 | `docker compose run --rm app python -m metrics package` | `app` | `data/metrics.zip` (tabelas e figuras sem filtro) e o manifesto |
 | `docker compose run --rm app python -m metrics verify` | `app` | confere o zip; `--extracted data/metrics` também a pasta |
 | `unzip data/metrics.zip -d data/` | (host) | descompacta as tabelas e as figuras em `data/metrics/` |

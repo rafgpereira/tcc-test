@@ -60,3 +60,38 @@ def test_gate_requires_complete_evaluations_and_a_clean_check(repo):
     assert "evaluation_slm_attempt1" in asked[0] and "dataset" in asked[0]
     failed = gate.run_gate(repo, checks=lambda root, only: (False, "[FALHA]"))
     assert "cli check" in failed[0]
+
+
+# ------------------------------------------------------------------ rating (feature 012, T003)
+
+
+def test_rating_column_comes_from_cf_rating(repo):
+    per, _ = sources.load(repo)
+    columns = list(per.columns)
+    assert columns.index("rating") == columns.index("macrocategoria") + 1
+    assert dict(zip(per["problem"], per["rating"], strict=True)) == {"1_A": 1000, "2_B": 1600}
+
+
+def test_rating_is_empty_without_the_dataset(repo):
+    import shutil
+
+    shutil.rmtree(repo / "data/dataset")
+    per, _ = sources.load(repo)
+    assert per["rating"].isna().all()
+
+
+def test_rating_cut():
+    table = per_problem_rows(
+        [
+            row(problem="1_A", rating=1000),
+            row(problem="2_B", rating=1600),
+            row(problem="3_C", rating=1000),
+        ]
+    )
+    assert len(cuts.apply(table, ratings=())) == 3
+    assert set(cuts.apply(table, ratings=[1000])["problem"]) == {"1_A", "3_C"}
+    with pytest.raises(cuts.CutError):
+        cuts.apply(table, ratings=[1600])  # a single problem
+    detected = table[["set", "scenario", "problem"]].assign(target="WA_1", oracle="declared")
+    cut, det = cuts.apply(table, ratings=[1000], detected_wa=detected)
+    assert set(cut["problem"]) == set(det["problem"]) == {"1_A", "3_C"}

@@ -82,8 +82,8 @@
     },
     {
       "path": "metrics/per_problem.csv",
-      "sha256": "90205635442c80882fa37a019420dd0db4a25f3eee448f79f5867b06c7cc5766",
-      "size": 270951
+      "sha256": "c2b5cbd545e5e9896b55f0bd4c6a0121bf50dd98c46ce6ddcea29fc0a8e4025c",
+      "size": 285958
     },
     {
       "path": "metrics/run.json",
@@ -98,8 +98,8 @@
   ],
   "metrics_zip": {
     "path": "data/metrics.zip",
-    "sha256": "673c3907fb66345341570776bc299f93079b639c5047f81cf74b350ac3b1dee9",
-    "size": 1775540
+    "sha256": "50107013da652c5c88b5114fa8f17b5ac8a972c5e59e1e558c40e58fbcca3f6f",
+    "size": 1776166
   },
   "schema_version": 1
 }

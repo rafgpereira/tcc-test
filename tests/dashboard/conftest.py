@@ -15,6 +15,7 @@ from evaluation import problem_task, sources, store
 from tests.evaluation.conftest import FakeEngine, double, make_tree, ok, solution_attempt
 
 PROBLEMS = ("1_A", "2_B")
+RATINGS = (1000, 1600)
 WRONG = {
     "status": "accepted_predicted",
     "tests": [{"input": "1\n", "output": "2\n"}, {"input": "3\n", "output": "7\n"}],
@@ -41,10 +42,13 @@ def build_evaluated(root):
             for s in evaluation_config.SCENARIOS
         },
     )
-    for problem, macro in zip(PROBLEMS, ("matematica", "logica_direta"), strict=True):
+    for problem, macro, rating in zip(
+        PROBLEMS, ("matematica", "logica_direta"), RATINGS, strict=True
+    ):
         path = root / "data/dataset/problems" / problem / "metadata.json"
         metadata = json.loads(path.read_text())
         metadata["macrocategoria"] = macro
+        metadata["cf_rating"] = rating
         path.write_text(json.dumps(metadata))
     base = root / "data/evaluation"
     engine = FakeEngine({"WA_1": lambda t, n: ok("0\n") if t == "3\n" else double(t)}).engine()
@@ -66,3 +70,19 @@ def evaluated(tmp_path, monkeypatch):
     base = build_evaluated(tmp_path)
     monkeypatch.chdir(tmp_path)
     return tmp_path, base
+
+
+@pytest.fixture
+def with_metrics(evaluated, monkeypatch):
+    """The evaluated tree plus ``data/metrics`` computed from it (gate skipped, no Docker)."""
+    import metrics.__main__ as cli
+    from evaluation import report as evaluation_report
+    from tests.metrics.conftest import write_generation_reports
+
+    root, base = evaluated
+    for set_name in evaluation_config.SETS:
+        evaluation_report.write_outputs(root, base, set_name)
+    write_generation_reports(root)
+    monkeypatch.setattr(cli, "_run_gate", lambda r: [])
+    assert cli.main(["compute"]) == 0
+    return root, base

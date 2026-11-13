@@ -2012,6 +2012,35 @@ do pacote `data/metrics.zip`; o PDF tem o mesmo desenho, mas o vl-convert muda a
 objetos de fonte a cada chamada (medido: 4 variantes em 20), então ele não é empacotado. Na página
 de comparações, as combinações com o AC reprovado são marcadas por um vermelho translúcido, legível
 nos temas claro e escuro.
+**Emenda (2026-11-12, Milena — figuras que contam a história; `specs/012-dashboard-storytelling/`,
+em planejamento)**: entram cinco figuras, desenhadas pelas mesmas funções do painel e exportadas
+pelo comando e pelo pacote: o **placar** (posição de cada um dos 5 conjuntos em TDF\*, MS\*, TFP,
+Δ_oráculo, TC e custo por 1.000 WAs, média dos cenários, sem teste estatístico), a **troca detecta ×
+erra** (TDF\* × TFP por conjunto e cenário), a **variação entre cenários**, o **IIC divergente**
+(agregado, pelos dois gabaritos) e o **guia de escolha** (vencedor de cada critério por cenário, com
+empate estatístico ou "não testado"). O título de cada figura passa a ser a conclusão do recorte,
+gerada por regra, e o líder tem uma cor de destaque única. O filtro por rating entra no comando
+(`--rating`). O boxplot do IIC continua como figura de diagnóstico.
+**Implementado (2026-11-12, `specs/012-dashboard-storytelling/` T022–T033)**: `python -m metrics
+figures` desenha 11 figuras: as 5 novas (`scoreboard`, `tradeoff`, `scenario_shift`,
+`iic_diverging`, `choice_guide`), 3 revistas (`tdf_by_model` e `ms_declared_vs_corrected` viram
+barras ordenadas pelo gabarito do AC, com um traço no valor pelo gabarito da IA, média dos cenários
+do recorte; `cost_per_detection` vira barras ordenadas em US$ por 1.000 WAs pelo gabarito do AC) e 3
+de apoio sem mudança (`tdf_declared_vs_corrected`, `tfp_by_cause`, `iic_distribution`). Com um
+filtro por problema, o custo não falha mais: mostra o valor de todos os problemas e diz que o custo
+não se divide por problema. Os títulos-conclusão, sem filtro: "Nenhuma IA venceu em todos os
+critérios"; "Gemini encontra 90,1% das falhas reais"; "Gemini detecta 97,0% dos mutantes"; "Quem
+mais detecta também mais erra o gabarito" (Gemini, 1º em TDF\*, é o último em TFP: 54,8%); "O
+cenário muda a detecção em até 4,3 pontos (Claude); Gemini quase não muda"; "Juntar requisito e
+código muda a detecção em no máximo 4,9% (SLM 1ª tentativa, + código)" pelo gabarito do AC (8,2%,
+SLM, pelo da IA; o sinal do SLM e da 1ª tentativa em "+ código" inverte entre os gabaritos); "Claude
+detecta 1.000 falhas por US$ 0,019, 14× menos que GPT". Divergências do contrato: a troca detecta ×
+erra mostra um ponto por conjunto (a média dos cenários do recorte, os mesmos números do placar),
+não um por conjunto × cenário, para cada ponto ter o nome escrito ao lado sem se sobrepor; o detalhe
+por cenário fica no guia. As anotações longas das barras (quanto o líder está à frente; quem mais
+perde com o gabarito corrigido) ficam como notas sob o gráfico, com um rótulo curto na barra, porque
+não cabiam nos cartões de meia largura. A região ideal da troca é a das medianas das IAs do recorte.
+O placar ganhou o critério de cobertura (TC), em que 4 conjuntos empatam em 100%.
 
 ### 5.9 Resultados **[MEDIDO, 2026-11-09 — `python -m metrics compute`, pacote `data/metrics.zip`]**
 
@@ -2084,6 +2113,20 @@ Achados para a discussão (todos em `data/metrics/`):
   maior densidade.
 - **CPD** (por WA detectado, oráculo declarado): Claude US$ 0,000018–0,000020, Gemini
   0,000080–0,000090, GPT 0,000235–0,000281.
+
+**Suítes `accepted_barred` ficam nas métricas [DECIDIDO E MEDIDO, 2026-11-12 — Milena]**: a decisão de
+2026-10-20 (seção 3) deixou em aberto analisar à parte ou excluir as 9 suítes que vêm de respostas
+sem raciocínio (Gemini `1201_B` caixa-preta; Claude `1023_A`, `1029_C`, `349_A`, `365_A`
+caixa-preta e `1141_A`, `53_A`, `630_J`, `981_B` híbrido; de 7 a 24 testes cada; 8 das 9 reprovam o
+AC). Decidido: **ficam incluídas** em todas as métricas, como suítes que a ferramenta de fato
+entregou, e o número delas é relatado (no placar do painel e no texto). Motivos: excluí-las
+melhoraria os números do Claude justamente onde ele errou; tirá-las do N desfaria o pareamento dos
+200 problemas nos testes estatísticos; contá-las como "sem suíte" (0%) seria injusto no sentido
+contrário. Medido o efeito de excluí-las (N reduzido): TFP do Claude caixa-preta 18,0% → 16,3% e
+híbrido 16,5% → 15,3%; TDF\* do Claude caixa-preta 83,76% → 83,63% e híbrido 85,96% → 85,76%; Gemini
+caixa-preta TFP 54,5% → 54,3%, TDF\* 90,00% → 89,95%. **Nenhum 1º lugar muda** (no híbrido, o GPT,
+com TFP de 15,0%, continua à frente do Claude mesmo sem as barradas); o painel recalcula essa
+conferência para o recorte ativo e a escreve sob o placar.
 
 ---
 
@@ -2287,6 +2330,10 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-11-12 | **Painel: nova ordem e página de rastreabilidade (`specs/012-dashboard-storytelling/`, US5, T047–T051)**: decidido (Milena): as páginas passam a ser O experimento → As métricas → Rastreabilidade → A avaliação (a avaliação vai para o fim). A página nova leva de um número à fonte, em 11 casos: combinações sem suíte com o motivo e as tentativas; suítes sem raciocínio e as respostas barradas; origem da suíte do modelo local; qual teste reprovou um WA ou mutante (entrada, saída da IA, saída do AC, código ao lado do AC); o que um teste derrubou; por que o AC foi reprovado; detecções que só existem por um gabarito; WAs que nenhuma IA detectou; WAs que só uma detectou; mutantes sobreviventes; ficha do problema. Medido nos dados reais (gabarito do AC, os 4 modelos): 56 combinações sem suíte (53 da 1ª tentativa do modelo local, 3 do Claude); 992 suítes reprovam o AC em 196 problemas (as que mais reprovam: `158_C` 13 de 15, `447_C` 12, `175_B` 11); **174 WAs que nenhum dos 4 modelos detectou, em 67 problemas** (168 contando também a 1ª tentativa); **390 WAs detectados por um só modelo** (GPT 135, Gemini 108, Claude 99, SLM 48); **65 mutantes que nenhuma suíte reprovou, em 29 problemas** (candidatos a equivalentes, não conferidos); detecções de WAs só pelo gabarito da IA 17.876 e só pelo do AC 2.102, iguais às de `detected_wa.csv` | 8 |
+| 2026-11-12 | **Painel que conta a história, 2ª parte implementada (`specs/012-dashboard-storytelling/`, T022–T033)**: página "As métricas" reescrita: placar dos 5 conjuntos em 6 critérios, falhas reais e mutantes, falsos positivos (troca detecta × erra), contexto (variação entre cenários e IIC divergente com o seletor de gabarito), custo, guia de escolha (vencedor de cada critério por cenário, 2º colocado e estado do teste; a prioridade escolhida só realça uma linha) e as tabelas oficiais no fim, seguindo o recorte da barra lateral (o seletor "Corte das tabelas" saiu). Títulos-conclusão por regra, em `metrics.story` (modelos de frase numa tabela única, `TEMPLATES`); `--rating` no comando de figuras; 5 figuras novas e 3 revistas. **Decidido (Milena): as 9 suítes `accepted_barred` ficam nas métricas**, com a contagem e a conferência de que nenhum 1º lugar muda sem elas escritas sob o placar. Conferido contra as tabelas reais: os empates do roteiro aparecem no guia (TFP SLM × Claude na caixa-branca, GPT × Claude no híbrido, Claude × GPT na caixa-preta; TDF\* e MS\* Gemini × Claude na caixa-branca) e o custo aparece "não testado" | 5.8, 5.9, 8 |
+| 2026-11-12 | **Painel que conta a história, 1ª parte implementada (`specs/012-dashboard-storytelling/`, T001–T021)**: o painel passa a ter três páginas (o experimento, a avaliação, as métricas), com o filtro de rating na barra lateral; a página "O experimento" mostra o contexto pelo recorte (sem filtro: 200 problemas, 24.274 testes nas suítes dos 4 modelos, US$ 19,35 — GPT 70%, Gemini 25%, Claude 5% —, toda IA com suíte em pelo menos 91,2% das combinações, o mínimo sendo a 1ª tentativa do modelo local). `per_problem.csv` ganhou a coluna `rating` (o `cf_rating` do problema); medido: as outras cinco tabelas de métricas ficaram com o mesmo SHA-256 e `data/metrics.zip` foi reempacotado. O módulo `metrics.story` (placar, vencedor, segundo colocado e estado do teste lido de `stats.csv`) confere, contra as tabelas reais, os números e os empates do roteiro. Divergências do plano: a página 1 conta a partir da tabela da avaliação (funciona sem as métricas), não do `per_problem.csv`; o par divergente do IIC será azul ↔ vermelho (paleta validada), não azul/laranja; "sem suíte" é desenhado em cinza, não numa cor de categoria. A conferência visual achou um empate escondido no subtítulo dos ratings (1400 e 1600 com 35 problemas cada), corrigido | 5.8, 8 |
+| 2026-11-12 | **Painel que conta a história dos resultados especificado (`specs/012-dashboard-storytelling/`)**: a partir do roteiro `docs/roteiro-painel.md` (método de *visual storytelling*), decidido (Milena): o painel passa a apresentar os resultados, **sem conclusão única** — mostra quem ganhou em cada critério (detecção, mutantes, falsos positivos, confiança no gabarito, cobertura, custo), por cenário, e o leitor decide pela sua prioridade e pelo que tem em mãos (só o requisito, só o código, os dois); três páginas, nesta ordem: o experimento, a avaliação (Combinação e Comparações juntas), as métricas; **filtros só na barra lateral**, sempre aplicados, com o rating como filtro novo e títulos-conclusão recalculados por regra para o recorte; **gabarito do AC no placar** (TDF\* e MS\*, não TDF e MS); **1ª tentativa do modelo local no placar**, como quinto conjunto, com a nota das 53 combinações sem suíte; os gráficos novos da página de métricas (placar, detecta × erra, variação entre cenários, IIC divergente, guia de escolha) também viram figuras do texto, pelo comando de figuras e no pacote de métricas. Plano: módulo `metrics.story` (Python puro) com placar, vencedores, títulos e guia, usado pelo painel e pelo comando; `per_problem.csv` ganha a coluna `rating`; nenhum teste estatístico novo: num recorte, ou na média de cenários, a diferença é dita "não testada". Achado ao conferir o roteiro contra `stats.csv`: empates estatísticos que o guia precisa mostrar — TFP de GPT × Claude nos três cenários e do modelo local × Claude na caixa-branca; TDF\* e MS\* do Gemini × Claude na caixa-branca (p = 0,07) | 5.8, 8 |
 | 2026-11-12 | **Reprodução por quem clona o repositório, conferida num clone novo**: no Windows 11 com Docker Desktop, seguindo só o `README.md` (commit `52eeb24`): clone de cerca de 206 MB com os 14 pacotes; `docker compose build` em 5 min; `pytest` com 2120 testes aprovados em 6 min; descompactados os 12 pacotes de uso (dataset, mutantes, suítes dos 4 modelos, avaliação dos 5 conjuntos, métricas); `cli check --deep` `OK` (0 falhas, 0 avisos) em 25 min, lentidão vinda da pasta compartilhada do Docker Desktop; `metrics verify --extracted` `OK`; painel no ar em cerca de 6 s. A geração do zero não foi conferida no Windows. Os READMEs ganharam o "Caminho rápido" (descompactar tudo, conferir, abrir o painel), o estado final do experimento, a URL real do repositório e um guia de leitura dos gráficos do painel | 8 |
 | 2026-11-09 | **Cópia pública do painel (emenda da decisão "uso só local" de 2026-11-04)**: decidido (Milena) publicar o painel, só de leitura e gratuito, no Streamlit Community Cloud (até 2,7 GB de memória). O Hugging Face Spaces chegou a ser escolhido por ter mais memória, mas criar um Space Docker exige plano pago (documentação do Hugging Face conferida em 2026-11-10). A cópia pública roda `src/dashboard/public/streamlit_app.py` num clone do repositório, com dependências mínimas nas versões do `uv.lock`, e descompacta em `data/` os 12 pacotes versionados (avaliação dos 5 conjuntos, métricas, dataset, mutantes e suítes) na primeira abertura do servidor; é publicada pelos autores. Medido num Python 3.11 limpo, simulando um clone: primeira abertura em 39 s, 3.000 combinações sem arquivo inválido, nenhuma exceção, 176 MB de pico de memória, 720 MB em `data/`, figura PNG igual à do projeto. Na mesma conferência, `data/metrics.zip` foi reempacotado com as colunas de alvos mortos (`verify --extracted` OK) | 8 |
 | 2026-11-09 | **Contagem de alvos mortos**: `metrics.csv` ganha WAs e mutantes mortos (pelos dois oráculos) e o total, ao lado da TDF e do MS; tabela na seção 5.9 e no painel; cada alvo conta uma vez (morto se algum teste o reprova) | 5.9 |

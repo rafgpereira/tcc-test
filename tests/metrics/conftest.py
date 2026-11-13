@@ -22,6 +22,7 @@ def row(set_name="gpt", scenario="black_box", problem="1_A", **values):
         "scenario": scenario,
         "problem": problem,
         "macrocategoria": "matematica",
+        "rating": 1000,
         "status": "accepted",
         "has_suite": True,
         "suite_size": 10,
@@ -41,6 +42,41 @@ def row(set_name="gpt", scenario="black_box", problem="1_A", **values):
 
 def per_problem_rows(rows) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=list(sources.PER_PROBLEM_COLUMNS))
+
+
+def stats_frame(rows) -> pd.DataFrame:
+    """``stats.csv`` rows from ``(family, metric, scope, a, b, significant)``."""
+    from metrics import stats
+
+    full = [
+        {
+            "family": family,
+            "metric": metric,
+            "scope": scope,
+            "group_a": a,
+            "group_b": b,
+            "test": "wilcoxon",
+            "statistic": 0.0,
+            "p_value": 0.01 if significant else 0.5,
+            "p_adjusted": 0.01 if significant else 0.5,
+            "significant": significant,
+            "a12": 0.5,
+            "cliff_delta": 0.0,
+            "n_pairs": 4,
+        }
+        for family, metric, scope, a, b, significant in rows
+    ]
+    return pd.DataFrame(full, columns=list(stats.COLUMNS))
+
+
+def cost_frame(costs: dict) -> pd.DataFrame:
+    """``cost.csv`` with ``costs[(set, scenario)] = US$`` for the commercial sets."""
+    from metrics import cost
+
+    rows = [
+        {"set": s, "scenario": c, "cost_usd": v, "duration_s": 60.0} for (s, c), v in costs.items()
+    ]
+    return pd.DataFrame(rows).reindex(columns=list(cost.COLUMNS))
 
 
 def write_generation_reports(root):

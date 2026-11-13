@@ -183,3 +183,96 @@ def test_no_function_writes(evaluated):
     after = {p: p.stat().st_mtime_ns for p in Path(root).rglob("*") if p.is_file()}
     assert before == after
     assert isinstance(tree.table, pd.DataFrame)
+
+
+# ------------------------------------------------------------------ rating (feature 012, T005)
+
+
+def test_rating_comes_from_metadata(evaluated):
+    root, base = evaluated
+    table = load(root, base).table
+    assert dict(zip(table["problem"], table["rating"], strict=False)) == {"1_A": 1000, "2_B": 1600}
+
+
+def test_rating_filter(evaluated):
+    root, base = evaluated
+    table = load(root, base).table
+    assert len(data.apply_filters(table, ratings=[])) == len(table)
+    only = data.apply_filters(table, ratings=[1600])
+    assert set(only["problem"]) == {"2_B"}
+
+
+# ------------------------------------------------------------ O experimento (feature 012, T017)
+
+
+def _cost():
+    from tests.metrics.conftest import cost_frame
+
+    frame = cost_frame(
+        {
+            (s, c): v
+            for s, v in (("gpt", 3.0), ("gemini", 1.0), ("claude", 1.0))
+            for c in ("black_box", "white_box", "hybrid")
+        }
+    )
+    slm = frame.iloc[:3].copy()
+    slm["set"], slm["scenario"], slm["cost_usd"] = "slm", ["black_box", "white_box", "hybrid"], None
+    slm["duration_s"] = 1200.0
+    return pd.concat([frame, slm], ignore_index=True)
+
+
+def test_experiment_summary_counts(evaluated):
+    root, base = evaluated
+    table = load(root, base).table
+    s = data.experiment_summary(table, _cost(), {})
+    assert (s["problems"], s["wa"], s["mutants"]) == (2, 200, 200)
+    assert s["models"] == ["slm", "gpt", "gemini", "claude"] and s["scenarios"] == 3
+    assert s["combinations"] == 4 * 2 * 3
+    assert s["suites"] == 4 * 2 * 3 - 1  # the Claude hybrid of 2_B has no suite
+    final = table[table["set"] != "slm-attempt1"]
+    assert s["tests"] == int(final["suite_size"].sum())
+    assert s["spend"] == {"gpt": 9.0, "gemini": 3.0, "claude": 3.0} and s["spend_total"] == 15.0
+    assert s["slm_hours"] == 1.0  # 3 × 1200 s
+    assert not s["cost_not_split"]
+
+
+def test_experiment_summary_follows_the_cut(evaluated):
+    root, base = evaluated
+    table = load(root, base).table
+    only = data.apply_filters(table, scenarios=["black_box"], sets=["gpt", "claude"])
+    s = data.experiment_summary(only, _cost(), {"scenarios": ["black_box"]})
+    assert s["models"] == ["gpt", "claude"] and s["scenarios"] == 1
+    assert s["spend"] == {"gpt": 3.0, "claude": 1.0} and s["slm_hours"] is None
+    rated = data.experiment_summary(
+        data.apply_filters(table, ratings=[1600]), _cost(), {"ratings": [1600]}
+    )
+    assert rated["problems"] == 1 and rated["cost_not_split"]
+    assert rated["spend_total"] == 15.0  # the cost does not split by problem
+
+
+def test_experiment_without_cost_table(evaluated):
+    root, base = evaluated
+    s = data.experiment_summary(load(root, base).table, None, {})
+    assert s["spend"] == {} and s["spend_total"] is None and s["slm_hours"] is None
+
+
+def test_context_breakdowns(evaluated):
+    root, base = evaluated
+    table = load(root, base).table
+    ratings = data.ratings_count(table)
+    assert ratings.to_dict("records") == [
+        {"rating": 1000, "problems": 1},
+        {"rating": 1600, "problems": 1},
+    ]
+    macro = data.macro_count(table).set_index("macrocategoria")["problems"].to_dict()
+    assert macro == {"matematica": 1, "logica_direta": 1}
+    status = data.suites_by_status(table)
+    claude = status[status["set"] == "claude"].set_index("status")
+    assert claude.loc["sem suíte", "combinations"] == 1
+    assert claude["combinations"].sum() == 6 and claude["total"].unique().tolist() == [6]
+    first = status[status["set"] == "slm-attempt1"]
+    assert set(first["status"]) <= {"1ª tentativa", "sem suíte"}
+    sizes = data.tests_per_suite(table)
+    gpt = table[(table["set"] == "gpt") & (table["scenario"] == "black_box") & table["has_suite"]]
+    row = sizes[(sizes["set"] == "gpt") & (sizes["scenario"] == "black_box")]
+    assert row["mean"].item() == gpt["suite_size"].mean()

@@ -31,8 +31,9 @@ TCC de dupla — Milena e Rafael, UnB.
 - `src/evaluation/` — executa cada suíte (4 modelos e a 1ª tentativa do SLM) contra AC, WAs e
   mutantes: AC sem curto-circuito, alvos com curto-circuito e dois oráculos (o declarado e o
   corrigido pelo AC), erro de execução repetido 3 vezes (`specs/009-suite-evaluation/`)
-- `src/dashboard/` — painel Streamlit só de leitura sobre os resultados da avaliação (visão geral,
-  combinação teste a teste, comparações; métricas quando existirem; `specs/011-results-dashboard/`)
+- `src/dashboard/` — painel Streamlit só de leitura sobre os resultados: o experimento, as métricas
+  (placar e guia de escolha), a rastreabilidade (de um número ao problema, à suíte e ao teste) e a
+  avaliação (`specs/011-results-dashboard/`, `specs/012-dashboard-storytelling/`)
 - `src/metrics/` — TDF, MS, TFP, IIC, TC, TDF*/MS*/Δ_oráculo, TFP por causa, custo por detecção,
   densidade, Friedman/Wilcoxon/McNemar com Holm e A12, e as figuras do TCC; tabelas em `data/metrics/`
   (`specs/010-metrics/`)

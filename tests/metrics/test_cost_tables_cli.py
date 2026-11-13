@@ -7,7 +7,7 @@ import math
 import pytest
 
 import metrics.__main__ as cli
-from metrics import config, cost, cuts, figures, sources, tables
+from metrics import config, cost, figures, sources, tables
 
 
 def test_cost_comes_from_the_reports_and_the_local_model_is_never_in_dollars(repo):
@@ -97,5 +97,10 @@ def test_render_is_deterministic_and_names_the_filters(repo, monkeypatch):
     file_name, _ = figures.render("tdf_by_model", loaded, filters, "pdf", "s")
     assert file_name == "tdf_by_model__set-gemini+gpt__scenario-black_box+hybrid.pdf"
     assert "set = gemini, gpt" in figures.footer(filters, "s")
-    with pytest.raises(cuts.CutError):
-        figures.render("cost_per_detection", loaded, {"statuses": ["accepted"]}, "png", "s")
+    # the cost exists per set × scenario: a problem filter keeps the all-problems value and says so
+    by_status = {"statuses": ["accepted"]}
+    assert figures.render("cost_per_detection", loaded, by_status, "png", "s")[1]
+    whole = figures.figure_data("cost_per_detection", loaded, {})
+    assert figures.figure_data("cost_per_detection", loaded, by_status).equals(whole)
+    subtitle = figures.title("cost_per_detection", loaded, by_status).subtitle
+    assert "o custo não se divide por problema" in subtitle

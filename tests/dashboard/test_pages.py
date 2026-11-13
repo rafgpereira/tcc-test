@@ -36,13 +36,17 @@ def text_of(at) -> str:
     return "\n".join(str(p) for p in parts)
 
 
-@pytest.mark.parametrize("page", ["overview", "combination", "compare", "metrics"])
+@pytest.mark.parametrize(
+    "page", ["experiment", "metrics", "trace", "evaluation", "overview", "combination", "compare"]
+)
 def test_every_page_runs_on_an_evaluated_tree(opened, page):
     at = _page(page).run()
     assert not at.exception, at.exception
 
 
-@pytest.mark.parametrize("page", ["overview", "combination", "compare", "metrics"])
+@pytest.mark.parametrize(
+    "page", ["experiment", "metrics", "trace", "evaluation", "overview", "combination", "compare"]
+)
 def test_every_page_runs_on_an_empty_folder(tmp_path, monkeypatch, page):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv(config.ENV_EVALUATION_DIR, str(tmp_path / "data/evaluation"))
@@ -85,7 +89,58 @@ def test_metrics_page_is_a_notice(opened):
 def test_nothing_is_written(opened):
     root, _ = opened
     before = {p: p.stat().st_mtime_ns for p in Path(root).rglob("*") if p.is_file()}
-    for page in ("overview", "combination", "compare", "metrics"):
+    for page in (
+        "experiment",
+        "metrics",
+        "trace",
+        "evaluation",
+        "overview",
+        "combination",
+        "compare",
+    ):
         assert not _page(page).run().exception
     after = {p: p.stat().st_mtime_ns for p in Path(root).rglob("*") if p.is_file()}
     assert before == after
+
+
+# ------------------------------------------------------------ O experimento (feature 012, T021)
+
+
+def test_the_experiment_is_the_first_page():
+    from dashboard import app
+
+    assert app.NAVIGATION[0] == "experiment"
+
+
+@pytest.fixture
+def opened_with_metrics(with_metrics, monkeypatch):
+    root, base = with_metrics
+    monkeypatch.setenv(config.ENV_EVALUATION_DIR, str(base))
+    return root, base
+
+
+def test_experiment_page_numbers_and_cut(opened_with_metrics):
+    at = _page("experiment").run()
+    assert not at.exception, at.exception
+    headline = " ".join(str(m.value) for m in at.markdown)
+    assert "2 problemas, 400 falhas, 4 IAs, 23 suítes" in headline
+    assert "Sem filtros · 2 problemas" in text_of(at)
+    assert any(m.label == "Gasto" and m.value.startswith("US$") for m in at.metric)
+    at.sidebar.multiselect[3].select("matematica").run()  # macrocategoria
+    assert not at.exception
+    assert "macrocategoria = matematica · 1 problema" in text_of(at)
+    assert "1 problema, 200 falhas" in " ".join(str(m.value) for m in at.markdown)
+
+
+def test_experiment_page_empty_cut(opened_with_metrics):
+    at = _page("experiment").run()
+    at.sidebar.multiselect[3].select("logica_direta").run()
+    at.sidebar.multiselect[4].select(1000).run()  # rating: 2_B is 1600, so nothing is left
+    assert not at.exception
+    assert "Nenhum problema atende" in " ".join(str(m.value) for m in at.markdown)
+
+
+def test_experiment_page_without_metrics(opened):
+    at = _page("experiment").run()
+    assert not at.exception
+    assert "métricas ainda não foram calculadas" in text_of(at)

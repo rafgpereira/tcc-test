@@ -26,6 +26,7 @@ COLUMNS = (
     "problem",
     "scenario",
     "macrocategoria",
+    "rating",
     "status",
     "tree",
     "attempt",
@@ -63,17 +64,21 @@ class LoadedTree:
     closed: dict[str, int]  # set -> problems closed
 
 
-def _macrocategoria(root: Path, problem: str, cache: dict[str, str]) -> str:
+def _metadata(root: Path, problem: str, cache: dict[str, tuple[str, int | None]]):
+    """``(macrocategoria, rating)`` of a problem; empty when the dataset is not extracted."""
     if problem not in cache:
         path = Path(root) / "data/dataset/problems" / problem / "metadata.json"
         try:
-            cache[problem] = json.loads(path.read_text(encoding="utf-8")).get("macrocategoria", "")
+            meta = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
-            cache[problem] = ""
+            meta = {}
+        value = meta.get("cf_rating")
+        rating = int(value) if isinstance(value, int | float) and value else None
+        cache[problem] = (meta.get("macrocategoria", ""), rating)
     return cache[problem]
 
 
-def _row(r: CombinationResult, macro: str) -> dict:
+def _row(r: CombinationResult, macro: str, rating: int | None) -> dict:
     tests = r.ac.tests if r.ac else []
     return {
         "set": r.set,
@@ -81,6 +86,7 @@ def _row(r: CombinationResult, macro: str) -> dict:
         "problem": r.problem_id,
         "scenario": r.scenario,
         "macrocategoria": macro,
+        "rating": rating,
         "status": r.suite_source.status or "",
         "tree": r.suite_source.tree,
         "attempt": r.suite_source.attempt,
@@ -119,8 +125,9 @@ def combinations(base: Path, root: Path = Path(".")) -> LoadedTree:
                 reason = str(exc).splitlines()[0] if str(exc) else type(exc).__name__
                 invalid.append((path.relative_to(base).as_posix(), reason))
                 continue
-            rows.append(_row(result, _macrocategoria(root, result.problem_id, macro)))
+            rows.append(_row(result, *_metadata(root, result.problem_id, macro)))
     table = pd.DataFrame(rows, columns=list(COLUMNS))
+    table["rating"] = table["rating"].astype("Int64")
     return LoadedTree(base, datetime.now(UTC), table, tuple(invalid), closed)
 
 
@@ -131,6 +138,7 @@ def apply_filters(
     problems=(),
     macrocategorias=(),
     statuses=(),
+    ratings=(),
 ) -> pd.DataFrame:
     """Keep the rows whose values are in each non-empty list (an empty list filters nothing)."""
     mask = pd.Series(True, index=table.index)
@@ -140,6 +148,7 @@ def apply_filters(
         ("problem", problems),
         ("macrocategoria", macrocategorias),
         ("status", statuses),
+        ("rating", ratings),
     ):
         if allowed:
             mask &= table[column].isin(list(allowed))
@@ -365,3 +374,98 @@ def metrics_files(root: Path = Path(".")) -> list[str]:
     if not folder.is_dir():
         return []
     return sorted(p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file())
+
+
+# ------------------------------------------------------------ O experimento (feature 012, US1)
+# Counts only, from the evaluation table (the page also works before the metrics exist); the money
+# comes from ``data/metrics/cost.csv`` when it is there. No metric formula here (FR-017).
+
+PER_PROBLEM_TARGETS = 100  # WAs and mutants per problem (dataset and mutation modules)
+FINAL_SETS = ("slm", "gpt", "gemini", "claude")  # the four models; slm-attempt1 is a re-reading
+COMMERCIAL = ("gpt", "gemini", "claude")
+PROBLEM_FILTERS = ("problems", "macrocategorias", "ratings", "statuses")
+STATUS_LABEL = {
+    "accepted": "aceita (solução conferida)",
+    "accepted_fallback": "reserva",
+    "accepted_predicted": "saídas escritas pela IA",
+    "accepted_barred": "sem raciocínio",
+    "": "1ª tentativa",
+}
+NO_SUITE = "sem suíte"
+
+
+def experiment_summary(table: pd.DataFrame, cost: pd.DataFrame | None, filters: dict) -> dict:
+    """The big numbers of the first page for the (already filtered) table."""
+    problems = int(table["problem"].nunique())
+    present = [s for s in config.SETS if s in set(table["set"])]
+    final = table[table["set"].isin(FINAL_SETS)]
+    scenarios = [s for s in config.SCENARIOS if s in set(table["scenario"])]
+    spend, slm_hours = {}, None
+    if cost is not None and not cost.empty:
+        mine = cost[cost["scenario"].isin(scenarios)]
+        for set_name in COMMERCIAL:
+            values = mine.loc[mine["set"] == set_name, "cost_usd"].dropna()
+            if set_name in present and not values.empty:
+                spend[set_name] = float(values.sum())
+        local = mine.loc[mine["set"] == "slm", "duration_s"].dropna()
+        if "slm" in present and not local.empty:
+            slm_hours = float(local.sum()) / 3600
+    return {
+        "problems": problems,
+        "wa": problems * PER_PROBLEM_TARGETS,
+        "mutants": problems * PER_PROBLEM_TARGETS,
+        "sets": present,
+        "models": [s for s in present if s in FINAL_SETS],
+        "scenarios": len(scenarios),
+        "combinations": len(final),
+        "suites": int(final["has_suite"].sum()),
+        "tests": int(final["suite_size"].sum()),
+        "spend": spend,
+        "spend_total": float(sum(spend.values())) if spend else None,
+        "slm_hours": slm_hours,
+        "cost_not_split": any(filters.get(k) for k in PROBLEM_FILTERS),
+    }
+
+
+def _problems(table: pd.DataFrame) -> pd.DataFrame:
+    return table.drop_duplicates("problem")
+
+
+def ratings_count(table: pd.DataFrame) -> pd.DataFrame:
+    """Problems per Codeforces rating, in rating order."""
+    rated = _problems(table).dropna(subset=["rating"])
+    counts = rated.groupby("rating").size().reset_index(name="problems")
+    counts["rating"] = counts["rating"].astype(int)
+    return counts.sort_values("rating").reset_index(drop=True)
+
+
+def macro_count(table: pd.DataFrame) -> pd.DataFrame:
+    """Problems per macrocategoria, largest first."""
+    unique = _problems(table)
+    unique = unique[unique["macrocategoria"] != ""]
+    counts = unique.groupby("macrocategoria").size().reset_index(name="problems")
+    return counts.sort_values(["problems", "macrocategoria"], ascending=[False, True]).reset_index(
+        drop=True
+    )
+
+
+def suites_by_status(table: pd.DataFrame) -> pd.DataFrame:
+    """Combinations per set and suite status (plain-language label), with the set total."""
+    labelled = table.assign(
+        status_label=[
+            STATUS_LABEL.get(s, s) if has else NO_SUITE
+            for s, has in zip(table["status"], table["has_suite"], strict=True)
+        ]
+    )
+    counts = labelled.groupby(["set", "status_label"]).size().reset_index(name="combinations")
+    counts = counts.rename(columns={"status_label": "status"})
+    counts["total"] = counts.groupby("set")["combinations"].transform("sum")
+    counts["share"] = 100 * counts["combinations"] / counts["total"]
+    return _ordered(counts, ["set"]).reset_index(drop=True)
+
+
+def tests_per_suite(table: pd.DataFrame) -> pd.DataFrame:
+    """Mean number of tests of the suites (combinations with a suite) per set and scenario."""
+    with_suite = table[table["has_suite"]]
+    means = with_suite.groupby(["set", "scenario"])["suite_size"].mean().reset_index(name="mean")
+    return _ordered(means, ["set", "scenario"]).reset_index(drop=True)

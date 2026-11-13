@@ -11,6 +11,7 @@ def apply(
     per_problem: pd.DataFrame,
     *,
     macrocategorias=(),
+    ratings=(),
     statuses=(),
     sets=(),
     scenarios=(),
@@ -21,6 +22,7 @@ def apply(
     mask = pd.Series(True, index=per_problem.index)
     for column, allowed in (
         ("macrocategoria", macrocategorias),
+        ("rating", ratings),
         ("status", statuses),
         ("set", sets),
         ("scenario", scenarios),
