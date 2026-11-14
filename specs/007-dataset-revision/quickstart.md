@@ -42,7 +42,6 @@ Esperado:
 ## 4. Mutantes (F4)
 
 ```text
-docker compose run --rm app python -m mutation report
 docker compose run --rm app python -m mutation verify
 ```
 

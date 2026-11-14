@@ -265,14 +265,14 @@ comandos e propagar os números.
   - **`CLAUDE.md`:** "Comandos do dia a dia" com os dois comandos;
   - **Metodologia:** marcar a nota da seção 3 como implementada, com uma linha na seção 8;
   - **Checagem:** `docker compose run --rm app python scripts/check_docs_sync.py` e o `--module ...` saem 0
-- [ ] T034 Constitution v1.7.1 compliance review: refazer a tabela "Constitution Check" de `plan.md` contra o código. *(2026-10-16: as quatro conferências abaixo passaram — o `.git` aparece só no `app`, o `git` só em `template_history.py` com `log` e `cat-file`, nada de rede ou chave nos dois módulos novos, `pyproject.toml` e `uv.lock` sem mudança; falta a revisão do código por um dos autores.)* Em especial:
+- [ ] T034 Constitution v1.7.1 compliance review: refazer a tabela "Constitution Check" de `plan.md` contra o código. *(2026-10-16: as quatro conferências abaixo passaram — o `.git` aparece só no `app`, o `git` só em `template_history.py` com `log` e `cat-file`, nada de rede ou chave nos dois módulos novos, `pyproject.toml` e `uv.lock` sem mudança; falta a revisão do código por um dos autores.)* Em especial: *(2026-11-14: sem mudança — falta o registro da revisão do código por um dos autores.)*
   - **V:** `docker compose config` mostra `/app/.git` (`read_only: true`) só no `app`;
   - **X:** `grep -rn "subprocess\|\"git\"" src/ai_clients` mostra só `log` e `cat-file`, em `template_history.py`;
   - **VIII/FR-002:** `grep -rn "urlopen\|API_KEY\|OLLAMA_BASE_URL" src/ai_clients/requests_view.py src/ai_clients/template_history.py` não encontra nada;
   - **IX:** `pyproject.toml` e `uv.lock` sem mudança.
 
   Desvios vão em "Complexity Tracking". Um dos autores revisa o código gerado com apoio de IA (Princípio X); registrar quem e quando.
-- [ ] T035 Fechamento: *(2026-10-16: suíte inteira com 1.868 passando, `ruff` e `black --check` em 0, `check_docs_sync.py` e `--module` em 0. O `--closing` aponta 11 linhas de "Comandos verificados": 9 da feature 004, pendentes ou carimbadas em revisão suja, e as 2 desta, carimbadas em `d005d57+dirty`; estas 2 fecham ao rodar os dois comandos de novo depois do commit e carimbar a revisão limpa.)*
+- [ ] T035 Fechamento: *(2026-10-16: suíte inteira com 1.868 passando, `ruff` e `black --check` em 0, `check_docs_sync.py` e `--module` em 0. O `--closing` aponta 11 linhas de "Comandos verificados": 9 da feature 004, pendentes ou carimbadas em revisão suja, e as 2 desta, carimbadas em `d005d57+dirty`; estas 2 fecham ao rodar os dois comandos de novo depois do commit e carimbar a revisão limpa.)* *(2026-11-14: fechamento depende de recarimbar comandos em revisão commitada; ver nota da T060 da feature 004.)*
   - `docker compose run --rm sandbox pytest` (suíte inteira) passa, com o número de T001 mais os novos;
   - `docker compose run --rm app ruff check .` e `docker compose run --rm app black --check .` saem 0;
   - `docker compose run --rm app python scripts/check_docs_sync.py --closing --feature specs/005-show-request` sai 0;

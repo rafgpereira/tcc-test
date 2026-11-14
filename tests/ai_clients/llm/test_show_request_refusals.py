@@ -132,7 +132,7 @@ def test_usage_errors(made, capsys, argv, message):
 
 def test_more_usage_errors(made, capsys):
     assert show("--barred", "1", model="slm") == cli.EXIT_USAGE
-    assert "--barred is only for --model gpt or --model gemini" in capsys.readouterr().err
+    assert "--barred is only for --model gpt, gemini or claude" in capsys.readouterr().err
     argv = ["show-request", "--model", "gpt", "--problem", "9_Z", "--scenario", "black_box"]
     assert cli.main([*argv, "--output", "out/x.json"]) == cli.EXIT_USAGE
     assert "not in data/dataset: 9_Z" in capsys.readouterr().err

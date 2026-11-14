@@ -4,10 +4,11 @@
 
 **Created**: 2026-10-13
 
-**Status**: Draft
+**Status**: Implemented (execução final dos 3 modelos comerciais em 2026-10-20; revisão do código por um dos autores pendente, ver tasks T059–T060)
 
 **Input**: User description: "Módulo 004 — geração de suítes de teste pelos LLMs comerciais
-(GPT-5.4-mini via API da OpenAI e Gemini 3.5 Flash via API do Google). Para cada um dos 200
+(GPT-5.4-mini via API da OpenAI e Gemini 3.5 Flash via API do Google; o Gemini 3.5 Flash foi
+descontinuado e o modelo usado é o Gemini 3.8 Flash, `gemini-3.8-flash`, ver A3). Para cada um dos 200
 problemas do dataset, cada um dos 3 cenários de contexto e cada um dos 2 modelos, gerar uma suíte
 de casos de teste (entradas e saídas esperadas) e persisti-la no mesmo formato de `suite.json`
 usado pelas suítes do SLM (módulo 003), para que a etapa de avaliação leia os dois do mesmo jeito.
@@ -21,8 +22,8 @@ esforço de raciocínio `medium` e temperatura no padrão de cada API; novas ten
 de formato, até um limite fixo, sem validação pelos testes públicos; falha de infraestrutura não
 conta como tentativa; resposta crua, modelo e versão sempre registrados; tokens, custo e tempo
 por chamada, dry-run com estimativa de custo e lote pago só com confirmação explícita; chaves só
-no `.env`; retomada segura por combinação; relatório, pacote e camada no `cli check`. A decidir no
-clarify: limite de tentativas e o que acontece ao esgotar; tamanho máximo das entradas;
+no `.env`; retomada segura por combinação; relatório, pacote e camada no `cli check`. Decidido no
+clarify (ver Clarifications): limite de tentativas e o que acontece ao esgotar; tamanho máximo das entradas;
 reprodutibilidade sem seed/temperatura; onde o código fica; paralelismo e rate limit. Fora do
 escopo: o SLM, a execução das suítes contra AC/WA/mutantes e o cálculo das métricas."
 

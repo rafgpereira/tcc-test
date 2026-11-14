@@ -139,7 +139,8 @@ Traz também os problemas mantidos por decisão (`"keep"`).
 
 **Decision**:
 - **Mutantes:**
-  - `python -m mutation report` regenera `manifests/mutation_report.json` com o hash do manifesto
+  - **[Emenda, 2026-10-18, Milena: não executado]** `python -m mutation report` iria regenerar
+    `manifests/mutation_report.json` com o hash do manifesto
     da revisão 2;
   - `python -m mutation verify` confere o pacote dos mutantes e precisa dar `OK`, sem mudança;
   - a divergência anterior do relatório (S4) é registrada.

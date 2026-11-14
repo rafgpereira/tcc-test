@@ -57,7 +57,7 @@ da spec (FR-020) foi respondida em 2026-11-12 (opção A).
   mesmo que somar sobre os cenários. Custo por 1.000 WAs = 1.000 × (soma do custo dos cenários) ÷
   (soma dos WAs mortos pelo gabarito do AC), de `cost.csv` e `metrics.primary.table`. Com um cenário
   só no filtro, o valor é o daquele cenário.
-- **Rationale**: o roteiro usa a média dos 3 cenários (`docs/roteiro-painel.md`, seção 3.0) e os
+- **Rationale**: o roteiro usa a média dos 3 cenários (`docs/roteiro-painel.md` (consolidado na metodologia, seção do painel), seção 3.0) e os
   valores conferem: TDF\* do Gemini 90,1%, TFP do Claude 17,3%. O custo somado evita a média de
   razões.
 - **Alternatives considered**: mostrar o placar só por cenário (três placares, abertura mais pesada

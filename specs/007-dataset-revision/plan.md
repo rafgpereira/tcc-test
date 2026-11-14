@@ -35,7 +35,7 @@
 - **SLM:** a execução da revisão 1 é movida, intocada, para `data/suites/slm-rev1`. Uma execução
   nova da revisão 2, em `data/suites/slm`, roda só as combinações afetadas
   (`generate --problem … --scenario black_box --scenario hybrid`).
-- **Mutantes:** só o relatório é regenerado, com `python -m mutation report` (F4).
+- **Mutantes:** intactos; só `python -m mutation verify` é rodado. O `mutation report` não foi regenerado (emenda de F4, decisão de Milena em 2026-10-18).
 - **Emenda da constitution (S1):** vem **antes** de tudo.
 
 ## Sinalizações e decisões
@@ -45,7 +45,7 @@
 | **S1** | O Princípio II diz "após a extração e validação **únicas**"; a revisão 2 contraria o texto (FR-008). | Proposta de emenda **1.8.0** (texto em research R1): o dataset MAY ter revisões numeradas quando uma conferência automática contra a fonte original demonstrar perda; cada revisão MUST mudar só o que a conferência justifica, guardar a anterior com o manifesto, registrar a proveniência e fazer as suítes dizerem a revisão usada. | **Aprovada em 2026-10-18 (Milena), como proposta; aplicada: constitution 1.8.0.** |
 | **S2** | O manifesto atual exige `dataset_zip.path == "data/dataset.zip"` e não tem campo de revisão. | `Manifest` ganha `schema_version` 2 com `revision` e `revision_of` (proveniência da revisão, que não entra em nenhum hash); a revisão 1 guardada continua com o manifesto de `schema_version` 1, byte a byte (R4). | — (informativo; Princípio IV) |
 | **S3** | O `suite.json` do SLM não tem campo de origem, e mudar o schema das 600 suítes empacotadas é caro. | A origem por combinação vai num `provenance.json` do pacote final, não no `suite.json`; o `cli check` confere que cada combinação do pacote está nele (R6). | — (informativo) |
-| **S4** | O `manifests/mutation_report.json` já aponta para um manifesto de dataset anterior ao atual (`6b3628c3…`, contra `a092d987…`), achado ao planejar. | A regeneração do relatório dos mutantes (F4) resolve, e a divergência é registrada na metodologia. | — (achado; resolvido por F4) |
+| **S4** | O `manifests/mutation_report.json` já aponta para um manifesto de dataset anterior ao atual (`6b3628c3…`, contra `a092d987…`), achado ao planejar. | O relatório dos mutantes **não** foi regenerado (decisão de Milena, 2026-10-18): os mutantes só dependem do `AC_ref.cpp`, que não mudou, e o relatório guarda o manifesto da época da geração. A divergência está registrada na metodologia (1.6.1). | — (achado; decidido: manter o relatório) |
 
 ## Technical Context
 

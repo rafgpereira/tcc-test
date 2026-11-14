@@ -12,7 +12,7 @@ claude-haiku5.5, --model claude, nas mesmas condições do GPT-5.4-mini e do Gem
 formato, raciocínio equivalente ao medium, barreira de resposta sem raciocínio, até 3 tentativas,
 teto de gasto por invocação, dry-run com estimativa, piloto nos 5 problemas dos pilotos,
 pacote/manifesto/relatório próprios e camada claude_suites no cli check. Roda direto sobre a
-revisão 2 do dataset. A decidir no clarify: qual modelo Claude, o valor do raciocínio equivalente
+revisão 2 do dataset. Decidido no clarify (ver Clarifications): qual modelo Claude, o valor do raciocínio equivalente
 ao medium, e se a barreira de raciocínio vale igual."
 
 ## Contexto

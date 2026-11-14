@@ -174,6 +174,8 @@ Mantenha esta tabela atualizada ao criar ou concluir módulos (ver também a tab
 | `src/dataset/` | [README](../src/dataset/README.md) | implementado: `extract`, `report`, `selfcheck`, `validate`, `audit`, `package` e `verify` documentados e carimbados |
 | `src/sandbox/` | [README](../src/sandbox/README.md) | implementado (motor de execução compartilhado) |
 | `src/mutation/` | [README](../src/mutation/README.md) | implementado: `generate`, `report`, `package` e `verify` documentados e carimbados |
-| `src/cli/` | [README](../src/cli/README.md) | em implementação: `check` (consistência entre artefatos) pronto; o orquestrador do experimento ainda sem especificação |
-| `src/ai_clients/` | [README](../src/ai_clients/README.md) | implementado para o modelo local (SLM): 600 suítes geradas e empacotadas (`data/slm_suites.zip`); em implementação para os dois modelos comerciais (`--model gpt` e `--model gemini`): código e testes prontos, `generate --dry-run` carimbado, piloto pago pendente |
-| `src/metrics/` | a criar na feature própria | ainda sem especificação (IIC pendente, metodologia seção 5.4) |
+| `src/ai_clients/` | [README](../src/ai_clients/README.md) | implementado para os quatro modelos (local, `--model gpt`, `--model gemini`, `--model claude`): 600 suítes de cada um geradas e empacotadas; todos os subcomandos documentados |
+| `src/evaluation/` | [README](../src/evaluation/README.md) | implementado: `run`, `report`, `package` e `verify` documentados e carimbados; os cinco conjuntos avaliados e empacotados |
+| `src/metrics/` | [README](../src/metrics/README.md) | implementado: `compute`, `figures`, `package` e `verify` documentados; tabelas calculadas e empacotadas |
+| `src/dashboard/` | [README](../src/dashboard/README.md) | implementado: `serve` documentado (painel só de leitura, quatro páginas) |
+| `src/cli/` | [README](../src/cli/README.md) | implementado: `check` (consistência entre artefatos, 11 camadas); não há outro comando, e cada etapa do experimento é executada pelo seu próprio módulo |

@@ -292,14 +292,14 @@ conferências e fica em `DIR/161_A.md`; o `enunciado.md` não muda.
   - **`CLAUDE.md`:** "Estrutura" e "Comandos do dia a dia";
   - **Metodologia:** a nota da seção 3 passa a "implementada", com uma linha na seção 8;
   - **Checagem:** `check_docs_sync.py` e `--module src/dataset ...` saem 0.
-- [ ] T028 Constitution v1.7.1 compliance review: refazer a tabela "Constitution Check" de `plan.md` contra o código. *(2026-10-18: as quatro conferências passaram, registradas em `plan.md`; falta a revisão do código por um dos autores.)* Em especial:
+- [ ] T028 Constitution v1.7.1 compliance review: refazer a tabela "Constitution Check" de `plan.md` contra o código. *(2026-10-18: as quatro conferências passaram, registradas em `plan.md`; falta a revisão do código por um dos autores.)* Em especial: *(2026-11-14: sem mudança — falta o registro da revisão do código por um dos autores.)*
   - **II:** a segunda execução não acessa a rede;
   - **FR-006/FR-009:** `grep -rn "dataset.zip\|enunciado.md" src/dataset/statements` só mostra leitura;
   - **IX:** `pyproject.toml` e `uv.lock` sem mudança;
   - **E2:** ritmo e `User-Agent` conferidos no teste.
 
   Um dos autores revisa o código (Princípio X); registrar quem e quando.
-- [ ] T029 Fechamento: *(2026-10-18: suíte inteira com 1.916 passando e 1 falha conhecida e alheia — `test_stopping_wakes_every_waiting_thread`, teste de tempo da feature 004; `ruff` e `black --check` em 0; `check_docs_sync.py` em 0. O `--closing` aponta as 3 linhas de "Comandos verificados" do `dataset` carimbadas em `9df4f0e+dirty`, que fecham ao rodar os comandos de novo depois do commit e carimbar a revisão limpa.)*
+- [ ] T029 Fechamento: *(2026-10-18: suíte inteira com 1.916 passando e 1 falha conhecida e alheia — `test_stopping_wakes_every_waiting_thread`, teste de tempo da feature 004; `ruff` e `black --check` em 0; `check_docs_sync.py` em 0. O `--closing` aponta as 3 linhas de "Comandos verificados" do `dataset` carimbadas em `9df4f0e+dirty`, que fecham ao rodar os comandos de novo depois do commit e carimbar a revisão limpa.)* *(2026-11-14: fechamento depende de recarimbar comandos em revisão commitada; ver nota da T060 da feature 004.)*
   - `docker compose run --rm sandbox pytest` (suíte inteira) passa, com o número de T001 mais os novos;
   - `ruff check .` e `black --check .` saem 0;
   - `check_docs_sync.py --closing --feature specs/006-statement-fidelity` sai 0;

@@ -1,10 +1,10 @@
 # Módulo `cli` (comandos que cruzam módulos)
 
-> **Status**: em implementação · **Metodologia**: `docs/metodologia-referencia.md`, seção 0.1
+> **Status**: implementado · **Metodologia**: `docs/metodologia-referencia.md`, seção 0.1
 
 ## (a) Propósito
 
-Reúne os comandos que atravessam mais de um módulo do projeto, hoje a conferência de que dataset, mutantes, as suítes de teste dos quatro modelos (o local e os três comerciais) e os resultados dos cinco conjuntos de avaliação estão completos e 1:1, e é onde o orquestrador do experimento vai ficar.
+Confere que dataset, mutantes, as suítes de teste dos quatro modelos (o local e os três comerciais) e os resultados dos cinco conjuntos de avaliação estão completos e 1:1 entre si e batem com os manifestos (comando `check`, que só lê).
 
 ## (b) Como executar
 
@@ -19,16 +19,16 @@ terceiros e não usa a internet).
 cada problema tem exatamente `Mutant_1` a `Mutant_100`, que os nomes batem com os manifestos e que
 dataset e mutantes são 1:1 nos dois sentidos (nenhum problema sem mutantes, nenhuma pasta de
 mutantes sem problema). Confere também as suítes geradas pelos quatro modelos: a do modelo local
-(`data/suites/slm/`, inclusive a árvore `data/suites/slm-rev1/` quando o pacote junta duas
-execuções de uma revisão do dataset) e as dos três comerciais, cada um na sua pasta
-(`data/suites/gpt/`, `data/suites/gemini/` e `data/suites/claude/`); em cada caso, cada problema
-com as pastas dos três cenários, cada cenário com o `suite.json` e as tentativas numeradas sem
-buraco (até 15 no modelo local, até 3 nos comerciais). E confere os resultados da avaliação de cada
-conjunto (`data/evaluation/<conjunto>/`): cada problema com os três cenários. Enquanto uma dessas
-gerações ou avaliações não foi empacotada, o que ainda falta nela (a pasta inteira, um problema, um cenário, um `suite.json`) é
-só aviso: é a geração em andamento. Não lê o conteúdo dos códigos; com `--deep` também recalcula o SHA-256 de
-cada arquivo e dos zips e compara com os manifestos. O que ele confere, uma a uma, e como um módulo
-novo entra nele: [`docs/verificacao-consistencia.md`](../../docs/verificacao-consistencia.md).
+(`data/suites/slm/`, inclusive a árvore `data/suites/slm-rev1/`, que o pacote final do modelo local
+junta à anterior) e as dos três comerciais, cada um na sua pasta (`data/suites/gpt/`,
+`data/suites/gemini/` e `data/suites/claude/`); em cada caso, cada problema com as pastas dos três
+cenários, cada cenário com o `suite.json` e as tentativas numeradas sem buraco (até 15 no modelo
+local, até 3 nos comerciais). E confere os resultados da avaliação de cada conjunto
+(`data/evaluation/<conjunto>/`): cada problema com os três cenários. Um artefato que ainda não foi
+gerado e empacotado (pasta ausente, sem manifesto) aparece como aviso, não como falha. Não lê o
+conteúdo dos códigos; com `--deep` também recalcula o SHA-256 de cada arquivo e dos zips e compara com
+os manifestos. O que ele confere, uma a uma, e como um módulo novo entra nele:
+[`docs/verificacao-consistencia.md`](../../docs/verificacao-consistencia.md).
 
 ### Cenário A — Rodar do zero
 
@@ -40,8 +40,8 @@ docker compose run --rm app python -m cli check --deep
 
 Esperado: `Resultado: OK (0 falha(s), 0 aviso(s))`, com `pastas de problema: 200 (o manifesto diz
 200)`, `200/200` em cada linha de arquivo, `todo problema de dataset tem pasta em mutants: 200/200`
-e `0 sobrando`. Enquanto um artefato (mutantes, suítes de um modelo, avaliação de um conjunto)
-ainda não foi gerado e empacotado, o resultado traz avisos para ele (o manifesto ainda não existe).
+e `0 sobrando`. Um artefato ainda não gerado e empacotado (mutantes, suítes de um modelo, avaliação
+de um conjunto) aparece como aviso: gere-o pelo README do módulo dele e rode o `check` de novo.
 
 ### Cenário B — Descompactar o que já existe
 
@@ -69,7 +69,8 @@ Esperado: `Resultado: OK (0 falha(s), 0 aviso(s))`. Se faltar descompactar algum
 | `pytest tests/cli` | `sandbox` | testes do módulo |
 
 `[AVISO]` não impede o `0`: um problema excluído por não alcançar 100 mutantes, a ausência do
-manifesto de mutantes (só existe depois do `package`), e as suítes ou avaliações ainda em andamento.
+manifesto de uma camada (só existe depois do `package` do módulo dela) e uma pasta ainda não gerada
+sem manifesto.
 
 ### Se algo der errado
 
@@ -83,6 +84,7 @@ manifesto de mutantes (só existe depois do `package`), e as suítes ou avaliaç
 | `[FALHA] tentativas numeradas sem buraco, no máximo 15 (execuções até a 12ª)` ou `arquivo(s) estranho(s) num cenário` | arquivos das suítes do modelo local foram apagados ou acrescentados à mão nos cenários listados: avise os autores |
 | `[FALHA] a pasta data/suites/slm/problems não existe` (com `manifests/slm_suites.manifest.json` presente) | descompacte as suítes: `unzip data/slm_suites.zip -d data/` |
 | `[FALHA] a pasta data/suites/gpt/problems não existe` (ou `gemini`/`claude`, com o manifesto desse modelo presente) | descompacte as suítes desse modelo: `unzip data/gpt_suites.zip -d data/` (trocando `gpt` por `gemini` ou `claude`) |
+| `[FALHA] a pasta data/evaluation/<conjunto>/problems não existe` (com `manifests/evaluation_<conjunto>.manifest.json` presente) | descompacte a avaliação desse conjunto: `unzip data/evaluation_<conjunto>.zip -d data/` (`<conjunto>` é `slm`, `gpt`, `gemini`, `claude` ou `slm-attempt1`) |
 | `error: manifest not found: manifests/dataset.manifest.json` (`2`) | rode a partir da pasta do repositório, com o `git pull` feito |
 
 ## (c) Entradas esperadas
@@ -105,7 +107,7 @@ manifesto de mutantes (só existe depois do `package`), e as suítes ou avaliaç
 ## (e) Dependências e pré-requisitos
 
 - Python 3.11 (biblioteca padrão apenas) e o serviço `app` do Docker Compose.
-- Dataset, mutantes e suítes descompactados nas pastas acima, quando as camadas correspondentes são conferidas.
+- Dataset, mutantes, suítes e avaliações descompactados nas pastas acima, para as camadas que serão conferidas.
 
 ## (f) Limitações conhecidas
 

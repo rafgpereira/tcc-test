@@ -34,8 +34,8 @@ aleatoriedade nem seed**: repetir a geração dá os mesmos mutantes.
 
 ### Cenário A — Rodar do zero
 
-Gera os mutantes sobre o dataset descompactado; é feito **uma vez**, na execução final que
-sustenta os números do trabalho (as rodadas de teste não são versionadas).
+Gera os mutantes sobre o dataset descompactado; faça **uma vez**, numa máquina, e publique o
+resultado pelo Git.
 
 ```bash
 docker compose run --rm sandbox python -m mutation generate --workers 4
@@ -47,9 +47,9 @@ docker compose run --rm app python -m cli check --deep
 1. **`generate`** confere `data/dataset` contra o manifesto (para com código `1` se divergir) e
    grava, por problema, `data/mutants/problems/<id>/Mutant_1.cpp` a `Mutant_100.cpp` e o
    `generation.json`. Imprime uma linha por problema (`100 mutants (by order: {1: 100});
-   discarded: {...}`) e, no fim, `done: N generated, N skipped, N excluded`. Medido (200 problemas,
-   `--workers 4`, 4 núcleos): cerca de 7 h 26 min. Com mais de um trabalhador, o tempo impresso por
-   problema inclui a espera na fila: use só o total.
+   discarded: {...}`) e, no fim, `done: N generated, N skipped, N excluded`. Medido em 2026-09-25
+   (200 problemas, `--workers 4`, 4 núcleos): cerca de 7 h 26 min. Com mais de um trabalhador, o
+   tempo impresso por problema inclui a espera na fila: use só o total.
 2. **`package`** (recusa se o dataset divergir, se houver problema pela metade, se algum problema
    perdeu ou teve um mutante alterado, ou se faltar gerar algum problema) grava `data/mutants.zip`
    (só os `Mutant_<n>.cpp` dos problemas completos), `manifests/mutants.manifest.json` e
@@ -142,19 +142,20 @@ Códigos de saída: `0` sucesso, `1` falha de dados, `2` uso incorreto, `3` infr
 
 ## (f) Limitações conhecidas
 
-- **Resultado da execução real** (200 problemas, 2026-09-24/25): 20.000 mutantes, nenhum problema
-  excluído; 113 problemas (56,5%) fecham só com uma alteração por mutante e 87 precisaram de
-  combinações, de modo que 15,3% dos mutantes têm duas alterações e 9 (só em um problema) têm três.
-  Dos 34.355 candidatos avaliados, 58,2% foram aceitos; 26,2% eram equivalentes, 3,9% não
-  compilaram e 0,08% eram instáveis.
+- **Mutantes de ordem superior**: na execução final, 87 dos 200 problemas precisaram combinar duas
+  alterações (e um problema, três), de modo que 15,3% dos mutantes têm duas ou três alterações; o
+  número fica em `manifests/mutation_report.json` (metodologia, seção 2.11).
+- **Os mutantes não dependem dos enunciados**: eles são gerados só a partir do `AC_ref.cpp`, dos testes
+  e dos limites. Por isso não foram regenerados quando o dataset passou para a revisão 2 (só os
+  `enunciado.md` mudaram) e o `manifests/mutation_report.json` guarda o hash do manifesto do dataset
+  da época da geração, não o da revisão atual (metodologia, seção 2).
 - Mutantes de duas ou três alterações tendem a ser mais fáceis de detectar do que os de uma.
 - O analisador é sintático e não conhece tipos: alguns candidatos (por exemplo, `abs` sobre uma
   variável `stringstream`) não compilam e são descartados; custa tempo, não correção.
 - Um mutante equivalente só é reconhecido pela suíte oficial: um que se comporta como o original
   em todos os testes oficiais é descartado, mesmo que difira numa entrada que nenhum teste cobre.
 - Só o pacote versionado vale como resultado do experimento; uma geração local pode diferir por
-  causa da margem de instabilidade do motor (repetições medidas: 0 de 900 mutantes divergentes,
-  mas é uma amostra).
+  causa da margem de instabilidade do motor (metodologia, seção 2.6).
 - A recuperação é por problema: o que estava em andamento na interrupção é refeito inteiro.
 
 ## Referências

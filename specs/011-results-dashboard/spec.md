@@ -4,7 +4,9 @@
 
 **Created**: 2026-11-04
 
-**Status**: Draft
+**Status**: Implemented (páginas antigas superadas pela 012; medição de tempo e carimbo do `serve` pendentes, ver tasks T031–T033)
+
+> **Nota (2026-11-14)**: as páginas e os filtros do painel passaram a ser definidos pela feature `012-dashboard-storytelling` (4 páginas: O experimento, As métricas, Rastreabilidade, A avaliação); o restante desta spec (só leitura, camada de dados, dados parciais) continua valendo. As páginas de visão geral, detalhe de uma combinação e comparação ficam fora da navegação, mantidas só porque os testes as exercitam.
 
 **Input**: User description: "do dashboard" — o painel de exploração proposto na conversa de
 2026-11-04: só leitura, sobre os resultados da avaliação (`data/evaluation/<conjunto>/problems/<id>/

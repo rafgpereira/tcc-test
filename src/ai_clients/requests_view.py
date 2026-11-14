@@ -383,7 +383,7 @@ def build_view(
     repo = REPO_ROOT if repo is None else Path(repo)
     if model == "slm":
         if barred is not None:
-            raise UsageError("--barred is only for --model gpt or --model gemini")
+            raise UsageError("--barred is only for --model gpt, gemini or claude")
         return _slm_view(root, problem_id, scenario, attempt, tree, repo)
     if attempt is not None and barred is not None:
         raise UsageError("--attempt and --barred cannot be used together")

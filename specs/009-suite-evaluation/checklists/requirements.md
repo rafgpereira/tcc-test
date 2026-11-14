@@ -35,6 +35,6 @@
   resolvido por Milena em 2026-11-04: opção A, FR-005a.
 - Os nomes de artefatos do projeto (`AC_ref`, `cli check`, `provenance.json`, status das suítes)
   são vocabulário do experimento, não detalhe de implementação; seguem o padrão das specs 001–008.
-- O oráculo corrigido (FR-008) vai além do item 3 da seção F de `docs/metricas-referencia.md`
+- O oráculo corrigido (FR-008) vai além do item 3 da seção F de `docs/metricas-referencia.md` (consolidado na metodologia, seção 5)
   (que só pedia guardar a saída do AC): sem a detecção sob os dois oráculos gravada aqui, a
   feature 010 teria de executar código de novo para TDF\*/MS\*.

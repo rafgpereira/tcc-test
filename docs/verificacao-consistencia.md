@@ -7,23 +7,26 @@
 
 ## Para que serve
 
-Cada módulo já tem a sua própria verificação de integridade (`dataset verify`, `mutation verify`),
-que compara **um artefato com o seu manifesto**. O que faltava era olhar o conjunto: se o dataset
-descompactado tem mesmo os 200 problemas e todos os arquivos de cada um, se os mutantes têm um
-representante para cada problema (100 por problema), e se **nada sobra nem falta** em nenhum dos
-lados. É difícil confiar nisso a olho, e é o que precisa estar certo antes da execução que extrai
-os dados finais do experimento.
+Cada módulo já tem a sua própria verificação de integridade (`dataset verify`, `mutation verify`,
+`ai_clients verify`, `evaluation verify`, `metrics verify`), que compara **um artefato com o seu
+manifesto**. O `cli check` olha o conjunto: se o dataset descompactado tem mesmo os 200 problemas e
+todos os arquivos de cada um, se os mutantes têm 100 por problema, se as suítes dos quatro modelos e
+a avaliação de cada conjunto têm os três cenários de cada problema, e se **nada sobra nem falta** em
+nenhum dos lados. É difícil confiar nisso a olho, e é o que precisa estar certo antes de cada etapa
+que consome os dados das anteriores.
 
 Ele **não lê o conteúdo** dos códigos. Confere nomes de pastas e de arquivos, contagens e a
 correspondência entre as camadas; com `--deep`, também recalcula os SHA-256 e os compara com os
-manifestos.
+manifestos. São 11 camadas, que `--only` aceita pelo nome: `dataset`, `mutants`, `slm_suites`,
+`gpt_suites`, `gemini_suites`, `claude_suites`, `evaluation_slm`, `evaluation_gpt`,
+`evaluation_gemini`, `evaluation_claude` e `evaluation_slm_attempt1`.
 
 ## Como rodar
 
 ```bash
 docker compose run --rm app python -m cli check          # estrutura e nomes (menos de 1 s)
 docker compose run --rm app python -m cli check --deep   # e também os hashes de todos os arquivos
-docker compose run --rm app python -m cli check --only dataset   # só uma camada
+docker compose run --rm app python -m cli check --only dataset   # só uma camada (ou várias, separadas por vírgula)
 ```
 
 Roda no serviço `app` (pacote `src/cli/`, README em `src/cli/README.md`), **só lê** (não escreve nada, não compila, não executa código de terceiros,
@@ -43,7 +46,7 @@ Cada linha do resultado começa com `[OK]`, `[FALHA]`, `[AVISO]` ou `[INFO]` e t
 | **Suítes do modelo local** (`slm_suites`) | `data/suites/slm/problems/` | cada problema tem as pastas `black_box`, `white_box` e `hybrid` e nada além delas; em cada uma, só `suite.json`, `manual_close.json` (o fechamento à mão pelos autores) e arquivos `attempt_<n>.generation.json`/`attempt_<n>.execution.json`, com as gerações numeradas de 1 em diante sem buraco, nenhuma execução sem a geração correspondente, no máximo 15 tentativas e nenhuma execução depois da 12ª (as tentativas 13 a 15 são de predição e não executam nada); cada cenário tem `suite.json`; se `manifests/slm_suites.manifest.json` existir, os nomes de **todos** os arquivos de `data/suites/slm/` (inclusive `run.json`, fora `.lock`) batem com ele. **Enquanto o manifesto não existe** (execução ainda não empacotada), pasta de problema ou de cenário faltando e `suite.json` faltando são a execução em andamento: `[AVISO]`, mesmo com `--deep`, e a pasta inteira ausente também; buraco nas tentativas, mais de 15, execução de uma tentativa de predição, arquivo estranho e pasta sem problema no dataset são `[FALHA]` sempre. **Depois do `package`**, tudo o que falta é `[FALHA]` |
 | **Suítes dos modelos comerciais** (`gpt_suites`, `gemini_suites` e `claude_suites`) | `data/suites/gpt/problems/`, `data/suites/gemini/problems/` e `data/suites/claude/problems/` | as mesmas regras da camada do modelo local, com os arquivos dos modelos comerciais: em cada cenário, só `suite.json`, `manual_close.json` e `attempt_<n>.json`, numerados de 1 em diante sem buraco, **no máximo 3**; cada cenário tem `suite.json`; as respostas guardadas à parte por não trazerem raciocínio (`barred/<problema>/<cenário>/<n>.json`) são contadas numa linha `[INFO]` (ficam fora das métricas) e só podem ser de problema e cenário existentes; as trocas de texto-base e o que elas moveram (`template_changes/` e `superseded/`) são conferidos como no modelo local; o manifesto de cada modelo (`manifests/gpt_suites.manifest.json`, `manifests/gemini_suites.manifest.json`, `manifests/claude_suites.manifest.json`) é conferido contra os arquivos de `data/suites/<modelo>/`. Mesma severidade: `[AVISO]` enquanto o manifesto não existe, `[FALHA]` depois do `package`; buraco, mais de 3 tentativas, arquivo estranho e resposta barrada de problema inexistente são `[FALHA]` sempre. Cada modelo é uma camada separada: o pacote de um não depende do outro |
 | **Avaliações** (`evaluation_slm`, `evaluation_gpt`, `evaluation_gemini`, `evaluation_claude` e `evaluation_slm_attempt1`) | `data/evaluation/<conjunto>/problems/` | cada problema tem exatamente `black_box.json`, `white_box.json` e `hybrid.json`; o manifesto de cada conjunto (`manifests/evaluation_<conjunto>.manifest.json`) lista também `run.json` e `results.csv` e é conferido contra os arquivos de `data/evaluation/<conjunto>/` (um problema que ficou em `building/` depois do pacote aparece como arquivo a mais). Mesma severidade das suítes: pasta ausente e o que falta são `[AVISO]` enquanto o manifesto não existe e `[FALHA]` depois do `package`; arquivo estranho e pasta sem problema no dataset são `[FALHA]` sempre |
-| **Relação 1:1** | as acima | todo problema do dataset tem pasta de mutantes e de suítes; **nenhuma pasta de mutantes ou de suítes sem problema no dataset** (é a verificação "de volta", para o dataset) |
+| **Relação 1:1** | as acima | todo problema do dataset tem pasta de mutantes, de suítes e de avaliação; **nenhuma pasta de mutantes, de suítes ou de avaliação sem problema no dataset** (é a verificação "de volta", para o dataset) |
 | `--deep` | as acima e os zips | o SHA-256 e o tamanho de todos os arquivos batem com o manifesto (o mesmo que `dataset verify --extracted` e `mutation verify --extracted`), e o zip bate com o hash que o manifesto guarda; zip ausente é só aviso |
 
 Não confere (de propósito): o conteúdo dos códigos; se os mutantes foram gerados a partir do
@@ -53,12 +56,12 @@ JSON.
 ## Quando rodar
 
 1. Depois de descompactar o dataset (`unzip data/dataset.zip -d data/`): `--only dataset`.
-2. Depois de gerar os mutantes, e de novo depois de `package`: sem `--only`, com `--deep`.
-3. **Antes de qualquer etapa que consuma os dados** (o envio às IAs e a execução final do
-   experimento): `--deep` com código de saída `0` é a condição para prosseguir. Quando o módulo
-   orquestrador (`src/cli/`) for especificado, ele deve chamar esta verificação como portão
-   (`cli.consistency.run_checks(root, only, deep)` devolve um `Report` com `ok`, `failures` e
-   `warnings`; o código já está em `src/cli/`, importável).
+2. Depois de gerar ou descompactar cada artefato (mutantes, suítes, avaliações), e de novo depois de
+   `package`: sem `--only`, com `--deep`.
+3. **Antes de qualquer etapa que consuma os dados** (o envio às IAs, a avaliação e as métricas):
+   `--deep` com código de saída `0` é a condição para prosseguir. `evaluation run` e `metrics
+   compute` já fazem essa conferência sozinhos como portão (`cli.consistency.run_checks(root, only,
+   deep)` devolve um `Report` com `ok`, `failures` e `warnings`) e recusam seguir se ela falhar.
 
 ## Decisões (2026-09-25)
 
@@ -89,7 +92,7 @@ JSON.
 - **Só lê**: nada é corrigido automaticamente; quem decide o que fazer é o autor.
 - **Comando com nome limpo, em `src/cli/`** (`python -m cli check`, 2026-09-25): comandos do projeto
   são sempre `python -m <pacote> <subcomando>`, nunca o caminho de um script; a conferência que
-  cruza módulos mora no pacote `cli`, que será também o do orquestrador.
+  cruza módulos mora no pacote `cli`.
 
 ## Decisões (2026-10-15): camadas `gpt_suites` e `gemini_suites`
 
@@ -141,6 +144,4 @@ JSON.
 Acrescente uma `Layer` em `LAYERS` (`src/cli/consistency.py`), com a pasta onde ficam as
 pastas de problema, os grupos de nomes de arquivo que cada problema deve ter (`Group`), os nomes
 permitidos além deles, o manifesto (se houver) e o prefixo dos caminhos dentro dele. A relação 1:1
-com o dataset passa a ser conferida sem nenhuma outra mudança. Exemplo previsto: os testes gerados
-pelas IAs, uma pasta por problema (e por modelo e cenário, quando esse desenho for decidido).
-Acrescente também os testes em `tests/cli/` e uma linha na tabela acima.
+com o dataset passa a ser conferida sem nenhuma outra mudança. Acrescente também os testes em `tests/cli/` e uma linha na tabela acima.

@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-18
 
-**Status**: Draft
+**Status**: Implemented (conferência dos enunciados executada em 2026-10-18; revisão por um dos autores pendente, ver tasks T028–T029)
 
 **Input**: User description: "Módulo 006 — conferência dos enunciados contra o original do
 Codeforces e correção opcional. Um comando do módulo dataset baixa uma vez, devagar, a página

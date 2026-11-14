@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-16
 
-**Status**: Draft
+**Status**: Implemented (comandos conferidos; revisão por um dos autores pendente, ver tasks T034–T035)
 
 **Input**: User description: "Módulo 005 — visualizar o pedido enviado a cada modelo. Um comando
 python -m ai_clients show-request --model gemini --problem 1_B --scenario black_box [--attempt N]
@@ -12,7 +12,7 @@ mostra o prompt e o corpo HTTP exatos de uma tentativa já feita (ou do pedido q
 ainda não houve tentativa), sem chamar nenhuma API. O texto é reconstruído a partir do texto-base e
 dos arquivos do problema e conferido contra o prompt_sha256 gravado; se não bater, avisa e não
 mostra. Mostra também o resumo da resposta (modelo devolvido, término, tokens, custo) e pode gravar
-tudo num arquivo. Vale para gpt e gemini e, se possível, para o slm. A decidir no clarify: incluir
+tudo num arquivo. Vale para gpt e gemini e, se possível, para o slm. Decidido no clarify (ver Clarifications): incluir
 o SLM; saída no terminal, arquivo ou os dois; mostrar a resposta crua; o que fazer quando o
 texto-base mudou."
 

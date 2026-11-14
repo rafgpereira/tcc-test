@@ -40,29 +40,29 @@ problema. Não há aleatoriedade: a ordem é a dos testes na suíte e a dos alvo
 
 ### Cenário A — Rodar do zero
 
-Primeiro um **piloto** nos 5 problemas dos pilotos (60 combinações finais e 15 da 1ª tentativa),
-conferido à mão pelos autores; se nada mudar, a execução completa continua a mesma pasta:
+Tudo roda a partir da raiz do projeto, com dataset, mutantes e suítes já descompactados:
 
 ```bash
-docker compose run --rm sandbox python -m evaluation run --problem 1000_B --problem 1005_C \
-  --problem 1008_B --problem 1_B --problem 61_B
+docker compose run --rm sandbox python -m evaluation run
 docker compose run --rm app python -m evaluation report
-docker compose run --rm sandbox python -m evaluation run          # completa, retomando o piloto
-docker compose run --rm app python -m evaluation report
-docker compose run --rm app python -m evaluation package --set gpt   # um por conjunto
-docker compose run --rm app python -m evaluation verify --set gpt
+for s in slm gpt gemini claude slm-attempt1; do
+  docker compose run --rm app python -m evaluation package --set $s
+  docker compose run --rm app python -m evaluation verify --set $s
+done
 docker compose run --rm app python -m cli check --deep
 ```
 
+Para testar antes com poucos problemas, acrescente `--problem ID` (repetível) ao `run`; a
+execução completa continua depois na mesma pasta, e o `package` só aceita o conjunto completo.
+
 1. **`run`** começa pela auto-checagem do motor e por `cli check --deep` no dataset, nos mutantes
-   e nas suítes dos modelos pedidos (código `1` e nada executado se algo falhar; esses portões
-   levaram cerca de 9 minutos na máquina dos autores). No primeiro uso de cada conjunto grava
-   `data/evaluation/<conjunto>/run.json` com os hashes das entradas e a versão do compilador; ao
-   retomar, recusa (`2`) se algo disso mudou. Grava, por problema,
+   e nas suítes dos modelos pedidos (código `1` e nada executado se algo falhar). No primeiro uso
+   de cada conjunto grava `data/evaluation/<conjunto>/run.json` com os hashes das entradas e a
+   versão do compilador; ao retomar, recusa (`2`) se algo disso mudou. Grava, por problema,
    `data/evaluation/<conjunto>/problems/<id>/black_box.json`, `white_box.json` e `hybrid.json` e
-   imprime `ok <id> (<n> suites, <s> s)`; no fim, `done: N problem(s) evaluated, M already evaluated
-   for every set`. Medido num problema (`1000_B`, os 5 conjuntos, `--workers 2`): 489 s, quase
-   todo em compilar os 201 programas.
+   imprime `ok <id> (<n> suites, <s> s)`; no fim, `done: N problem(s) evaluated, M already
+   evaluated for every set`. A compilação dos 201 programas de cada problema é a maior parte do
+   tempo.
 2. **`report`** grava `data/evaluation/<conjunto>/results.csv` (uma linha por combinação e alvo) e
    `manifests/evaluation_<conjunto>_report.json`, e imprime o resumo: combinações avaliadas e sem
    suíte, AC aprovado e reprovado, testes do AC por veredito, detectados em cada oráculo, testes
@@ -103,7 +103,7 @@ O `unzip` recria `data/evaluation/<conjunto>/` (`run.json`, `results.csv` e `pro
 |---|---|---|
 | `python -m evaluation run` | `sandbox` | avalia as suítes. `--set S` (repetível; padrão os cinco: `slm`, `gpt`, `gemini`, `claude`, `slm-attempt1`), `--problem ID` (repetível), `--workers N` (padrão: CPUs − 1; problemas ao mesmo tempo, cada um num *slot* do motor; não muda o resultado), `--output-dir DIR` (padrão `data/evaluation`; outra pasta para conferência ou um piloto guardado), `--scenario S` (repetível; só com `--output-dir` diferente do padrão). Retoma sozinho; só um `run` por pasta ao mesmo tempo (o segundo sai com `2`) |
 | `python -m evaluation report` | `app` | refaz `results.csv` e o relatório de cada conjunto existente (ou só `--set S`); `--output-dir DIR` como no `run` (o relatório de outra pasta fica nela, nunca em `manifests/`). Funciona a qualquer momento; conjunto incompleto sai como `INCOMPLETE` |
-| `python -m evaluation package --set S` | `app` | zip, manifesto e relatório de um conjunto completo |
+| `python -m evaluation package --set S` | `app` | zip, manifesto e relatório de um conjunto completo (`S` em `slm`, `gpt`, `gemini`, `claude`, `slm-attempt1`); `--output-dir DIR` (padrão `data/evaluation`) lê a avaliação de outra pasta. Recusa (`1`) um conjunto incompleto |
 | `python -m evaluation verify --set S` | `app` | confere o zip contra o manifesto; `--extracted DIR` confere também a pasta descompactada |
 | `python -m cli check --deep` | `app` | inclui uma camada por conjunto (`evaluation_slm`, `evaluation_gpt`, `evaluation_gemini`, `evaluation_claude`, `evaluation_slm_attempt1`); antes do pacote, o que falta é só aviso |
 | `pytest tests/evaluation` | `sandbox` | testes do módulo (os marcados `integration` compilam C++ de verdade) |
@@ -151,11 +151,6 @@ problema em andamento é gravado; rode de novo), `130` interrompido.
 - Dataset, mutantes e suítes descompactados e íntegros (o próprio `run` confere).
 
 ## (f) Limitações conhecidas
-
-- **Resultado da execução real** (200 problemas, 5 conjuntos, de 2026-11-04 a 2026-11-06): 3.000
-  combinações, nenhum alvo sem compilar; 56 combinações sem suíte (3 do Claude, fechadas à mão, e 53
-  da 1ª tentativa do modelo local, sem entrada aproveitável). Os pacotes têm de 1,9 a 3,1 MiB; a
-  maior saída do AC numa entrada gerada pelas IAs teve 3,1 MB (modelo local).
 
 - O tempo medido (`elapsed_s` de cada combinação e o total do relatório) é o de executar os testes;
   a compilação, feita uma vez por problema para todas as suítes, fica de fora e é a maior parte do

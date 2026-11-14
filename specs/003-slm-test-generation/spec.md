@@ -20,7 +20,8 @@ em rodada de pesquisa e discussão técnica prévia à especificação (registra
 compartilhado com a dupla), confirmadas por ambos os autores antes deste `/speckit.specify`, e
 refinadas nas 3 perguntas de esclarecimento respondidas nesta sessão (ver Clarifications); as
 decisões D1–D3 estão em Divergências.
-Fora do escopo: clientes do GPT-5.4-mini e do Gemini 3.5 Flash, execução das suítes contra
+Fora do escopo: clientes do GPT-5.4-mini e do Gemini 3.5 Flash (planejado como 3.5; o modelo
+usado depois foi o Gemini 3.8 Flash, `specs/004-llm-test-generation/`), execução das suítes contra
 WA/mutantes e cálculo das métricas."
 
 *(Nota de 2026-10-11: o Qwen2.5-Coder-7B do texto acima é histórico; o modelo final é o
@@ -696,7 +697,7 @@ tentativas por razão) somam corretamente.
 ### Fora do escopo desta especificação
 
 - **FR-029**: Este módulo MUST NOT implementar os clientes do GPT-5.4-mini ou do Gemini 3.5
-  Flash, nem a execução das suítes geradas contra AC/WA/mutantes, nem o cálculo de TDF, MS, TFP
+  Flash (planejado como 3.5; usado: 3.8 Flash, feature 004), nem a execução das suítes geradas contra AC/WA/mutantes, nem o cálculo de TDF, MS, TFP
   ou IIC — essas etapas são escopo de módulos futuros que apenas consomem o resultado deste.
 
 ### Key Entities *(include if feature involves data)*
@@ -790,7 +791,7 @@ tentativas por razão) somam corretamente.
 - **Regra de tamanho de suíte a alinhar entre módulos**: não há limite fixo de casos por suíte
   neste módulo; a regra final (se algum teto ou normalização for necessário para comparar
   cenários e modelos de forma justa) é uma decisão a alinhar com os módulos de orquestração do
-  GPT-5.4-mini e do Gemini 3.5 Flash, fora do escopo desta especificação — pendência que MUST
+  GPT-5.4-mini e do Gemini 3.5 Flash (hoje 3.8 Flash), fora do escopo desta especificação — pendência que MUST
   ser registrada em `docs/metodologia-referencia.md` (seção 6, Pendências Consolidadas) até ser
   fechada.
 - **Valores exatos de `num_ctx` e do múltiplo de timeout da solução Python**: dependem de
@@ -855,7 +856,7 @@ registradas em Clarifications), fecham essa pendência.
   teste público do próprio problema (escolha determinística pela ordem em `testes.json`), igual
   nos 3 cenários daquele problema — não há vazamento de informação nova, já que testes públicos
   já são os exemplos do enunciado original (Codeforces); a mesma regra MUST ser adotada pelos
-  módulos de orquestração do GPT-5.4-mini e do Gemini 3.5 Flash, para manter o desenho
+  módulos de orquestração do GPT-5.4-mini e do Gemini 3.5 Flash (hoje 3.8 Flash), para manter o desenho
   experimental comparável entre os 3 modelos. Reflete-se em FR-005.
 - **D3 — Suítes SLM seguem a mesma exceção de versionamento dos mutantes (decidido, não requer
   nova emenda à Constitution)**: a emenda 1.6.0 do Princípio II já generalizou a exceção de

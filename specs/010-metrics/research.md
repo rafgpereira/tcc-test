@@ -104,7 +104,7 @@ Nenhum `NEEDS CLARIFICATION` ficou. Cada item tem a decisão, o motivo e as alte
 - **Decision**: a seção 5 é reescrita com 5.1–5.4 (as fórmulas mantidas, com as regras B.2/B.3/B.4),
   seguidas de 5.5 (complementares C.1–C.4), 5.6 (estatística), 5.7 (cortes) e 5.8 (figuras). A Q5
   entra na seção 0. A limitação "oráculo por execução × por predição" entra na seção 7, com o motivo
-  decidido em 2026-11-09. As pendências 3 e 26 são fechadas. `docs/metricas-referencia.md` é
+  decidido em 2026-11-09. As pendências 3 e 26 são fechadas. `docs/metricas-referencia.md` (consolidado na metodologia, seção 5) é
   removido com o ok dos autores, porque o conteúdo passa à metodologia.
 
 ## R10. Testes

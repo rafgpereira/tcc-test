@@ -52,8 +52,12 @@ a mais); cada problema de mutantes tem exatamente `Mutant_1` a `Mutant_100`; dat
 **1:1 nos dois sentidos** (nenhum problema sem mutantes, nenhuma pasta de mutantes sem problema); e os
 nomes no disco são os que os manifestos listam. `--deep` também recalcula os SHA-256 de todos os
 arquivos e dos zips. Serve para ver a integridade num resumo com contagens e é o **portão** das
-etapas que consomem os dados (envio às IAs e execução final do experimento); cada módulo novo que
-produz uma pasta por problema (os testes gerados pelas IAs) acrescenta a sua camada. Motivação
+etapas que consomem os dados: `evaluation run` (`src/evaluation/gate.py`, junto da auto-checagem do
+motor) e `metrics compute` (`src/metrics/gate.py`) o chamam antes de ler qualquer coisa. Cada módulo
+que produz uma pasta por problema acrescentou a sua camada: hoje `dataset`, `mutants`, `slm_suites`,
+`gpt_suites`, `gemini_suites`, `claude_suites` e as cinco avaliações (`evaluation_slm`, `_gpt`,
+`_gemini`, `_claude` e `_slm_attempt1`); o `cli` tem só o `check`, **sem orquestrador** (seção 8,
+2026-11-14). Motivação
 medida: `dataset verify` sem `--extracted` só confere o zip, então editar ou apagar um arquivo em
 `data/dataset/` continuava dando `OK`. Execução real sobre os dados reais (2026-09-25): `OK` em 0,6 s
 (dataset 200 pastas e 21.000 arquivos com nomes iguais aos do manifesto; 200 problemas de mutantes
@@ -531,7 +535,7 @@ não pela imagem.
 
 ### 1.6.1 Revisão 2 do dataset: enunciados corrigidos **[DECIDIDO E MEDIDO, 2026-10-18 — `specs/007-dataset-revision/`; revisão 2 gerada]**
 
-Com a conferência contra o original do Codeforces (seção 3, feature 006: 152 expoentes perdidos em 79 problemas e 701 índices em 74), os autores decidiram refazer o dataset numa revisão 2. D1: só os `enunciado.md` mudam — os 102 corrigidos automaticamente (só `^{...}` e `_{...}` inseridos, aprovados nas três conferências) e os 15 da lista de revisão, corrigidos à mão pelos autores com o original ao lado; os 83 fiéis e todos os outros arquivos ficam iguais. D2: o modelo local refaz só as combinações afetadas (caixa-preta e híbrido dos problemas cujo enunciado mudou), reaproveitando as demais com a proveniência registrada. D3: as execuções completas do GPT e do Gemini, ainda não começadas, usam a revisão 2. A revisão 2 exigiu a emenda 1.8.0 da constitution (Princípio II), aprovada e aplicada em 2026-10-18. **[DECIDIDO, 2026-10-18 — clarify]** F1: cada um dos 15 tem um arquivo de decisão (texto corrigido ou "manter", motivo, quem, data), conferido na geração; F2: uma execução nova do modelo local só com as combinações afetadas, a da revisão 1 intocada, e o pacote final marca por combinação a execução e a revisão de onde veio; F3: a revisão 1 fica guardada, renomeada, como arquivo de auditoria; F4: os relatórios dos pilotos ficam como estão (revisão 1) e o dos mutantes é regenerado para a revisão 2, sem regerar os mutantes. **[PLANEJADO, 2026-10-18 — `specs/007-dataset-revision/plan.md`]**: comando `python -m dataset revise` (refaz em memória os corrigidos a partir das entradas versionadas, confere as 15 decisões em `manifests/statement_decisions/<id>.json`, guarda a revisão 1 como `data/dataset.rev1.zip` e `manifests/dataset.rev1.manifest.json` sem mudar nenhum byte, empacota a revisão 2 com manifesto de `schema_version` 2 e `manifests/dataset_revision.json`, e confere que só os `enunciado.md` alterados mudaram); SLM: a execução da revisão 1 vai para `data/suites/slm-rev1`, uma execução nova roda só as combinações afetadas e `package --merge-from` junta as duas num pacote com `provenance.json` por combinação. Emenda 1.8.0 da constitution (revisões numeradas do dataset só quando uma conferência automática contra a fonte demonstrar perda) aprovada por Milena e aplicada em 2026-10-18. Achado: o `manifests/mutation_report.json` aponta para um manifesto de dataset anterior ao atual (`6b3628c3…` contra `a092d987…`), resolvido pela regeneração prevista em F4. **[MEDIDO, 2026-10-18 — revisão 2 gerada, `29d9245+dirty`]** Avaliação dos 15 da lista de revisão, feita pelo agente a pedido de Milena, conferida contra o original guardado: **2 corrigidos** e **13 mantidos**. `670_D2`: o `enunciado.md` da revisão 1 tinha como legenda só "The term of this problem is the same as the previous one, the only exception — increased restrictions.", sem descrever o problema (perda de conteúdo, não só de notação; afeta os cenários caixa-preta e híbrido); recolocada a legenda do original e os expoentes e índices perdidos, na notação do próprio original, sem chaves (`10^9`, `a_i`, `b_i`: o original desse problema é LaTeX, e a primeira versão da decisão, com `10^{9}`/`a_{i}`, deixava 26 diferenças de chave no `check-statements`; a revisão gerada com ela foi desfeita, com a revisão 1 restaurada e conferida pelo hash, antes de qualquer uso, e gerada de novo); a seção "Note" do original, também ausente, não entrou porque a comparação não a apontou como diferença. `190_A`: expoente perdido (`10^{5}`). Os 13 mantidos têm só a mesma fórmula em outra notação (`rac{a}{b}` como `(a)/(b)`, `\limits`, `\log`/`\max` sem o comando, espaços em volta de `<`/`>`, uma barra invertida a mais no LaTeX de matrizes e conjuntos). Conferência dos 2 corrigidos por script: todos os parágrafos (10/10 em cada) aparecem iguais no original renderizado, sem expoente ou índice perdido restante. Ajuste da conferência das decisões: diferenças a até 16 caracteres uma da outra contam como um só trecho (a legenda reescrita do `670_D2` aparecia como 27 diferenças pequenas; `research.md` R3). `revise`: **104 enunciados alterados (102 automáticos, 2 manuais), 13 mantidos, 83 fiéis**; dos 21.000 arquivos, só 104 mudaram, todos `enunciado.md`; zip da revisão 2 `5a9b66b8…` (12.892.995 bytes; revisão 1: 12.891.474), manifesto `70d93346…`, registro `manifests/dataset_revision.json` `cdcf5426…`; revisão 1 guardada (`data/dataset.rev1.zip` `bd5398a8…`, manifesto `a092d987…`, ambos conferidos pelo `verify`); `cli check` sem falha. `check-statements --problem` nos 104 alterados (sem regravar o relatório versionado, `763771a6…`, que o manifesto cita): 102 fiéis; restam só a lista da nota do `190_A` (diferença de marcador já existente no relatório) e a seção "Note" ausente do `670_D2`. `generate --model gpt|gemini --dry-run` com a revisão 2: 600 combinações cada, nada chamado; o hash da revisão 1 (`a092d987…`) não deve ser usado nas execuções novas. O modelo local tem **208 combinações afetadas** (caixa-preta e híbrido de 104 problemas). Mutantes intactos por decisão de Milena (2026-10-18): `data/mutants.zip` não mudou e `mutation verify` dá `OK`; o `mutation report` não foi rodado, e o `manifests/mutation_report.json` segue apontando para um manifesto de dataset anterior (`6b3628c3…`). **[MEDIDO, 2026-10-22 — execução nova do SLM e pacote juntado]** A execução nova (`data/suites/slm`) refez as **208 combinações afetadas** (caixa-preta e híbrido dos 104 enunciados alterados), de 2026-10-19 a 2026-10-22, em GPUs T4 (as 870 chamadas têm o rótulo de hardware GPU T4, 16GB RAM), parte pelo laço com o Ollama remoto e parte rodando o próprio `generate` do projeto fora do Docker, na máquina com GPU, com o Ollama local (válvula de escape, fora do repositório; o `execute` continuou no `sandbox`; a configuração gravada no `run.json` — Ollama 0.35.0, modelo `9ec8897f…`, opções — é conferida a cada `generate`). Resultado nas 208: **165 `accepted` e 43 `accepted_fallback`** (na revisão 1, as mesmas 208 tinham 166, 41 e 1 `accepted_predicted`; 195 mantiveram o mesmo status); 870 tentativas (705 falhas), 1.225.366 tokens de prompt e 798.283 de saída, 66.913 s de geração. **Pacote juntado** (`package --merge-from data/suites/slm-rev1`): 600 combinações, **504 `accepted`, 95 `accepted_fallback`, 1 `accepted_predicted`, 0 `discarded_manual`** (antes, na revisão 1: 505, 93, 2, 0); 208 da execução nova e 392 da revisão 1, com a origem de cada uma em `provenance.json`; `data/slm_suites.zip` com 8.961.292 bytes (SHA-256 `1303e652…`), conferido por `verify` e `cli check --deep` (dataset, mutantes e as suítes dos 4 modelos: `Resultado: OK`, 0 falhas, 0 avisos). O `manifests/slm_generation_report.json` passa a ser o da execução nova (as 392 combinações reaproveitadas aparecem como pendentes nele; os números delas estão no relatório da revisão 1, dentro do pacote).
+Com a conferência contra o original do Codeforces (seção 3, feature 006: 152 expoentes perdidos em 79 problemas e 701 índices em 74), os autores decidiram refazer o dataset numa revisão 2. D1: só os `enunciado.md` mudam — os 102 corrigidos automaticamente (só `^{...}` e `_{...}` inseridos, aprovados nas três conferências) e os 15 da lista de revisão, avaliados à mão pelos autores com o original ao lado (resultado medido mais abaixo: 2 corrigidos e 13 mantidos); os 83 fiéis e todos os outros arquivos ficam iguais. D2: o modelo local refaz só as combinações afetadas (caixa-preta e híbrido dos problemas cujo enunciado mudou), reaproveitando as demais com a proveniência registrada. D3: as execuções completas dos modelos comerciais usam a revisão 2 (na data da decisão nenhuma tinha começado; GPT, Gemini e Claude rodaram em 2026-10-20 sobre ela, seção 3). A revisão 2 exigiu a emenda 1.8.0 da constitution (Princípio II), aprovada e aplicada em 2026-10-18. **[DECIDIDO, 2026-10-18 — clarify]** F1: cada um dos 15 tem um arquivo de decisão (texto corrigido ou "manter", motivo, quem, data), conferido na geração; F2: uma execução nova do modelo local só com as combinações afetadas, a da revisão 1 intocada, e o pacote final marca por combinação a execução e a revisão de onde veio; F3: a revisão 1 fica guardada, renomeada, como arquivo de auditoria; F4: os relatórios dos pilotos ficam como estão (revisão 1); para o dos mutantes a decisão inicial era regenerá-lo para a revisão 2, sem regerar os mutantes — **substituída em 2026-10-18 por decisão dos autores na execução** (emenda abaixo: nem os mutantes nem o relatório foram refeitos). **[PLANEJADO e IMPLEMENTADO, 2026-10-18 — `specs/007-dataset-revision/plan.md`]**: comando `python -m dataset revise` (refaz em memória os corrigidos a partir das entradas versionadas, confere as 15 decisões em `manifests/statement_decisions/<id>.json`, guarda a revisão 1 como `data/dataset.rev1.zip` e `manifests/dataset.rev1.manifest.json` sem mudar nenhum byte, empacota a revisão 2 com manifesto de `schema_version` 2 e `manifests/dataset_revision.json`, e confere que só os `enunciado.md` alterados mudaram); SLM: a execução da revisão 1 vai para `data/suites/slm-rev1`, uma execução nova roda só as combinações afetadas e `package --merge-from` junta as duas num pacote com `provenance.json` por combinação. Emenda 1.8.0 da constitution (revisões numeradas do dataset só quando uma conferência automática contra a fonte demonstrar perda) aprovada por Milena e aplicada em 2026-10-18. Achado: o `manifests/mutation_report.json` aponta para um manifesto de dataset (`6b3628c3…`) diferente do `a092d987…` da revisão 1; esse ponto ficou resolvido pela decisão de não regenerar o relatório (emenda abaixo), e a origem da diferença está explicada ali. **[MEDIDO, 2026-10-18 — revisão 2 gerada, `29d9245+dirty`]** Avaliação dos 15 da lista de revisão, feita pelo agente a pedido de Milena, conferida contra o original guardado: **2 corrigidos** e **13 mantidos**. `670_D2`: o `enunciado.md` da revisão 1 tinha como legenda só "The term of this problem is the same as the previous one, the only exception — increased restrictions.", sem descrever o problema (perda de conteúdo, não só de notação; afeta os cenários caixa-preta e híbrido); recolocada a legenda do original e os expoentes e índices perdidos, na notação do próprio original, sem chaves (`10^9`, `a_i`, `b_i`: o original desse problema é LaTeX, e a primeira versão da decisão, com `10^{9}`/`a_{i}`, deixava 26 diferenças de chave no `check-statements`; a revisão gerada com ela foi desfeita, com a revisão 1 restaurada e conferida pelo hash, antes de qualquer uso, e gerada de novo); a seção "Note" do original, também ausente, não entrou porque a comparação não a apontou como diferença. `190_A`: expoente perdido (`10^{5}`). Os 13 mantidos têm só a mesma fórmula em outra notação (`\frac{a}{b}` como `(a)/(b)`, `\limits`, `\log`/`\max` sem o comando, espaços em volta de `<`/`>`, uma barra invertida a mais no LaTeX de matrizes e conjuntos). Conferência dos 2 corrigidos por script: todos os parágrafos (10/10 em cada) aparecem iguais no original renderizado, sem expoente ou índice perdido restante. Ajuste da conferência das decisões: diferenças a até 16 caracteres uma da outra contam como um só trecho (a legenda reescrita do `670_D2` aparecia como 27 diferenças pequenas; `research.md` R3). `revise`: **104 enunciados alterados (102 automáticos, 2 manuais), 13 mantidos, 83 fiéis**; dos 21.000 arquivos, só 104 mudaram, todos `enunciado.md`; zip da revisão 2 `5a9b66b8…` (12.892.995 bytes; revisão 1: 12.891.474), manifesto `70d93346…`, registro `manifests/dataset_revision.json` `cdcf5426…`; revisão 1 guardada (`data/dataset.rev1.zip` `bd5398a8…`, manifesto `a092d987…`, ambos conferidos pelo `verify`); `cli check` sem falha. `check-statements --problem` nos 104 alterados (sem regravar o relatório versionado, `763771a6…`, que o manifesto cita): 102 fiéis; restam só a lista da nota do `190_A` (diferença de marcador já existente no relatório) e a seção "Note" ausente do `670_D2`. `generate --model gpt|gemini --dry-run` com a revisão 2: 600 combinações cada, nada chamado; o hash da revisão 1 (`a092d987…`) não deve ser usado nas execuções novas. O modelo local tem **208 combinações afetadas** (caixa-preta e híbrido de 104 problemas). Mutantes intactos por decisão de Milena (2026-10-18): `data/mutants.zip` não mudou e `mutation verify` dá `OK`; o `mutation report` não foi rodado. Os mutantes dependem só do `AC_ref.cpp` de cada problema (2.5), e nenhum `AC_ref.cpp` mudou na revisão 2 (só 104 `enunciado.md`); na época só o modelo local tinha rodado e foi o que se refez, e os modelos comerciais já nasceram sobre a revisão 2. O `manifests/mutation_report.json` ficou como estava e guarda `dataset_manifest_sha256` = `6b3628c3…`. Conferido contra o Git em 2026-11-14: esse hash é o do manifesto do dataset da revisão 1 como foi gerado em 2026-09-22 (commit `9b87d7e`, anterior à geração dos mutantes, 2026-09-25); o `manifests/dataset.rev1.manifest.json` (`a092d987…`) tem **o mesmo conteúdo, só com fins de linha CRLF** (removendo os `\r`, o hash volta a ser `6b3628c3…`), e o zip da revisão 1 (`bd5398a8…`) é o mesmo nos dois. Ou seja, o relatório dos mutantes descreve o dataset da revisão 1 sem divergência de conteúdo, e continua válido para a revisão 2 pelo motivo acima; o hash do manifesto da revisão 2 (`70d93346…`) não aparece nele de propósito. **[MEDIDO, 2026-10-22 — execução nova do SLM e pacote juntado]** A execução nova (`data/suites/slm`) refez as **208 combinações afetadas** (caixa-preta e híbrido dos 104 enunciados alterados), de 2026-10-19 a 2026-10-22, em GPUs T4 (as 870 chamadas têm o rótulo de hardware GPU T4, 16GB RAM), parte pelo laço com o Ollama remoto e parte rodando o próprio `generate` do projeto fora do Docker, na máquina com GPU, com o Ollama local (válvula de escape, fora do repositório; o `execute` continuou no `sandbox`; a configuração gravada no `run.json` — Ollama 0.35.0, modelo `9ec8897f…`, opções — é conferida a cada `generate`). Resultado nas 208: **165 `accepted` e 43 `accepted_fallback`** (na revisão 1, as mesmas 208 tinham 166, 41 e 1 `accepted_predicted`; 195 mantiveram o mesmo status); 870 tentativas (705 falhas), 1.225.366 tokens de prompt e 798.283 de saída, 66.913 s de geração. **Pacote juntado** (`package --merge-from data/suites/slm-rev1`): 600 combinações, **504 `accepted`, 95 `accepted_fallback`, 1 `accepted_predicted`, 0 `discarded_manual`** (antes, na revisão 1: 505, 93, 2, 0); 208 da execução nova e 392 da revisão 1, com a origem de cada uma em `provenance.json`; `data/slm_suites.zip` com 8.961.292 bytes (SHA-256 `1303e652…`), conferido por `verify` e `cli check --deep` (dataset, mutantes e as suítes dos 4 modelos: `Resultado: OK`, 0 falhas, 0 avisos). O `manifests/slm_generation_report.json` passa a ser o da execução nova (as 392 combinações reaproveitadas aparecem como pendentes nele; os números delas estão no relatório da revisão 1, dentro do pacote).
 
 ### 1.7 Dados empíricos medidos durante o planejamento (2026-09-19)
 
@@ -716,6 +720,15 @@ real de 2026-09-20, com todas as colunas e gravando os problemas do pool, levou 
 > versionado (`data/mutants.zip`) e o relatório (`manifests/mutation_report.json`) existem. Os
 > resultados medidos estão em 2.7, 2.8, 2.9 e 2.11; as decisões, em 2.1 a 2.6 e 2.10.
 
+> **Os mutantes não foram regenerados na revisão 2 do dataset (decisão dos autores, 2026-10-18)**:
+> os mutantes dependem só do `AC_ref.cpp` (2.5) e a revisão 2 (1.6.1) mudou apenas 104
+> `enunciado.md`, nenhum `AC_ref.cpp`. Por isso `data/mutants.zip` e `manifests/mutants.manifest.json`
+> são os da execução de 2026-09-25 e valem para as duas revisões; o `mutation verify` dá `OK` e o
+> `mutation report` não foi rodado de novo. O `manifests/mutation_report.json` guarda
+> `dataset_manifest_sha256` = `6b3628c3…`, o hash do manifesto do dataset da revisão 1 como gerado em
+> 2026-09-22 (o `manifests/dataset.rev1.manifest.json`, `a092d987…`, tem o mesmo conteúdo com fins de
+> linha CRLF; detalhe em 1.6.1).
+
 > **Revisão de 2026-09-23**: esta seção foi reescrita após uma rodada dedicada de pesquisa e
 > discussão técnica (o texto anterior, com um conjunto pequeno de operadores por pares e
 > mutação de ordem superior sem regra definida, era, por admissão dos próprios autores, a parte
@@ -899,6 +912,13 @@ indefinido ou tempo no limiar do limite — nunca por lógica de seleção). Iss
 **"regenerar os mutantes localmente com a mesma seed" reduz, mas não garante, obter exatamente o
 mesmo conjunto final** — o mesmo argumento que já levou a versionar o dataset (Constitution,
 Princípio II, emenda 1.1.0) se aplica, sem diferença de fundo, a mutantes.
+**[MEDIDO, 2026-09-24 — `specs/002-mutant-generation/research.md` R14 e R15]** A estabilidade do
+próprio gerador entre execuções independentes foi medida: **0 de 900 mutantes divergentes** (R15: os 100
+mutantes de `189_C` em duas rodadas independentes, arquivos e SHA-256 iguais; R14: 800 mutantes de 8 problemas
+gerados com `--workers 1` e com `--workers 4`, 800 de 800 iguais, mesmo funil de descartes). É uma
+amostra, não prova de que toda a execução se repete igual; por isso o pacote versionado continua
+sendo a referência. Aceleração de `--workers 4` sobre `--workers 1`: 2,07× (3.520 s → 1.700 s, num
+computador de 4 núcleos físicos), não 4×.
 
 - **Sem seed própria**: o módulo não usa nenhuma operação aleatória (ver 2.3, item 4) —
   seleção de sítios, truncamento de excedentes e ordem superior seguem só a ordem determinística
@@ -1065,19 +1085,58 @@ com ordem superior, 0 alertas); `mutation verify` e `python -m cli check --deep`
 MS (seção 5.2) é, portanto, calculado sobre os 200 problemas. O tempo impresso por problema no log
 inclui a espera na fila e não deve ser citado (R21).
 
+### 2.12 Mutantes e a revisão 2 do dataset **[DECIDIDO, 2026-10-18 — Milena; CONFERIDO, 2026-11-14]**
+
+Os mutantes dependem só do `AC_ref.cpp`, dos testes oficiais e dos limites do `metadata.json` (2.5);
+os enunciados não entram na geração nem na validação. A revisão 2 do dataset (1.6.1) mudou só 104
+`enunciado.md` e nenhum `AC_ref.cpp`, então os mutantes **não foram regenerados**: `data/mutants.zip`
+e `manifests/mutants.manifest.json` são os de 2026-09-25 e valem para as duas revisões; depois da
+revisão 2, `mutation verify` e `cli check --deep` deram `OK`. Na época só o SLM tinha rodado (a
+execução dele sobre a revisão 1 foi parcialmente refeita, seção 3); GPT, Gemini e Claude ainda não
+tinham sido submetidos e rodaram já sobre a revisão 2.
+
+**O hash do relatório.** `manifests/mutation_report.json` guarda `dataset_manifest_sha256` =
+`6b3628c3…`, o SHA-256 do `manifests/dataset.manifest.json` do commit `9b87d7e` (2026-09-22), o
+manifesto sobre o qual os mutantes foram gerados. O arquivo mudou de hash duas vezes depois
+(conferido em 2026-11-14 com `git show <commit>:manifests/dataset.manifest.json | sha256sum`): no
+commit `8b0bb7a` (2026-10-05), `a092d987…`, hoje `manifests/dataset.rev1.manifest.json`, com o mesmo
+conteúdo e só os fins de linha diferentes (CRLF; `.gitattributes` marca `manifests/**` como `-text`);
+e no commit `8c22193` (2026-10-20), `70d93346…`, o da revisão 2. O relatório **não foi regerado**
+(decisão de Milena, 2026-10-18): regerar trocaria o hash por um de uma revisão a que os mutantes não
+estão ligados por conteúdo. Quem comparar o hash do relatório com o manifesto atual vai ver a
+diferença, e este parágrafo é a explicação. (`specs/007-dataset-revision/tasks.md`, T020, registra a
+mesma decisão.)
+
 ---
 
 ## 3. Módulo: Orquestração de IA / Geração de Prompt
 
-**[PARCIALMENTE DECIDIDO — a parte do SLM (geração de suítes) foi fechada em
-`specs/003-slm-test-generation/spec.md` (2026-09-29) e executada por completo entre
-2026-10-06 e 2026-10-09 (600 de 600 combinações com suíte; ver "Execução completa do SLM"
-abaixo, `research.md` R28); a parte dos dois modelos comerciais (GPT-5.4-mini, Gemini 3.8
-Flash) tem **código e testes prontos** desde 2026-10-15 (`specs/004-llm-test-generation/`: spec de
-2026-10-13; clarify em 2026-10-13 e 2026-10-15; parametrização A3, plano e implementação em
-2026-10-15, `plan.md`, `research.md` R0 a R14 e `tasks.md` T001 a T054; ver "Particularidade dos
-LLMs comerciais" abaixo e seção 6, item 32), sem nenhuma chamada paga ainda: o piloto é o próximo
-passo.]**
+**[DECIDIDO E EXECUTADO — estado final em 2026-11-14]** Os quatro modelos geraram as suítes das
+600 combinações (200 problemas × 3 cenários) cada um: o **SLM** (Qwen2.5-Coder-14B, local;
+`specs/003-slm-test-generation/spec.md`, 2026-09-29), o **GPT-5.4-mini** e o **Gemini 3.8 Flash**
+(`specs/004-llm-test-generation/`, spec de 2026-10-13, código e testes de 2026-10-15) e o **Claude
+Haiku 5.5** (`specs/008-claude-test-generation/`, 2026-10-20). Os três comerciais rodaram em
+2026-10-20 sobre a revisão 2 do dataset (seção 1.6.1). O pacote do SLM junta a execução da revisão 1
+(2026-10-06 a 2026-10-09; 392 combinações que ficam) e a refeita na revisão 2 (as 208 combinações
+afetadas pela correção dos enunciados); o resultado final, a origem de cada combinação e as
+tabelas de cada modelo estão nas seções "Execução completa do SLM" e "Execução completa" de cada
+modelo comercial, mais adiante nesta seção. As subseções abaixo registram, em ordem de decisão,
+como cada parte foi especificada; os rótulos de estado (`[PLANEJADO]`, `[ESPECIFICADO]`) de cada
+uma são os da data indicada, e a data é a referência (o estado de cada comando está no
+`README.md` do módulo `ai_clients`).
+
+**Parâmetros de ambiente que não mudam o resultado, mas ficam registrados [CONFERIDO, 2026-11-14]**:
+`OLLAMA_HARDWARE_LABEL` (`.env`) é texto livre que descreve a máquina do Ollama e é gravado junto
+de cada resposta do SLM; todas as chamadas das duas execuções (revisão 1 e a refeita na revisão 2,
+870 chamadas) têm a mesma etiqueta, "GPU T4, 16GB RAM", embora parte tenha rodado em outra máquina
+com a mesma T4, o mesmo Ollama 0.35.0 e o mesmo modelo (nota de hardware em "Execução completa do
+SLM"); trocar a etiqueta ou a máquina não impede o `--resume`. `CHARS_PER_TOKEN`
+(`src/ai_clients/llm/config.py`) é a razão de caracteres por *token* usada só na **estimativa de
+custo** do `--dry-run` dos modelos comerciais, nunca na cobrança nem nas métricas: GPT 3,0 e Claude
+3,0 (conservadora, definida antes do piloto, sem medida própria) e Gemini 3,354 (medida no piloto 1,
+2026-10-16: 69.717 caracteres para 20.786 *tokens* devolvidos pela API); a origem de cada valor está
+em `CHARS_PER_TOKEN_ORIGIN`. O custo real de cada execução vem do uso devolvido pela API, não dessa
+razão.
 
 **Modelos avaliados**:
 - GPT-5.4-mini (OpenAI, API) — snapshot datado `gpt-5.4-mini-2026-03-17` (não o apelido), Responses
@@ -1112,15 +1171,19 @@ passo.]**
   não recebe `safetySettings` (A13). **Barreira de raciocínio em toda execução (A12)**: uma
   resposta com zero tokens de raciocínio (`usage.output_tokens_details.reasoning_tokens` no GPT,
   `thoughtsTokenCount` no Gemini) ou sem a contagem é gravada fora das tentativas, e o comando para
-  com código próprio até os autores investigarem. **A conferir no piloto**: que o GPT responde com
-  o snapshot pedido e qual `modelVersion` o Gemini 3.8 Flash devolve.
-- **Planejamento dos LLMs comerciais [PLANEJADO, 2026-10-15 — `specs/004-llm-test-generation/plan.md`,
+  com código próprio até os autores investigarem **[regra de 2026-10-15; a regra vigente desde
+  2026-10-20 é a da execução completa do Gemini, mais adiante: a resposta sem raciocínio fica em
+  `barred/`, é pedida de novo e, na terceira, a suíte é `accepted_barred`, sem parar o comando]**.
+  **Conferido no piloto e nas execuções completas**: o GPT respondeu com o snapshot pedido
+  (`gpt-5.4-mini-2026-03-17` nas 601 chamadas) e o Gemini devolveu `modelVersion`
+  `gemini-3.8-flash` (613 chamadas).
+- **Planejamento dos LLMs comerciais [PLANEJADO em 2026-10-15; IMPLEMENTADO e EXECUTADO, ver as execuções completas abaixo — `specs/004-llm-test-generation/plan.md`,
   `research.md` R0 a R14]**:
   - **Código:** subpacote `src/ai_clients/llm/`, que reaproveita o SLM por importação (leitura do
     problema, montagem do prompt com os mesmos três marcadores, regras de teste vazio, abreviado e
     cercado, travas, escrita atômica, núcleo do zip) sem mudar o comportamento do SLM. Os clientes
     HTTP usam a biblioteca padrão, sem SDK, para que nenhuma repetição fique escondida.
-  - **CLI:** os comandos existentes ganham `--model {slm,gpt,gemini}`.
+  - **CLI:** os comandos existentes ganham `--model {slm,gpt,gemini}` (e `claude` desde 2026-10-20).
   - **Suíte:** o `suite.json` dos LLMs tem as mesmas chaves de topo do SLM, mas um schema próprio
     (`LlmSuite`), porque o `SlmSuite` confere a política de seeds do SLM. A avaliação lê os 3
     modelos por um leitor comum (`SuiteView`; decisão S1 dos autores).
@@ -1143,8 +1206,9 @@ passo.]**
     `Ctrl+C`, as chamadas em andamento terminam e são gravadas (nada é pago duas vezes; só um
     encerramento à força refaz uma chamada); e um texto que não é UTF-8 válido (caractere
     substituto solto num JSON válido) faz da resposta um `schema_violation`, gravado normalmente.
-    O leitor comum leu as 600 suítes reais do SLM (505 `accepted`, 93 `accepted_fallback`, 2
-    `accepted_predicted`) sem nenhuma recusa.
+    O leitor comum leu as 600 suítes reais do SLM da época (execução da revisão 1: 505
+    `accepted`, 93 `accepted_fallback`, 2 `accepted_predicted`; o pacote final tem 504, 95 e 1) sem
+    nenhuma recusa.
   - **Dry-run medido em 2026-10-15** (200 problemas, nenhuma chamada): 600 combinações por modelo,
     cerca de 824 mil *tokens* de entrada pela razão 3,0, maior prompt 7.459 caracteres (híbrido de
     `61_B`); com a saída no teto de 32.768 nos dois extremos (antes do piloto), GPT de US$ 89,09 a
@@ -1221,7 +1285,7 @@ Nenhum par (seed, temperatura) se repete numa combinação. As entradas geradas 
 solução passa em tudo ou quando o primeiro erro num teste público é WA (é o que permite a
 reserva). **Nenhuma combinação fica sem suíte**: os status possíveis são `accepted`,
 `accepted_fallback`, `accepted_predicted` e `discarded_manual` (mais `awaiting_manual`
-enquanto os autores não decidem). **Na execução completa** nenhuma combinação chegou à fase 5
+enquanto os autores não decidem). **Nas execuções completas (a da revisão 1 e a refeita na revisão 2)** nenhuma combinação chegou à fase 5
 (0 aguardando, 0 `discarded_manual`), então o `close` não foi necessário (não foi exercitado com
 o modelo real). *Histórico, todo substituído pela política acima*: até 2026-10-05, 6 tentativas
 estritas (seeds 43 a 48) e descarte da suíte; em 2026-10-05 (R16), 8 estritas, reserva, extras
@@ -1251,7 +1315,7 @@ template confirmados por Milena no mesmo dia]**:
   *token*). Guarda em tempo de execução: se `prompt_eval_count + num_predict > num_ctx`, a execução
   para sem gravar a tentativa (o Ollama truncaria o prompt em silêncio) (R3). O máximo real de
   `prompt_eval_count` é medido no piloto. **Medido** — piloto 1: 2.044; piloto 2: 2.170; piloto 3:
-  2.393; piloto 5: 2.262; **execução completa (relatório de 2026-10-11, 2.185 chamadas): 2.499**,
+  2.393; piloto 5: 2.262; **execução completa na revisão 1 (relatório de 2026-10-11, 2.185 chamadas): 2.499; refeita na revisão 2 (870 chamadas): 2.500**,
   dentro dos 3.072 *tokens* que sobram para o prompt (`num_ctx` 8.192 − `num_predict` 5.120).
   **Remedido com o prompt real (2026-09-30, `generate --dry-run` sobre os 200 problemas)**: com a
   redação final do template e os sub-rótulos do `<context_data>`, o maior prompt é **8.118
@@ -1263,9 +1327,9 @@ template confirmados por Milena no mesmo dia]**:
   respostas cortadas por `num_predict` (`done_reason = "length"`: 2 no híbrido, 1 na caixa-branca).
   **`num_predict` passa a 5.120**: com o template novo o maior prompt tem 8.074 caracteres (híbrido,
   `61_B`), ≈ 2.430 *tokens*; os 3.072 *tokens* que sobram para o prompt cobrem até 2,63 caracteres
-  por *token*. A guarda continua valendo. **Execução completa (2026-10-11)**: 77 das 2.185
+  por *token*. A guarda continua valendo. **Execução completa (2026-10-11, revisão 1)**: 77 das 2.185
   respostas cortadas por `num_predict` (`done_reason = "length"`: caixa-preta 48, híbrido 26,
-  caixa-branca 3); elas caem no parser como qualquer resposta e consomem a tentativa.
+  caixa-branca 3; na refeita, 42 das 870: caixa-preta 20 e híbrido 22); elas caem no parser como qualquer resposta e consomem a tentativa.
 - **Amostragem [DECIDIDO, 2026-09-30 — item 27 da seção 6; temperatura e seed revistas em
   2026-10-06, R21/R22]**: `top_p 0.8`, `top_k 20`, `repeat_penalty 1.05` fixos (configuração de
   geração publicada pelo fabricante do Qwen2.5-Coder-Instruct), todos enviados explicitamente;
@@ -1352,7 +1416,7 @@ template confirmados por Milena no mesmo dia]**:
 - **Casos de teste da suíte**: gravados no contrato já existente `TestCase` (`input`, `output`) de
   `testes.json`; o módulo de avaliação, quando especificado, deve adotá-lo ou mudar o schema de
   propósito (decidido em 2026-09-30, item 29 da seção 6); a mesma forma vale para as suítes dos
-  dois modelos comerciais.
+  três modelos comerciais.
 - **Relatório, pacote e conferência [IMPLEMENTADO, 2026-10-01 — `research.md` R10]**:
   `python -m ai_clients report` grava `manifests/slm_generation_report.json` a qualquer momento (a
   proporção de cada status é sempre sobre todo problema × cenário do dataset; quartis por interpolação
@@ -1367,7 +1431,7 @@ template confirmados por Milena no mesmo dia]**:
   12 com R16 e 6 até 2026-10-05 —, arquivo estranho, pasta sem problema, `superseded/` que não bate
   com as trocas de template) é falha desde o início. **Execução completa (2026-10-11)**: `cli
   check` OK (600/600 com `suite.json`, tentativas sem buraco, `superseded/` igual às trocas).
-  **Pacote (2026-10-11)**: `data/slm_suites.zip` com 6.597.040 bytes (SHA-256 `b73d2750…`) e 4.850
+  **Pacote da revisão 1 (2026-10-11; o atual, juntado com a execução refeita na revisão 2, é o do fim da seção 3 sobre o SLM)**: `data/slm_suites.zip` com 6.597.040 bytes (SHA-256 `b73d2750…`) e 4.850
   arquivos (as 600 combinações, o `run.json`, a troca de template e os 3 arquivos que ela tirou de
   `problems/`), manifesto `manifests/slm_suites.manifest.json`; `verify --extracted` `OK` e `cli check
   --deep` `OK` sem aviso, com o SHA-256 de cada arquivo e do zip conferido.
@@ -1470,7 +1534,7 @@ template confirmados por Milena no mesmo dia]**:
   mesmas regras de entrada do principal) e escreve entradas e saídas esperadas, sem solução Python
   nem validação pelos testes públicos; nova tentativa só por resposta não interpretável, até 3
   (tentativas 21 a 23); status `accepted_predicted`, a única exceção ao oráculo por execução e a
-  única em que o SLM faz o que os dois LLMs comerciais fazem; (6) sem resposta interpretável, a
+  única em que o SLM faz o que os LLMs comerciais fazem; (6) sem resposta interpretável, a
   combinação fica aguardando tratamento manual: o comando segue com as demais, sai no fim com
   código próprio listando-as, e o pacote é recusado até os autores a fecharem, por comando
   explícito, como `discarded_manual` com motivo obrigatório (continua no N = 200). Relatório e
@@ -1618,8 +1682,10 @@ template confirmados por Milena no mesmo dia]**:
   ainda não existe). Texto gravado: "o template de predição gerava entradas longas e degeneradas
   (sequências abreviadas com '...'), causando loop de repetição e timeout no túnel; o novo limita a
   10 elementos por entrada e 5 a 12 testes".
-- **Execução completa do SLM [MEDIDO, 2026-10-06 a 2026-10-09; relatório de 2026-10-11 —
-  `research.md` R28; `manifests/slm_generation_report.json`]**: continuação da execução do piloto
+- **Execução completa do SLM, na revisão 1 do dataset [MEDIDO, 2026-10-06 a 2026-10-09; relatório de
+  2026-10-11 — `research.md` R28; os números desta execução ficam como história: o relatório
+  vigente, `manifests/slm_generation_report.json`, é o da refeita na revisão 2, logo abaixo, e o
+  pacote final é a junção das duas]**: continuação da execução do piloto
   6 (`run.json` de 2026-10-06T23:37:55Z; primeira chamada 2026-10-06T23:40:40Z, última
   2026-10-09T17:40:40Z), com a configuração congelada: `qwen2.5-coder:14b` (digest `9ec8897f747e…`,
   Q4_K_M), Ollama 0.35.0, `num_ctx` 8.192, `num_predict` 5.120, template de solução `fc9757e8bcb1…`,
@@ -1632,6 +1698,10 @@ template confirmados por Milena no mesmo dia]**:
   | `accepted_fallback` | 93 (15,5%) | 65 | 13 | 15 |
   | `accepted_predicted` | 2 (0,3%) | 1 (`939_C`) | 1 (`237_A`) | 0 |
   | `discarded_manual` / aguardando / pendentes | 0 | 0 | 0 | 0 |
+
+  (Tabela da execução da revisão 1, sobre as 600 combinações. As 208 combinações dos 104 problemas
+  de enunciado corrigido foram refeitas, e `939_C` caixa-preta está entre elas; no pacote final só
+  resta `237_A` caixa-branca como `accepted_predicted`.)
 
   Fase em que fecharam: fase 1 = 480 (355 já na tentativa 1), fase 2 = 25, fase 3 (reserva) = 93,
   fase 4 (predição) = 2. Chamadas: 2.185 (fase 1: 1.537; fase 2: 643; fase 4: 5), das quais 1.678
@@ -1651,6 +1721,46 @@ template confirmados por Milena no mesmo dia]**:
   a execução usou mais de uma máquina com GPU (2×T4: o mesmo modelo de GPU, a mesma versão do Ollama e o
   mesmo digest do modelo, conferidos pelo `--resume`), sem impacto nos resultados. A etiqueta,
   portanto, não distingue as máquinas, e o determinismo entre GPUs não foi medido.
+
+- **Pacote final do SLM: junção da revisão 1 com a refeita na revisão 2 [MEDIDO E DECIDIDO, 2026-10-19 a
+  2026-10-22 — `specs/007-dataset-revision/`; `manifests/slm_generation_report.json`,
+  `data/suites/slm/provenance.json`]**: com a revisão 2 do dataset (seção 1.6.1), o modelo local
+  refez só as **208 combinações** (caixa-preta e híbrido dos 104 problemas de enunciado
+  corrigido; a caixa-branca não usa o enunciado), com a mesma configuração congelada (mesmo
+  modelo, digest, Ollama 0.35.0, opções, templates `fc9757e8bcb1…` e `e52133f6ea0c…`, política de 5
+  fases; sem troca de template), sobre o manifesto do dataset `70d93346…` (revisão 2). As 392
+  combinações restantes, cujo prompt é idêntico nas duas revisões, foram reaproveitadas da execução
+  da revisão 1. A origem de cada uma das 600 combinações está em `data/suites/slm/provenance.json`
+  (a árvore, a revisão e o hash do manifesto do dataset de onde veio; as 208 antigas ficam como
+  `superseded`, só para auditoria); a árvore da revisão 1 fica em `data/suites/slm-rev1/`. O
+  `slm_generation_report.json` descreve só a execução refeita (as 392 reaproveitadas aparecem
+  nele como `pending_generation`, e não como falha). Resultado, recontado por script sobre os
+  `suite.json` do pacote (e conferido contra o `provenance.json`):
+
+  | Status final | Total (600) | Caixa-preta | Caixa-branca | Híbrido | da revisão 1 (392) | refeitas (208) |
+  |---|---|---|---|---|---|---|
+  | `accepted` | **504** (84,0%) | 134 | 186 | 184 | 339 | 165 |
+  | `accepted_fallback` | **95** (15,8%) | 66 | 13 | 16 | 52 | 43 |
+  | `accepted_predicted` | **1** (0,2%) | 0 | 1 (`237_A`) | 0 | 1 | 0 |
+  | `discarded_manual` / aguardando / pendentes | **0** | 0 | 0 | 0 | 0 | 0 |
+
+  Fase em que fecharam as 600: fase 1 = 482 (357 já na tentativa 1), fase 2 = 22, fase 3 (reserva por
+  WA) = 95, fase 4 (predição) = 1. Suítes: 5.815 testes no total (caixa-preta 2.053, caixa-branca
+  1.790, híbrido 1.972), mediana 10 por suíte (`accepted` de 1 a 32, soma 4.748; `accepted_fallback`
+  de 5 a 54, soma 1.059; `accepted_predicted` 8). **A execução refeita (208 combinações)**:
+  870 chamadas (fase 1: 595; fase 2: 275; fase 4: 0), das quais 705 falharam (81,0%); as combinações
+  fecharam em fase 1 (157), fase 2 (8) e fase 3 (43); 42 respostas cortadas por `length`; entradas
+  descartadas: `runtime_error` 114 e `timeout` 13; 19 entradas repetidas mantidas; 0 testes vazios,
+  0 abreviados, 0 cercas Markdown removidas; *tokens*: 1.225.366 de prompt (maior
+  `prompt_eval_count` 2.500) e 798.283 de saída; tempo de modelo 66.913 s ≈ 18,6 h; hardware
+  registrado "GPU T4 - Google Colab, 16GB RAM" nas 870 chamadas. Parte da geração rodou com o
+  `generate` fora do Docker (válvula de escape do ambiente de GPU, seção 8, 2026-10-22). Pacote
+  final: `data/slm_suites.zip` (8.961.292 bytes, SHA-256 `1303e652…`, 6.741 arquivos);
+  `verify` sem `--extracted` confere o pacote (`OK`); com `--extracted data/suites/slm` ele
+  relata `missing: suites/slm-rev1/...` para os arquivos da árvore da revisão 1, mesmo no lugar
+  certo: é limitação conhecida e documentada (o `--extracted` olha só `data/suites/slm/`, e o
+  pacote juntado tem também `data/suites/slm-rev1/`), não dado alterado; `cli check --deep` fica
+  `OK` com os 4 modelos.
 
 **Particularidade dos LLMs comerciais — oráculo por predição [ESPECIFICADO, 2026-10-13 —
 `specs/004-llm-test-generation/spec.md`, D1 a D6; A1, A2, A4, A5 e A6 decididas no clarify de
@@ -1733,16 +1843,11 @@ então a comparação entre modelos não é afetada, mas a comparação entre ce
 limitação a registrar no TCC (e um fator a considerar na análise da caixa-preta). O dataset não é
 corrigido (seria mudar o artefato validado e versionado). Problemas afetados: 134_A, 143_C, 151_D, 161_A, 165_C, 178_A1, 182_B, 189_C, 18_C, 190_A, 192_B, 1_B, 204_B, 205_B, 220_A, 224_B, 231_C, 237_A, 256_A, 265_D, 270_B, 284_B, 285_B, 291_C, 334_B, 349_A, 352_A, 358_B, 365_A, 368_C, 372_A, 380_A, 413_B, 417_B, 446_A, 447_C, 455_A, 459_B, 493_B, 493_C, 518_B, 523_C, 534_C, 569_A, 570_A, 572_B, 630_J, 652_A, 670_D2, 675_A, 702_C, 70_B, 710_B, 713_A, 733_B, 734_C, 73_A, 747_C, 75_A, 770_C, 789_A, 79_A, 832_B, 847_H, 870_B, 876_B, 88_C, 893_C, 913_C, 91_B, 950_B.
 
-**Conferência dos enunciados contra o original [EM ESPECIFICAÇÃO, 2026-10-18 — `specs/006-statement-fidelity/spec.md`; DECIDIDO no clarify]**: o dataset não é alterado por esta conferência (E1); o acesso ao Codeforces é uma página por vez, a cada 3 s ou mais, uma única vez (E2); tabelas viram tabelas em Markdown e imagens vão para revisão (E3); a marcação corrigida é `^{...}` e `_{...}`, sempre com chaves (E4).
+**Conferência dos enunciados contra o original [DECIDIDA no clarify e IMPLEMENTADA, 2026-10-18 — `specs/006-statement-fidelity/spec.md`]**: o dataset não é alterado por esta conferência (E1); o acesso ao Codeforces é uma página por vez, a cada 3 s ou mais, uma única vez (E2); tabelas viram tabelas em Markdown e imagens vão para revisão (E3); a marcação corrigida é `^{...}` e `_{...}`, sempre com chaves (E4).
 
-**[PLANEJADO, 2026-10-18 — `specs/006-statement-fidelity/plan.md`]**: dois comandos do módulo `dataset`, `check-statements` (obtém uma vez, a cada 3 s ou mais, a página original de cada problema, guarda a cópia com hash em `manifests/statement_originals.manifest.json`, extrai o bloco do enunciado sem cabeçalho nem exemplos, alinha com o `enunciado.md` e classifica cada diferença pelo elemento do original que a cobre — expoente, índice, fórmula, imagem, tabela, outra —, gravando `manifests/statement_fidelity_report.json`) e `correct-statements` (insere no texto atual as marcações do original e só aceita o corrigido com as três conferências; grava numa pasta plana para revisão, nunca no dataset). **[DECIDIDO, 2026-10-18 — Milena]** S1 — versionar só os blocos do enunciado num `data/statement_originals.zip`, com as páginas inteiras fora do Git ; S2 — o corrigido é o texto atual com as marcações inseridas, não um texto refeito do zero. S3: a tabela de equivalências das fórmulas (`\le`→`≤`, `\lt`→`<`, `\dots`→`...`) é a medida no piloto; qualquer outra aparece como diferença.
+**[PLANEJADO e IMPLEMENTADO, 2026-10-18 — `specs/006-statement-fidelity/plan.md`]**: dois comandos do módulo `dataset`, `check-statements` (obtém uma vez, a cada 3 s ou mais, a página original de cada problema, guarda a cópia com hash em `manifests/statement_originals.manifest.json`, extrai o bloco do enunciado sem cabeçalho nem exemplos, alinha com o `enunciado.md` e classifica cada diferença pelo elemento do original que a cobre — expoente, índice, fórmula, imagem, tabela, outra —, gravando `manifests/statement_fidelity_report.json`) e `correct-statements` (insere no texto atual as marcações do original e só aceita o corrigido com as três conferências; grava numa pasta plana para revisão, nunca no dataset). **[DECIDIDO, 2026-10-18 — Milena]** S1 — versionar só os blocos do enunciado num `data/statement_originals.zip`, com as páginas inteiras fora do Git ; S2 — o corrigido é o texto atual com as marcações inseridas, não um texto refeito do zero. S3: a tabela de equivalências das fórmulas (`\le`→`≤`, `\lt`→`<`, `\dots`→`...`) é a medida no piloto; qualquer outra aparece como diferença.
 
-**Conferência dos enunciados contra o original [IMPLEMENTADA E MEDIDA, 2026-10-18 — `specs/006-statement-fidelity/research.md` R10; relatório versionado em `manifests/statement_fidelity_report.json`]**: `check-statements` nos 200 problemas (2026-10-18): download dos 195 restantes em 13 min 12 s (rodado por Milena; nenhum `unchecked`); segunda execução sem nenhum acesso ao site e relatório byte a byte igual (SHA-256 `22d234e7…`, SC-003). O primeiro relatório tinha 188 diferenças `formula` e 274 `other` que, examinadas, eram conversões feitas pelo dataset (comandos LaTeX trocados por um símbolo) e listas que o dataset escreveu em Markdown (`* `, `1. `); a tabela de equivalências passou a ter as 16 trocas de um comando por um símbolo vistas nos pares do próprio relatório (`\leq`→`≤`, `\ldots`→`…`, `\cdot`→`⋅`, `
-ightarrow`→`→`, `
-e`/`
-eq`→`≠`, `\ge`→`≥`, `\gt`→`>`, `	imes`→`×`, `\lfloor`/`
-floor`/`\lceil`/`
-ceil`, `\sum`→`∑`, `\,`→espaço, `mod`→`mod`, além das 3 do piloto) e os itens de lista passaram a ser lidos como o dataset os escreveu; as perdas de expoente e índice não mudaram com isso. Relatório final: **83 fiéis, 117 com diferença; 152 expoentes perdidos em 79 problemas; 701 índices perdidos em 74 problemas**; 23 diferenças de fórmula em 12 problemas (mudanças de forma, como `rac{a}{b}` escrito `(a)/(b)`, `\limits`, `\max`); 36 `other` em 4 problemas (`670_D2`: a página atual tem outro texto; `1162_B` e `981_B`: barras invertidas a mais no nosso texto, em matrizes e conjuntos LaTeX; `190_A`). Contra a contagem antiga por padrão: 70 dos 71 confirmados pelo original (o 71º, `670_D2`, não pôde ser comparado porque o texto da página difere), e 9 problemas com expoente perdido que ela não via (`102_B`, `155_C`, `203_B`, `252_A`, `271_B`, `289_C`, `362_B`, `538_A`, `765_C`). `correct-statements`: 102 enunciados corrigidos (151 expoentes e 701 índices marcados), 83 sem mudança, 15 para revisão (12 por fórmula, 3 por `other`), nenhuma conferência falhou; o dataset continua igual ao manifesto (`verify --extracted`: OK). **Efeito para o TCC**: a perda de formatação do dataset é maior que a contagem anterior indicava — além de 152 expoentes em 79 problemas, 701 índices (`a_i` escrito `ai`) em 74; a aplicação da correção ao dataset continua sendo decisão dos autores (E1), com os 102 corrigidos prontos para revisão em `data/statements/corrected/`. O pacote `data/statement_originals.zip` (só os 200 blocos do enunciado) tem 243.507 bytes (medido em 2026-10-18); o `.gitignore` ganhou a exceção dele.
+**Conferência dos enunciados contra o original [IMPLEMENTADA E MEDIDA, 2026-10-18 — `specs/006-statement-fidelity/research.md` R10; relatório versionado em `manifests/statement_fidelity_report.json`]**: `check-statements` nos 200 problemas (2026-10-18): download dos 195 restantes em 13 min 12 s (rodado por Milena; nenhum `unchecked`); segunda execução sem nenhum acesso ao site e relatório byte a byte igual (SHA-256 `22d234e7…`, SC-003). O primeiro relatório tinha 188 diferenças `formula` e 274 `other` que, examinadas, eram conversões feitas pelo dataset (comandos LaTeX trocados por um símbolo) e listas que o dataset escreveu em Markdown (`* `, `1. `); a tabela de equivalências passou a ter as 16 trocas de um comando por um símbolo vistas nos pares do próprio relatório (`\leq`→`≤`, `\ldots`→`…`, `\cdot`→`⋅`, `\rightarrow`→`→`, `\ne`/`\neq`→`≠`, `\ge`→`≥`, `\gt`→`>`, `\times`→`×`, `\lfloor`/`\rfloor`/`\lceil`/`\rceil`, `\sum`→`∑`, `\,`→espaço, `\bmod`→`mod`, além das 3 do piloto) e os itens de lista passaram a ser lidos como o dataset os escreveu; as perdas de expoente e índice não mudaram com isso. Relatório final: **83 fiéis, 117 com diferença; 152 expoentes perdidos em 79 problemas; 701 índices perdidos em 74 problemas**; 23 diferenças de fórmula em 12 problemas (mudanças de forma, como `\frac{a}{b}` escrito `(a)/(b)`, `\limits`, `\max`); 36 `other` em 4 problemas (`670_D2`: a página atual tem outro texto; `1162_B` e `981_B`: barras invertidas a mais no nosso texto, em matrizes e conjuntos LaTeX; `190_A`). Contra a contagem antiga por padrão: 70 dos 71 confirmados pelo original (o 71º, `670_D2`, não pôde ser comparado porque o texto da página difere), e 9 problemas com expoente perdido que ela não via (`102_B`, `155_C`, `203_B`, `252_A`, `271_B`, `289_C`, `362_B`, `538_A`, `765_C`). `correct-statements`: 102 enunciados corrigidos (151 expoentes e 701 índices marcados), 83 sem mudança, 15 para revisão (12 por fórmula, 3 por `other`), nenhuma conferência falhou; o dataset continua igual ao manifesto (`verify --extracted`: OK). **Efeito para o TCC**: a perda de formatação do dataset é maior que a contagem anterior indicava — além de 152 expoentes em 79 problemas, 701 índices (`a_i` escrito `ai`) em 74; a aplicação da correção ao dataset continua sendo decisão dos autores (E1), com os 102 corrigidos prontos para revisão em `data/statements/corrected/`. O pacote `data/statement_originals.zip` (só os 200 blocos do enunciado) tem 243.507 bytes (medido em 2026-10-18); o `.gitignore` ganhou a exceção dele.
 
 **Comparação com o enunciado original do Codeforces [MEDIDO, 2026-10-18 — piloto]**: piloto só de leitura com 5 problemas (`161_A`, `1_B`, `1000_B`, `15_A`, `102_B`), páginas originais do Codeforces baixadas uma vez (HTTP 200, guardadas em `data/cf_pilot/`, fora do Git). Dois formatos no HTML cru: o antigo marca expoente e índice com `<sup class="upper-index">` e `<sub class="lower-index">`, e o nosso `enunciado.md` perdeu os dois; o novo traz a fórmula crua (`$$$1 \le n \le 10^5$$$`, `$$$a_i$$$`), e o nosso texto preservou `10^5` e `a_i` (o que explica os 53 enunciados com o expoente certo). Perdas confirmadas pelo original: `161_A` 4 expoentes e 21 índices (`a_i` → `ai`), `1_B` 2 expoentes, `15_A` 6 índices, `102_B` 1 expoente (`10^100000` → `10100000`), `1000_B` nenhuma. Conclusões: (1) a contagem por padrão de texto (71) está incompleta (não viu `102_B`, porque só procurava expoentes de 2 a 18); (2) os índices também se perdem e não eram contados; (3) a comparação com o original é mecânica e não depende de uma lista de padrões, e passa a ser a fonte de verdade (feature `specs/006-...`, a especificar).
 
@@ -1755,8 +1860,8 @@ próprio problema sendo perguntado** (escolha determinística pela ordem em
 `testes.json`), igual nos 3 cenários daquele problema — nunca um exemplo fixo de outro
 problema, para não induzir o modelo a um formato de entrada que não corresponde ao
 problema real. **[DECIDIDO, 2026-09-29 — `specs/003-slm-test-generation/spec.md`, D2;
-regra a adotar também pelos módulos de orquestração do GPT-5.4-mini e do Gemini 3.5
-Flash, para manter o desenho experimental comparável entre os 3 modelos.]**
+regra adotada também pelos módulos dos três modelos comerciais (GPT-5.4-mini, Gemini 3.8 Flash
+e Claude Haiku 5.5), para manter o desenho experimental comparável entre os 4 modelos.]**
 
 **Composição dos 3 cenários**: a única variação entre eles é o conteúdo do bloco
 `<context_data>` do template — todo o resto (regras de sistema, formato de saída,
@@ -1765,26 +1870,29 @@ parametrização dos modelos) permanece fixo:
 2. Caixa-Branca → só `AC_ref.cpp`.
 3. Híbrida → enunciado + `AC_ref.cpp`.
 
-**Tamanho da suíte gerada — [PENDENTE, ver seção 6, item 26]**: não há limite fixo de
+**Tamanho da suíte gerada — [RESOLVIDO em 2026-11-09, seção 6, item 26]**: não há limite fixo de
 casos de teste por suíte (o tamanho é variável de confusão conhecida, registrado para
-a análise); a regra final, se algum teto ou normalização for necessário para comparar
-cenários e modelos de forma justa, é uma decisão a alinhar entre os 3 clientes de
-modelo (SLM, GPT-5.4-mini, Gemini 3.8 Flash), ainda em aberto. **Medido no SLM (execução
-completa, 2026-10-11)**: mediana de 10 casos por suíte; `accepted` de 1 a 33 (mediana 10),
+a análise); a normalização adotada não é um teto, e sim a **densidade de detecção** (TDF ÷ tamanho
+médio da suíte, 5.5), reportada ao lado da TDF para os 4 modelos. **Medido no SLM (execução
+completa da revisão 1, 2026-10-11)**: mediana de 10 casos por suíte; `accepted` de 1 a 33 (mediana 10),
 `accepted_fallback` de 5 a 54 (mediana 10), `accepted_predicted` 8 e 10.
 
 **Versionamento das suítes geradas**: a mesma exceção de versionamento já usada para o
 dataset e para os mutantes (Constitution, Princípio II, emenda 1.6.0) se aplica às
-suítes de qualquer um dos 3 modelos — a identidade de uma suíte depende de uma chamada
+suítes de qualquer um dos 4 modelos — a identidade de uma suíte depende de uma chamada
 real e não estritamente reprodutível a uma API de IA. Ao final da execução completa do
 experimento, cada conjunto de suítes MAY ser compactado e commitado com manifesto
 SHA-256 próprio, no mesmo formato do dataset e dos mutantes; suítes geradas durante o
 desenvolvimento iterativo continuam nunca sendo versionadas. **[DECIDIDO para o SLM,
 2026-09-29 — `specs/003-slm-test-generation/spec.md`, D3; a mesma regra se estende, por
-consistência, às suítes dos dois modelos comerciais quando esse módulo for
-especificado.]**
+consistência, às suítes dos três modelos comerciais, empacotadas em 2026-10-20
+(`data/gpt_suites.zip`, `data/gemini_suites.zip`, `data/claude_suites.zip`).]**
 
 ---
+
+### Terceiro modelo comercial: Claude **[DECIDIDO, IMPLEMENTADO E EXECUTADO, 2026-10-20 — `specs/008-claude-test-generation/spec.md`]**
+
+Os autores decidiram acrescentar um terceiro modelo comercial, o **Claude Haiku 5.5** (Anthropic), o menor e mais barato da família, na mesma faixa do GPT-5.4-mini e do Gemini 3.8 Flash. Ele roda nas mesmas condições da feature 004 (mesmo texto-base numa única mensagem, sem memória entre pedidos, JSON no mesmo formato, até 3 tentativas por falha de formato, teto de gasto por invocação, dry-run, piloto nos 5 problemas dos pilotos, pacote/manifesto/relatório próprios e camada `claude_suites` no `cli check`) e direto sobre a revisão 2 do dataset. Com isso, o desenho passa de 2 para 3 modelos comerciais (4 modelos ao todo), e as comparações entre modelos ganham um participante. **[DECIDIDO, 2026-10-20 — clarify]** Modelo `claude-haiku-5-5` (US$ 0,10 / 0,50 por milhão de tokens de entrada/saída até 100 mil tokens de prompt, conforme a documentação da Anthropic consultada em 2026-10-20; a tabela de preço com data e fonte é fixada no plano); raciocínio adaptativo com `effort: medium` enviado explicitamente, o mesmo nível nominal dos outros dois; a mesma regra emendada da resposta sem raciocínio (até 3 em `barred/`, depois `accepted_barred`), com o sinal de falta de raciocínio definido no plano; e o mesmo teto de saída dos outros dois, 32.768 tokens. **[PLANEJADO, 2026-10-20 — `specs/008-claude-test-generation/plan.md`]** Pedido à Messages API da Anthropic pela biblioteca padrão, como os outros dois (sem SDK), com uma mensagem de usuário, `thinking: adaptive`, `effort: medium`, saída em JSON pelo mesmo schema e nenhum parâmetro de amostragem; a contagem de raciocínio é `usage.output_tokens_details.thinking_tokens` (0 ou ausente: resposta barrada); preço conferido em 2026-10-20 na página oficial: US$ 0,10 de entrada, 0,01 de entrada em cache e 0,50 de saída por milhão de tokens, para prompts de até 100 mil tokens (acima disso, outro preço; o maior prompt tem 7.459 caracteres); o piloto começa com uma única chamada para conferir que a resposta traz a contagem de raciocínio. A constitution fixa "dois LLMs comerciais": emenda 1.9.0 (só escopo e nomes) aprovada por Milena e aplicada em 2026-10-20. **[IMPLEMENTADO E MEDIDO SEM CUSTO, 2026-10-20 — `specs/008-claude-test-generation/tasks.md`]** `--model claude` implementado; a conferência dos 100 mil tokens de prompt acontece antes da chamada (nada é enviado acima do limite). Dry-run real sobre a revisão 2: 600 combinações, cerca de 826 mil tokens de entrada (razão conservadora de 3,0 caracteres por token, antes do piloto), faixa de US$ 9,91 a 29,74 (o extremo de baixo supõe uma chamada por combinação no teto de saída; o de cima, 3); os 600 pedidos salvos pelo `--save-requests` são fiéis ao dataset, sem expoente perdido. Observação da análise: o extremo de cima do dry-run supõe no máximo 3 chamadas por combinação, mas com a regra das respostas sem raciocínio uma combinação pode receber até 5 (vale para os 3 modelos comerciais); o teto real do `--confirm-spend` não muda. **[DECIDIDO E MEDIDO, 2026-10-20 — Milena]** Sem piloto separado para o Claude: a chamada de conferência (`--limit 1`, `1000_B` caixa-preta) confirmou o risco que o piloto devia cobrir (a resposta traz `thinking_tokens`: 5.165; bloco de raciocínio presente; `end_turn`; 9 testes; modelo `claude-haiku-5-5`; US$ 0,0031, igual ao calculado pela linha de preço) e, como a configuração é a da execução completa, ela segue na mesma árvore; as medidas que o piloto daria (razão caracteres/token, saída média, latência, taxa de falha) vêm do relatório da execução completa. Execução completa terminada em 2026-10-20 (ver a seção da execução completa do Claude).
 
 ### Execução completa do Gemini 3.8 Flash **[MEDIDO, 2026-10-20]**
 
@@ -1802,11 +1910,13 @@ Sobre a revisão 2 do dataset (`70d93346…`), texto-base `a0b8f42a…`, com as 
 
 Sobre a revisão 2 do dataset (`70d93346…`), texto-base `a0b8f42a…`, sem piloto separado (a chamada de conferência entrou na execução). **600 combinações: 589 `accepted_predicted`, 8 `accepted_barred` e 3 `discarded_manual`.** Caixa-branca: 200 `accepted_predicted`; caixa-preta: 194, 4 e 2; híbrido: 195, 4 e 1. **632 chamadas**: 596 tentativas (591 na primeira, 3 na segunda, 2 na terceira) e **36 respostas sem raciocínio em 16 combinações** (5,7% das chamadas, contra 2,3% no Gemini e 0 no GPT); 8 combinações chegaram a 3 delas e ficaram `accepted_barred` (`1023_A`, `1029_C`, `349_A`, `365_A` caixa-preta; `1141_A`, `53_A`, `630_J`, `981_B` híbrido). Falhas de formato: 4 cortes pelo teto de saída (3 na caixa-preta, 1 no híbrido) e 3 recusas. **Fechadas à mão pelos autores (`discarded_manual`):** `171_F` caixa-preta e híbrido, por recusas do filtro de segurança da Anthropic (`stop_reason` `refusal`, categoria `bio`; 3 tentativas na caixa-preta e 3 respostas barradas no híbrido), um falso positivo diante do enunciado em texto cifrado (problema de 1º de abril), sem modelo reserva no Haiku 5.5; e `182_B` caixa-preta, por 3 respostas cortadas no teto de 32.768 tokens (o modelo escreveu testes muito grandes e não fechou o JSON; raciocínio de 1.683 a 2.053 tokens). As 3 continuam no N e ficam sem suíte. Tokens: 1.193.446 de entrada (nenhum em cache), 1.712.955 de saída, dos quais 1.162.001 de raciocínio (68%). **Custo: US$ 0,98** (US$ 0,02 das respostas sem raciocínio), contra a faixa do dry-run de US$ 9,91 a 29,74. Latência média 12,7 s, mediana 11,0 s, máxima 89,8 s. Suíte: mediana de 11 testes (12 na caixa-branca), de 2 a 24. Modelo devolvido: `claude-haiku-5-5` nas 632 chamadas. Pacote `data/claude_suites.zip` (4.560.077 bytes, 1.236 arquivos, SHA-256 `4d71671c…`), conferido por `verify` e `cli check --deep`.
 
-### Terceiro modelo comercial: Claude **[DECIDIDO, 2026-10-20 — `specs/008-claude-test-generation/spec.md`; EM ESPECIFICAÇÃO]**
-
-Os autores decidiram acrescentar um terceiro modelo comercial, o **Claude Haiku 5.5** (Anthropic), o menor e mais barato da família, na mesma faixa do GPT-5.4-mini e do Gemini 3.8 Flash. Ele roda nas mesmas condições da feature 004 (mesmo texto-base numa única mensagem, sem memória entre pedidos, JSON no mesmo formato, até 3 tentativas por falha de formato, teto de gasto por invocação, dry-run, piloto nos 5 problemas dos pilotos, pacote/manifesto/relatório próprios e camada `claude_suites` no `cli check`) e direto sobre a revisão 2 do dataset. Com isso, o desenho passa de 2 para 3 modelos comerciais (4 modelos ao todo), e as comparações entre modelos ganham um participante. **[DECIDIDO, 2026-10-20 — clarify]** Modelo `claude-haiku-5-5` (US$ 0,10 / 0,50 por milhão de tokens de entrada/saída até 100 mil tokens de prompt, conforme a documentação da Anthropic consultada em 2026-10-20; a tabela de preço com data e fonte é fixada no plano); raciocínio adaptativo com `effort: medium` enviado explicitamente, o mesmo nível nominal dos outros dois; a mesma regra emendada da resposta sem raciocínio (até 3 em `barred/`, depois `accepted_barred`), com o sinal de falta de raciocínio definido no plano; e o mesmo teto de saída dos outros dois, 32.768 tokens. **[PLANEJADO, 2026-10-20 — `specs/008-claude-test-generation/plan.md`]** Pedido à Messages API da Anthropic pela biblioteca padrão, como os outros dois (sem SDK), com uma mensagem de usuário, `thinking: adaptive`, `effort: medium`, saída em JSON pelo mesmo schema e nenhum parâmetro de amostragem; a contagem de raciocínio é `usage.output_tokens_details.thinking_tokens` (0 ou ausente: resposta barrada); preço conferido em 2026-10-20 na página oficial: US$ 0,10 de entrada, 0,01 de entrada em cache e 0,50 de saída por milhão de tokens, para prompts de até 100 mil tokens (acima disso, outro preço; o maior prompt tem 7.459 caracteres); o piloto começa com uma única chamada para conferir que a resposta traz a contagem de raciocínio. A constitution fixa "dois LLMs comerciais": emenda 1.9.0 (só escopo e nomes) aprovada por Milena e aplicada em 2026-10-20. **[IMPLEMENTADO E MEDIDO SEM CUSTO, 2026-10-20 — `specs/008-claude-test-generation/tasks.md`]** `--model claude` implementado; a conferência dos 100 mil tokens de prompt acontece antes da chamada (nada é enviado acima do limite). Dry-run real sobre a revisão 2: 600 combinações, cerca de 826 mil tokens de entrada (razão conservadora de 3,0 caracteres por token, antes do piloto), faixa de US$ 9,91 a 29,74 (o extremo de baixo supõe uma chamada por combinação no teto de saída; o de cima, 3); os 600 pedidos salvos pelo `--save-requests` são fiéis ao dataset, sem expoente perdido. Observação da análise: o extremo de cima do dry-run supõe no máximo 3 chamadas por combinação, mas com a regra das respostas sem raciocínio uma combinação pode receber até 5 (vale para os 3 modelos comerciais); o teto real do `--confirm-spend` não muda. **[DECIDIDO E MEDIDO, 2026-10-20 — Milena]** Sem piloto separado para o Claude: a chamada de conferência (`--limit 1`, `1000_B` caixa-preta) confirmou o risco que o piloto devia cobrir (a resposta traz `thinking_tokens`: 5.165; bloco de raciocínio presente; `end_turn`; 9 testes; modelo `claude-haiku-5-5`; US$ 0,0031, igual ao calculado pela linha de preço) e, como a configuração é a da execução completa, ela segue na mesma árvore; as medidas que o piloto daria (razão caracteres/token, saída média, latência, taxa de falha) vêm do relatório da execução completa. Execução completa terminada em 2026-10-20 (ver a seção da execução completa do Claude).
-
 ## 4. Módulo: Execução Isolada (Sandbox) e Avaliação
+
+> **Estado (2026-11-09)**: módulo **implementado e executado sobre os 200 problemas e os 5 conjuntos
+> de suítes** (`slm`, `gpt`, `gemini`, `claude` e `slm-attempt1`); o texto abaixo vai do motor e da
+> regra de avaliação vigente (os três primeiros parágrafos e "Avaliação especificada") à implementação,
+> ao piloto e à execução completa, com os números medidos. Os resultados oficiais (TDF, MS, TFP...) são
+> da seção 5.
 
 **Pipeline de compilação e motor de execução**: é o mesmo motor construído e verificado
 no módulo do dataset (seção 1.4), sem alterações — GCC, flags originais do Codeforces
@@ -1819,17 +1929,20 @@ aplicados por rlimits e o tempo é medido como tempo de CPU; ver as regras opera
 injetadas via `stdin` no binário compilado, dentro de sandbox com limites de
 tempo/memória do próprio problema (kernel Linux).
 
-**Avaliação em curto-circuito**: os casos de teste gerados são aplicados
-sequencialmente a cada código-alvo (AC, WA ou mutante). No primeiro teste que o
-código falhar, o veredito é registrado imediatamente como reprovado — os testes
-restantes daquele arquivo são abortados (economia de recursos). Aprovação (AC) só é
-concedida se o código sobreviver a 100% da suíte gerada pela IA.
+**Avaliação em curto-circuito** (texto original da metodologia do TCC, mantido com a ressalva
+do próximo bloco): os casos de teste gerados são aplicados sequencialmente a cada código-alvo (AC,
+WA ou mutante). No primeiro teste que o código falhar, o veredito é registrado imediatamente como
+reprovado — os testes restantes daquele arquivo são abortados (economia de recursos). Aprovação
+(AC) só é concedida se o código sobreviver a 100% da suíte gerada pela IA. **Regra vigente**: o
+curto-circuito vale só para WAs e mutantes; contra o `AC_ref` todos os testes rodam (ver "Avaliação
+especificada", adiante, e seção 7, item 43).
 
-**Saída**: registro CSV consolidando o comportamento de cada código frente a cada
-suíte gerada — é o insumo direto para o cálculo das métricas (seção 5).
+**Saída**: registro CSV consolidando o comportamento de cada código frente a cada suíte gerada — é o
+insumo direto para o cálculo das métricas (seção 5). Implementado como `results.csv` de cada
+conjunto, derivado dos JSON por combinação (ver "Implementação", adiante).
 
-**Avaliação especificada [ESPECIFICADO, 2026-11-04 — `specs/009-suite-evaluation/spec.md`;
-requisitos da seção F de `docs/metricas-referencia.md`, confirmada pelos autores sem C.5 e C.6]**:
+**Avaliação especificada [ESPECIFICADA em 2026-11-04 e IMPLEMENTADA e EXECUTADA, como descrito mais adiante — `specs/009-suite-evaluation/spec.md`;
+requisitos da seção F da proposta de métricas (consolidada em 5.5 a 5.10), confirmada pelos autores sem C.5 e C.6]**:
 o curto-circuito acima **continua valendo para WAs e mutantes**, mas **não para o `AC_ref`**:
 contra ele todos os testes da suíte são executados e se grava, por teste, o veredito (`passou`,
 `saída diferente`, `erro de execução` com o tipo RE/TLE/MLE) e a **saída real** do `AC_ref`. Cada
@@ -1847,7 +1960,7 @@ aparecer nas 3 execuções; senão o teste fica marcado como instável e conta n
 inflar o TFP com ruído do ambiente, o mesmo tipo de instabilidade medida na seção 1.4). A mesma
 regra vale para WAs e mutantes (clarify de 2026-11-04): uma detecção por erro de execução só vale
 se o erro aparecer nas 3 execuções; senão o teste fica marcado como instável e o alvo segue para os
-próximos testes; `passou` e `saída diferente` não se repetem. **Piloto obrigatório** antes da
+próximos testes; `passou` e `saída diferente` não se repetem. **Piloto obrigatório** (feito, ver adiante) antes da
 execução completa: os 5 problemas dos pilotos × 4 modelos × 3 cenários (60 combinações), com
 conferência manual e decisão dos autores registrada; se nada mudar, a execução completa o
 reaproveita (mesmo padrão dos módulos anteriores).
@@ -1984,63 +2097,63 @@ Toda métrica é recalculável por **macrocategoria** e por **status da suíte**
 problemas do corte; nunca um problema só); a **1ª tentativa do SLM** (`slm-attempt1`) entra como um
 conjunto a mais, para a comparação "uma chamada contra uma". Não são métricas novas.
 
-### 5.8 Figuras **[DECIDIDO, 2026-11-09 — Milena; `specs/010-metrics/` FR-017]**
+### 5.8 Figuras **[DECIDIDO E IMPLEMENTADO, 2026-11-09 a 2026-11-13 — Milena; `specs/010-metrics/` FR-017 e `specs/012-dashboard-storytelling/`; estado final em 2026-11-13]**
 
-Desenhadas por funções do módulo de métricas a partir das tabelas, com filtros por macrocategoria,
-status, conjuntos e cenários; geradas por `python -m metrics figures` e exibidas na página de
-métricas do dashboard com download em PNG e PDF. O filtro e a fonte vão no rodapé e no nome do
-arquivo, para toda figura se refazer pelo comando. As figuras do texto do TCC saem daqui.
-**Emenda (2026-11-09, Milena)**: no dashboard, os gráficos são interativos (Altair, já incluído no
-Streamlit), desenhados com os dados que o módulo de métricas devolve para cada figura (as mesmas
-funções das tabelas, então os números são idênticos), com o valor escrito em cada barra, filtrados
-pelos filtros da barra lateral do painel (incluindo um subconjunto de problemas, com pelo menos 2) e
-com o filtro e a fonte no subtítulo; cada gráfico se salva como foto (PNG ou SVG) pelo seu menu, e o PDF para o texto
-continua sendo o do comando.
-**Emenda (2026-11-09, Milena — legibilidade)**: os gráficos seguem o tema claro ou escuro do painel,
-cada um com a sua paleta categórica validada para daltonismo e contraste (3 cores: azul, laranja,
-verde-água; a cor segue a série, nunca a posição) e textos em tons de tinta, nunca na cor da série,
-para não haver texto preto sobre fundo preto; as figuras com muitas barras ganham um painel por
-cenário, em largura cheia, com barras finas e espaço entre elas para os valores não se sobreporem; o
-IIC é uma caixa por conjunto sem os pontos extremos (que ficam na tabela) e com a mediana escrita; a
-TFP por causa mostra só o total de cada barra (a divisão por causa fica na legenda e no tooltip); o
-custo por detecção é mostrado em US$ por 1.000 WAs detectados, também na figura do comando.
-**Emenda (2026-11-09, Milena — download igual à tela)**: a figura baixada é o próprio gráfico
-mostrado. O comando `python -m metrics figures` e os botões PNG, SVG e PDF da página de métricas
-exportam o mesmo gráfico (Altair, pelo vl-convert; o matplotlib saiu do projeto): o comando no tema
-claro, o painel no tema em uso. PNG e SVG saem iguais byte a byte a cada execução e são os formatos
-do pacote `data/metrics.zip`; o PDF tem o mesmo desenho, mas o vl-convert muda a ordem interna dos
-objetos de fonte a cada chamada (medido: 4 variantes em 20), então ele não é empacotado. Na página
-de comparações, as combinações com o AC reprovado são marcadas por um vermelho translúcido, legível
-nos temas claro e escuro.
-**Emenda (2026-11-12, Milena — figuras que contam a história; `specs/012-dashboard-storytelling/`,
-em planejamento)**: entram cinco figuras, desenhadas pelas mesmas funções do painel e exportadas
-pelo comando e pelo pacote: o **placar** (posição de cada um dos 5 conjuntos em TDF\*, MS\*, TFP,
-Δ_oráculo, TC e custo por 1.000 WAs, média dos cenários, sem teste estatístico), a **troca detecta ×
-erra** (TDF\* × TFP por conjunto e cenário), a **variação entre cenários**, o **IIC divergente**
-(agregado, pelos dois gabaritos) e o **guia de escolha** (vencedor de cada critério por cenário, com
-empate estatístico ou "não testado"). O título de cada figura passa a ser a conclusão do recorte,
-gerada por regra, e o líder tem uma cor de destaque única. O filtro por rating entra no comando
-(`--rating`). O boxplot do IIC continua como figura de diagnóstico.
-**Implementado (2026-11-12, `specs/012-dashboard-storytelling/` T022–T033)**: `python -m metrics
-figures` desenha 11 figuras: as 5 novas (`scoreboard`, `tradeoff`, `scenario_shift`,
-`iic_diverging`, `choice_guide`), 3 revistas (`tdf_by_model` e `ms_declared_vs_corrected` viram
-barras ordenadas pelo gabarito do AC, com um traço no valor pelo gabarito da IA, média dos cenários
-do recorte; `cost_per_detection` vira barras ordenadas em US$ por 1.000 WAs pelo gabarito do AC) e 3
-de apoio sem mudança (`tdf_declared_vs_corrected`, `tfp_by_cause`, `iic_distribution`). Com um
-filtro por problema, o custo não falha mais: mostra o valor de todos os problemas e diz que o custo
-não se divide por problema. Os títulos-conclusão, sem filtro: "Nenhuma IA venceu em todos os
-critérios"; "Gemini encontra 90,1% das falhas reais"; "Gemini detecta 97,0% dos mutantes"; "Quem
-mais detecta também mais erra o gabarito" (Gemini, 1º em TDF\*, é o último em TFP: 54,8%); "O
-cenário muda a detecção em até 4,3 pontos (Claude); Gemini quase não muda"; "Juntar requisito e
-código muda a detecção em no máximo 4,9% (SLM 1ª tentativa, + código)" pelo gabarito do AC (8,2%,
-SLM, pelo da IA; o sinal do SLM e da 1ª tentativa em "+ código" inverte entre os gabaritos); "Claude
-detecta 1.000 falhas por US$ 0,019, 14× menos que GPT". Divergências do contrato: a troca detecta ×
-erra mostra um ponto por conjunto (a média dos cenários do recorte, os mesmos números do placar),
-não um por conjunto × cenário, para cada ponto ter o nome escrito ao lado sem se sobrepor; o detalhe
-por cenário fica no guia. As anotações longas das barras (quanto o líder está à frente; quem mais
-perde com o gabarito corrigido) ficam como notas sob o gráfico, com um rótulo curto na barra, porque
-não cabiam nos cartões de meia largura. A região ideal da troca é a das medianas das IAs do recorte.
-O placar ganhou o critério de cobertura (TC), em que 4 conjuntos empatam em 100%.
+**Estado final.** As figuras são **desenhadas sob demanda a partir das tabelas** de `data/metrics/`;
+**nenhuma figura fica no repositório nem em `data/metrics.zip`** (o pacote tem só as seis tabelas e
+o `run.json`). Há duas formas de obtê-las, com o mesmo desenho (Altair, exportado pelo vl-convert; o
+matplotlib saiu do projeto):
+
+- **No painel (5.11)**: gráficos interativos, com o valor escrito em cada barra, que seguem os filtros
+  da barra lateral e o tema claro ou escuro; cada um se salva em **PNG ou SVG pelo menu do próprio
+  gráfico** ("…"). Não há botão de download de figura nem PDF na página (o botão "Baixar figura" dos
+  cartões e os botões PNG/SVG/PDF da emenda de 2026-11-09 saíram em 2026-11-13).
+- **Pelo comando** `python -m metrics figures` (opcional): grava em `data/metrics/figures/`, em PNG,
+  SVG e PDF, **12 figuras** — `scoreboard` e `scoreboard_scenarios` (placar e placar por cenário),
+  `tdf_by_model`, `tdf_declared_vs_corrected`, `ms_declared_vs_corrected`, `tradeoff` (troca detecta ×
+  erra), `tfp_by_cause`, `scenario_shift` (variação entre cenários), `iic_diverging`,
+  `iic_distribution` (caixa do IIC por conjunto, de diagnóstico), `cost_per_detection` e
+  `choice_guide` (guia de escolha). Filtros do comando: `--macrocategoria`, `--rating`, `--status`,
+  `--set`, `--scenario` e `--figure`. Com filtro, o filtro vai no subtítulo e no nome do arquivo
+  (por exemplo, `scoreboard__rating-1600.png`), para toda figura se refazer pelo comando. As figuras
+  do texto do TCC saem daqui. PNG e SVG saem iguais byte a byte a cada execução; o PDF tem o mesmo
+  desenho, mas o vl-convert muda a ordem interna dos objetos de fonte (medido: 4 variantes em 20),
+  então ele não é igual byte a byte.
+
+**Regras de desenho que valem.**
+- **O título de cada figura é a conclusão do recorte, gerada por regra** (`metrics.story`, modelos de
+  frase numa tabela única), e muda com os filtros. Sem filtro, por exemplo: "Nenhuma IA venceu em
+  todos os critérios"; "Gemini encontra 90,1% das falhas reais"; "Gemini detecta 97,0% dos mutantes";
+  "Quem mais detecta também mais erra o gabarito" (Gemini, 1º em TDF\*, é o último em TFP: 54,8%);
+  "O cenário muda a detecção em até 4,3 pontos (Claude); Gemini quase não muda"; "Juntar requisito e
+  código muda a detecção em no máximo 4,9% (SLM 1ª tentativa, + código)" pelo gabarito do AC (8,2%,
+  SLM, pelo da IA; o sinal do SLM e da 1ª tentativa em "+ código" inverte entre os gabaritos);
+  "Claude detecta 1.000 falhas por US$ 0,019, 14× menos que GPT". O líder tem uma cor de destaque
+  única.
+- **O gabarito do AC é o padrão** nas figuras de detecção (TDF\*, MS\*); `tdf_by_model` e
+  `ms_declared_vs_corrected` são barras ordenadas pelo gabarito do AC, com um traço no valor pelo
+  gabarito da IA, na média dos cenários do recorte; `cost_per_detection` são barras ordenadas em US$
+  por 1.000 WAs detectados.
+- **Legibilidade**: tema claro ou escuro; paleta categórica própria, validada para daltonismo e
+  contraste (azul, laranja, verde-água; a cor segue a série, nunca a posição; o par divergente do IIC
+  é azul ↔ vermelho); texto em tons de tinta, nunca na cor da série; as figuras com muitas barras
+  ganham um painel por cenário, em largura cheia; "sem suíte" é cinza; o IIC é uma caixa por conjunto
+  sem os pontos extremos (que ficam na tabela) e com a mediana escrita; a TFP por causa mostra só o
+  total de cada barra (a divisão fica na legenda e no tooltip); as combinações com o AC reprovado
+  são marcadas por um vermelho translúcido na página de comparações.
+- **Troca detecta × erra**: um ponto por conjunto (a média dos cenários do recorte, os mesmos números
+  do placar), com o nome escrito ao lado; o detalhe por cenário fica no guia de escolha; a região ideal
+  é a das medianas das IAs do recorte. As anotações longas das barras (quanto o líder está à frente;
+  quem mais perde com o gabarito corrigido) ficam como notas sob o gráfico.
+- **Custo não se divide por problema**: com filtro por problema, macrocategoria, rating ou status, a
+  figura de custo mostra o valor de todos os problemas e diz isso no subtítulo.
+- **Placar**: 6 critérios (TDF\*, MS\*, TFP, Δ_oráculo, TC e custo por 1.000 WAs), média dos cenários,
+  sem teste estatístico; o critério TC tem 4 conjuntos empatados em 100%. O **placar por cenário** tem
+  uma linha por IA e cenário e a posição dentro do mesmo cenário; o título diz em quantos dos 6
+  critérios o 1º lugar muda com o cenário.
+
+A história datada dessas decisões (as emendas de 2026-11-09 a 2026-11-13, inclusive o que mudou de
+ideia, como a presença das figuras no pacote e o download na página) está na seção 8.
 
 ### 5.9 Resultados **[MEDIDO, 2026-11-09 — `python -m metrics compute`, pacote `data/metrics.zip`]**
 
@@ -2128,6 +2241,204 @@ caixa-preta TFP 54,5% → 54,3%, TDF\* 90,00% → 89,95%. **Nenhum 1º lugar mud
 com TFP de 15,0%, continua à frente do Claude mesmo sem as barradas); o painel recalcula essa
 conferência para o recorte ativo e a escreve sob o placar.
 
+**Tempos e reprodutibilidade dos comandos [MEDIDO, 2026-11-14 — container, avaliação completa]**:
+`metrics verify --extracted` em cerca de 6 s; `metrics compute` em cerca de 33 s no total;
+`metrics figures --figure scoreboard --format png` em cerca de 7 s; `metrics package` **idempotente**
+(zip e manifesto com o mesmo SHA-256 antes e depois de rodar de novo: zip `ec199912…`, manifesto
+`bf8f5d54…`). São tempos de uma execução, não uma garantia.
+
+### 5.10 Rastreabilidade: pergunta de pesquisa → comparação → métrica → onde está a resposta **[DECIDIDO, 2026-11-04 — proposta G; estado em 2026-11-14]**
+
+Cada pergunta da seção 0 se liga a uma comparação, às métricas que a respondem e à tabela ou à
+página do painel onde o número está. O que a proposta de 2026-11-04 marcou como entregável e o que
+ficou de fora aparece na última coluna (sem deixar item "a fazer"):
+
+| Comparação | Métricas | Pergunta | Estado e onde está |
+|---|---|---|---|
+| Caixa-preta × caixa-branca × híbrida | TDF, MS, TFP (e TDF\*, MS\*) | Q1, Q2, Q3 | **feito** — 5.9; `metrics.csv`, `stats.csv` (Friedman por conjunto); painel, página "As métricas" |
+| Efeito de juntar requisito e código | IIC (agregado, com o oráculo declarado e com o corrigido) e a visão por problema | Q4 | **feito** — 5.4 e 5.9; `iic.csv`; painel, "As métricas" e, para um problema, "Rastreabilidade" |
+| SLM × GPT-5.4-mini × Gemini 3.8 Flash × Claude Haiku 5.5 | todas, mais custo por detecção, *tokens* e tempo | Q5 | **feito** — 5.5 a 5.9; `metrics.csv`, `cost.csv`, `stats.csv`; placar e guia de escolha |
+| Qualidade das entradas × qualidade do oráculo | TDF/MS × TDF\*/MS\* (Δ_oráculo) | Q5, de forma justa entre SLM e comerciais | **feito** — 5.5 e 5.9 |
+| Causa da alucinação | TFP por teste, separada em `oráculo` e `entrada_inválida` | aprofunda Q3 e Q5 | **feito** — 5.5 e 5.9 (a causa `oráculo` responde por quase todos os testes que reprovam o AC) |
+| Por macrocategoria (`matematica`, `estrutural_otimizacao`, `logica_direta`) e por rating | qualquer métrica, agrupada | Q1 e recomendações por categoria | **feito** — 5.7; colunas de corte de `metrics.csv`; filtros do painel e de `metrics figures` |
+| Por status da suíte do SLM (`accepted`, `accepted_fallback`, `accepted_predicted`) | TDF, MS, TFP, estratificado | validade interna do SLM | **feito** — 5.7 |
+| 1ª tentativa do SLM, sem filtro × modelos comerciais | TDF, MS, TFP | Q5, de igual para igual | **feito** — conjunto `slm-attempt1` (seção 4 e 5.9) |
+| Entre modelos, no mesmo cenário | Jaccard e Gain (complementaridade, C.5 da proposta) | Q5, potencial de comitê de modelos | **fora do escopo** (5.5): não calculada |
+| IIC sobre mutantes (C.6 da proposta) | IIC com os mutantes mortos no lugar dos WAs | robustez do achado de Q4 | **fora do escopo** (5.5): o IIC existente usa só os WAs (falhas reais) |
+| A diferença é real? | Friedman, Wilcoxon pareado, McNemar exato (TFP), Holm, A12 e delta de Cliff | sustenta qualquer "X é melhor que Y" | **feito** — 5.6; `stats.csv` |
+
+Consequência para o texto: a afirmação "um comitê de modelos pegaria mais falhas que um modelo só"
+**não tem base medida** (o Jaccard não foi calculado) e não deve aparecer no TCC como resultado;
+quando muito, como trabalho futuro.
+
+**Limitação a declarar no texto: oráculo por execução (SLM) × por predição (comerciais) [DECIDIDO,
+2026-11-04 — proposta H; registrada como item 42 da seção 7].** A diferença de processo não é uma
+escolha arbitrária: o SLM escreve uma solução em Python, executada e validada nos testes públicos,
+e é ela que dá a saída esperada; os três comerciais escrevem a saída direto, sem executar nada. Os
+autores relataram (2026-11-09) que o formato de predição direta dos comerciais foi tentado no SLM e
+descartado por ser inutilizável (as saídas previstas erravam muito; o Qwen2.5-Coder é treinado para
+escrever código, não para prever a saída de um programa). A redação para o TCC deve dizer, em
+termos simples: (1) SLM e comerciais diferem na origem do oráculo; (2) a diferença não é incidental,
+porque a alternativa uniforme foi testada e descartada; (3) TDF\*, MS\* e Δ_oráculo (5.5) existem
+para dar uma leitura que isola esse efeito.
+
+**O que está e o que não está medido sobre esse "porquê"** (nada aqui é estimado):
+- **Medido, indiretamente.** A predição do SLM existe como fase 4 da política de tentativas
+  (`accepted_predicted`) e foi usada em **1 das 600** combinações da execução final. Pelo gabarito
+  do AC, a detecção do SLM cai com o gabarito errado da IA: TDF − TDF\* = **12,8 pontos** na
+  caixa-preta (82,74% → 69,90%) e **18,1** na 1ª tentativa caixa-preta, contra 1,5 a 2,4 no GPT e
+  no Claude e 5,1 a 5,9 no Gemini (5.9); e o SLM caixa-preta reprova o AC em 55,5% dos problemas
+  (TFP), contra 15 a 25,5% no GPT e no Claude. Esses números são do SLM com oráculo por execução,
+  ou seja, **não são** a taxa de erro da predição direta do SLM; mostram só que o gabarito da IA
+  pesa muito nos resultados e que o contraste Δ_oráculo é necessário.
+- **Critério de projeto do piloto 4 (2026-10-05).** Se o 14B deixasse mais de ≈ 20% das combinações
+  sem suíte, discutir fazer o SLM prever as saídas como os comerciais; no fim, a política de 5 fases
+  deixou 0 combinações sem suíte (504 `accepted`, 95 `accepted_fallback`, 1 `accepted_predicted`), e
+  a predição ficou só como reserva.
+- **Não registrado.** A taxa de acerto, o formato e a amostra do teste de predição direta do SLM que
+  levou ao descarte **não estão em nenhum artefato do repositório** (sem relatório, sem pacote). A
+  frase "inutilizável" é, por ora, **afirmação dos autores**. Para o TCC, ou os autores registram o
+  que viram (número de problemas, taxa de saídas certas), ou a frase fica como relato de
+  experiência, sem número (**decisão pendente dos autores**, seção 6).
+
+### 5.11 Painel de exploração dos resultados **[DECIDIDO E IMPLEMENTADO, 2026-11-12 a 2026-11-13 — Milena; `specs/011-results-dashboard/` e `specs/012-dashboard-storytelling/`; estado final descrito aqui, a história datada na seção 8]**
+
+O painel (`python -m dashboard serve`, Streamlit, só leitura; uso e comandos em `src/dashboard/README.md`)
+é a forma de **explorar** os números das seções 5.1 a 5.9 e de **conferir cada um na fonte**. Ele não
+calcula métrica nova (os números vêm de `data/metrics/` e da avaliação), não executa código, não chama
+IA e não grava nada. O roteiro que o originou (`docs/roteiro-painel.md`, rascunho de 2026-11-12) foi
+consolidado nesta seção; onde o roteiro e o painel construído divergem, vale o que está abaixo.
+
+**Narrativa.** Contexto: quatro IAs geraram testes para 200 problemas do Codeforces em 3 cenários, e
+cada suíte foi executada contra 20.000 falhas reais (WAs) e 20.000 mutantes. Pergunta: qual IA gera os
+melhores testes, e em quê (detectar falhas, não errar o gabarito, custar pouco, aproveitar o
+contexto)? Conclusão que os números sustentam (a tese do TCC, a ser confirmada pelos autores): **nenhuma
+IA vence em tudo** — o Gemini detecta mais, mas reprova o código correto em mais da metade dos
+problemas; Claude e GPT erram bem menos o gabarito, o Claude custa cerca de 14× menos que o GPT, e o
+cenário de contexto muda pouco o resultado. Abertura do painel: "quem mais detecta também mais erra o
+gabarito". Público: a banca, na defesa ao vivo, e leitores pelo link público.
+
+**As quatro páginas, nesta ordem** (a ordem do roteiro de 2026-11-12 era experimento → avaliação →
+métricas; passou a esta em 2026-11-12, mesmo dia, com a página de rastreabilidade):
+
+| Página | O que é |
+|---|---|
+| **O experimento** (abre primeiro) | o contexto: problemas, falhas e mutantes, IAs × cenários, suítes, testes gerados (24.274 sem filtro) e gasto (US$ 19,35 sem filtro: GPT 70%, Gemini 25%, Claude 5%; o modelo local à parte, com as horas de modelo, sem custo em dinheiro); gráficos de rating, macrocategoria, suítes por IA e status, testes por suíte e gasto; os números de cada gráfico no fim da página |
+| **As métricas** | quem se saiu melhor em cada critério: placar e placar por cenário, falhas reais (TDF\*) e mutantes (MS\*), troca "detecta × reprova o código correto", contexto (variação entre cenários e IIC, com seletor de gabarito), custo, o guia de escolha e, no fim, as tabelas oficiais, os testes estatísticos e o custo |
+| **Rastreabilidade** | de onde vem cada número até o problema, a suíte e o teste (11 casos mais o caso "De onde vem o IIC", abaixo) |
+| **A avaliação**, em duas abas | **Comparações** (oráculo declarado × corrigido por combinação, com as de AC reprovado em vermelho, e o modelo local, suíte final e 1ª tentativa, ao lado dos comerciais) e **Combinação** (teste a teste: entrada, saída escrita na suíte, saída real do `AC_ref`, veredito do AC e quantos alvos cada teste detectou em cada oráculo) |
+
+**Filtros.** Um lugar só: a barra lateral, a mesma em todas as páginas, sempre aplicada (conjunto,
+cenário, problema, macrocategoria, rating e status da suíte). O topo de cada página diz o recorte
+ativo e quantos problemas ele tem; todo número, gráfico e **título-conclusão** é recalculado para o
+recorte. Mais: um **Glossário** na barra lateral, a dica de cada sigla ao passar o mouse, o botão de
+CSV filtrado em cada tabela e o salvamento de cada gráfico em PNG ou SVG pelo menu do próprio gráfico.
+
+**O que não muda com os filtros, e por quê** (sempre dito na tela, nunca em silêncio):
+- **testes estatísticos** (`stats.csv`): só existem para os 200 problemas (são pareados por eles);
+  num recorte por problema, macrocategoria, rating ou status, as notas de empate somem e aparece
+  "sem teste estatístico para este recorte". O painel não refaz teste num recorte: seria um número que
+  não está no texto do TCC e sem a correção de Holm do conjunto de comparações;
+- **custo**: existe por modelo e cenário, não por problema; com esses filtros, a seção de custo mostra
+  o valor de todos os problemas e diz isso;
+- **métrica de um problema só**: não tem sentido (o módulo `metrics` recusa); a página As métricas
+  avisa e aponta a ficha do problema na Rastreabilidade, e as páginas O experimento e A avaliação
+  continuam funcionando;
+- **recorte vazio**: cada página diz que nenhum problema atende e quais filtros estão ativos;
+- **suítes `accepted_barred`**: ficam nas métricas (5.9); o painel recalcula, para o recorte ativo, a
+  conferência de que nenhum 1º lugar muda sem elas, e a escreve sob o placar.
+
+**O placar.** 6 critérios — TDF\*, MS\*, TFP, Δ_oráculo, TC e custo por 1.000 WAs detectados — em 5
+conjuntos (as 4 IAs e a 1ª tentativa do SLM), média dos cenários do recorte, sem teste estatístico
+(o teste está no guia de escolha). **Decidido (Milena, 2026-11-12): o placar e as seções de métricas
+usam TDF\*/MS\*, o gabarito do AC**, para nenhuma posição vir de saída esperada errada da IA; o
+traço de cada barra mostra o valor pelo gabarito da IA. A 1ª tentativa do SLM entra como 5º conjunto,
+com a nota das combinações sem suíte (53 de 600, que contam 0%). Empate exato de valores dá a mesma
+posição; o SLM fica fora do ranking de custo (é local). O **placar por cenário** tem uma linha por IA e
+cenário e a posição dentro do mesmo cenário; seu título diz em quantos dos 6 critérios o 1º lugar muda
+com o cenário. Sem filtro, a média dos cenários dá, por exemplo, TDF\* do Gemini 90,1% e TFP do
+Claude 17,3% (mesmos números de `metrics.csv`).
+
+**Regra do título-conclusão.** O título de cada gráfico e cartão é gerado por regra, não escrito à
+mão (`metrics.story`, uma tabela de modelos de frase com lacunas): o líder do recorte e o valor
+preenchem a lacuna ("{líder} encontra {valor} das falhas reais"), e em empate o modelo passa a
+"{líder} e {segundo} empatam em … ({v1} × {v2})". Nenhum título descreve um resultado que não venha
+do recorte; o painel mostra também onde o líder perde. O líder tem uma cor de destaque única; os demais
+ficam em tons neutros. As mesmas regras valem para as figuras do comando `metrics figures` (5.8).
+
+**Regra "empate estatístico" × "não testado" (guia de escolha).** Para dizer se o 1º e o 2º
+colocados de um critério diferem, o painel procura o par em `stats.csv` (família `models`, os 4
+modelos por cenário, ou `attempt1`, a 1ª tentativa contra cada conjunto; métrica `TDF_star`,
+`MS_star` ou `TFP`; coluna `significant`, p corrigido por Holm). Três estados:
+- **diferem** — diferença significativa;
+- **empate estatístico** — o teste não separa os dois;
+- **não testado** — nenhum teste se aplica: o recorte não é o completo (filtro de problema,
+  macrocategoria, rating ou status), o critério não tem teste (Δ_oráculo, TC, custo) ou o valor é a
+  média de mais de um cenário (o placar). Nunca se declara vitória sem teste.
+
+**O guia de escolha** (decidido por Milena em 2026-11-12: **o painel não dá uma conclusão única; mostra
+quem ganhou em cada critério e o leitor decide**). Entrada do leitor: o cenário (o filtro, em
+linguagem de uso: "tenho só o requisito" = caixa-preta, "só o código" = caixa-branca, "os dois" =
+híbrido) e a prioridade, que só **realça** uma linha (não filtra). Cada linha mostra o vencedor, o
+valor e o segundo colocado. Sem filtro, caixa-preta / caixa-branca / híbrido:
+
+| Prioridade | Critério | Vencedor |
+|---|---|---|
+| gastar pouco | custo por 1.000 WAs | Claude nos três (US$ 0,018–0,020), diferença não testada |
+| encontrar o máximo de falhas | TDF\* | Gemini / Gemini, empate estatístico com o Claude (89,7% × 88,0%) / Gemini (89,7–90,7%) |
+| nunca reprovar o código correto | TFP | Claude 18,0%, empate com o GPT / **SLM 16,5%**, empate com o Claude (17,5%) / **GPT 15,0%**, empate com o Claude (16,5%) |
+| confiar no gabarito que a IA escreve | Δ_oráculo | GPT 1,5 / Claude 1,7 / Claude 1,9 pontos |
+| pegar defeitos sintéticos | MS\* | Gemini / Gemini, empate com o Claude / Gemini (96,8–97,1%) |
+| rodar sem custo de API | — | SLM (local; custo em tempo na página O experimento) |
+
+Achado a destacar: o vencedor muda com o cenário (com só o código, o modelo local é quem menos reprova
+o código correto, em empate com o Claude). Limitações exibidas sob o guia: uma execução por modelo
+(comerciais sem seed fixa); saídas esperadas escritas pela IA sem conferência; 3 combinações do
+Claude sem suíte (contam 0%); problemas de rating 1000 a 1600 do Codeforces; o SLM é um modelo de
+14B local, sem comparação de custo em dinheiro.
+
+**Rastreabilidade (de um número ao problema, à suíte e ao teste).** Pedida por Milena em 2026-11-12:
+cada número precisa poder ser conferido na fonte, na defesa e por quem abre o link. A lista segue os
+filtros e "Abrir" mostra o item (a combinação com status, origem, tentativas e testes com a saída do
+AC; o alvo, com quem o detectou e o código ao lado do AC; ou o problema, com enunciado, AC e as 15
+combinações). Os casos: combinações sem suíte (sem filtro, 56: 53 da 1ª tentativa do SLM e 3 do
+Claude, com o motivo dos autores); as 9 suítes "sem raciocínio" e as respostas barradas; a origem da
+suíte do SLM (aceita, reserva, predita; revisão 1 ou 2 do dataset); qual teste reprovou um WA ou
+mutante; o que um teste derrubou; por que o AC foi reprovado (saída esperada errada ou entrada
+inválida); detecções que só existem por um dos gabaritos; WAs que nenhuma IA detectou (sem filtro,
+174) e os que só uma detectou; mutantes que sobreviveram a todas as suítes; a ficha de um problema;
+e **De onde vem o IIC** (emenda de 2026-11-13): os conjuntos de WAs detectados de cada cenário (R,
+C e H) nas 8 regiões do diagrama, a conta do IIC com eles, o IIC por problema e o papel de cada WA.
+Como cada alvo para no primeiro teste que o reprova (seção 4), o "teste que reprovou" é sempre o
+primeiro.
+
+**Desempenho medido (2026-11-14, sem navegador, dados completos, no container)**: O experimento, 17,6
+s na primeira leitura e 0,5 s depois; A avaliação, 1,3 s; Rastreabilidade, 0,3 s; As métricas, de 66 s
+a 127 s (monta todos os gráficos; recortes menores abrem mais rápido); o servidor responde em cerca de
+2,5 s. O tempo de abertura num navegador **não foi medido**: esses números vêm de uma renderização
+simulada (`AppTest` do Streamlit, no container, 2026-11-14), sem navegador, rede nem desenho dos
+gráficos no cliente; os 66 a 127 s da página As métricas são, portanto, **uma observação a conferir
+num navegador real** antes de a tratar como problema ou como número do painel. Como contexto, a
+medição de 2026-11-05, com 15 resultados de 1 problema, deu até 1,6 s por página.
+
+**Cópia pública [DECIDIDO, 2026-11-09 — Milena; passo a passo documentado em 2026-11-13]**: o mesmo painel pode ficar no Streamlit
+Community Cloud, lendo os pacotes versionados no GitHub (descompacta os zips na 1ª abertura, cerca de
+40 s; entrada `src/dashboard/public/streamlit_app.py`; passo a passo no README do módulo). O servidor
+da cópia só lê o que está versionado.
+
+**Decisão pendente dos autores — a frase de fechamento do TCC.** O painel **não escreve** uma frase-tese
+(decisão acima); o texto do TCC precisa de uma, e a escolha é dos autores (opções redigidas a partir
+dos dados, para escolher ou reescrever; nenhuma foi adotada):
+- (a) *"Nenhuma IA venceu em tudo: o Gemini detecta mais falhas, o Claude erra menos o gabarito e custa
+  menos, e dar mais contexto quase não muda o resultado."* — resumo equilibrado;
+- (b) *"Detectar mais não é o mesmo que testar melhor: a IA que mais encontra falhas é a que mais erra a
+  saída esperada."* — destaca a troca detecta × erra, o achado mais surpreendente;
+- (c) *"Para gerar testes de programas, um modelo comercial barato (Claude) chega perto do melhor em
+  detecção com menos falsos positivos e uma fração do custo."* — recomendação prática, mais opinativa.
+
+Registrada também na seção 6, item 34. A conferência das conclusões dos títulos (são a tese do TCC) e
+da média dos cenários no placar também cabe aos autores.
+
 ---
 
 ## 6. Pendências Consolidadas (não inventar — decidir com a dupla)
@@ -2140,8 +2451,10 @@ conferência para o recorte ativo e a escreve sob o placar.
    modelo**, validada nos testes públicos do problema (o `AC_ref` nunca gera nem confere saídas);
    sem solução aprovada em 12 tentativas, a **reserva por WA** (`accepted_fallback`); sem reserva,
    a **predição** como último recurso (`accepted_predicted`); sem predição interpretável, o
-   **fechamento manual** pelos autores (`discarded_manual`). Resultado: 505 `accepted`, 93
-   `accepted_fallback`, 2 `accepted_predicted`, 0 manuais (`research.md` R16, R18, R21 e R28).
+   **fechamento manual** pelos autores (`discarded_manual`). Resultado final (pacote juntado da
+   revisão 1 com a refeita na revisão 2, 2026-10-22): 504 `accepted`, 95 `accepted_fallback`, 1
+   `accepted_predicted`, 0 manuais (`research.md` R16, R18, R21 e R28; a execução da revisão 1,
+   antes da junção, tinha 505 / 93 / 2 / 0; seção 3).
 3. ~~Operacionalização do IIC no módulo de métricas: como e onde os conjuntos `D(R)`,
    `D(C)`, `D(H)` de falhas detectadas são registrados~~ — **RESOLVIDO** em 2026-11-09: a
    avaliação grava os conjuntos exatos de detectados por combinação (seção 4) e o IIC é agregado
@@ -2175,19 +2488,19 @@ conferência para o recorte ativo e a escreve sob o placar.
     `accepted_low_confidence` foi SUBSTITUÍDA em 2026-10-06 por R21/R22: a baixa confiança deixou
     de existir na política de 5 fases; continua valendo: `accepted_fallback` como `accepted`,
     `accepted_predicted` separada.]** O relatório da geração já conta cada status à parte
-    (execução completa: 505 / 93 / 2). **[Reescrito em 2026-10-13 — `specs/004-llm-test-generation/`,
+    (pacote final: 504 / 95 / 1; execução completa da revisão 1: 505 / 93 / 2). **[Reescrito em 2026-10-13 — `specs/004-llm-test-generation/`,
     A6]**: `accepted_predicted` passa a ser também o status de **toda** suíte dos LLMs
     comerciais, e o status diz a origem da saída esperada com o mesmo significado nos 3
     modelos (`accepted`/`accepted_fallback` = calculada por um programa; `accepted_predicted`
     = escrita pelo modelo). Nas métricas, a comparação é **por modelo**, sem tratar esse status
-    como exceção; só **dentro do SLM** as 2 suítes previstas ficam separadas das calculadas.
-32. **[DECIDIDO EM PARTE, 2026-10-13 — `/speckit-clarify` de `specs/004-llm-test-generation/`]**
+    como exceção; só **dentro do SLM** a suíte prevista (hoje 1, a `237_A` caixa-branca; eram 2 na revisão 1) fica separada das calculadas.
+32. **[DECIDIDO E EXECUTADO, 2026-10-13 a 2026-10-20 — `/speckit-clarify` de `specs/004-llm-test-generation/`; Claude em `specs/008-claude-test-generation/`]**
     Decisões do módulo dos LLMs comerciais: **A1** 3 tentativas por falha de formato; esgotadas,
     a combinação aguarda os autores (código de saída próprio, pacote recusado) e só fecha como
     `discarded_manual` com motivo, como no SLM; **A2** cada entrada com no máximo cerca de 50
     elementos e 20 linhas, o mesmo do prompt principal do SLM, sem número fixo de testes (o
-    tamanho das entradas não é diferença entre os modelos; item 26 continua pendente para o
-    tamanho da suíte); **A4** o código fica em `src/ai_clients/`, com os comandos existentes
+    tamanho das entradas não é diferença entre os modelos; o tamanho da suíte, item 26, foi
+    resolvido depois, em 2026-11-09, pela densidade de detecção); **A4** o código fica em `src/ai_clients/`, com os comandos existentes
     escolhendo o modelo e uma pasta por modelo em `data/suites/`; **A5** chamadas simultâneas
     dentro de um processo, em número configurável por modelo no `.env` (padrão 4, ajustado
     depois do piloto), trava por combinação, HTTP 429 como falha de infraestrutura com espera
@@ -2221,8 +2534,9 @@ conferência para o recorte ativo e a escreve sob o placar.
     com schema próprio (`LlmSuite`, as mesmas chaves de topo do SLM) e leitor comum (`SuiteView`)
     para a avaliação; **S2** dry-run sem nenhuma chamada, com tokens estimados pela razão
     caracteres/token (3,0 antes do piloto, a medida depois); **S3** manter o `generateContent`,
-    apesar do rótulo "Legacy", com risco registrado. **[A FIXAR NO PILOTO]** O teto de saída
-    (provisório: 32.768) e a razão caracteres/token de cada modelo. A forma do JSON com schema
+    apesar do rótulo "Legacy", com risco registrado. **[FIXADO NOS PILOTOS E NAS EXECUÇÕES COMPLETAS]** O teto de saída
+    (era provisório: 32.768) ficou em 32.768 nos três modelos (seção 3), e a razão
+    caracteres/token de cada modelo vem do piloto/relatório de cada um (Gemini 3,354 acima). A forma do JSON com schema
     no Gemini já foi fixada em 2026-10-16 (`responseFormat.text` com `"APPLICATION_JSON"`).
     **[DECIDIDO, 2026-10-16 — Milena]** O Gemini usa conta com faturamento ativo no piloto e na
     execução completa, como o plano previa (na camada gratuita o Google pode usar o conteúdo
@@ -2230,8 +2544,18 @@ conferência para o recorte ativo e a escreve sob o placar.
     primeira tentativa do piloto, feita na camada gratuita, não gravou nenhuma resposta.
     **[MEDIDO, 2026-10-16]** Piloto 1 do Gemini: 15 de 15 suítes na 1ª tentativa, maior saída de
     3.551 *tokens*, razão de 3,354 caracteres por *token*, US$ 0,126 (seção 3). **[DECIDIDO,
-    2026-10-16]** Teto de saída mantido em 32.768 (só se paga o que se usa). **[A FIXAR NO PILOTO
-    DO GPT]** A razão e a média de saída do GPT.
+    2026-10-16]** Teto de saída mantido em 32.768 (só se paga o que se usa). **[MEDIDO no piloto e na
+    execução completa do GPT, 2026-10-20]** A média de saída e o custo reais do GPT (601 chamadas,
+    US$ 13,47) estão na seção 3.
+33. **[PENDENTE — decisão dos autores, 2026-11-14]** Registro do teste de predição direta do SLM: a
+    limitação de oráculo (seção 7, item 42; 5.10) diz que a predição direta foi tentada no SLM e
+    descartada por ser inutilizável, mas nenhum artefato do repositório guarda a taxa de acerto, o
+    formato ou a amostra desse teste. Opções: (a) os autores registram aqui o que viram (quantos
+    problemas, quantas saídas certas) e o número vai para o TCC; (b) a frase vai ao TCC como relato
+    de experiência, sem número. Nada foi estimado.
+34. **[PENDENTE — decisão dos autores]** Frase de fechamento do TCC: o painel não dá conclusão única
+    (5.11); falta escolher, entre as opções (a), (b) e (c) de 5.11, ou reescrever, a frase final do
+    texto. Nada foi escolhido.
 4. ~~**[PROPOSTA]** Extrair dos três splits combinados~~ — **RESOLVIDO** (ver 1.1).
 5. ~~**[PROPOSTA]** Adicionar `is_description_translated == false` como critério de
    elegibilidade~~ — **RESOLVIDO** (ver 1.2).
@@ -2272,7 +2596,9 @@ e `specs/003-slm-test-generation/spec.md`, decisões de 2026-09-29 (itens 26–2
 `specs/003-slm-test-generation/research.md`, plano de 2026-09-30 (item 29) e decisões dos pilotos
 e da execução completa do SLM, de 2026-10-04 a 2026-10-11, R13 a R28 (itens 28–40; os itens 28 e
 29 foram atualizados para o desenho final em 2026-10-11); e `specs/004-llm-test-generation/research.md`,
-decisão A3 de 2026-10-15 (item 41).
+decisão A3 de 2026-10-15 (item 41); e `specs/005`, `006`, `007`, `008`, `009`, `010`, `011` e `012`
+(itens 43 a 48: avaliação com dois oráculos, revisão 2 do dataset, o terceiro modelo comercial, as
+suítes `accepted_barred`, as métricas e o painel, de 2026-10-18 a 2026-11-13).
 
 | # | Divergência | Onde |
 |---|---|---|
@@ -2302,14 +2628,14 @@ decisão A3 de 2026-10-15 (item 41).
 | 24 | Relatório com contagem de problemas por forma de fechamento; (a revisão do código no relatório, prevista aqui, foi retirada em 2026-09-25); `package` recusa pacote de execução parcial, `building/` pendente e problema danificado; trava contra dois `generate` simultâneos | 2.6, 2.10 |
 | 25 | Resultado real da geração dos 200 problemas: 56,5% dos problemas só de primeira ordem (a estimativa de ≥75% não se confirmou), 15,3% dos mutantes de ordem superior, 0 excluídos, 20.000 mutantes em ~7 h 26 min | 2.11 |
 | 26 | Resposta do SLM em texto com 3 blocos marcados (`<edge_cases_analysis>`, `<inputs>`, `<reference_py>`), não JSON como os dois modelos comerciais — evita erros de escape de código Python dentro de um campo JSON; a suíte persistida depois da interpretação continua JSON com schema versionado | 3 |
-| 27 | Exemplo do `<few_shot_example>` é o primeiro teste público do próprio problema sendo perguntado (não um exemplo fixo entre chamadas); mesma regra a adotar pelos módulos futuros de GPT-5.4-mini e Gemini 3.5 Flash | 3 |
+| 27 | Exemplo do `<few_shot_example>` é o primeiro teste público do próprio problema sendo perguntado (não um exemplo fixo entre chamadas); mesma regra adotada pelos módulos do GPT-5.4-mini, do Gemini 3.8 Flash (item 41) e do Claude Haiku 5.5 | 3 |
 | 28 | Suítes SLM seguem a mesma exceção de versionamento dos mutantes (Constitution, Princípio II, emenda 1.6.0): pacote + manifesto SHA-256 ao final da execução completa, sem exigir nova emenda; falha de infraestrutura na chamada ao Ollama não consome uma das 15 tentativas por problema × cenário (só as 4 razões de conteúdo consomem: `public_test_failed`, `unparseable_response`, `repetition`, `all_inputs_failed`). Na spec de 2026-09-29 eram 6 tentativas e 3 razões (atualizado em 2026-10-11, R16/R21/R22; `repetition` desde R13) | 3 |
 | 29 | Parametrização técnica do SLM fixada no plano (2026-09-30): `/api/chat` com uma única mensagem; `num_ctx 8192` / `num_predict 4096` a partir do maior prompt medido (7.870 caracteres no plano; 8.118 com o prompt real, dry-run de 2026-09-30); seeds 43 a 48; Python com tempo × 10 e memória × 4 do limite do problema, só biblioteca padrão; amostragem `temperature 0.7` / `top_p 0.8` / `top_k 20` / `repeat_penalty 1.05` (não `temperature 0`, que anularia as retentativas); casos no contrato `TestCase`; template ajustado para respeitar restrições e não pedir entradas do tamanho máximo. **Final (execução completa)**: `num_predict` 5120 (item 31; maior `prompt_eval_count` medido 2.499); seed e temperatura por tentativa pela tabela `ATTEMPT_POLICY` (seeds 42 a 51; temperatura 0,7, e 0,7 a 0,2 na fase 2; item 32); `top_p`/`top_k`/`repeat_penalty` sem mudança | 3 |
 | 30 | Modelo local **`qwen2.5-coder:14b`** em vez do Qwen2.5-Coder-7B citado no TCC (2026-10-06, `research.md` R20): com o 7B a solução Python errava os exemplos em ≈ 86% das tentativas (piloto 3); com o 14B e a regra de R18 as 15 combinações do piloto 5 terminaram com suíte | 3, 6 |
 | 31 | Revisão depois do piloto 1 do SLM (2026-10-04; renumerado de 30 para 31 em 2026-10-11, porque havia dois itens 30): cerca Markdown que envolve todo o código Python é removida e registrada (as outras ficam); `<input>` vazio descartado sozinho (só "todas vazias" invalida a resposta); `token repeat limit reached` do Ollama é falha do modelo (razão `repetition`, próxima seed), não de infraestrutura; RULE 2 pede valores até o máximo das restrições com no máximo ~100 elementos por entrada; `num_predict` 4096 → 5120; relatório conta por cenário respostas cortadas, cercas removidas e entradas vazias | 3 |
-| 32 | Política de tentativas do SLM em **5 fases**, no máximo 15 tentativas (2026-10-06, `research.md` R21/R22): fase 1, tentativas 1–6 a temperatura 0,7 com seeds 42–47; fase 2, tentativas 7–12 com a **seed 48 fixa e a temperatura caindo de 0,7 a 0,2**; fase 3, reserva; fase 4, predição (13–15, seeds 49–51, 0,7); fase 5, tratamento manual. O desenho de 2026-09-29/30 (itens 28 e 29) previa temperatura única (0,7) e retentativas só por seed. Na execução completa a fase 2 deu 25 das 600 suítes | 3 |
-| 33 | Suíte de **reserva por WA** (`accepted_fallback`): sem solução aprovada em 12 tentativas, a melhor tentativa que errou um teste público só por WA vira a suíte, e ela **entra nas métricas como as `accepted`** (2026-10-05/06, R16 e R20); 93 das 600 suítes (15,5%; 65 na caixa-preta) | 3, 6 |
-| 34 | **Predição** (`accepted_predicted`, fase 4): o SLM escreve entradas e saídas esperadas, sem solução Python nem validação — a única exceção ao oráculo por execução, separada por status nas métricas (2026-10-06, R18/R19/R21); 2 das 600 suítes (`939_C` caixa-preta, `237_A` caixa-branca) | 3, 6 |
+| 32 | Política de tentativas do SLM em **5 fases**, no máximo 15 tentativas (2026-10-06, `research.md` R21/R22): fase 1, tentativas 1–6 a temperatura 0,7 com seeds 42–47; fase 2, tentativas 7–12 com a **seed 48 fixa e a temperatura caindo de 0,7 a 0,2**; fase 3, reserva; fase 4, predição (13–15, seeds 49–51, 0,7); fase 5, tratamento manual. O desenho de 2026-09-29/30 (itens 28 e 29) previa temperatura única (0,7) e retentativas só por seed. Na execução completa da revisão 1 a fase 2 deu 25 das 600 suítes; no pacote final, 22 | 3 |
+| 33 | Suíte de **reserva por WA** (`accepted_fallback`): sem solução aprovada em 12 tentativas, a melhor tentativa que errou um teste público só por WA vira a suíte, e ela **entra nas métricas como as `accepted`** (2026-10-05/06, R16 e R20); 95 das 600 suítes do pacote final (15,8%; 66 na caixa-preta, 16 no híbrido e 13 na caixa-branca; eram 93 na execução da revisão 1) | 3, 6 |
+| 34 | **Predição** (`accepted_predicted`, fase 4): o SLM escreve entradas e saídas esperadas, sem solução Python nem validação — a única exceção ao oráculo por execução, separada por status nas métricas (2026-10-06, R18/R19/R21); 1 das 600 suítes do pacote final (`237_A` caixa-branca; a `939_C` caixa-preta, que também era predita na execução da revisão 1, está entre as 208 combinações refeitas e hoje é `accepted`) | 3, 6 |
 | 35 | **Fechamento manual** (`discarded_manual`, comando `close` com motivo obrigatório) para combinação sem predição interpretável, que **continua no N = 200** das métricas (2026-10-06, R18/R19); não foi necessário na execução completa (0 combinações) | 3 |
 | 36 | **Nenhuma combinação sem suíte** no lugar do descarte da suíte depois de esgotar as tentativas, previsto na spec de 2026-09-29 (2026-10-05/06, R16 e R18); resultado: 600 de 600 com suíte | 3 |
 | 37 | **Troca de template no meio da execução**: o template de predição foi trocado em 2026-10-08 (`421adf86…` → `e52133f6…`) pelo comando `change-template`, que registra a troca e move as tentativas da versão antiga para `superseded/` (refeitas com as mesmas seeds); `superseded/` vai para o pacote, para a banca ver o que foi refeito, mas **fica fora das métricas** (R27/R28); 1 combinação refeita (`939_C` caixa-preta) | 3 |
@@ -2318,6 +2644,12 @@ decisão A3 de 2026-10-15 (item 41).
 | 40 | O **piloto 6 conta dentro da execução final**: a execução completa é a continuação da mesma execução com `--resume`, e as 15 combinações do piloto entram no resultado (2026-10-07, R23) | 3 |
 | 41 | **Gemini 3.8 Flash (`gemini-3.8-flash`) em vez do Gemini 3.5 Flash** do texto do TCC (2026-10-15, `specs/004-llm-test-generation/research.md`, A3). O Google descontinuou o `gemini-3.5-flash` em 2026-10-08 e redireciona as chamadas a ele para o `gemini-3.6-flash`; entre os substitutos, os autores escolheram o Flash GA mais recente (GA desde 2026-09-02, recomendado pelo Google para projetos novos), e não o 3.6, que o próprio Google descreve como "previous-generation" (o 3.6 chegou a ser escolhido e foi revisto no mesmo dia). Também mudaram os nomes da Tabela 2 do PDF: `reasoning_effort` → `reasoning.effort` (Responses API), JSON estrito por `text.format` `json_schema` com `strict: true`; no Gemini, o `mimeType: application/json` vai em `generationConfig.responseFormat.text`, com o valor `"APPLICATION_JSON"` (conferido na API em 2026-10-16; plano, R3) e o nível de raciocínio em `generationConfig.thinkingConfig.thinkingLevel`. GPT pelo snapshot datado `gpt-5.4-mini-2026-03-17`; raciocínio `medium` enviado explicitamente nos dois modelos (o padrão do GPT-5.4-mini é `none`); sem seed nem temperatura | 3 |
 | 42 | **Oráculo por execução (SLM) × por predição (comerciais)** — limitação a declarar no texto: o SLM escreve uma solução em Python, executada e validada nos testes públicos, e é ela que dá as saídas esperadas; os três comerciais escrevem as saídas direto, sem executar nada. A diferença não é arbitrária: a predição direta foi testada no SLM e descartada, porque as saídas previstas erravam muito e o modelo (Qwen2.5-Coder) é treinado para escrever código, não para prever a saída de um programa (decisão dos autores, registrada em 2026-11-09). TDF\*, MS\* e Δ_oráculo (5.5) existem para isolar esse efeito | 3, 5.5 |
+| 43 | **Avaliação com dois oráculos e `AC_ref` sem curto-circuito** (decidido em 2026-11-04, executado de 2026-11-04 a 2026-11-09): o TCC descreve o curto-circuito em qualquer alvo e a aprovação do AC só com 100% da suíte; construído: curto-circuito só para WAs e mutantes, contra o `AC_ref` todos os testes rodam (veredito e saída real por teste), cada WA e mutante tem a detecção gravada sob o oráculo **declarado** pela IA e o **corrigido** pela saída real do AC, e um erro de execução só vale se aparecer em 3 execuções seguidas | 4, 5.5 |
+| 44 | **Revisão 2 do dataset** (2026-10-18): a conferência contra o original do Codeforces achou expoentes e índices perdidos nos enunciados (152 expoentes em 79 problemas, 701 índices em 74); 104 `enunciado.md` foram corrigidos e o dataset passou à revisão 2 (`data/dataset.zip`), com a revisão 1 guardada só para auditoria. Dataset, `AC_ref`, WAs, testes públicos e mutantes não mudaram (os mutantes não foram regenerados: dependem só do `AC_ref.cpp`); o SLM refez as 208 combinações afetadas; GPT, Gemini e Claude já rodaram sobre a revisão 2. O texto do TCC precisa dizer qual revisão cada execução usou | 1.6.1, 2, 3 |
+| 45 | **Três modelos comerciais, não dois**: o **Claude Haiku 5.5** (`claude-haiku-5-5`, Anthropic) entrou como terceiro modelo comercial em 2026-10-20, ao lado do GPT-5.4-mini e do Gemini 3.8 Flash (item 41); com o SLM, são **4 modelos**, 2.400 combinações (4 × 200 problemas × 3 cenários). A comparação entre modelos tem 4 participantes e a camada `claude_suites` entrou no `cli check` | 3 |
+| 46 | **Suítes de resposta sem raciocínio (`accepted_barred`)** (2026-10-20): toda resposta de modelo comercial sem tokens de raciocínio é guardada fora das tentativas e pedida de novo; na terceira, a suíte é aceita como `accepted_barred` sem parar a execução. Resultado: 1 no Gemini, 8 no Claude (mais 3 `discarded_manual` do Claude) e 0 no GPT. As 9 `accepted_barred` **ficam incluídas** nas métricas e o número é relatado (decisão de 2026-11-12, 5.9) | 3, 5.9 |
+| 47 | **Métricas e estatística além do texto do TCC** (2026-11-04/09): TDF\*/MS\*/Δ_oráculo, TFP por causa (`oráculo` × `entrada_inválida`), custo por detecção (CPD, só em US$ dos comerciais; o SLM em *tokens* e tempo), densidade de detecção (resolve a pendência 26), IIC agregado nos 200 problemas e por problema, testes de Friedman, Wilcoxon e McNemar com correção de Holm e tamanho de efeito A12; complementaridade entre modelos (C.5) e IIC sobre mutantes (C.6) ficaram de fora | 5.5, 5.6, 5.9 |
+| 48 | **Painel de exploração dos resultados** (Streamlit, só leitura; não faz parte do desenho do TCC): 4 páginas (O experimento, As métricas, Rastreabilidade, A avaliação), com a rastreabilidade de cada número até o problema, a suíte e o teste; há uma cópia pública no Streamlit Community Cloud (decisão de 2026-11-09, publicada pelos autores). As figuras são desenhadas sob demanda e não vão no `data/metrics.zip` | 5.8, 5.11 |
 
 ---
 
@@ -2326,23 +2658,27 @@ decisão A3 de 2026-10-15 (item 41).
 Registro datado de cada atualização, para conduzir a revisão do texto escrito do TCC
 (Constitution, princípio XI). Origem: `specs/001-dataset-extraction/` (spec, plano, pesquisa),
 `specs/002-mutant-generation/` (a partir de 2026-09-23), `specs/003-slm-test-generation/`
-(a partir de 2026-09-29) e `specs/004-llm-test-generation/` (a partir de 2026-10-13).
+(a partir de 2026-09-29), `specs/004-llm-test-generation/` (a partir de 2026-10-13),
+`specs/005-show-request/` a `specs/012-dashboard-storytelling/` (de 2026-10-16 a 2026-11-13: pedido enviado,
+conferência dos enunciados, revisão 2 do dataset, Claude, avaliação, métricas e painel) e os
+registros de fechamento da documentação (2026-11-14). Ordem: da mais recente para a mais antiga.
 
 | Data | O que mudou | Seções |
 |---|---|---|
+| 2026-11-14 | **Consolidação da metodologia na verdade executada (fechamento da documentação)**: (1) SLM final 504 `accepted` + 95 `accepted_fallback` + 1 `accepted_predicted` + 0 `discarded_manual` no corpo vigente (a execução da revisão 1, 505/93/2, fica só como história), com a junção explicada: 392 combinações da revisão 1 mais as 208 refeitas na revisão 2; (2) revisão 2 do dataset: só os 104 `enunciado.md` mudaram e os mutantes **não** foram regenerados (dependem só do `AC_ref.cpp`); o `mutation_report.json` guarda o hash do manifesto da revisão 1, `6b3628c3…`, que é o mesmo conteúdo do `dataset.rev1.manifest.json` (`a092d987…`, com fim de linha CRLF); (3) seção 4 reconciliada com o que foi especificado e executado; seção 5.8 reescrita para o estado final; novas 5.10 (rastreabilidade pergunta → métrica, com a limitação do oráculo e o que não está medido) e 5.11 (painel), que absorvem `docs/metricas-referencia.md` e `docs/roteiro-painel.md`; (4) rótulos de estado defasados corrigidos, seção 3 reordenada, parágrafos de origem das seções 7 e 8 atualizados, itens 43 a 48 na seção 7 e 33 e 34 na seção 6 (pendências dos autores); (5) LaTeX corrompido (`\*`, `\r`) e linha quebrada de 2026-10-18 corrigidos; (6) **orquestrador ponta a ponta descartado (decisão dos autores)**: cada etapa roda pelo comando do README do seu módulo, o `cli` tem só o `check`, e `evaluation run` e `metrics compute` chamam o portão de consistência (seção 0.1); o orquestrador previsto em 2026-09-22 não será construído; (7) mutantes e revisão 2 (nova 2.12), parâmetros `OLLAMA_HARDWARE_LABEL` e `CHARS_PER_TOKEN` (seção 3), tempos do `metrics` (5.9) e a observação de que os 66 a 127 s do painel foram medidos sem navegador (5.11) | 0.1, 1.6.1, 2, 2.12, 3, 4, 5.8, 5.9, 5.10, 5.11, 6, 7, 8 |
 | 2026-11-13 | **Rastreabilidade do IIC (`specs/012-dashboard-storytelling/`, US5, T060)**: decidido (Milena): cada símbolo da fórmula do IIC pode ser conferido na fonte. Caso novo "De onde vem o IIC": para uma IA, uma direção e um gabarito, os WAs pegos em cada cenário (R = caixa-preta, C = caixa-branca, H = híbrido) nas 8 regiões dos três conjuntos, a conta com esses números e quais regiões somam em cada termo, o IIC por problema e o papel de cada WA. Conferido nos dados reais: os ganhos, as perdas e a base das 20 linhas de `iic.csv` (5 conjuntos × 2 gabaritos × 2 direções) saem iguais dos `results.csv`. Exemplo (Claude, + código, gabarito do AC): |H ∖ R| = só H 374 + C e H sem R 1.003 = 1.377; |R ∖ H| = só R 285 + R e C sem H 652 = 937; |R| = 16.752; (1.377 − 937) ÷ 16.752 = +2,6%. O problema que mais pesa é `182_B`: a caixa-preta do Claude não tem suíte (corte no teto de saída), então os 100 WAs pegos no híbrido contam como ganho e o problema fica fora do IIC por problema | 5.5, 8 |
 | 2026-11-13 | **Painel: placar por cenário e figuras fora do repositório (`specs/012-dashboard-storytelling/`, T056–T058)**: decidido (Milena): (1) sai o botão "Baixar figura" dos cartões, porque o menu do próprio gráfico já salva em PNG e SVG; (2) abaixo do placar, um **placar por cenário**, com uma linha por IA e cenário (SLM · caixa-preta, SLM · caixa-branca, SLM · híbrido, e assim por diante) e a posição comparando as IAs dentro do mesmo cenário; o título diz em quantos dos 6 critérios o 1º lugar muda com o cenário; (3) **nenhuma figura no repositório**: o pacote de métricas passa a ter só as tabelas e o `run.json`, e o comando de figuras fica opcional, para quem quiser os arquivos. Emenda a decisão de 2026-11-12 (as figuras novas também no pacote) e a de 2026-11-09 (download em PNG e PDF na página). Medido: `data/metrics.zip` refeito, com as 6 tabelas e o `run.json` iguais byte a byte (mesmo SHA-256 no manifesto) e as 12 figuras removidas; de 1.776.166 para 1.198.898 bytes; `verify` e `verify --extracted data/metrics` `OK` | 5, 8 |
 | 2026-11-13 | **Painel: fórmula de cada gráfico e rótulos em português (`specs/012-dashboard-storytelling/`, T052–T055)**: decidido (Milena): cada gráfico da página das métricas ganha "Como se calcula", com a fórmula, a mesma fórmula em palavras e a conta feita com os números do recorte, recalculada das contagens brutas (problemas, WAs, mutantes, testes, US$), e não do valor já desenhado; um teste confere que as duas dão o mesmo número. Conferido nos dados reais: todo problema tem 100 WAs e 100 mutantes e todo conjunto × cenário tem 200 problemas, então a média das porcentagens por problema (o que o código faz) é igual à conta com as somas (a que o painel mostra): Gemini 54.083 de 60.000 WAs = 90,1% (TDF\*), 58.213 de 60.000 mutantes = 97,0% (MS\*); Claude 104 de 600 combinações reprovam o AC = 17,3% (TFP); Δ_oráculo do GPT 86,6% − 84,7% = 1,89 pontos; TC do SLM 1ª tentativa 547 de 600 = 91,2%; IIC do SLM 1ª tentativa (+ código, gabarito do AC) (2.657 − 2.050) ÷ 12.472 = 4,9%; Claude US$ 0,98 ÷ 51.550 WAs × 1.000 = US$ 0,019. O IIC conta só WAs (C.6, IIC sobre mutantes, fora do escopo). Achado e corrigido: a distribuição do IIC por problema usava sempre o gabarito da IA, sem dizer, enquanto o gráfico do IIC logo acima segue o seletor de gabarito (o do AC por padrão); agora as duas seguem o seletor, e o arquivo leva `gabarito-ia` quando é o da IA. Rótulos: o gráfico de caixas do IIC mostra em português o que o Vega-Lite mostrava em inglês ("Upper Whisker", "Q3"), e a legenda diz o que cada IIC compara | 5.5, 8 |
 | 2026-11-12 | **Painel: nova ordem e página de rastreabilidade (`specs/012-dashboard-storytelling/`, US5, T047–T051)**: decidido (Milena): as páginas passam a ser O experimento → As métricas → Rastreabilidade → A avaliação (a avaliação vai para o fim). A página nova leva de um número à fonte, em 11 casos: combinações sem suíte com o motivo e as tentativas; suítes sem raciocínio e as respostas barradas; origem da suíte do modelo local; qual teste reprovou um WA ou mutante (entrada, saída da IA, saída do AC, código ao lado do AC); o que um teste derrubou; por que o AC foi reprovado; detecções que só existem por um gabarito; WAs que nenhuma IA detectou; WAs que só uma detectou; mutantes sobreviventes; ficha do problema. Medido nos dados reais (gabarito do AC, os 4 modelos): 56 combinações sem suíte (53 da 1ª tentativa do modelo local, 3 do Claude); 992 suítes reprovam o AC em 196 problemas (as que mais reprovam: `158_C` 13 de 15, `447_C` 12, `175_B` 11); **174 WAs que nenhum dos 4 modelos detectou, em 67 problemas** (168 contando também a 1ª tentativa); **390 WAs detectados por um só modelo** (GPT 135, Gemini 108, Claude 99, SLM 48); **65 mutantes que nenhuma suíte reprovou, em 29 problemas** (candidatos a equivalentes, não conferidos); detecções de WAs só pelo gabarito da IA 17.876 e só pelo do AC 2.102, iguais às de `detected_wa.csv` | 8 |
 | 2026-11-12 | **Painel que conta a história, 2ª parte implementada (`specs/012-dashboard-storytelling/`, T022–T033)**: página "As métricas" reescrita: placar dos 5 conjuntos em 6 critérios, falhas reais e mutantes, falsos positivos (troca detecta × erra), contexto (variação entre cenários e IIC divergente com o seletor de gabarito), custo, guia de escolha (vencedor de cada critério por cenário, 2º colocado e estado do teste; a prioridade escolhida só realça uma linha) e as tabelas oficiais no fim, seguindo o recorte da barra lateral (o seletor "Corte das tabelas" saiu). Títulos-conclusão por regra, em `metrics.story` (modelos de frase numa tabela única, `TEMPLATES`); `--rating` no comando de figuras; 5 figuras novas e 3 revistas. **Decidido (Milena): as 9 suítes `accepted_barred` ficam nas métricas**, com a contagem e a conferência de que nenhum 1º lugar muda sem elas escritas sob o placar. Conferido contra as tabelas reais: os empates do roteiro aparecem no guia (TFP SLM × Claude na caixa-branca, GPT × Claude no híbrido, Claude × GPT na caixa-preta; TDF\* e MS\* Gemini × Claude na caixa-branca) e o custo aparece "não testado" | 5.8, 5.9, 8 |
 | 2026-11-12 | **Painel que conta a história, 1ª parte implementada (`specs/012-dashboard-storytelling/`, T001–T021)**: o painel passa a ter três páginas (o experimento, a avaliação, as métricas), com o filtro de rating na barra lateral; a página "O experimento" mostra o contexto pelo recorte (sem filtro: 200 problemas, 24.274 testes nas suítes dos 4 modelos, US$ 19,35 — GPT 70%, Gemini 25%, Claude 5% —, toda IA com suíte em pelo menos 91,2% das combinações, o mínimo sendo a 1ª tentativa do modelo local). `per_problem.csv` ganhou a coluna `rating` (o `cf_rating` do problema); medido: as outras cinco tabelas de métricas ficaram com o mesmo SHA-256 e `data/metrics.zip` foi reempacotado. O módulo `metrics.story` (placar, vencedor, segundo colocado e estado do teste lido de `stats.csv`) confere, contra as tabelas reais, os números e os empates do roteiro. Divergências do plano: a página 1 conta a partir da tabela da avaliação (funciona sem as métricas), não do `per_problem.csv`; o par divergente do IIC será azul ↔ vermelho (paleta validada), não azul/laranja; "sem suíte" é desenhado em cinza, não numa cor de categoria. A conferência visual achou um empate escondido no subtítulo dos ratings (1400 e 1600 com 35 problemas cada), corrigido | 5.8, 8 |
-| 2026-11-12 | **Painel que conta a história dos resultados especificado (`specs/012-dashboard-storytelling/`)**: a partir do roteiro `docs/roteiro-painel.md` (método de *visual storytelling*), decidido (Milena): o painel passa a apresentar os resultados, **sem conclusão única** — mostra quem ganhou em cada critério (detecção, mutantes, falsos positivos, confiança no gabarito, cobertura, custo), por cenário, e o leitor decide pela sua prioridade e pelo que tem em mãos (só o requisito, só o código, os dois); três páginas, nesta ordem: o experimento, a avaliação (Combinação e Comparações juntas), as métricas; **filtros só na barra lateral**, sempre aplicados, com o rating como filtro novo e títulos-conclusão recalculados por regra para o recorte; **gabarito do AC no placar** (TDF\* e MS\*, não TDF e MS); **1ª tentativa do modelo local no placar**, como quinto conjunto, com a nota das 53 combinações sem suíte; os gráficos novos da página de métricas (placar, detecta × erra, variação entre cenários, IIC divergente, guia de escolha) também viram figuras do texto, pelo comando de figuras e no pacote de métricas. Plano: módulo `metrics.story` (Python puro) com placar, vencedores, títulos e guia, usado pelo painel e pelo comando; `per_problem.csv` ganha a coluna `rating`; nenhum teste estatístico novo: num recorte, ou na média de cenários, a diferença é dita "não testada". Achado ao conferir o roteiro contra `stats.csv`: empates estatísticos que o guia precisa mostrar — TFP de GPT × Claude nos três cenários e do modelo local × Claude na caixa-branca; TDF\* e MS\* do Gemini × Claude na caixa-branca (p = 0,07) | 5.8, 8 |
+| 2026-11-12 | **Painel que conta a história dos resultados especificado (`specs/012-dashboard-storytelling/`)**: a partir do roteiro `docs/roteiro-painel.md` (método de *visual storytelling*; roteiro consolidado em 2026-11-14 na seção 5.11 e arquivo removido), decidido (Milena): o painel passa a apresentar os resultados, **sem conclusão única** — mostra quem ganhou em cada critério (detecção, mutantes, falsos positivos, confiança no gabarito, cobertura, custo), por cenário, e o leitor decide pela sua prioridade e pelo que tem em mãos (só o requisito, só o código, os dois); três páginas, nesta ordem: o experimento, a avaliação (Combinação e Comparações juntas), as métricas; **filtros só na barra lateral**, sempre aplicados, com o rating como filtro novo e títulos-conclusão recalculados por regra para o recorte; **gabarito do AC no placar** (TDF\* e MS\*, não TDF e MS); **1ª tentativa do modelo local no placar**, como quinto conjunto, com a nota das 53 combinações sem suíte; os gráficos novos da página de métricas (placar, detecta × erra, variação entre cenários, IIC divergente, guia de escolha) também viram figuras do texto, pelo comando de figuras e no pacote de métricas. Plano: módulo `metrics.story` (Python puro) com placar, vencedores, títulos e guia, usado pelo painel e pelo comando; `per_problem.csv` ganha a coluna `rating`; nenhum teste estatístico novo: num recorte, ou na média de cenários, a diferença é dita "não testada". Achado ao conferir o roteiro contra `stats.csv`: empates estatísticos que o guia precisa mostrar — TFP de GPT × Claude nos três cenários e do modelo local × Claude na caixa-branca; TDF\* e MS\* do Gemini × Claude na caixa-branca (p = 0,07) | 5.8, 8 |
 | 2026-11-12 | **Reprodução por quem clona o repositório, conferida num clone novo**: no Windows 11 com Docker Desktop, seguindo só o `README.md` (commit `52eeb24`): clone de cerca de 206 MB com os 14 pacotes; `docker compose build` em 5 min; `pytest` com 2120 testes aprovados em 6 min; descompactados os 12 pacotes de uso (dataset, mutantes, suítes dos 4 modelos, avaliação dos 5 conjuntos, métricas); `cli check --deep` `OK` (0 falhas, 0 avisos) em 25 min, lentidão vinda da pasta compartilhada do Docker Desktop; `metrics verify --extracted` `OK`; painel no ar em cerca de 6 s. A geração do zero não foi conferida no Windows. Os READMEs ganharam o "Caminho rápido" (descompactar tudo, conferir, abrir o painel), o estado final do experimento, a URL real do repositório e um guia de leitura dos gráficos do painel | 8 |
 | 2026-11-09 | **Cópia pública do painel (emenda da decisão "uso só local" de 2026-11-04)**: decidido (Milena) publicar o painel, só de leitura e gratuito, no Streamlit Community Cloud (até 2,7 GB de memória). O Hugging Face Spaces chegou a ser escolhido por ter mais memória, mas criar um Space Docker exige plano pago (documentação do Hugging Face conferida em 2026-11-10). A cópia pública roda `src/dashboard/public/streamlit_app.py` num clone do repositório, com dependências mínimas nas versões do `uv.lock`, e descompacta em `data/` os 12 pacotes versionados (avaliação dos 5 conjuntos, métricas, dataset, mutantes e suítes) na primeira abertura do servidor; é publicada pelos autores. Medido num Python 3.11 limpo, simulando um clone: primeira abertura em 39 s, 3.000 combinações sem arquivo inválido, nenhuma exceção, 176 MB de pico de memória, 720 MB em `data/`, figura PNG igual à do projeto. Na mesma conferência, `data/metrics.zip` foi reempacotado com as colunas de alvos mortos (`verify --extracted` OK) | 8 |
 | 2026-11-09 | **Contagem de alvos mortos**: `metrics.csv` ganha WAs e mutantes mortos (pelos dois oráculos) e o total, ao lado da TDF e do MS; tabela na seção 5.9 e no painel; cada alvo conta uma vez (morto se algum teste o reprova) | 5.9 |
 | 2026-11-09 | **Figuras legíveis e download igual à tela**: paleta e tons de texto por tema, um painel por cenário, custo em US$ por 1.000 WAs; as figuras do comando e os botões PNG/SVG/PDF do painel passam a ser o mesmo gráfico (Altair + vl-convert, sem matplotlib); pacote com PNG e SVG (o PDF não sai igual byte a byte); destaque das combinações com AC reprovado legível no tema escuro | 5.8 |
 | 2026-11-09 | **Métricas calculadas (`specs/010-metrics/`, implementado)**: seção 5 reescrita com a proposta confirmada (regras de borda, 5.5 complementares, 5.6 estatística, 5.7 cortes, 5.8 figuras, 5.9 resultados medidos); Q5 na seção 0; pendências 3 e 26 fechadas; limitação do oráculo na seção 7 (item 42). Divergências da implementação: o custo por cenário dos comerciais soma o `by_group` do relatório de geração com as respostas barradas daquele cenário (o `by_group` não as inclui); o pacote leva as tabelas e só as figuras sem filtro; as figuras filtradas são exploração e se refazem pelo comando | 0, 5, 6, 7, 8 |
-| 2026-11-09 | **Módulo de métricas especificado (`specs/010-metrics/`)**: implementa a proposta de `docs/metricas-referencia.md` confirmada em 2026-11-04 sem C.5 e C.6 — TDF, MS, TFP (N = 200, com a nota de combinações sem suíte e a visão entre as com suíte), IIC agregado nos 200 problemas com a visão por problema, TC, TDF\*/MS\*/Δ_oráculo, TFP por teste e por causa, CPD (o modelo local só em *tokens* e tempo), densidade, Friedman/Wilcoxon/McNemar com A12 e Holm, cortes por macrocategoria e status; tabelas versionadas lidas pelo dashboard; a seção 5 desta metodologia será substituída pela proposta. Decidido (Milena): a predição direta foi descartada no modelo local porque as saídas previstas erravam muito e o modelo é treinado para escrever código, não para prever saídas. Figuras (Milena, 2026-11-09): desenhadas por funções deste módulo a partir das tabelas, com filtros por macrocategoria, status, modelos e cenários (nunca um problema só), geradas por comando e exibidas na página de métricas do dashboard com download em PNG e PDF; filtros e fonte no rodapé e no nome do arquivo, para toda figura se refazer pelo comando. Emenda a decisão do dashboard de 2026-11-04 ("gráficos sem download"). Plano: pacote `src/metrics/` (`python -m metrics compute|figures|package|verify`, serviço `app`); fonte única o `results.csv` dos 5 conjuntos, mais a macrocategoria e os relatórios de geração; uma tabela por problema (conjunto × cenário × problema) como base de todas as médias e dos testes pareados; IIC também pelo oráculo corrigido, em coluna à parte; McNemar exato pelo teste binomial, Holm e A12 à mão; novas dependências `scipy` e `matplotlib`; seis tabelas e figuras determinísticas em `data/metrics/`, empacotadas com manifesto | 0, 5, 8 |
+| 2026-11-09 | **Módulo de métricas especificado (`specs/010-metrics/`)**: implementa a proposta de `docs/metricas-referencia.md` (consolidada em 2026-11-14 nas seções 5.1 a 5.10; arquivo removido) confirmada em 2026-11-04 sem C.5 e C.6 — TDF, MS, TFP (N = 200, com a nota de combinações sem suíte e a visão entre as com suíte), IIC agregado nos 200 problemas com a visão por problema, TC, TDF\*/MS\*/Δ_oráculo, TFP por teste e por causa, CPD (o modelo local só em *tokens* e tempo), densidade, Friedman/Wilcoxon/McNemar com A12 e Holm, cortes por macrocategoria e status; tabelas versionadas lidas pelo dashboard; a seção 5 desta metodologia será substituída pela proposta. Decidido (Milena): a predição direta foi descartada no modelo local porque as saídas previstas erravam muito e o modelo é treinado para escrever código, não para prever saídas. Figuras (Milena, 2026-11-09): desenhadas por funções deste módulo a partir das tabelas, com filtros por macrocategoria, status, modelos e cenários (nunca um problema só), geradas por comando e exibidas na página de métricas do dashboard com download em PNG e PDF; filtros e fonte no rodapé e no nome do arquivo, para toda figura se refazer pelo comando. Emenda a decisão do dashboard de 2026-11-04 ("gráficos sem download"). Plano: pacote `src/metrics/` (`python -m metrics compute|figures|package|verify`, serviço `app`); fonte única o `results.csv` dos 5 conjuntos, mais a macrocategoria e os relatórios de geração; uma tabela por problema (conjunto × cenário × problema) como base de todas as médias e dos testes pareados; IIC também pelo oráculo corrigido, em coluna à parte; McNemar exato pelo teste binomial, Holm e A12 à mão; novas dependências `scipy` e `matplotlib`; seis tabelas e figuras determinísticas em `data/metrics/`, empacotadas com manifesto | 0, 5, 8 |
 | 2026-11-09 | **Avaliação das suítes concluída**: execução completa dos 5 conjuntos (3.000 combinações) de 2026-11-04 a 06, pacotes `data/evaluation_<conjunto>.zip` com manifesto, `cli check --deep` OK; AC reprovado em 183 (SLM), 121 (GPT), 329 (Gemini), 104 (Claude) e 255 (1ª tentativa do SLM) combinações; detecções nos dois oráculos na seção 4 | 4, 8 |
 | 2026-11-04 | **Dashboard de exploração especificado (`specs/011-results-dashboard/`)**: painel só de leitura sobre os resultados da avaliação (visão geral por conjunto × cenário, detalhe teste a teste, oráculo declarado × corrigido, modelo local × comerciais) e, depois, sobre as tabelas do módulo de métricas (feature 010), sem recalcular métrica; ferramenta de exploração, não fonte dos números do TCC. Decidido (Milena): porcentagens de detecção só como prévia rotulada até existirem as métricas oficiais, uso só local (sem publicação), download apenas do CSV das tabelas; as figuras do TCC vêm só do módulo de métricas. Clarify: dados lidos ao abrir, com botão "recarregar" e a hora da leitura na tela (sem releitura automática); no detalhe de um alvo, o código dele e o `AC_ref` lado a lado com as diferenças destacadas. Plano: pacote `src/dashboard/` (Streamlit, fixado no `uv.lock`), aberto por `python -m dashboard serve` no serviço `app` com a porta publicada só em `127.0.0.1` e a telemetria desligada; camada de dados em Python puro, testável, que substitui a prévia provisória do piloto; leitura validada pelo esquema da avaliação; a página de métricas é um aviso até a feature 010. **Implementado (2026-11-05)**: Streamlit 1.66.1 (pandas 3.0.6 mantido); divergências do plano: (a) o pacote das páginas é `views/`, não `pages/`, porque o Streamlit trata uma pasta `pages/` ao lado do script como páginas automáticas; (b) além da telemetria desligada, o endereço anunciado é fixado em `localhost`, porque o Streamlit consultava o IP externo da máquina na internet ao subir. Conferido com a avaliação real de `1000_B` (conferência): cada página abriu em até 1,6 s, e o detalhe Gemini caixa-preta mostra 32 alvos pegos só pelo oráculo declarado (14 WAs e 18 mutantes). Pedido de Milena (2026-11-05): o nome completo de cada sigla e de cada coluna aparece ao passar o mouse, e há um glossário na barra lateral | 4, 5, 8 |
 | 2026-11-04 | **Avaliação das suítes especificada (`specs/009-suite-evaluation/`)**: sem curto-circuito contra o `AC_ref` (veredito e saída real por teste), curto-circuito mantido para WA/mutante, detecção sob o oráculo declarado e o corrigido pelo `AC_ref`, conjuntos exatos de detectados, "sem suíte" para `discarded_manual`, 1ª tentativa isolada do modelo local, pacote por modelo e camada no `cli check`. Clarify: erro de execução do AC e dos alvos repetido 2 vezes (só vale se repetir nas 3); piloto obrigatório de 60 combinações. Implementado: pacote `src/evaluation/`, compilação uma vez por problema, passada única para os dois oráculos, cinco conjuntos (`slm`, `gpt`, `gemini`, `claude`, `slm-attempt1`) com pacote próprio e `results.csv`. Também: a preparação do servidor do modelo local passa a ser descrita só como servidor Ollama com GPU T4, sem plataforma | 3, 4, 8 |
@@ -2364,12 +2700,7 @@ Registro datado de cada atualização, para conduzir a revisão do texto escrito
 | 2026-10-18 | **Plano da revisão 2 do dataset (`specs/007-dataset-revision/plan.md`, research R1–R8)**: `dataset revise`, revisão 1 guardada intocada, manifesto `schema_version` 2 com a proveniência, decisões dos 15 por arquivo, junção das execuções do SLM com `provenance.json`; emenda 1.8.0 proposta; achado do relatório dos mutantes com hash de dataset anterior | 1 |
 | 2026-10-18 | **Clarify da revisão 2 do dataset (`specs/007-dataset-revision/spec.md`, Clarifications)**: F1 arquivo de decisão por problema para os 15 revisados à mão; F2 execução nova do modelo local só com as combinações afetadas, com a origem marcada por combinação; F3 revisão 1 guardada como auditoria; F4 pilotos intocados e relatório dos mutantes regenerado sem regerar os mutantes | 1 |
 | 2026-10-18 | **Spec da revisão 2 do dataset (`/speckit.specify` de `specs/007-dataset-revision/`, Draft; seção 1.6.1)**: decidido pelos autores refazer o dataset com os enunciados corrigidos (D1), refazer no modelo local só as combinações afetadas (D2) e rodar GPT e Gemini com a revisão 2 (D3); emenda da constitution e quatro pontos para o clarify (F1 a F4) | 1 |
-| 2026-10-18 | **Conferência dos enunciados nos 200 problemas (`specs/006-statement-fidelity/research.md` R10)**: `check-statements` nos 200 problemas (2026-10-18): download dos 195 restantes em 13 min 12 s (rodado por Milena; nenhum `unchecked`); segunda execução sem nenhum acesso ao site e relatório byte a byte igual (SHA-256 `22d234e7…`, SC-003). O primeiro relatório tinha 188 diferenças `formula` e 274 `other` que, examinadas, eram conversões feitas pelo dataset (comandos LaTeX trocados por um símbolo) e listas que o dataset escreveu em Markdown (`* `, `1. `); a tabela de equivalências passou a ter as 16 trocas de um comando por um símbolo vistas nos pares do próprio relatório (`\leq`→`≤`, `\ldots`→`…`, `\cdot`→`⋅`, `
-ightarrow`→`→`, `
-e`/`
-eq`→`≠`, `\ge`→`≥`, `\gt`→`>`, `	imes`→`×`, `\lfloor`/`
-floor`/`\lceil`/`
-ceil`, `\sum`→`∑`, `\,`→espaço, `mod`→`mod`, além das 3 do piloto) e os itens de lista passaram a ser lidos como o dataset os escreveu; as perdas de expoente e índice não mudaram com isso. Relatório final: **83 fiéis, 117 com diferença; 152 expoentes perdidos em 79 problemas; 701 índices perdidos em 74 problemas**; 23 diferenças de fórmula em 12 problemas (mudanças de forma, como `rac{a}{b}` escrito `(a)/(b)`, `\limits`, `\max`); 36 `other` em 4 problemas (`670_D2`: a página atual tem outro texto; `1162_B` e `981_B`: barras invertidas a mais no nosso texto, em matrizes e conjuntos LaTeX; `190_A`). Contra a contagem antiga por padrão: 70 dos 71 confirmados pelo original (o 71º, `670_D2`, não pôde ser comparado porque o texto da página difere), e 9 problemas com expoente perdido que ela não via (`102_B`, `155_C`, `203_B`, `252_A`, `271_B`, `289_C`, `362_B`, `538_A`, `765_C`). `correct-statements`: 102 enunciados corrigidos (151 expoentes e 701 índices marcados), 83 sem mudança, 15 para revisão (12 por fórmula, 3 por `other`), nenhuma conferência falhou; o dataset continua igual ao manifesto (`verify --extracted`: OK) | 1, 3 |
+| 2026-10-18 | **Conferência dos enunciados nos 200 problemas (`specs/006-statement-fidelity/research.md` R10)**: `check-statements` nos 200 problemas (2026-10-18): download dos 195 restantes em 13 min 12 s (rodado por Milena; nenhum `unchecked`); segunda execução sem nenhum acesso ao site e relatório byte a byte igual (SHA-256 `22d234e7…`, SC-003). O primeiro relatório tinha 188 diferenças `formula` e 274 `other` que, examinadas, eram conversões feitas pelo dataset (comandos LaTeX trocados por um símbolo) e listas que o dataset escreveu em Markdown (`* `, `1. `); a tabela de equivalências passou a ter as 16 trocas de um comando por um símbolo vistas nos pares do próprio relatório (`\leq`→`≤`, `\ldots`→`…`, `\cdot`→`⋅`, `\rightarrow`→`→`, `\ne`/`\neq`→`≠`, `\ge`→`≥`, `\gt`→`>`, `\times`→`×`, `\lfloor`/`\rfloor`/`\lceil`/`\rceil`, `\sum`→`∑`, `\,`→espaço, `\bmod`→`mod`, além das 3 do piloto) e os itens de lista passaram a ser lidos como o dataset os escreveu; as perdas de expoente e índice não mudaram com isso. Relatório final: **83 fiéis, 117 com diferença; 152 expoentes perdidos em 79 problemas; 701 índices perdidos em 74 problemas**; 23 diferenças de fórmula em 12 problemas (mudanças de forma, como `\frac{a}{b}` escrito `(a)/(b)`, `\limits`, `\max`); 36 `other` em 4 problemas (`670_D2`: a página atual tem outro texto; `1162_B` e `981_B`: barras invertidas a mais no nosso texto, em matrizes e conjuntos LaTeX; `190_A`). Contra a contagem antiga por padrão: 70 dos 71 confirmados pelo original (o 71º, `670_D2`, não pôde ser comparado porque o texto da página difere), e 9 problemas com expoente perdido que ela não via (`102_B`, `155_C`, `203_B`, `252_A`, `271_B`, `289_C`, `362_B`, `538_A`, `765_C`). `correct-statements`: 102 enunciados corrigidos (151 expoentes e 701 índices marcados), 83 sem mudança, 15 para revisão (12 por fórmula, 3 por `other`), nenhuma conferência falhou; o dataset continua igual ao manifesto (`verify --extracted`: OK) | 1, 3 |
 | 2026-10-18 | **Conferência dos enunciados implementada; os 5 do piloto pelo comando (`specs/006-statement-fidelity/research.md` R9)**: `check-statements --problem` com os 5 do piloto (2026-10-18, revisão `9df4f0e` mais a implementação não commitada): as 5 páginas baixadas de novo pelo comando (HTTP 200, cerca de 31 s com a subida do contêiner); `161_A` 4 `lost_exponent` e 21 `lost_index`, `1_B` 2 `lost_exponent`, `15_A` 6 `lost_index`, `102_B` 1 `lost_exponent` (`10^{100000}`), `1000_B` `faithful` (formato LaTeX); nenhuma diferença `other`, `formula`, `image` ou `table` — exatamente a contagem feita à mão no piloto (SC-001). Testes do módulo `dataset`: 489 passando | 1, 3 |
 | 2026-10-18 | **Analyze da conferência dos enunciados (`specs/006-statement-fidelity`)**: pacote `data/statement_originals.zip` determinístico (ordem alfabética, data fixa); com só o pacote, confere-se o hash de cada bloco; erro definitivo do site (404, sem enunciado) só é tentado de novo com `--refetch`; com `--problem`, o resultado é só impresso e o relatório versionado vem da execução dos 200; os 5 do piloto são baixados de novo pelo comando; enunciado traduzido fica não conferido | 1 |
 | 2026-10-18 | **Plano da conferência dos enunciados (`specs/006-statement-fidelity/plan.md`, research R1–R8)**: comandos `check-statements` e `correct-statements` do módulo `dataset`; classificação das diferenças pelo elemento do original (sem lista de padrões); corrigido = texto atual com as marcações do original (S2, decidido por Milena); cópia dos blocos do enunciado versionada num pacote e páginas inteiras fora do Git (S1, decidido por Milena); equivalências das fórmulas medidas no piloto (S3) | 1, 3 |
@@ -2437,12 +2768,6 @@ ceil`, `\sum`→`∑`, `\,`→espaço, `mod`→`mod`, além das 3 do piloto) e 
 | 2026-09-24 | **Primeira história de `002-mutant-generation` implementada (`generate`, primeira ordem)**: deslocamentos como AOR, operandos de ABS/UOI e unário legal por operador pai, execuções de estabilidade sobre um binário compilado uma vez, duplicata = todo texto já avaliado (`research.md` R8 a R12); medição sobre os 200 `AC_ref.cpp` reais: mediana de 274 candidatos de primeira ordem brutos, 8 de 200 com menos de 100; medição de custo em `189_C` (aceitação de 24% nos primeiros 83 candidatos, compilação de ~1,8 s) e duas gerações independentes de `189_C` com resultado idêntico (0 de 100 mutantes divergentes, R15) e geração completa medida (795 s, 100 mutantes, 41,5% de aceitação, antes do filtro de fluxo); paralelização (R14) aprovada, implementada e validada em 8 problemas (0 de 800 mutantes divergentes, aceleração de 2,07× com 4 trabalhadores, erros de compilação em 4,5% dos candidatos); fluxo de circulação dos mutantes (quem gera / quem só recebe; caminho único `data/mutants/problems/`) fixado em 2.6. Decisão D1–D6 sem alteração | 2.2, 2.3, 2.8, 7 |
 | 2026-09-23 | **`/speckit.plan` do módulo `002-mutant-generation`**: confirmação empírica de que `tree-sitter-cpp` disambigua corretamente o `>>` de template do `>>` de operador, testada sobre um `AC_ref.cpp` real do dataset (`175_B`); escopo de ABS/UOI definido como os operandos de sítios ROR/AOR, sem precisar de inferência de tipo; MS (5.2) passa a ser calculado sobre os problemas com mutantes completos (pode ser < 200), nunca TDF/TFP. Detalhes em `specs/002-mutant-generation/{plan,research,data-model}.md` | 2.1, 5.2 |
 | 2026-09-23 | **Seção 2 reescrita (`/speckit.specify` do módulo `002-mutant-generation`)**: geração de mutantes por AST (`tree-sitter`), conjunto completo de operadores de Offutt et al. (ROR/AOR/LCR + ABS/UOI, motivado por medição de 199/200 `AC_ref.cpp` reais abaixo de 100 ocorrências dos operadores originais), mutação de ordem superior por regra determinística sem busca, base de mutação exclusivamente `AC_ref` (sem ACs adicionais do dataset de origem, D4), e arquitetura de reprodutibilidade em que o pacote de mutantes da execução final é compactado e versionado (`data/mutants.zip` + manifesto), por causa da instabilidade de margem do motor já medida em D18/D19 — isso exigiu emenda ao Princípio II da Constitution (v1.6.0). Decisões D1–D6, com proveniência completa, em `specs/002-mutant-generation/spec.md` | 2, 6, 7 |
-| 2026-09-18 | Decisões D1–D5 da spec: splits combinados, tradução como critério, `generated_tests`, flag `-Wl,--stack` removida (pilha em tempo de execução), problemas com menos de 100 WAs excluídos, sem cota por macrocategoria com alerta < 30 | 1.1, 1.2, 1.4, 6, 7 |
-| 2026-09-18 | Motor de execução único, AC também validado no motor (`validacao.json`), política de falha de AC com triagem manual (D7, D8) | 1.4, 1.5, 4, 7 |
-| 2026-09-19 | Decisões da revisão do plano: critério "sem E/S por arquivo", seed 42, manifesto em `manifests/`, motor em pacote próprio | 1.2, 1.4, 1.6, 6, 7 |
-| 2026-09-19 | Números do dataset corrigidos por medição (13.610 exemplos; `train` 13.328; 8.101 Codeforces; 118 sem rating; 1.288 elegíveis, 1.279 com E/S por arquivo removida) e funil de elegibilidade | 1.1, 1.2, 7 |
-| 2026-09-19 | Localização do motor em pacote próprio (`src/sandbox/`), decisão confirmada na revisão do plano e que faltava aqui | 1.4 |
-| 2026-09-19 | Auditoria retroativa (Princípio XI): dados medidos de disponibilidade de submissões, volume de testes e verificações de ambiente (1.7); regras operacionais do motor como PROPOSTA; revisão fixada e licença; `schema_version`, `status` e relatório versionado; evidência e mecanismo do limite de pilha; rótulo de `AC_ref` corrigido; este histórico | 1.1, 1.4–1.7, 4, 6–8 |
 | 2026-09-22 | **Reparo de WA na auditoria (D18)**: 13 WA em 12 dos 200 problemas divergiram na auditoria (comportamento indefinido ou tempo no limiar); investigada e descartada a correção por ASLR (bloqueada pelo seccomp padrão do Docker); decisão: substituição automática pelo próximo candidato não tentado, com confirmação mais forte; `dataset.validation.repair` implementado e testado | 1.4, 1.7, 8 |
 | 2026-09-22 | **Convergência aceita (D18)**: 3 rodadas de `audit` (16, 11 e 10 WA reparadas; 20 dos 200 problemas tocados ao todo); decisão dos autores de aceitar o estado atual e fazer só mais uma auditoria de fechamento antes do `package`, sem perseguir zero divergências (ruído estatístico esperado ao testar ~26.400 WA com um crivo de 2 execuções) | 1.4, 1.7, 8 |
 | 2026-09-22 | **Bug de confirmação corrigido (D18)**: a segunda execução real do `audit`, sobre o dataset já reparado, achou 8 das 13 WA reparadas (62%) divergindo de novo; a causa era um bug na confirmação (só duas de quatro chamadas eram de fato comparadas, e o valor gravado vinha de uma chamada nunca conferida); corrigido para exigir que todas as passadas concordem com a primeira, e o número de passadas subiu de 2 para 3 (6 execuções); teste de regressão específico | 1.4, 8 |
@@ -2450,7 +2775,7 @@ ceil`, `\sum`→`∑`, `\,`→espaço, `mod`→`mod`, além das 3 do piloto) e 
 | 2026-09-22 | **Empacotamento e verificação implementados (T082 a T092)**: `package` e `verify`/`scripts/verify_dataset.py` implementados exatamente como já decidido em 1.6 (zip determinístico, manifesto SHA-256, `--allow-partial`, aviso de 95 MB), sem nenhuma divergência do desenho encontrada; 47 testes automatizados novos. Ainda não rodaram sobre o dataset real — falta a auditoria de fechamento (T093) antes; o tamanho real do zip e o hash continuam pendentes | 1.6, 8 |
 | 2026-09-22 | **Empacotamento real e verificação pós-clonagem (T093/T094, revisão `9b87d7e`)**: quarta rodada de `audit` de fechamento sem reparo novo; `package` gerou o `data/dataset.zip` real (200 problemas, 12.891.474 bytes ≈ 12,3 MiB, 21.000 arquivos, 29% acima da estimativa de ~10 MB mas nem de longe uma ordem de grandeza) e o manifesto (hash do zip `bd5398a8…af0c32`); `verify` deu `OK`; cenário de pós-clonagem (quickstart Nível 6) confirmado: `unzip` e `python -m zipfile -e` produzem árvores idênticas, e os três casos de adulteração de propósito (byte alterado, arquivo removido, arquivo extra) foram apontados corretamente pela verificação | 1.6, 8 |
 | 2026-09-22 | **Checagem de sincronização de fechamento (T099)**: `check_docs_sync.py --closing` (C1 a C6, ambos os módulos) sai com `0`; todas as decisões D1 a D19 têm linha em `sync-matrix.json` com os termos presentes neste documento; `src/dataset/README.md` passa a `Status: implementado` (as sete fases do ciclo — `extract`, `report`, `selfcheck`, `validate`, `audit`, `package`, `verify` — estão documentadas, carimbadas e executadas de verdade); nenhuma linha `pendente` resta | 1–8 |
-| 2026-09-22 | **Feature `001-dataset-extraction` concluída (T103)**: `spec.md` passa a `Status: Implemented`; 649 testes automatizados (0 falhas), lint e formatação limpos (T095/T096); os 8 níveis do `quickstart.md` validados e registrados (T097); revisão de conformidade da documentação e da Constitution feitas (T098/T102 — única divergência: o fluxo real usou commits diretos na `main`, revisados continuamente pelo autor, em vez de PR; revisor Rafael, 2026-09-22). Módulos `dataset` e `sandbox` ambos `Status: implementado`. O que resta do experimento (mutação, chamadas de IA, avaliação, métricas, orquestrador) é escopo de features futuras, ainda sem spec | 1–8 |
+| 2026-09-22 | **Feature `001-dataset-extraction` concluída (T103)**: `spec.md` passa a `Status: Implemented`; 649 testes automatizados (0 falhas), lint e formatação limpos (T095/T096); os 8 níveis do `quickstart.md` validados e registrados (T097); revisão de conformidade da documentação e da Constitution feitas (T098/T102 — única divergência: o fluxo real usou commits diretos na `main`, revisados continuamente pelo autor, em vez de PR; revisor Rafael, 2026-09-22). Módulos `dataset` e `sandbox` ambos `Status: implementado`. O que resta do experimento (mutação, chamadas de IA, avaliação, métricas, orquestrador) é escopo de features futuras, ainda sem spec (o orquestrador foi descartado em 2026-11-14, ver acima) | 1–8 |
 | 2026-09-21 | **Validação completa (T072, parte `validate`)**: 200 de 200 em 5 h 06 min (4 processos), 264 problemas processados (75,8% completos), 21 descartados, 43 em triagem adiada (16,3%; causas em 1.7); amostra 98/61/41 por macrocategoria e 198 `train` + 2 `test`; alerta de menos de 30 não disparou; 84,6% das candidatas viraram WA; `audit` ainda pendente | 1.2, 1.4, 1.7 |
 | 2026-09-21 | **Triagem manual de AC adiada (D17)**: os problemas com o `AC_ref` reprovado seguem interrompidos e registrados, mas só serão inspecionados se a meta de 200 não for atingida com os demais; `validate` sai com 0 sempre que a meta é atingida; explicação de como os 200 problemas são escolhidos (pool embaralhado com a seed 42, os 200 primeiros que completam); item 16 resolvido | 1.4, 6 |
 | 2026-09-21 | **Piloto de validação (T071)**: 14 problemas do `train` (10 completos, 3 em triagem, 1 descartado); 85,5% das candidatas viraram WA (risco de poucas WA não se materializou), mediana de 102 s por problema completo, sem déficit projetado; critério de reabertura de D13 não atingido (regra 2: 7,1%; regra 5: 0%); descoberta de que `generated_tests` do dataset podem ter entradas fora das restrições; item 15 resolvido e item 16 (volume de triagens) aberto | 1.4, 1.7, 6 |
@@ -2460,3 +2785,9 @@ ceil`, `\sum`→`∑`, `\,`→espaço, `mod`→`mod`, além das 3 do piloto) e 
 | 2026-09-20 | Fluxo de circulação do dataset entre os autores (geração única, distribuição por zip e manifesto, recebimento sem extração; `data/work/` local e sem limpeza automática) | 1.6 |
 | 2026-09-20 | Estimativa analítica da distribuição por macrocategoria sob a seleção sem cota (D5) e limiar de taxa de validação que dispararia o alerta de 30; passo `mkdir -p data` antes do primeiro `docker compose run` (o Docker cria o diretório como root se ele não existir) | 1.4, 1.7 |
 | 2026-09-19 | Diretório de trabalho `data/work/` com permissão `0700` para o código de terceiros não o acessar (D15); a premissa "não acessa `data/`" passa a valer para `data/work/` | 1.4, 1.7, 7 |
+| 2026-09-19 | Decisões da revisão do plano: critério "sem E/S por arquivo", seed 42, manifesto em `manifests/`, motor em pacote próprio | 1.2, 1.4, 1.6, 6, 7 |
+| 2026-09-19 | Números do dataset corrigidos por medição (13.610 exemplos; `train` 13.328; 8.101 Codeforces; 118 sem rating; 1.288 elegíveis, 1.279 com E/S por arquivo removida) e funil de elegibilidade | 1.1, 1.2, 7 |
+| 2026-09-19 | Localização do motor em pacote próprio (`src/sandbox/`), decisão confirmada na revisão do plano e que faltava aqui | 1.4 |
+| 2026-09-19 | Auditoria retroativa (Princípio XI): dados medidos de disponibilidade de submissões, volume de testes e verificações de ambiente (1.7); regras operacionais do motor como PROPOSTA; revisão fixada e licença; `schema_version`, `status` e relatório versionado; evidência e mecanismo do limite de pilha; rótulo de `AC_ref` corrigido; este histórico | 1.1, 1.4–1.7, 4, 6–8 |
+| 2026-09-18 | Decisões D1–D5 da spec: splits combinados, tradução como critério, `generated_tests`, flag `-Wl,--stack` removida (pilha em tempo de execução), problemas com menos de 100 WAs excluídos, sem cota por macrocategoria com alerta < 30 | 1.1, 1.2, 1.4, 6, 7 |
+| 2026-09-18 | Motor de execução único, AC também validado no motor (`validacao.json`), política de falha de AC com triagem manual (D7, D8) | 1.4, 1.5, 4, 7 |

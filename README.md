@@ -10,7 +10,7 @@ teste unitários em C++.
 > "Módulos e estado", abaixo); este documento é o ponto de partida e o índice, não o detalhe de
 > cada módulo.
 >
-> **Estado atual (2026-11-13)**: **o experimento terminou.** Todos os artefatos foram gerados de verdade
+> **Estado atual (2026-11-14)**: **o experimento terminou.** Todos os artefatos foram gerados de verdade
 > e estão neste repositório, cada um com o seu manifesto de integridade (SHA-256):
 >
 > | Artefato | Pacote | Conteúdo |
@@ -90,9 +90,9 @@ na avaliação, para que nenhum código do dataset falhe no motor só durante o 
 | `src/mutation/` | gera 100 mutantes por problema e os empacota | seção 2 | **implementado**: 200 problemas, 20.000 mutantes, pacote versionado (~9 MiB) | [README](src/mutation/README.md) |
 | `src/ai_clients/` | chamadas stateless aos 3 modelos comerciais e ao modelo local | seção 3 | **implementado**: execução completa e pacote versionado nos quatro modelos — local (600 de 600 combinações, revisão 2 do dataset), GPT-5.4-mini, Gemini 3.8 Flash e Claude Haiku 5.5 (600 combinações cada) | [README](src/ai_clients/README.md) |
 | `src/evaluation/` | executa as suítes contra AC, WAs e mutantes e grava os vereditos | seção 4 | **implementado**: execução completa (5 conjuntos × 600 combinações) e pacotes versionados | [README](src/evaluation/README.md) |
-| `src/dashboard/` | painel no navegador, só de leitura, sobre os resultados da avaliação | seção 8 | **em implementação**: código e testes prontos; conferência com os autores pendente | [README](src/dashboard/README.md) |
-| `src/metrics/` | TDF, MS, TFP, IIC, complementares, estatística e figuras | seção 5 | **em implementação**: tabelas e figuras calculadas sobre a avaliação completa; conferência com os autores pendente | [README](src/metrics/README.md) |
-| `src/cli/` | comandos que cruzam módulos (hoje `check`) e, no futuro, o orquestrador do experimento | — | **em implementação**: `check` pronto (dataset, mutantes e as suítes dos quatro modelos); o orquestrador ainda sem especificação | [README](src/cli/README.md) |
+| `src/dashboard/` | painel no navegador, só de leitura, sobre os resultados da avaliação | seções 5.8 e 8 | **implementado**: painel de quatro páginas (o experimento, as métricas, a rastreabilidade e a avaliação) sobre os resultados finais | [README](src/dashboard/README.md) |
+| `src/metrics/` | TDF, MS, TFP, IIC, complementares, estatística e figuras | seção 5 | **implementado**: tabelas calculadas sobre a avaliação completa e empacotadas (`data/metrics.zip`); figuras desenhadas sob demanda | [README](src/metrics/README.md) |
+| `src/cli/` | comando que cruza módulos: `check`, a conferência de consistência entre os artefatos | seção 0.1 | **implementado**: `check` confere dataset, mutantes, suítes dos quatro modelos e as cinco avaliações | [README](src/cli/README.md) |
 
 O formato dos READMEs de módulo é o de [`docs/template-modulo.md`](docs/template-modulo.md).
 
@@ -299,7 +299,7 @@ preparação", abaixo.
 |---|---|---|
 | `permission denied` com `docker.sock` | seu usuário não está no grupo `docker` | `sudo usermod -aG docker "$USER"` e reinicie a sessão do sistema |
 | `'compose' is not a docker command` | falta o plugin Compose v2 | instale o `docker-compose-plugin` (página de instalação do Docker acima) |
-| `no configuration file provided: not found` | você não está na pasta do repositório | `cd tcc-testgen-pipeline` |
+| `no configuration file provided: not found` | você não está na pasta do repositório | `cd ai-testgen-evaluator` (o nome da pasta criada pelo `git clone`) |
 | `PermissionError` ao gravar em `data/`, ou arquivos em `data/` que você não consegue apagar | `data/` foi criada por `root` (Passo 3 pulado) | `sudo chown -R "$(id -u):$(id -g)" data` |
 | um comando termina com falha de rede (código de saída `3`) | queda de conexão | rode o **mesmo comando** de novo: a maioria dos comandos retoma de onde parou |
 | você apertou Ctrl+C no meio de um comando | interrupção pedida por você | rode o mesmo comando de novo; é seguro |
@@ -313,10 +313,10 @@ Para ver o código de saída do último comando: `echo $?` (`0` é sucesso).
 | `dataset` | obter o dataset (o caso comum: descompactar e conferir) ou gerá-lo do zero | [README do módulo](src/dataset/README.md) |
 | `sandbox` | sem uso direto: é a biblioteca de execução isolada; só se opera diretamente para conferir a saúde do motor | [README do módulo](src/sandbox/README.md) |
 | `mutation` | obter os mutantes (descompactar e conferir) ou gerá-los do zero | [README do módulo](src/mutation/README.md) |
-| `cli` | conferir se dataset, mutantes e as suítes dos quatro modelos estão consistentes entre si | [README do módulo](src/cli/README.md) |
+| `cli` | conferir se dataset, mutantes, suítes dos quatro modelos e avaliações estão consistentes entre si | [README do módulo](src/cli/README.md) |
 | `ai_clients` | obter as suítes de teste dos quatro modelos (descompactar e conferir) ou gerá-las do zero (a preparação do servidor Ollama com GPU está no README do módulo) | [README do módulo](src/ai_clients/README.md) |
 | `evaluation` | executar as suítes dos quatro modelos contra AC, WAs e mutantes (do zero) ou descompactar e conferir o resultado | [README do módulo](src/evaluation/README.md) |
-| `dashboard` | explorar os resultados da avaliação no navegador (visão geral, uma combinação teste a teste, comparações); só lê | [README do módulo](src/dashboard/README.md) |
+| `dashboard` | explorar os resultados no navegador (o experimento, as métricas, a rastreabilidade de um número até o teste, a avaliação); só lê | [README do módulo](src/dashboard/README.md) |
 | `metrics` | calcular as métricas, os testes estatísticos e as figuras do texto (do zero) ou descompactar e conferir as tabelas | [README do módulo](src/metrics/README.md) |
 
 Siga os módulos **nesta ordem**, porque cada um depende do anterior:
@@ -337,7 +337,8 @@ comandos, para não haver duas fontes que podem divergir.
 
 ## Conferir se os artefatos estão consistentes entre si
 
-Cada módulo confere o seu próprio artefato contra o manifesto (`dataset verify`, `mutation verify`).
+Cada módulo confere o seu próprio artefato contra o manifesto (`dataset verify`, `mutation verify`,
+`ai_clients verify`, `evaluation verify`, `metrics verify`).
 Para conferir o **conjunto** — se o dataset descompactado tem os 200 problemas e todos os arquivos
 de cada um, se os mutantes têm exatamente 100 por problema, se as suítes de cada modelo (o local,
 o GPT, o Gemini e o Claude) e os resultados de cada conjunto de avaliação têm os 3 cenários de cada
@@ -350,8 +351,8 @@ docker compose run --rm app python -m cli check --deep   # e também os hashes d
 ```
 
 Ele só lê, não olha o conteúdo dos códigos e termina com código `0` (sem falhas) ou `1`. Rode-o
-depois de descompactar o dataset e os mutantes e **antes de qualquer etapa que consuma os dados** (o
-envio às IAs e a execução final do experimento). O que ele confere e como estendê-lo estão em
+depois de descompactar ou gerar cada artefato e **antes de qualquer etapa que consuma os dados** (o
+envio às IAs, a avaliação e as métricas; estas duas últimas fazem essa conferência sozinhas). O que ele confere e como estendê-lo estão em
 [`docs/verificacao-consistencia.md`](docs/verificacao-consistencia.md).
 
 ## Reprodutibilidade
@@ -413,12 +414,12 @@ está no README dele; `--help` de qualquer comando lista as opções de fato dis
 
 ### Módulo `ai_clients` ([README](src/ai_clients/README.md))
 
-Implementado para o modelo local: a execução completa gerou as 600 combinações com suíte, e o
-pacote `data/slm_suites.zip` (com o manifesto e o relatório) está no repositório; para usá-lo, basta
-descompactar e rodar o `verify`. A geração precisa de `OLLAMA_BASE_URL` e `OLLAMA_HARDWARE_LABEL` no `.env` (ver
-`.env.example`) e de um servidor Ollama no ar (preparação no README do módulo). Os três modelos
-comerciais usam os mesmos comandos com `--model gpt`, `--model gemini` ou `--model claude`, precisam da chave de API
-no `.env` e nunca fazem uma chamada paga sem `--confirm-spend <US$>`, que também é o teto de gasto.
+O pacote de cada modelo (`data/<modelo>_suites.zip`, com o manifesto e o relatório) está no
+repositório; para usá-lo, basta descompactar e rodar o `verify`. Gerar de novo o modelo local precisa
+de `OLLAMA_BASE_URL` e `OLLAMA_HARDWARE_LABEL` no `.env` (ver `.env.example`) e de um servidor Ollama
+no ar (preparação no README do módulo). Os três modelos comerciais usam os mesmos comandos com
+`--model gpt`, `--model gemini` ou `--model claude`, precisam da chave de API no `.env` e nunca fazem
+uma chamada paga sem `--confirm-spend <US$>`, que também é o teto de gasto.
 
 | Comando | Serviço | O que faz / variações |
 |---|---|---|

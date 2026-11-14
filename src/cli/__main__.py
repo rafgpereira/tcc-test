@@ -54,7 +54,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command")
     check = subparsers.add_parser(
         "check",
-        help="check that dataset, mutants and SLM suites are complete and 1:1 (reads only)",
+        help="check that dataset, mutants, the suites of the four models and the evaluations are complete and 1:1 (reads only)",
         description="Check that the artifacts of the pipeline agree with each other.",
     )
     _configure_check(check)

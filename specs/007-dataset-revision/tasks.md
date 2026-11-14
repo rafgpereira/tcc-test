@@ -175,7 +175,7 @@ combinações, e o `cli check` passa.
 
   Registrar quantos mudaram (automáticos e manuais), quantos foram mantidos e o tamanho do zip novo; carimbar `revise`.
   **Feito (2026-10-18)**: 104 alterados (102 automáticos, 2 manuais), 13 mantidos; zip `5a9b66b8…`, 12.892.995 bytes; detalhes na metodologia 1.6.1.
-- [X] T020 📌 PROPAGAR — **Mutantes (F4)**: `python -m mutation report` (aponta para a revisão 2) e `python -m mutation verify` (`OK`, sem mudança no pacote); registrar que o relatório antigo apontava para `6b3628c3…` (S4).
+- [X] T020 📌 PROPAGAR — **Mutantes (F4)**: `python -m mutation verify` (`OK`, sem mudança no pacote); registrar que o relatório aponta para `6b3628c3…` (S4). **Feito de outro modo (2026-10-18, decisão de Milena)**: o `python -m mutation report` **não foi rodado** (previsto no plano original); os mutantes só dependem do `AC_ref.cpp`, que não mudou, e `manifests/mutation_report.json` guarda o manifesto de dataset da época da geração dos mutantes. Registrado na metodologia (1.6.1).
 - [X] T021 📌 PROPAGAR — **SLM (D2, F2)**:
   - `mv data/suites/slm data/suites/slm-rev1` (o `revise` imprime esse passo); conferir que `data/suites/slm` não existe antes do primeiro `generate` e que `data/suites/slm-rev1` não existia antes do `mv`;
   - alternar o `generate` e o `execute` que o `revise` imprimiu até o fim;

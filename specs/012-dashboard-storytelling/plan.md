@@ -4,7 +4,7 @@
 **Spec**: [spec.md](spec.md)
 
 **Input**: Feature specification from `specs/012-dashboard-storytelling/spec.md`; roteiro
-`docs/roteiro-painel.md`; skill *visual-storytelling-design* (passo 3 em
+`docs/roteiro-painel.md` (consolidado na metodologia, seção do painel); skill *visual-storytelling-design* (passo 3 em
 [contracts/narrative.md](contracts/narrative.md), passo 4 em R10).
 
 ## Summary

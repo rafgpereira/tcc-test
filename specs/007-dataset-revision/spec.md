@@ -14,7 +14,7 @@ pelos autores com o original ao lado; os 83 fiéis e todos os outros arquivos fi
 dataset.zip e um manifesto novos (revisão 2), com a proveniência da revisão [...], e precisa de
 emenda da constitution [...]. Efeitos: o SLM refaz só as combinações afetadas [...]; Gemini e GPT
 ainda não começaram a execução completa e rodam direto com a revisão 2; mutantes não mudam [...]; o
-cli check e todos os run.json passam a apontar para o manifesto novo. A decidir no clarify: [...]"
+cli check e todos os run.json passam a apontar para o manifesto novo. Decidido no clarify (ver Clarifications): [...]"
 
 ## Contexto
 
@@ -48,9 +48,12 @@ No mesmo dia, os autores decidiram:
   como arquivo de auditoria (o pacote e o manifesto da revisão 1); os comandos usam só a revisão 2
   (F3; FR-003).
 - Q: O que acontece com os relatórios dos pilotos e com o relatório dos mutantes, que guardam o
-  hash da revisão 1? → A: Os pilotos ficam intocados (registram a revisão 1); o relatório dos
-  mutantes é regenerado para a revisão 2, sem regerar os mutantes, e o pacote dos mutantes é
-  conferido arquivo a arquivo e fica igual (F4; FR-010).
+  hash da revisão 1? → A: Os pilotos ficam intocados (registram a revisão 1). Os mutantes e o
+  pacote dos mutantes não mudam e são conferidos arquivo a arquivo (`mutation verify`). Decidido
+  inicialmente regenerar o relatório dos mutantes; **na execução, por decisão de Milena
+  (2026-10-18), o `mutation report` não foi rodado**: os mutantes só dependem do `AC_ref.cpp`, que
+  não mudou, e o relatório guarda o manifesto de dataset da época em que os mutantes foram
+  gerados (F4; FR-010).
 
 ## Decisões já tomadas pelos autores (2026-10-18)
 
@@ -77,9 +80,12 @@ Os quatro pontos foram decididos em 2026-10-18 (Clarifications acima).
   (o pacote e o manifesto da revisão 1, renomeados), para que os números já registrados continuem
   verificáveis; os comandos usam só a revisão 2.
 - **F4 — Pilotos e relatório dos mutantes.** **DECIDIDA em 2026-10-18**: os relatórios dos pilotos
-  ficam como estão (registram a revisão 1, que é a verdade da época); o relatório dos mutantes é
-  regenerado apontando para a revisão 2, sem regerar os mutantes (que só dependem do código de
-  referência, que não muda), e o pacote dos mutantes é conferido e fica igual.
+  ficam como estão (registram a revisão 1, que é a verdade da época); os mutantes não são
+  regerados (só dependem do código de referência, que não muda) e o pacote dos mutantes é conferido
+  e fica igual. **Emenda (2026-10-18, Milena, na execução)**: o `mutation report` também não foi
+  rodado; `manifests/mutation_report.json` fica como estava e guarda o hash do manifesto de dataset
+  da época da geração dos mutantes (`6b3628c3…`), que continua valendo porque nenhum `AC_ref.cpp`
+  mudou. Na época só o modelo local tinha rodado; os comerciais já nasceram sobre a revisão 2.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -189,9 +195,10 @@ nenhuma suíte final mistura revisões sem dizer de qual veio.
 - **FR-007**: A execução completa dos modelos comerciais MUST usar a revisão 2 (D3).
 - **FR-008**: A mudança de regra sobre o dataset (extração e validação únicas) MUST ser registrada
   por emenda da constitution antes da geração da revisão 2.
-- **FR-010**: O relatório dos mutantes MUST ser regenerado para a revisão 2 sem regerar os
-  mutantes, e o pacote dos mutantes MUST ser conferido contra o seu manifesto e ficar igual; os
-  relatórios dos pilotos MUST ficar intocados, registrando a revisão 1 (F4).
+- **FR-010**: Os mutantes MUST NOT ser regerados e o pacote dos mutantes MUST ser conferido contra
+  o seu manifesto e ficar igual; o relatório dos mutantes não é regenerado (emenda de F4, Milena,
+  2026-10-18: guarda o manifesto de dataset da época da geração, válido porque nenhum `AC_ref.cpp`
+  mudou); os relatórios dos pilotos MUST ficar intocados, registrando a revisão 1 (F4).
 - **FR-009**: A documentação de uso, a metodologia e a lista de limitações do TCC MUST descrever a
   revisão 2, a correção aplicada e o que ela garante e não garante.
 

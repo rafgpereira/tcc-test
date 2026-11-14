@@ -207,8 +207,8 @@ Duas pastas parecidas, com finalidades diferentes:
   há menos, então a amostra vem sobretudo do `train`. `validate --target 10` estima isso antes.
 - Problemas em `pending_triage` só são inspecionados manualmente se a meta de 200 não for atingida.
 - A auditoria repara automaticamente falhas instáveis (comportamento indefinido ou tempo no limiar
-  do limite); afetou cerca de 1 em cada 10 problemas na única execução completa, sempre com um
-  substituto equivalente.
+  do limite); medido em 2026-09-22: 20 dos 200 problemas tiveram alguma falha trocada, sempre por um
+  substituto equivalente (metodologia, seção 1.4).
 - Retomar não muda o resultado, exceto o carimbo de data/hora da extração e o tempo de CPU medido
   (`max_cpu_time_s` em `validacao.json`), que variam com o hardware.
 - O zip final tem cerca de 12 MiB (o GitHub recusa acima de 100 MB). O hash do zip depende da

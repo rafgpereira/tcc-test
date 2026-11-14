@@ -8,7 +8,7 @@
 
 **Input**: User description: "Módulo de avaliação (seção 4 da metodologia): executa cada suíte dos 4
 modelos × 3 cenários × 200 problemas contra AC_ref, os 100 WAs e os mutantes, no sandbox. Requisitos
-da seção F de docs/metricas-referencia.md: curto-circuito mantido para WA/mutante; sem curto-circuito
+da seção F de docs/metricas-referencia.md (consolidado na metodologia, seção 5): curto-circuito mantido para WA/mutante; sem curto-circuito
 para o AC, com veredito por teste (passou / saída diferente / RE-TLE) e a saída real do AC por
 entrada; conjunto exato de WAs e mutantes mortos por suíte (não só contagem); avaliar um attempt_N
 isolado do SLM além do suite.json final. Entra no cli check."
@@ -22,7 +22,7 @@ suítes, juntando a revisão 1 e a refeita na revisão 2 por `provenance.json`) 
 WAs validados e os limites; o pacote de mutantes traz 100 mutantes por problema.
 
 A seção 4 da metodologia descreve a avaliação só em curto-circuito para todo código-alvo e um CSV
-de saída, sem spec. A proposta consolidada de métricas (`docs/metricas-referencia.md`, confirmada
+de saída, sem spec. A proposta consolidada de métricas (`docs/metricas-referencia.md` (consolidado na metodologia, seção 5), confirmada
 pelos autores em 2026-11-04, sem C.5 e C.6) exige mais do que isso: o veredito de **cada** teste
 contra o `AC_ref`, a saída real do `AC_ref` em cada entrada, os conjuntos exatos de WAs e mutantes
 detectados e a avaliação da 1ª tentativa do modelo local sem o filtro das 12 tentativas.

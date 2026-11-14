@@ -1,6 +1,6 @@
 # Módulo `metrics` (métricas de avaliação)
 
-> **Status**: em implementação (código e testes prontos; conferência com os autores pendente) · **Metodologia**: `docs/metodologia-referencia.md`, seção 5
+> **Status**: implementado · **Metodologia**: `docs/metodologia-referencia.md`, seção 5
 
 ## (a) Propósito
 
@@ -9,11 +9,9 @@ Calcula, a partir dos resultados da avaliação das suítes, as métricas do tra
 ## (b) Como executar
 
 **Antes de começar** (uma vez por máquina): faça os passos 1 a 5 do
-[guia de execução do README da raiz](../../README.md#guia-de-execução-do-clone-ao-primeiro-comando)
-e tenha descompactados o dataset, as suítes dos quatro modelos e os cinco pacotes de avaliação
-(README dos módulos [`dataset`](../dataset/README.md), [`ai_clients`](../ai_clients/README.md) e
-[`evaluation`](../evaluation/README.md), Cenário B). Tudo roda no serviço `app`; nada aqui executa
-código de terceiros nem chama IA.
+[guia de execução do README da raiz](../../README.md#guia-de-execução-do-clone-ao-primeiro-comando).
+Tudo roda no serviço `app` (o serviço do Docker Compose que tem rede e não executa código de
+terceiros); nada aqui executa C++ nem chama IA.
 
 **O que sai** (todas as taxas em %, por conjunto e cenário):
 
@@ -29,6 +27,20 @@ Todo número das métricas citado no texto do trabalho sai destas tabelas.
 
 ### Cenário A — Rodar do zero
 
+Pré-requisito: o dataset, os mutantes, as suítes dos quatro modelos e as cinco avaliações
+descompactados em `data/` (ou gerados do zero, pelos módulos [`dataset`](../dataset/README.md),
+[`mutation`](../mutation/README.md), [`ai_clients`](../ai_clients/README.md) e
+[`evaluation`](../evaluation/README.md)). Para só descompactar:
+
+```bash
+for z in dataset mutants slm_suites gpt_suites gemini_suites claude_suites \
+         evaluation_slm evaluation_gpt evaluation_gemini evaluation_claude evaluation_slm-attempt1; do
+  unzip -q data/$z.zip -d data/
+done
+```
+
+Depois:
+
 ```bash
 docker compose run --rm app python -m metrics compute
 docker compose run --rm app python -m metrics figures
@@ -39,28 +51,22 @@ docker compose run --rm app python -m metrics verify --extracted data/metrics
 1. **`compute`** confere antes que as cinco avaliações estão completas e que `cli check --deep`
    passa no dataset, nas suítes e nas avaliações (senão para com `1` e não grava nada); grava as
    tabelas em `data/metrics/` (de uma vez: uma interrupção não deixa metade) e imprime TDF, MS,
-   TFP, TC, TDF\* e MS\* de cada conjunto e cenário. Rodar de novo dá os mesmos arquivos.
-2. **`figures`** (opcional) desenha os gráficos em `data/metrics/figures/`, em PNG, SVG e PDF,
-   para quem quiser os arquivos fora do painel; eles não entram no pacote nem no repositório. O
-   placar (`scoreboard`) e o placar por cenário (`scoreboard_scenarios`), a detecção de falhas reais (`tdf_by_model`) e de mutantes
-   (`ms_declared_vs_corrected`), TDF × TDF\* por cenário, a troca detecta × reprova o código correto
-   (`tradeoff`), falsos positivos por causa, a variação entre cenários (`scenario_shift`), o IIC
-   (`iic_diverging` e, problema a problema, `iic_distribution`; os dois pelo gabarito do AC, ou
-   pelo da IA com `gabarito-ia` no nome do arquivo), o custo por 1.000 WAs detectados
-   (`cost_per_detection`) e o guia de escolha (`choice_guide`). O título de cada figura é a
-   conclusão dos números (por exemplo, "Gemini encontra 90,1% das falhas reais") e muda com os
-   filtros. É o mesmo desenho do painel, no tema claro. Com filtros, o nome do arquivo e o
-   subtítulo da figura dizem o filtro (por exemplo, `scoreboard__rating-1600.png`), para qualquer
-   figura poder ser refeita. O custo não se divide por problema: com um filtro por problema,
-   macrocategoria, rating ou status, a figura de custo mostra o valor de todos os problemas e diz
-   isso no subtítulo. PNG e SVG saem iguais byte a byte a cada execução; o PDF tem o mesmo
-   desenho, mas não sai igual byte a byte.
+   TFP, TC, TDF\* e MS\* de cada conjunto e cenário, terminando em `tables: data/metrics`. Rodar de
+   novo dá os mesmos arquivos.
+2. **`figures`** (opcional) desenha 12 gráficos em `data/metrics/figures/`, em PNG, SVG e PDF, para
+   quem quiser os arquivos fora do painel (o painel desenha os mesmos, interativos): `scoreboard`
+   e `scoreboard_scenarios` (placar), `tdf_by_model`, `tdf_declared_vs_corrected`,
+   `ms_declared_vs_corrected`, `tradeoff`, `tfp_by_cause`, `scenario_shift`, `iic_diverging`,
+   `iic_distribution`, `cost_per_detection` e `choice_guide`. O título de cada figura é a conclusão
+   dos números e muda com os filtros. Com filtros, o nome do arquivo e o subtítulo dizem o filtro
+   (por exemplo, `scoreboard__rating-1600.png`), para qualquer figura poder ser refeita. O custo
+   não se divide por problema: com um filtro por problema, macrocategoria, rating ou status, a
+   figura de custo mostra o valor de todos os problemas e diz isso no subtítulo. PNG e SVG saem
+   iguais byte a byte a cada execução; o PDF tem o mesmo desenho, mas não sai igual byte a byte.
+   As figuras não entram no pacote nem no repositório.
 3. **`package`** grava `data/metrics.zip` (as tabelas e o `run.json`, nunca as figuras) e
-   `manifests/metrics.manifest.json` (recusa se faltar alguma tabela); **`verify`** confere o zip e a pasta: `OK`.
-
-As mesmas tabelas e os mesmos gráficos, interativos e com filtros, aparecem na página **As
-métricas** do painel (README do módulo [`dashboard`](../dashboard/README.md)), que desenha cada
-gráfico das tabelas; o menu do próprio gráfico o salva em PNG ou SVG.
+   `manifests/metrics.manifest.json` (recusa se faltar alguma tabela); rodar de novo sobre as mesmas
+   tabelas dá o mesmo zip. **`verify`** confere o zip e a pasta e imprime `OK`.
 
 ### Cenário B — Descompactar o que já existe
 
@@ -70,24 +76,30 @@ unzip data/metrics.zip -d data/
 docker compose run --rm app python -m metrics verify --extracted data/metrics
 ```
 
+Esperado: `OK`. As tabelas ficam em `data/metrics/*.csv`; as figuras desenham-se delas com
+`python -m metrics figures` ou na página **As métricas** do painel (README do módulo
+[`dashboard`](../dashboard/README.md)).
+
 ### Comandos
 
 | Comando | Serviço | O que faz / variações |
 |---|---|---|
 | `python -m metrics compute` | `app` | calcula as tabelas; `--evaluation-dir DIR` (padrão `data/evaluation`). Códigos: `0`; `1` avaliação incompleta ou `cli check` com falha |
-| `python -m metrics figures` | `app` | desenha as figuras; `--figure NOME` (repetível; padrão todas), filtros `--macrocategoria M`, `--rating R`, `--status S`, `--set S`, `--scenario C`, `--problem ID` (repetíveis; nunca um problema só), `--format png,svg,pdf` (padrão os três), `--output-dir DIR`. Códigos: `0`; `1` tabelas ausentes; `2` filtro inválido |
+| `python -m metrics figures` | `app` | desenha as figuras; `--figure NOME` (repetível; padrão todas), filtros `--macrocategoria M`, `--rating R`, `--status S`, `--set S` (`slm`, `gpt`, `gemini`, `claude`, `slm-attempt1`), `--scenario C` (`black_box`, `white_box`, `hybrid`), `--problem ID` (repetíveis; nunca um problema só), `--format png,svg,pdf` (padrão os três), `--output-dir DIR`. Códigos: `0`; `1` tabelas ausentes; `2` filtro inválido |
 | `python -m metrics package` | `app` | zip e manifesto |
 | `python -m metrics verify` | `app` | confere o zip; `--extracted DIR` também a pasta |
+| `unzip data/metrics.zip -d data/` | (host) | descompacta as tabelas em `data/metrics/` |
 | `pytest tests/metrics` | `sandbox` | testes do módulo (casos conhecidos de cada métrica) |
 
 ### Se algo der errado
 
 | O que aparece | O que fazer |
 |---|---|
-| `error: the evaluation of <conjunto> is not complete` (`1`) | termine a avaliação e rode `python -m evaluation report` |
+| `ModuleNotFoundError: No module named 'altair'` | a imagem é antiga: `docker compose build` |
+| `error: the evaluation of <conjunto> is not complete` (`1`) | descompacte de novo `data/evaluation_<conjunto>.zip` (ou termine a avaliação e rode `python -m evaluation report`) |
 | ``error: `cli check --deep` failed`` (`1`) | descompacte de novo o artefato apontado |
-| `error: metrics tables not found` (`1`) | rode `compute` antes de `figures` |
-| `a cut with a single problem has no metric` (`2`) | escolha um filtro com mais de um problema; para olhar um problema, use a página Combinação do painel |
+| `error: metrics tables not found` (`1`) | rode `compute` (ou descompacte `data/metrics.zip`) antes de `figures` |
+| `a cut with a single problem has no metric` (`2`) | escolha um filtro com mais de um problema; para olhar um problema, use a ficha do problema na página Rastreabilidade do painel |
 
 ## (c) Entradas esperadas
 
@@ -109,6 +121,7 @@ docker compose run --rm app python -m metrics verify --extracted data/metrics
 
 - Python 3.11, pandas, scipy, Altair e vl-convert (desenho e exportação das figuras), fixados no `uv.lock`, na imagem (`docker compose build`).
 - Serviço `app`; nenhuma variável de ambiente nem segredo.
+- Os pacotes de avaliação, o dataset, os mutantes e as suítes descompactados (Cenário A).
 
 ## (f) Limitações conhecidas
 
@@ -118,6 +131,8 @@ docker compose run --rm app python -m metrics verify --extracted data/metrics
   fora do escopo.
 - O custo por cenário dos modelos comerciais é o do relatório de geração; o tempo por cenário é a
   soma das latências registradas nas tentativas.
+- Medido em 2026-11-14: `verify --extracted` leva cerca de 6 s e `compute` cerca de 33 s, sobre a
+  avaliação completa.
 
 ## Referências
 
@@ -128,7 +143,7 @@ docker compose run --rm app python -m metrics verify --extracted data/metrics
 
 | Comando | Verificado em | Revisão |
 |---|---|---|
-| `compute` | pendente | — |
-| `figures` | pendente | — |
-| `package` | pendente | — |
-| `verify` | pendente | — |
+| `compute` | 2026-11-14 | bf6cc21+dirty |
+| `figures` | 2026-11-14 | bf6cc21+dirty |
+| `package` | 2026-11-14 | bf6cc21+dirty |
+| `verify` | 2026-11-14 | bf6cc21+dirty |

@@ -14,45 +14,32 @@ Compila e executa código C++ de terceiros em isolamento, sob limites de tempo, 
 Tudo aqui roda no serviço **`sandbox`** do Docker Compose, que **não tem internet** de propósito e
 é o único autorizado a compilar e executar código C++ de terceiros.
 
-> **Depois de um `git pull` que altere o `Dockerfile`** (por exemplo, quando o lançador
-> `sandbox-launch` foi acrescentado) rode `docker compose build` de novo; sem isso o motor não
-> encontra o lançador e os comandos abaixo terminam com `infrastructure failure`.
+> Se um `git pull` alterar o `Dockerfile`, rode `docker compose build` de novo; sem isso o motor
+> não encontra o lançador e os comandos abaixo terminam com `infrastructure failure`.
 
 ### O que este módulo faz, na prática
 
 É uma biblioteca Python (`src/sandbox/`), sem comando próprio: quem o usa é o módulo
 [`dataset`](../dataset/README.md) (para validar os códigos do dataset), o
 [`mutation`](../mutation/README.md) (para conferir cada mutante) e a
-[avaliação](../evaluation/README.md) (para executar as suítes), sempre sem alteração. Para cada programa ele: grava o código-fonte num diretório privado do
+[avaliação](../evaluation/README.md) (para executar as suítes), sempre sem alteração. Para cada
+programa ele: grava o código-fonte num diretório privado do
 "slot" (um trabalhador), compila com as flags do juiz original e uma cascata de padrões
 (`gnu++20`, `gnu++17`, `gnu++14`, `gnu++11`), roda cada teste como um usuário sem privilégios (um
 `uid` por slot, sem rede, sem capabilities), com os limites do problema, e dá o veredito do
 **primeiro teste que falhar**. Falha do próprio ambiente nunca vira veredito: vira um erro de
 infraestrutura (`InfraError`).
 
-### Passo a passo
+Não há dado distribuído nem gerado por este módulo, então não há cenário A (do zero) e B
+(descompactar): quem rodou o experimento do zero e quem só descompactou o que existe conferem o motor
+da mesma forma, com os dois comandos abaixo, depois do `docker compose build` do guia da raiz.
 
-1. **Conferir o motor (`selfcheck`).** Roda 9 programas de veredito conhecido (um `AC`, um `WA`,
-   um `TLE`, um `MLE`, um `RE`, um `CE`, uma recursão profunda que só passa com a pilha de 256 MiB,
-   um que só compila em `gnu++14` e um estável), cada um duas vezes, e compara o veredito obtido
-   com o esperado:
+### Comandos
 
-   ```bash
-   docker compose run --rm sandbox python -m dataset selfcheck
-   ```
-
-   Leva cerca de 7 segundos. Esperado: uma linha `ok   <caso>: expected X, obtained X` por caso,
-   a última linha `selfcheck OK: 9/9 cases` e código de saída `0` (`echo $?`). É também o portão de
-   entrada do `dataset validate` e do `evaluation run`: se falhar, nenhum código real é executado.
-
-2. **Rodar os testes do motor.** Unidades e integração (compilam e executam C++ de verdade,
-   inclusive testes de isolamento, fork bomb e limites):
-
-   ```bash
-   docker compose run --rm sandbox pytest tests/sandbox
-   ```
-
-   Esperado: a última linha diz `passed` e não menciona `failed`.
+| Comando | Serviço | O que faz / variações |
+|---|---|---|
+| `python -m dataset selfcheck` | `sandbox` | roda 9 programas de veredito conhecido (um `AC`, um `WA`, um `TLE`, um `MLE`, um `RE`, um `CE`, uma recursão profunda que só passa com a pilha de 256 MiB, um que só compila em `gnu++14` e um estável), cada um duas vezes, e compara o veredito obtido com o esperado (cerca de 7 s medidos). Esperado: uma linha `ok   <caso>: expected X, obtained X, standard gnu++20` por caso (`ce` não tem padrão; `cascade_fallback` mostra `gnu++14`), a última linha `selfcheck OK: 9/9 cases` e código de saída `0` (`echo $?`). É também o portão de entrada do `dataset validate` e do `evaluation run`: se falhar, nenhum código real é executado |
+| `pytest tests/sandbox` | `sandbox` | unidades e integração do motor (compilam e executam C++ de verdade, inclusive testes de isolamento, fork bomb e limites). Esperado: a última linha diz `passed` e não menciona `failed` |
 
 ### Se algo der errado
 
@@ -118,8 +105,7 @@ no repositório.
 - **`MLE` e `RE` por `abort()`** não se distinguem só pelo sinal: o motor procura `bad_alloc` no
   `stderr`. Um programa que trata a falha de alocação e sai com erro é `RE`.
 - **Comparação de saída** ignora só espaços no fim das linhas e linhas em branco no fim do
-  arquivo; e o **tempo** é de CPU do processo, não de parede. Essas duas regras foram confirmadas
-  com uma amostra piloto antes da execução completa do dataset (metodologia, seção 1.4).
+  arquivo; e o **tempo** é de CPU do processo, não de parede (metodologia, seção 1.4).
 - **Precisa das cinco capabilities** listadas em (e); Docker rootless não funciona. O `selfcheck`
   falha de forma explícita nesse caso.
 - Um programa cria no máximo **30 processos filhos** (o limite de 32 conta o lançador e o próprio

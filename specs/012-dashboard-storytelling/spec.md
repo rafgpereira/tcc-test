@@ -4,10 +4,10 @@
 
 **Created**: 2026-11-12
 
-**Status**: Draft
+**Status**: Parcial (as 4 páginas e a cópia pública implementadas; US4 / remoção do código antigo adiada, ver tasks T034–T046)
 
 **Input**: User description: refatorar o painel de resultados (feature 011) para contar a história
-do TCC, conforme o roteiro aprovado em `docs/roteiro-painel.md`: três páginas (o experimento, a
+do TCC, conforme o roteiro aprovado em `docs/roteiro-painel.md` (consolidado na metodologia, seção do painel): três páginas (o experimento, a
 avaliação, as métricas), filtros só na barra lateral e sempre aplicados (com o rating como filtro
 novo), placar dos 5 conjuntos pelas métricas com gabarito do AC, seções por métrica com
 título-conclusão calculado dos dados, troca detecta × erra, contexto (cenários e IIC), custo, e um
@@ -36,7 +36,7 @@ leitor o que concluir. Com o experimento terminado (200 problemas, 4 IAs + a 1ª
 local, 3 cenários, métricas calculadas), o painel passa a ser também o lugar onde a banca e qualquer
 leitor do link público entendem os resultados.
 
-O roteiro (`docs/roteiro-painel.md`, método de *visual storytelling*: contexto → avaliação →
+O roteiro (`docs/roteiro-painel.md` (consolidado na metodologia, seção do painel), método de *visual storytelling*: contexto → avaliação →
 resultados, título que é a conclusão, anotação do achado, denominador visível, honestidade sobre
 quem perde) foi aprovado pelos autores em 2026-11-12 com estas decisões:
 

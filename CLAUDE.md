@@ -38,8 +38,10 @@ TCC de dupla — Milena e Rafael, UnB.
   densidade, Friedman/Wilcoxon/McNemar com Holm e A12, e as figuras (desenhadas sob demanda, fora do
   pacote); tabelas em `data/metrics/`
   (`specs/010-metrics/`)
-- `src/cli/` — comandos que cruzam módulos (hoje `check`) e, no futuro, o orquestrador que amarra tudo
-  (cada `src/<modulo>/` tem `README.md` no formato de `docs/template-modulo.md`)
+- `src/cli/` — comando que cruza módulos: `check` (consistência entre os artefatos). Não há
+  orquestrador ponta a ponta (descartado pelos autores em 2026-11-14): cada etapa roda pelo seu
+  módulo, seguindo o `README.md` dele (cada `src/<modulo>/` tem `README.md` no formato de
+  `docs/template-modulo.md`)
 - `data/dataset.zip` — dataset validado, compactado e versionado; hoje a **revisão 2** (2026-10-18: 104
   enunciados corrigidos, nenhum outro arquivo mudou; o que mudou em `manifests/dataset_revision.json`,
   as decisões dos 15 revisados em `manifests/statement_decisions/`). A revisão 1 fica em
@@ -53,13 +55,18 @@ TCC de dupla — Milena e Rafael, UnB.
   hashes
 - `data/statement_originals.zip` + `manifests/statement_originals.manifest.json` +
   `manifests/statement_fidelity_report.json` — os enunciados originais do Codeforces (só o bloco do
-  enunciado, com hash) e a conferência deles contra os `enunciado.md` do dataset (2026-10-18: 152
-  expoentes perdidos em 79 problemas, 701 índices em 74), base da revisão 2 do dataset
+  enunciado, com hash) e a conferência deles contra os `enunciado.md` do dataset (2026-10-18, antes da
+  revisão 2: 152 expoentes perdidos em 79 problemas, 701 índices em 74, base da revisão 2; hoje o
+  relatório é o da revisão 2: 185 enunciados fiéis e 15 com diferença de fórmula ou outra, nenhum
+  expoente ou índice perdido)
 - `data/slm_suites.zip` + `manifests/slm_suites.manifest.json` +
   `manifests/slm_generation_report.json` — pacote final do SLM, seu manifesto e o relatório; desde
   2026-10-22 o pacote junta a execução da revisão 1 (392 combinações) e a refeita na revisão 2 (as 208
   afetadas), com a origem em `provenance.json` (504 `accepted`, 95 `accepted_fallback`, 1
   `accepted_predicted`)
+- `data/evaluation_<conjunto>.zip` (`slm`, `gpt`, `gemini`, `claude`, `slm-attempt1`) +
+  `manifests/evaluation_<conjunto>.manifest.json` — a avaliação completa de cada conjunto (600
+  combinações cada), e `data/metrics.zip` + manifesto — as tabelas das métricas (sem figuras)
 - `data/gpt_suites.zip`, `data/gemini_suites.zip`, `data/claude_suites.zip` + `manifests/<modelo>_suites.manifest.json` +
   `manifests/<modelo>_generation_report.json` — pacotes da execução final de cada modelo
   comercial; os do Gemini (599 `accepted_predicted` e 1 `accepted_barred`, US$ 4,90) e do GPT (600

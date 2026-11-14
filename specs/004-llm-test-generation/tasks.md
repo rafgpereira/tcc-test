@@ -320,7 +320,7 @@ Já feito de T060: o leitor comum leu as 600 suítes reais do SLM (os 1.200 dos 
 T057). T055 a T060 dependem de chamadas pagas e de decisões dos autores.
 
 - [X] T054 Rodar `docker compose run --rm app ruff check .` e `docker compose run --rm app black --check .`; corrigir o que aparecer
-- [ ] T055 📌 PROPAGAR — **Piloto** ([quickstart.md](./quickstart.md), nível 4; FR-023a). *(Gemini feito e registrado em 2026-10-16, `research.md` R15: 15 de 15 suítes na 1ª tentativa, US$ 0,126; falta o GPT.)*
+- [X] T055 📌 PROPAGAR — **Piloto** ([quickstart.md](./quickstart.md), nível 4; FR-023a). *(Gemini feito e registrado em 2026-10-16, `research.md` R15: 15 de 15 suítes na 1ª tentativa, US$ 0,126; falta o GPT.)* *(Concluída: pilotos de 2026-10-16 registrados em `research.md` R15 e na metodologia, seção 3; a execução completa que se seguiu partiu do zero.)*
   - **Primeiro passo, obrigatório:** `docker compose run --rm app python -m cli check --deep` sai `0`; se não sair, parar.
   - **Execução:** dry-run e depois `generate --model gpt` e `--model gemini`, em paralelo, com `--problem 1000_B --problem 1005_C --problem 1008_B --problem 1_B --problem 61_B` e `--confirm-spend <teto combinado com os autores>`.
   - **Conferir e registrar** (`research.md` A3, R3, R9, R12; metodologia seção 3, seção 6 item 32 e seção 8):
@@ -335,14 +335,14 @@ T057). T055 a T060 dependem de chamadas pagas e de decisões dos autores.
     9. Esperas de infraestrutura e 429.
     10. Custo real × estimativa do dry-run (SC-009).
   - **Fechamento:** `report --model gpt|gemini`, salvos como `manifests/<m>_generation_report.piloto1.json`; carimbar `generate`, `report` e `close` (se usado) no README.
-- [ ] T056 📌 PROPAGAR — **Ponto de decisão com os autores** (depois de T055):
+- [X] T056 📌 PROPAGAR — **Ponto de decisão com os autores** (depois de T055): *(Concluída: `MAX_OUTPUT_TOKENS = 32768` e `CHARS_PER_TOKEN` medidos fixados em `src/ai_clients/llm/config.py`; registro em `research.md` e na metodologia.)*
   - **Teto de saída:** fixar `MAX_OUTPUT_TOKENS` (R12).
   - **Razão de tokens:** trocar `CHARS_PER_TOKEN` pelas razões medidas, com data e origem no comentário de `src/ai_clients/llm/config.py` (R9).
   - **Revisões:** revisitar a A13 se houve bloqueio e, se necessário, o texto-base. Um texto novo vai direto para `llm_prompt.txt`, sem `change-template`, porque o piloto é descartado e a execução completa começa do zero (FR-023a).
   - **Concorrência:** ajustar `*_MAX_CONCURRENCY` ao limite de requisições observado.
   - **Pastas do piloto:** mover `data/suites/gpt` e `data/suites/gemini` para `data/suites/<m>-piloto1`.
   - **Registro:** registrar tudo em `spec.md` (FR-023), `research.md`, `plan.md` (S4, S6) e na metodologia. **Não avançar para T057 sem esta tarefa propagada.**
-- [ ] T057 📌 PROPAGAR — **Execução completa** (quickstart, nível 5).
+- [X] T057 📌 PROPAGAR — **Execução completa** (quickstart, nível 5). *(Concluída: execução final dos 3 modelos comerciais em 2026-10-20 sobre a revisão 2 do dataset; resultados na seção 3 da `docs/metodologia-referencia.md`.)*
   - **Primeiro passo, obrigatório:** `docker compose run --rm app python -m cli check --deep` sai `0`.
   - **Execução:** para cada modelo, `generate --dry-run` (com a razão medida) e depois `generate --confirm-spend <teto>`, repetido com `--resume` até não sobrar pendência; `close` para cada `awaiting_manual`, com o motivo decidido pelos autores.
   - **Fechamento:** `report`, `package` e `verify --extracted data/suites/<m>`; `python -m cli check --deep` sai `0` com as camadas `gpt_suites` e `gemini_suites` (SC-008).
@@ -356,21 +356,21 @@ T057). T055 a T060 dependem de chamadas pagas e de decisões dos autores.
     7. Respostas barradas.
     8. Interrupções e retomadas.
   - **Carimbo:** carimbar `package` e `verify` no README.
-- [ ] T058 📌 PROPAGAR — **Documentação de uso**:
+- [X] T058 📌 PROPAGAR — **Documentação de uso**: *(Concluída: READMEs e `CLAUDE.md` descrevem os 3 modelos; revisados na limpeza final de 2026-11-14.)*
   - **`src/ai_clients/README.md`:** os 3 modelos nos dois cenários e todos os comandos na tabela única, com as variações `--model`, `--confirm-spend`, `--dry-run`, `--resume`, `--problem`, `--scenario`, `--limit`, `--extracted`, os códigos 4, 5 e 6, e o que a interrupção, o teto e a barreira fazem.
   - **`README.md` da raiz:** "Referência de comandos" com cada comando novo; "Estado atual"; a tabela de módulos; a preparação do `.env` com as chaves.
   - **`CLAUDE.md`:** "Comandos do dia a dia" com os LLMs, e `data/gpt_suites.zip`/`data/gemini_suites.zip` na "Estrutura".
   - **Revisão de prosa:** procurar por `grep` "em especificação", "planejad" e "Gemini 3.5" nos dois READMEs e corrigir o que contradiga a tabela.
   - **Metodologia:** marcar a seção 3 como implementada, com uma linha na seção 8.
   - **Checagem:** `docker compose run --rm app python scripts/check_docs_sync.py --module src/ai_clients --cli "python -m ai_clients" --cli-owner src/ai_clients` sai `0`.
-- [ ] T059 Constitution v1.7.1 compliance review: refazer a tabela "Constitution Check" de `plan.md` contra o código implementado. Em especial:
+- [ ] T059 Constitution v1.7.1 compliance review: refazer a tabela "Constitution Check" de `plan.md` contra o código implementado. Em especial: *(2026-11-14: as conferências automáticas passaram; falta o registro da revisão do código por um dos autores — quem e quando — antes de marcar.)*
   - **III:** `grep -rn "temperature\|top_p\|topP\|seed\|instructions\|systemInstruction\|safetySettings\|previous_response_id" src/ai_clients/llm` mostra só a lista de campos proibidos do validador.
   - **VIII:** nenhum caminho que chega a `LLMProvider.call` sem `--confirm-spend`.
   - **IX:** `pyproject.toml` e `uv.lock` sem mudança.
   - **FR-014 (nada executado):** `grep -rn "sandbox\|subprocess\|os.system\|exec(" src/ai_clients/llm` não encontra nada.
 
   Desvios vão em "Complexity Tracking". Um dos autores revisa o código gerado com apoio de IA (Princípio X); registrar quem e quando.
-- [ ] T060 📌 PROPAGAR — Fechamento:
+- [ ] T060 📌 PROPAGAR — Fechamento: *(2026-11-14: suíte inteira rodada; o `--closing` ainda aponta carimbos de "Comandos verificados" em revisão `+dirty` ou `pendente` em outras features; só fecha ao recarimbar em revisão commitada. Os carimbos dos comandos pagos (`generate`) não devem ser refeitos só para isso.)*
   - `docker compose run --rm sandbox pytest` (suíte inteira) passa.
   - **SC-007 sobre os dados reais:** com `data/suites/slm` descompactado de `data/slm_suites.zip` (`unzip data/slm_suites.zip -d data/`, se ainda não estiver), as 600 `suite.json` do SLM validam no `SlmSuite` **e** são lidas por `read_suite_view`, e as 1.200 dos LLMs (T057) são lidas por `read_suite_view`. Conferir com um comando de uma linha no serviço `app` (`python -c` que percorre as três pastas) e registrar o resultado (contagens e zero recusas) na seção 3 da metodologia e no SC-007 de `spec.md`.
   - **Documentação:** `docker compose run --rm app python scripts/check_docs_sync.py --closing --feature specs/004-llm-test-generation` sai `0` (SC-008).

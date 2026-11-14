@@ -4,11 +4,11 @@
 
 **Created**: 2026-11-09
 
-**Status**: Draft
+**Status**: Implemented (`compute` executado em 2026-11-09; carimbos de comando em revisão commitada pendentes, ver tasks T030–T031)
 
 **Input**: User description: "do modulo de metricas" — o módulo que calcula as métricas do TCC a
 partir dos resultados da avaliação (feature 009), segundo a proposta consolidada em
-`docs/metricas-referencia.md`, confirmada pelos autores em 2026-11-04 **sem C.5
+`docs/metricas-referencia.md` (consolidado na metodologia, seção 5), confirmada pelos autores em 2026-11-04 **sem C.5
 (complementaridade) e sem C.6 (IIC sobre mutantes)**.
 
 ## Contexto
@@ -20,7 +20,7 @@ corrigido pelo `AC_ref`) e os conjuntos exatos de detectados. As tentativas de g
 custo (US$, só os comerciais), *tokens* e tempo de cada pedido.
 
 Esta feature transforma esses dados nas métricas que respondem às perguntas da pesquisa (Q1 a Q5 de
-`docs/metricas-referencia.md`, seção A), com a camada estatística que sustenta qualquer afirmação
+`docs/metricas-referencia.md` (consolidado na metodologia, seção 5), seção A), com a camada estatística que sustenta qualquer afirmação
 "X é melhor que Y", e incorpora a proposta confirmada à seção 5 de `docs/metodologia-referencia.md`.
 O dashboard (feature 011) passa a exibir essas tabelas sem recalcular nada.
 
@@ -309,7 +309,7 @@ com o mesmo filtro, e o rodapé diz o filtro e a fonte.
 
 ## Assumptions
 
-- A proposta de `docs/metricas-referencia.md` foi confirmada pelos autores em 2026-11-04, sem C.5 e
+- A proposta de `docs/metricas-referencia.md` (consolidado na metodologia, seção 5) foi confirmada pelos autores em 2026-11-04, sem C.5 e
   C.6; depois de incorporada à metodologia, aquele arquivo é removido ou arquivado com o ok dos
   autores.
 - O modelo local é comparado pela suíte final (`slm`); `slm-attempt1` é a leitura complementar.

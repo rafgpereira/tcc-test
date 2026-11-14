@@ -57,4 +57,4 @@ merged: 234 combinations from suites/slm (revision 2), 366 from suites/slm-rev1 
 |---|---|
 | `python -m dataset verify` | Confere a revisão 2. A revisão 1, só como **auditoria**: `--zip data/dataset.rev1.zip --manifest manifests/dataset.rev1.manifest.json`. Conferir a integridade da revisão guardada é permitido; nenhum comando de geração, execução ou métrica a lê (constitution 1.8.0, obrigação b). |
 | `python -m cli check` | A camada `slm_suites` aceita a junção, usando a árvore indicada em `provenance.json`. |
-| `python -m mutation report` | Sem mudança de código; rodado de novo para apontar para a revisão 2 (F4). |
+| `python -m mutation report` | Sem mudança de código e **não rodado** na revisão 2 (emenda de F4, Milena, 2026-10-18): os mutantes não dependem dos enunciados, e `manifests/mutation_report.json` guarda o manifesto de dataset da época da geração. |
